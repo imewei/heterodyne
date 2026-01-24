@@ -1,0 +1,174 @@
+# Heterodyne XPCS Analysis Configuration Template
+# ================================================
+# This template configures 14-parameter two-component correlation analysis.
+# Copy and modify for your specific experiment.
+
+# Experimental Data
+# -----------------
+experimental_data:
+  # Path to HDF5/NPZ data file containing correlation matrices
+  file_path: ""
+  
+  # Optional: folder containing multiple data files
+  data_folder_path: ""
+  
+  # File format: "hdf5", "npz", or "mat"
+  file_format: "hdf5"
+
+# Temporal Settings
+# -----------------
+temporal:
+  # Time step between frames (seconds)
+  dt: 1.0
+  
+  # Number of time points in correlation matrix
+  time_length: 1000
+  
+  # Starting time index (optional, default 0)
+  t_start: 0
+
+# Scattering Geometry
+# -------------------
+scattering:
+  # Scattering wavevector magnitude (1/nm)
+  wavevector_q: 0.01
+  
+  # Optional: list of phi angles to analyze (degrees)
+  # If not specified, analyzes all angles in data
+  # phi_angles: [0, 45, 90, 135, 180]
+
+# Model Parameters (14 total)
+# ===========================
+# Each parameter can be specified as:
+#   value: initial/fixed value
+#   min: lower bound
+#   max: upper bound
+#   vary: true/false (whether to optimize)
+#
+# Physical model:
+#   c2(t1,t2,phi) = [ref_term + sample_term + cross_term] / f^2
+#   ref_term = (f_r(t1)*f_r(t2)*g1_r)^2
+#   sample_term = (f_s(t1)*f_s(t2)*g1_s)^2
+#   cross_term = 2*f_r(t1)*f_r(t2)*f_s(t1)*f_s(t2)*g1_r*g1_s*cos(q*cos(phi)*integral(v(t)dt))
+
+parameters:
+  # Reference Transport: J_r(t) = D0_ref * t^alpha_ref + D_offset_ref
+  # g1_r = exp(-q^2 * J_r(t))
+  reference:
+    D0_ref:
+      value: 1.0
+      min: 0.0
+      max: 1000000.0
+      vary: true
+    alpha_ref:
+      value: 1.0
+      min: -2.0
+      max: 2.0
+      vary: true
+    D_offset_ref:
+      value: 0.0
+      min: -100000.0
+      max: 100000.0
+      vary: false
+
+  # Sample Transport: J_s(t) = D0_sample * t^alpha_sample + D_offset_sample
+  # g1_s = exp(-q^2 * J_s(t))
+  sample:
+    D0_sample:
+      value: 1.0
+      min: 0.0
+      max: 1000000.0
+      vary: true
+    alpha_sample:
+      value: 1.0
+      min: -2.0
+      max: 2.0
+      vary: true
+    D_offset_sample:
+      value: 0.0
+      min: -100000.0
+      max: 100000.0
+      vary: false
+
+  # Velocity Field: v(t) = v0 * t^beta + v_offset
+  # Used in cross-term phase: q * cos(phi) * integral(v(t)dt)
+  velocity:
+    v0:
+      value: 0.0
+      min: -10000.0
+      max: 10000.0
+      vary: true
+    beta:
+      value: 0.0
+      min: -2.0
+      max: 2.0
+      vary: false
+    v_offset:
+      value: 0.0
+      min: -10000.0
+      max: 10000.0
+      vary: false
+
+  # Sample Fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3
+  # Reference fraction: f_r(t) = 1 - f_s(t)
+  # Fraction is clipped to [0, 1]
+  fraction:
+    f0:
+      value: 0.5
+      min: 0.0
+      max: 1.0
+      vary: true
+    f1:
+      value: 0.0
+      min: -10.0
+      max: 10.0
+      vary: false
+    f2:
+      value: 0.0
+      min: -1000.0
+      max: 1000.0
+      vary: false
+    f3:
+      value: 0.0
+      min: 0.0
+      max: 1.0
+      vary: false
+
+  # Flow Angle: angle between q-vector and flow direction
+  angle:
+    phi0:
+      value: 0.0
+      min: -360.0
+      max: 360.0
+      vary: true
+
+# Optimization Settings
+# ---------------------
+optimization:
+  # Primary method: "nlsq" (non-linear least squares) or "cmc" (Consensus Monte Carlo)
+  method: "nlsq"
+  
+  # NLSQ Settings
+  nlsq:
+    max_iterations: 100
+    tolerance: 1.0e-8
+    method: "trf"  # "trf" (trust region) or "lm" (Levenberg-Marquardt)
+    multistart: false
+    multistart_n: 10
+  
+  # CMC (Bayesian) Settings
+  cmc:
+    # "auto": run if data supports it, "always": force CMC, "never": skip
+    enable: "auto"
+    num_warmup: 500
+    num_samples: 1000
+    num_chains: 4
+    target_accept: 0.8
+
+# Output Settings
+# ---------------
+output:
+  output_dir: "./output"
+  save_correlation: true
+  save_residuals: true
+  format: "both"  # "json", "npz", or "both"
