@@ -144,7 +144,8 @@ class NLSQAdapter(NLSQAdapterBase):
             uncertainties = None
             if covariance is not None:
                 try:
-                    uncertainties = np.sqrt(np.diag(covariance))
+                    with np.errstate(invalid='raise'):
+                        uncertainties = np.sqrt(np.diag(covariance))
                 except Exception:
                     logger.warning("Could not extract uncertainties from covariance")
 
