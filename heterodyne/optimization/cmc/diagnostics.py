@@ -135,10 +135,15 @@ def compute_r_hat(samples: np.ndarray) -> float:
     
     # Pooled variance estimate
     var_hat = (1 - 1/n_samples) * W + B / n_samples
-    
-    # R-hat
+
+    # R-hat (handle degenerate case where W=0)
+    if W == 0:
+        # No within-chain variance: if B=0 too, chains are identical (R-hat=1)
+        # otherwise chains haven't mixed (R-hat=inf)
+        return 1.0 if B == 0 else float("inf")
+
     r_hat = np.sqrt(var_hat / W)
-    
+
     return float(r_hat)
 
 
@@ -158,6 +163,11 @@ def compute_ess(samples: np.ndarray) -> float:
     
     # Autocorrelation via FFT
     acf = np.correlate(x, x, mode='full')[n-1:]
+
+    # Handle degenerate case where samples are constant (no variance)
+    if acf[0] == 0:
+        return 1.0  # Constant samples = effectively 1 independent sample
+
     acf = acf / acf[0]
     
     # Find first negative autocorrelation
