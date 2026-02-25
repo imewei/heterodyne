@@ -210,3 +210,4 @@ __marimo__/
 .claude/
 agent-os/
 .DS_Store
+.worktrees/
