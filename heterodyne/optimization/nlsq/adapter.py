@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -17,6 +18,77 @@ if TYPE_CHECKING:
     pass
 
 logger = get_logger(__name__)
+
+# ---------------------------------------------------------------------------
+# Model cache — avoids re-JIT-compiling CurveFit for identical problem shapes
+# ---------------------------------------------------------------------------
+_MODEL_CACHE_MAX_SIZE = 8
+
+
+@dataclass(frozen=True)
+class ModelCacheKey:
+    """Cache key for CurveFit instances."""
+
+    n_data: int
+    n_params: int
+
+
+@dataclass
+class CachedModel:
+    """A cached CurveFit instance with usage stats."""
+
+    fitter: object  # nlsq.CurveFit
+    created_at: float = field(default_factory=time.monotonic)
+    last_accessed: float = field(default_factory=time.monotonic)
+    n_hits: int = 0
+
+
+_model_cache: dict[ModelCacheKey, CachedModel] = {}
+_cache_stats: dict[str, int] = {"hits": 0, "misses": 0}
+
+
+def get_or_create_fitter(n_data: int, n_params: int) -> tuple[object, bool]:
+    """Get a CurveFit instance from cache or create a new one.
+
+    Args:
+        n_data: Number of data points (flength).
+        n_params: Number of parameters.
+
+    Returns:
+        Tuple of (CurveFit fitter, cache_hit: bool).
+    """
+    from nlsq import CurveFit
+
+    key = ModelCacheKey(n_data=n_data, n_params=n_params)
+
+    if key in _model_cache:
+        _model_cache[key].last_accessed = time.monotonic()
+        _model_cache[key].n_hits += 1
+        _cache_stats["hits"] += 1
+        return _model_cache[key].fitter, True
+
+    _cache_stats["misses"] += 1
+
+    # Evict oldest entry if cache is full
+    if len(_model_cache) >= _MODEL_CACHE_MAX_SIZE:
+        oldest_key = min(_model_cache, key=lambda k: _model_cache[k].last_accessed)
+        del _model_cache[oldest_key]
+
+    fitter = CurveFit(flength=float(n_data))
+    _model_cache[key] = CachedModel(fitter=fitter)
+    return fitter, False
+
+
+def clear_model_cache() -> None:
+    """Clear the CurveFit model cache."""
+    _model_cache.clear()
+    _cache_stats["hits"] = 0
+    _cache_stats["misses"] = 0
+
+
+def get_cache_stats() -> dict[str, int]:
+    """Get cache hit/miss statistics."""
+    return {**_cache_stats, "size": len(_model_cache)}
 
 
 class NLSQAdapter(NLSQAdapterBase):
@@ -100,8 +172,6 @@ class NLSQAdapter(NLSQAdapterBase):
         Returns:
             NLSQResult with fit results
         """
-        from nlsq import CurveFit
-
         start_time = time.perf_counter()
 
         lower_bounds, upper_bounds = bounds
@@ -117,8 +187,10 @@ class NLSQAdapter(NLSQAdapterBase):
             xdata = np.arange(n_data, dtype=np.float64)
             ydata = np.zeros(n_data, dtype=np.float64)  # Target is zero residuals
 
-            # Create CurveFit instance
-            fitter = CurveFit(flength=float(n_data))
+            # Get or create CurveFit instance (cached by shape)
+            fitter, cache_hit = get_or_create_fitter(n_data, n_params)
+            if cache_hit:
+                logger.debug(f"CurveFit cache hit for shape ({n_data}, {n_params})")
 
             # Run optimization
             fitted_params, covariance = fitter.curve_fit(
@@ -267,8 +339,16 @@ class ScipyNLSQAdapter(NLSQAdapterBase):
                     jtj = result.jac.T @ result.jac
                     # Covariance = (J^T J)^-1 * s^2 where s^2 is residual variance
                     s2 = 2 * final_cost / n_dof if n_dof > 0 else 1.0
-                    covariance = np.linalg.inv(jtj) * s2
-                    uncertainties = np.sqrt(np.diag(covariance))
+                    cond = np.linalg.cond(jtj)
+                    if cond > 1e12:
+                        logger.warning(
+                            f"Ill-conditioned J^T J (cond={cond:.2e}), "
+                            f"using pseudo-inverse"
+                        )
+                        covariance = np.linalg.pinv(jtj) * s2
+                    else:
+                        covariance = np.linalg.inv(jtj) * s2
+                    uncertainties = np.sqrt(np.maximum(np.diag(covariance), 0.0))
                 except np.linalg.LinAlgError:
                     logger.warning("Could not compute covariance matrix")
 

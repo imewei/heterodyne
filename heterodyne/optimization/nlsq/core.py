@@ -10,6 +10,7 @@ import numpy as np
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 from heterodyne.optimization.nlsq.adapter import NLSQAdapter, ScipyNLSQAdapter
 from heterodyne.optimization.nlsq.config import NLSQConfig
+from heterodyne.optimization.nlsq.memory import NLSQStrategy, select_nlsq_strategy
 from heterodyne.optimization.nlsq.multistart import MultiStartOptimizer
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import get_logger
@@ -52,6 +53,16 @@ def fit_nlsq_jax(
     n_varying = param_manager.n_varying
 
     logger.info(f"Fitting {n_varying} parameters: {varying_names}")
+
+    # Memory-aware strategy selection
+    n_data_est = np.asarray(c2_data).size
+    decision = select_nlsq_strategy(n_data_est, n_varying)
+    if decision.strategy == NLSQStrategy.OUT_OF_CORE:
+        logger.warning(
+            f"Estimated peak memory ({decision.peak_memory_gb:.2f} GB) exceeds "
+            f"threshold ({decision.threshold_gb:.2f} GB). "
+            f"Fit may fail with OOM. Consider reducing data size or increasing memory."
+        )
 
     # Get initial values and bounds for varying parameters
     initial_varying = param_manager.get_initial_values()

@@ -39,6 +39,10 @@ class CMCConfig:
     
     # NLSQ warm-start
     use_nlsq_warmstart: bool = True
+
+    # Reparameterization
+    use_reparam: bool = True
+    prior_width_factor: float = 2.0
     
     def __post_init__(self) -> None:
         """Validate configuration."""
@@ -58,7 +62,7 @@ class CMCConfig:
             "enable", "num_warmup", "num_samples", "num_chains",
             "target_accept", "max_tree_depth", "seed", "dense_mass",
             "init_strategy", "r_hat_threshold", "min_ess", "min_bfmi",
-            "use_nlsq_warmstart",
+            "use_nlsq_warmstart", "use_reparam", "prior_width_factor",
         }
         filtered = {k: v for k, v in config.items() if k in known_fields}
         return cls(**filtered)
@@ -79,4 +83,6 @@ class CMCConfig:
             "min_ess": self.min_ess,
             "min_bfmi": self.min_bfmi,
             "use_nlsq_warmstart": self.use_nlsq_warmstart,
+            "use_reparam": self.use_reparam,
+            "prior_width_factor": self.prior_width_factor,
         }

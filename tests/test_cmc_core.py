@@ -465,3 +465,158 @@ class TestBugPrevention_MultiChainInit:
                 f"Multi-chain CMC raised IndexError: {e}\n"
                 "This indicates init_params have wrong shape."
             )
+
+
+# ============================================================================
+# Test reparameterization backward compatibility
+# ============================================================================
+
+
+class TestReparamBackwardCompat:
+    """Tests that use_reparam=False preserves existing behavior."""
+
+    @pytest.mark.unit
+    def test_config_defaults(self) -> None:
+        """New CMCConfig fields have expected defaults."""
+        from heterodyne import CMCConfig
+
+        config = CMCConfig()
+        assert config.use_reparam is True
+        assert config.prior_width_factor == 2.0
+
+    @pytest.mark.unit
+    def test_config_from_dict_new_fields(self) -> None:
+        """from_dict picks up new fields."""
+        from heterodyne import CMCConfig
+
+        config = CMCConfig.from_dict({
+            "num_warmup": 100,
+            "num_samples": 100,
+            "use_reparam": False,
+            "prior_width_factor": 3.0,
+        })
+        assert config.use_reparam is False
+        assert config.prior_width_factor == 3.0
+
+    @pytest.mark.unit
+    def test_config_to_dict_new_fields(self) -> None:
+        """to_dict includes new fields."""
+        from heterodyne import CMCConfig
+
+        config = CMCConfig()
+        d = config.to_dict()
+        assert "use_reparam" in d
+        assert "prior_width_factor" in d
+
+    @pytest.mark.unit
+    @pytest.mark.slow
+    @pytest.mark.mcmc
+    def test_reparam_disabled_runs(
+        self,
+        small_heterodyne_model: HeterodyneModel,
+        small_c2_data: np.ndarray,
+    ) -> None:
+        """CMC with use_reparam=False runs successfully (legacy path)."""
+        from heterodyne import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_jax
+
+        config = CMCConfig(
+            num_chains=1,
+            num_warmup=100,
+            num_samples=100,
+            seed=42,
+            use_reparam=False,
+        )
+
+        result = fit_cmc_jax(
+            model=small_heterodyne_model,
+            c2_data=small_c2_data,
+            config=config,
+        )
+
+        assert result is not None
+        assert result.num_chains == 1
+
+
+class TestReparamMetadata:
+    """Tests that reparameterized CMC stores expected metadata."""
+
+    @pytest.mark.unit
+    @pytest.mark.slow
+    @pytest.mark.mcmc
+    def test_metadata_with_reparam(
+        self,
+        small_heterodyne_model: HeterodyneModel,
+        small_c2_data: np.ndarray,
+    ) -> None:
+        """CMC with reparam stores t_ref and prior_std in metadata."""
+        from heterodyne import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_jax
+        from heterodyne.optimization.nlsq.results import NLSQResult
+
+        config = CMCConfig(
+            num_chains=1,
+            num_warmup=100,
+            num_samples=100,
+            seed=42,
+            use_reparam=True,
+        )
+
+        # Create a mock NLSQ result
+        varying_names = small_heterodyne_model.param_manager.varying_names
+        n_varying = len(varying_names)
+        initial_values = small_heterodyne_model.param_manager.get_initial_values()
+
+        nlsq_result = NLSQResult(
+            parameters=initial_values,
+            parameter_names=varying_names,
+            success=True,
+            message="mock",
+            uncertainties=np.full(n_varying, 0.1),
+        )
+
+        result = fit_cmc_jax(
+            model=small_heterodyne_model,
+            c2_data=small_c2_data,
+            config=config,
+            nlsq_result=nlsq_result,
+        )
+
+        assert result is not None
+        assert "t_ref" in result.metadata
+        assert result.metadata["t_ref"] > 0
+        assert "prior_std" in result.metadata
+        assert isinstance(result.metadata["prior_std"], dict)
+
+
+# ============================================================================
+# MCMC failure path
+# ============================================================================
+
+
+class TestMCMCFailurePath:
+    """Tests for graceful degradation when MCMC fails."""
+
+    @pytest.mark.unit
+    def test_create_failed_result_structure(self) -> None:
+        """_create_failed_result returns a valid CMCResult with error metadata."""
+        from heterodyne.optimization.cmc.core import _create_failed_result
+
+        result = _create_failed_result(["D0_ref", "alpha_ref"], "Test error")
+        assert not result.convergence_passed
+        assert result.posterior_mean.shape == (2,)
+        assert result.posterior_std.shape == (2,)
+        assert np.all(result.posterior_mean == 0.0)
+        assert np.all(result.posterior_std == 0.0)
+        assert result.credible_intervals == {}
+        assert "error" in result.metadata
+        assert result.metadata["error"] == "Test error"
+
+    @pytest.mark.unit
+    def test_create_failed_result_empty_params(self) -> None:
+        """_create_failed_result handles empty parameter list."""
+        from heterodyne.optimization.cmc.core import _create_failed_result
+
+        result = _create_failed_result([], "No params")
+        assert result.posterior_mean.shape == (0,)
+        assert not result.convergence_passed

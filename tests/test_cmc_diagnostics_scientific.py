@@ -386,3 +386,145 @@ class TestStatisticalProperties:
         ess_scaled = compute_ess(samples * 100.0)
 
         assert_allclose(ess_original, ess_scaled, rtol=0.01)
+
+
+# ============================================================================
+# Posterior Contraction Ratio (PCR) Tests
+# ============================================================================
+
+
+class TestPosteriorContraction:
+    """Tests for compute_posterior_contraction."""
+
+    @pytest.mark.unit
+    def test_pcr_strongly_constrained(self) -> None:
+        """PCR ~ 1.0 when posterior is much narrower than prior."""
+        from heterodyne.optimization.cmc.diagnostics import (
+            compute_posterior_contraction,
+        )
+        from heterodyne.optimization.cmc.results import CMCResult
+
+        result = CMCResult(
+            parameter_names=["D0_ref", "alpha_ref"],
+            posterior_mean=np.array([1.0, 0.5]),
+            posterior_std=np.array([0.01, 0.005]),
+            credible_intervals={},
+            convergence_passed=True,
+        )
+        prior_std = {"D0_ref": 1.0, "alpha_ref": 0.5}
+
+        pcr = compute_posterior_contraction(result, prior_std)
+
+        assert pcr["D0_ref"] == pytest.approx(0.99, abs=0.001)
+        assert pcr["alpha_ref"] == pytest.approx(0.99, abs=0.001)
+
+    @pytest.mark.unit
+    def test_pcr_poorly_identified(self) -> None:
+        """PCR ~ 0 when posterior is similar width to prior."""
+        from heterodyne.optimization.cmc.diagnostics import (
+            compute_posterior_contraction,
+        )
+        from heterodyne.optimization.cmc.results import CMCResult
+
+        result = CMCResult(
+            parameter_names=["D0_ref"],
+            posterior_mean=np.array([1.0]),
+            posterior_std=np.array([0.95]),
+            credible_intervals={},
+            convergence_passed=True,
+        )
+        prior_std = {"D0_ref": 1.0}
+
+        pcr = compute_posterior_contraction(result, prior_std)
+        assert pcr["D0_ref"] == pytest.approx(0.05, abs=0.001)
+
+    @pytest.mark.unit
+    def test_pcr_negative_misspecification(self) -> None:
+        """PCR < 0 when posterior is wider than prior."""
+        from heterodyne.optimization.cmc.diagnostics import (
+            compute_posterior_contraction,
+        )
+        from heterodyne.optimization.cmc.results import CMCResult
+
+        result = CMCResult(
+            parameter_names=["D0_ref"],
+            posterior_mean=np.array([1.0]),
+            posterior_std=np.array([2.0]),  # wider than prior
+            credible_intervals={},
+            convergence_passed=True,
+        )
+        prior_std = {"D0_ref": 1.0}
+
+        pcr = compute_posterior_contraction(result, prior_std)
+        assert pcr["D0_ref"] < 0
+
+    @pytest.mark.unit
+    def test_pcr_skips_missing_params(self) -> None:
+        """Parameters not in prior_std are skipped."""
+        from heterodyne.optimization.cmc.diagnostics import (
+            compute_posterior_contraction,
+        )
+        from heterodyne.optimization.cmc.results import CMCResult
+
+        result = CMCResult(
+            parameter_names=["D0_ref", "f0"],
+            posterior_mean=np.array([1.0, 0.5]),
+            posterior_std=np.array([0.1, 0.05]),
+            credible_intervals={},
+            convergence_passed=True,
+        )
+        prior_std = {"D0_ref": 1.0}  # f0 not included
+
+        pcr = compute_posterior_contraction(result, prior_std)
+        assert "D0_ref" in pcr
+        assert "f0" not in pcr
+
+    @pytest.mark.unit
+    def test_pcr_in_validate_convergence(self) -> None:
+        """validate_convergence reports PCR when prior_std is in metadata."""
+        from heterodyne.optimization.cmc.diagnostics import validate_convergence
+        from heterodyne.optimization.cmc.results import CMCResult
+
+        result = CMCResult(
+            parameter_names=["D0_ref", "alpha_ref"],
+            posterior_mean=np.array([1.0, 0.5]),
+            posterior_std=np.array([0.01, 0.4]),
+            credible_intervals={},
+            convergence_passed=True,
+            r_hat=np.array([1.01, 1.02]),
+            ess_bulk=np.array([500.0, 500.0]),
+            bfmi=[0.8, 0.9],
+            metadata={"prior_std": {"D0_ref": 1.0, "alpha_ref": 0.5}},
+        )
+
+        report = validate_convergence(result)
+        pcr_messages = [m for m in report.messages if "PCR" in m]
+        assert len(pcr_messages) == 2
+
+        # D0_ref should show high PCR (0.99)
+        d0_msg = [m for m in pcr_messages if "D0_ref" in m][0]
+        assert "0.99" in d0_msg
+
+        # alpha_ref should show low PCR (0.20)
+        alpha_msg = [m for m in pcr_messages if "alpha_ref" in m][0]
+        assert "0.20" in alpha_msg
+
+
+# ============================================================================
+# Edge cases for compute_r_hat
+# ============================================================================
+
+
+class TestRhatEdgeCases:
+    """Edge cases for the R-hat diagnostic."""
+
+    @pytest.mark.unit
+    def test_single_chain_rhat(self) -> None:
+        """Single-chain R-hat is ill-defined; should not crash."""
+        from heterodyne.optimization.cmc.diagnostics import compute_r_hat
+
+        samples = np.array([[1.0, 2.0, 3.0, 4.0, 5.0]])  # shape (1, 5)
+        r_hat = compute_r_hat(samples)
+        # With ddof=1 on 1 element, np.var gives NaN.
+        # Either NaN or 1.0 is acceptable — just don't crash.
+        assert isinstance(r_hat, float)

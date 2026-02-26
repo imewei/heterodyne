@@ -8,11 +8,17 @@ import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 
-from heterodyne.config.parameter_names import ALL_PARAM_NAMES
+from heterodyne.config.parameter_names import ALL_PARAM_NAMES, PARAM_INDICES
 from heterodyne.core.jax_backend import compute_c2_heterodyne
+from heterodyne.optimization.cmc.reparameterization import (
+    ReparamConfig,
+    reparam_to_physics_jax,
+)
+from heterodyne.optimization.cmc.scaling import ParameterScaling
 
 if TYPE_CHECKING:
     from heterodyne.config.parameter_space import ParameterSpace
+    from heterodyne.optimization.nlsq.results import NLSQResult
 
 
 def get_heterodyne_model(
@@ -81,11 +87,21 @@ def get_heterodyne_model_reparam(
     sigma: jnp.ndarray | float,
     space: ParameterSpace,
     nlsq_params: jnp.ndarray | None = None,
+    nlsq_result: NLSQResult | None = None,
+    reparam_config: ReparamConfig | None = None,
+    scalings: dict[str, ParameterScaling] | None = None,
+    prior_width_factor: float = 2.0,
 ):
     """Create NumPyro model with reparameterization for better sampling.
-    
-    Uses NLSQ results to center the posterior if available.
-    
+
+    When NLSQ result and reparameterization config are provided, uses:
+    1. Reference-time reparameterization for power-law pairs
+    2. Smooth bounded transforms (tanh) instead of jnp.clip()
+    3. NLSQ-informed priors with delta-method uncertainty propagation
+
+    Falls back to the original clip-based behavior when the new
+    infrastructure is not provided (backward compatibility).
+
     Args:
         t: Time array
         q: Wavevector
@@ -94,15 +110,35 @@ def get_heterodyne_model_reparam(
         c2_data: Observed correlation data
         sigma: Measurement uncertainty
         space: Parameter space
-        nlsq_params: Optional NLSQ fitted values for centering
-        
+        nlsq_params: Optional NLSQ fitted values for centering (legacy)
+        nlsq_result: Optional NLSQ result for reparameterization
+        reparam_config: Reparameterization config (enables new path)
+        scalings: Pre-computed ParameterScaling per reparam-space param
+        prior_width_factor: Multiplier on NLSQ uncertainty for prior width
+
     Returns:
         NumPyro model function
     """
     varying_names = space.varying_names
     fixed_values = space.get_initial_array()
-    
-    # Use NLSQ params as prior centers if available
+
+    # --- New reparameterized path ---
+    if reparam_config is not None and scalings is not None:
+        return _build_reparam_model(
+            t=t,
+            q=q,
+            dt=dt,
+            phi_angle=phi_angle,
+            c2_data=c2_data,
+            sigma=sigma,
+            space=space,
+            fixed_values=fixed_values,
+            varying_names=varying_names,
+            reparam_config=reparam_config,
+            scalings=scalings,
+        )
+
+    # --- Legacy clip-based path (backward compatibility) ---
     if nlsq_params is not None:
         prior_centers = {
             name: float(nlsq_params[ALL_PARAM_NAMES.index(name)])
@@ -110,33 +146,115 @@ def get_heterodyne_model_reparam(
         }
     else:
         prior_centers = {name: space.values[name] for name in varying_names}
-    
+
     def model():
-        """NumPyro model with centered parameterization."""
+        """NumPyro model with centered parameterization (legacy)."""
         params_list = []
-        
+
         for i, name in enumerate(ALL_PARAM_NAMES):
             if name in varying_names:
-                # Use normal prior centered on NLSQ estimate
                 center = prior_centers[name]
                 bounds = space.bounds[name]
-                
-                # Scale based on bounds
-                scale = (bounds[1] - bounds[0]) / 6.0  # 6 sigma covers 99.7%
-                
-                # Sample from normal, then clip to bounds
+                scale = (bounds[1] - bounds[0]) / 6.0
+
                 raw = numpyro.sample(f"{name}_raw", dist.Normal(center, scale))
                 param = jnp.clip(raw, bounds[0], bounds[1])
                 numpyro.deterministic(name, param)
                 params_list.append(param)
             else:
                 params_list.append(fixed_values[i])
-        
+
         params = jnp.array(params_list)
         c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
-        
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
-    
+
+    return model
+
+
+def _build_reparam_model(
+    *,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_angle: float,
+    c2_data: jnp.ndarray,
+    sigma: jnp.ndarray | float,
+    space: ParameterSpace,
+    fixed_values: jnp.ndarray,
+    varying_names: list[str],
+    reparam_config: ReparamConfig,
+    scalings: dict[str, ParameterScaling],
+):
+    """Build NumPyro model using reference-time reparameterization + smooth bounds."""
+    # Pre-compute which sampling-space names map to which physics params
+    # Build lookup: sampling_name -> (scaling, is_reparam_log, pair_info)
+    enabled_pairs = reparam_config.enabled_pairs
+    t_ref = reparam_config.t_ref
+
+    # Map prefactor names to their reparam log-space names
+    prefactor_to_log: dict[str, str] = {}
+    log_to_prefactor: dict[str, str] = {}
+    log_to_exponent: dict[str, str] = {}
+    for prefactor, exponent in enabled_pairs:
+        if prefactor in varying_names and exponent in varying_names:
+            log_name = reparam_config.get_reparam_name(prefactor)
+            prefactor_to_log[prefactor] = log_name
+            log_to_prefactor[log_name] = prefactor
+            log_to_exponent[log_name] = exponent
+
+    # Determine sampling-space parameter names (in order for the model)
+    sampling_names: list[str] = []
+    for name in varying_names:
+        if name in prefactor_to_log:
+            sampling_names.append(prefactor_to_log[name])
+        else:
+            sampling_names.append(name)
+
+    def model():
+        """NumPyro model with reference-time reparam + smooth bounds."""
+        # Sample in z-space, then transform
+        sampled_values: dict[str, jnp.ndarray] = {}
+
+        for sname in sampling_names:
+            if sname not in scalings:
+                continue
+            sc = scalings[sname]
+
+            # Sample z ~ N(0, 1)
+            z = numpyro.sample(f"{sname}_z", dist.Normal(0.0, 1.0))
+
+            # Transform: raw = center + scale * z, then smooth bound
+            bounded = sc.to_original(z)
+            sampled_values[sname] = bounded
+
+        # Back-transform reparameterized pairs to physics space
+        physics_values: dict[str, jnp.ndarray] = {}
+        for sname, value in sampled_values.items():
+            if sname in log_to_prefactor:
+                # This is a log_X_at_tref — back-transform to prefactor
+                prefactor = log_to_prefactor[sname]
+                exponent = log_to_exponent[sname]
+                alpha = sampled_values[exponent]
+                a0 = reparam_to_physics_jax(value, alpha, t_ref)
+                physics_values[prefactor] = a0
+                # Register physics-space prefactor as deterministic
+                numpyro.deterministic(prefactor, a0)
+                # Register the log value too for diagnostics
+                numpyro.deterministic(sname, value)
+            elif sname not in physics_values:
+                # Direct parameter (exponent or non-reparameterized)
+                physics_values[sname] = value
+                numpyro.deterministic(sname, value)
+
+        # Assemble full parameter array using scatter (handles MCMC batch dims).
+        # squeeze() removes any singleton batch dimensions from chain vectorization
+        # so that values match the scalar elements of fixed_values.
+        params = jnp.asarray(fixed_values)
+        for name, value in physics_values.items():
+            params = params.at[PARAM_INDICES[name]].set(jnp.squeeze(value))
+        c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
+        numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
+
     return model
 
 

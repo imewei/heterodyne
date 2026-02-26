@@ -98,8 +98,25 @@ def validate_convergence(
     else:
         messages.append("BFMI: not computed")
     
+    # Check posterior contraction (if prior_std available in metadata)
+    metadata = getattr(result, "metadata", None)
+    prior_std = metadata.get("prior_std") if metadata else None
+    if prior_std and result.posterior_std is not None:
+        pcr = compute_posterior_contraction(result, prior_std)
+        for name, ratio in pcr.items():
+            if ratio < 0:
+                messages.append(
+                    f"PCR for {name}: {ratio:.2f} (NEGATIVE — possible misspecification)"
+                )
+            elif ratio < 0.1:
+                messages.append(
+                    f"PCR for {name}: {ratio:.2f} (poorly identified)"
+                )
+            else:
+                messages.append(f"PCR for {name}: {ratio:.2f}")
+
     passed = r_hat_passed and ess_passed and bfmi_passed
-    
+
     return ConvergenceReport(
         passed=passed,
         r_hat_passed=r_hat_passed,
@@ -107,6 +124,34 @@ def validate_convergence(
         bfmi_passed=bfmi_passed,
         messages=messages,
     )
+
+
+def compute_posterior_contraction(
+    result: CMCResult,
+    prior_std: dict[str, float],
+) -> dict[str, float]:
+    """Compute Posterior Contraction Ratio for each parameter.
+
+    PCR = 1 - posterior_std / prior_std
+
+    Interpretation:
+      ~1.0 = strongly constrained by data
+      ~0.0 = poorly identified (prior dominates)
+      <0   = possible model misspecification (posterior wider than prior)
+
+    Args:
+        result: CMC result with posterior_std.
+        prior_std: Dict of prior standard deviations by parameter name.
+
+    Returns:
+        Dict mapping parameter name to PCR value.
+    """
+    pcr: dict[str, float] = {}
+    for i, name in enumerate(result.parameter_names):
+        if name in prior_std and prior_std[name] > 0:
+            post_std = float(result.posterior_std[i])
+            pcr[name] = 1.0 - post_std / prior_std[name]
+    return pcr
 
 
 def compute_r_hat(samples: np.ndarray) -> float:
