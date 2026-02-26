@@ -211,3 +211,4 @@ __marimo__/
 agent-os/
 .DS_Store
 .worktrees/
+.serena/
