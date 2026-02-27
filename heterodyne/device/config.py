@@ -88,8 +88,9 @@ def get_available_memory() -> float:
 
         mem = psutil.virtual_memory()
         return mem.available / (1024**3)
-    except ImportError:
+    except (ImportError, OSError):
         # Fallback: assume 8 GB available
+        # OSError covers psutil.AccessDenied in restricted containers
         return 8.0
 
 
@@ -115,13 +116,19 @@ def detect_hardware() -> HardwareConfig:
     if cluster_type == ClusterType.PBS:
         ncpus = os.environ.get("PBS_NCPUS") or os.environ.get("NCPUS")
         if ncpus:
-            available_cores = int(ncpus)
+            try:
+                available_cores = int(ncpus)
+            except ValueError:
+                available_cores = cpu_info.physical_cores
         else:
             available_cores = cpu_info.physical_cores
     elif cluster_type == ClusterType.SLURM:
         cpus_per_task = os.environ.get("SLURM_CPUS_PER_TASK")
         if cpus_per_task:
-            available_cores = int(cpus_per_task)
+            try:
+                available_cores = int(cpus_per_task)
+            except ValueError:
+                available_cores = cpu_info.physical_cores
         else:
             available_cores = cpu_info.physical_cores
     else:

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
-from collections.abc import Callable
 
 import numpy as np
 
@@ -25,9 +25,47 @@ class PreprocessingResult:
     statistics: dict[str, float] = field(default_factory=dict)
 
 
+def _remove_outliers_2d(
+    c2_slice: np.ndarray,
+    n_sigma: float,
+    replace_with: str,
+) -> np.ndarray:
+    """Remove outliers from a single 2D correlation matrix.
+
+    For square matrices, statistics are computed from off-diagonal elements
+    to avoid biasing by the (typically larger) diagonal values.
+
+    Args:
+        c2_slice: 2D correlation array.
+        n_sigma: Number of standard deviations for outlier threshold.
+        replace_with: Replacement strategy ('median', 'nan', 'clip').
+
+    Returns:
+        Array with outliers replaced.
+    """
+    if c2_slice.ndim == 2 and c2_slice.shape[0] == c2_slice.shape[1]:
+        off_diag_mask = ~np.eye(c2_slice.shape[0], dtype=bool)
+        off_diag = c2_slice[off_diag_mask]
+        mean = np.nanmean(off_diag)
+        std = np.nanstd(off_diag)
+    else:
+        mean = np.nanmean(c2_slice)
+        std = np.nanstd(c2_slice)
+    outlier_mask = np.abs(c2_slice - mean) > n_sigma * std
+
+    result = c2_slice.copy()
+    if replace_with == "median":
+        result[outlier_mask] = np.nanmedian(c2_slice)
+    elif replace_with == "nan":
+        result[outlier_mask] = np.nan
+    elif replace_with == "clip":
+        result = np.clip(result, mean - n_sigma * std, mean + n_sigma * std)
+    return result
+
+
 class PreprocessingPipeline:
     """Pipeline for preprocessing XPCS correlation data.
-    
+
     Supports operations like:
     - Baseline subtraction
     - Normalization
@@ -45,11 +83,11 @@ class PreprocessingPipeline:
         func: Callable[[np.ndarray], np.ndarray],
     ) -> PreprocessingPipeline:
         """Add a preprocessing step.
-        
+
         Args:
             name: Step name for logging
             func: Function that transforms c2 array
-            
+
         Returns:
             Self for chaining
         """
@@ -58,7 +96,7 @@ class PreprocessingPipeline:
 
     def normalize_diagonal(self) -> PreprocessingPipeline:
         """Add diagonal normalization step.
-        
+
         Normalizes c2 so that diagonal values are 1.
         """
         def _normalize(c2: np.ndarray) -> np.ndarray:
@@ -83,7 +121,7 @@ class PreprocessingPipeline:
 
     def subtract_baseline(self, baseline: float = 1.0) -> PreprocessingPipeline:
         """Add baseline subtraction step.
-        
+
         Args:
             baseline: Baseline value to subtract
         """
@@ -98,7 +136,7 @@ class PreprocessingPipeline:
         max_val: float | None = None,
     ) -> PreprocessingPipeline:
         """Add value clipping step.
-        
+
         Args:
             min_val: Minimum value
             max_val: Maximum value
@@ -114,49 +152,46 @@ class PreprocessingPipeline:
         replace_with: str = "median",
     ) -> PreprocessingPipeline:
         """Add outlier removal step.
-        
+
         Args:
             n_sigma: Number of standard deviations for outlier threshold
             replace_with: Replacement strategy ('median', 'nan', 'clip')
         """
         def _remove_outliers(c2: np.ndarray) -> np.ndarray:
-            # Compute statistics on off-diagonal elements only to avoid
-            # diagonal values inflating mean/std
-            if c2.ndim == 2 and c2.shape[0] == c2.shape[1]:
-                off_diag_mask = ~np.eye(c2.shape[0], dtype=bool)
-                off_diag = c2[off_diag_mask]
-                mean = np.nanmean(off_diag)
-                std = np.nanstd(off_diag)
-            else:
-                mean = np.nanmean(c2)
-                std = np.nanstd(c2)
-            outlier_mask = np.abs(c2 - mean) > n_sigma * std
+            if c2.ndim == 3:
+                # Batch: process each phi-slice independently
+                result = np.empty_like(c2)
+                total_outliers = 0
+                for i in range(c2.shape[0]):
+                    before = c2[i]
+                    after = _remove_outliers_2d(before, n_sigma, replace_with)
+                    total_outliers += np.sum(before != after)
+                    result[i] = after
+                if total_outliers > 0:
+                    logger.info(f"Removed {total_outliers} outliers ({100*total_outliers/c2.size:.2f}%)")
+                return result
 
-            result = c2.copy()
-            if replace_with == "median":
-                result[outlier_mask] = np.nanmedian(c2)
-            elif replace_with == "nan":
-                result[outlier_mask] = np.nan
-            elif replace_with == "clip":
-                result = np.clip(result, mean - n_sigma * std, mean + n_sigma * std)
-
-            n_outliers = np.sum(outlier_mask)
+            result = _remove_outliers_2d(c2, n_sigma, replace_with)
+            n_outliers = np.sum(c2 != result)
             if n_outliers > 0:
                 logger.info(f"Removed {n_outliers} outliers ({100*n_outliers/c2.size:.2f}%)")
-
             return result
 
         return self.add_step(f"remove_outliers({n_sigma}σ)", _remove_outliers)
 
     def symmetrize(self) -> PreprocessingPipeline:
-        """Add symmetrization step for 2D correlation.
-        
-        Makes c2(t1, t2) = c2(t2, t1).
+        """Add symmetrization step for correlation matrices.
+
+        Makes c2(t1, t2) = c2(t2, t1). Handles both 2D and 3D (batch) data.
         """
         def _symmetrize(c2: np.ndarray) -> np.ndarray:
-            if c2.ndim != 2:
-                return c2
-            return np.asarray(np.nanmean(np.stack([c2, c2.T]), axis=0))
+            if c2.ndim == 2:
+                return np.asarray(np.nanmean(np.stack([c2, c2.T]), axis=0))
+            elif c2.ndim == 3:
+                # Batch of matrices: symmetrize each slice
+                transposed = np.transpose(c2, (0, 2, 1))
+                return np.asarray(np.nanmean(np.stack([c2, transposed]), axis=0))
+            return c2
 
         return self.add_step("symmetrize", _symmetrize)
 
@@ -166,7 +201,7 @@ class PreprocessingPipeline:
         t_end: int | None = None,
     ) -> PreprocessingPipeline:
         """Add time cropping step.
-        
+
         Args:
             t_start: Starting index
             t_end: Ending index (exclusive), None for end
@@ -190,10 +225,10 @@ class PreprocessingPipeline:
 
     def process(self, c2: np.ndarray) -> PreprocessingResult:
         """Apply all preprocessing steps.
-        
+
         Args:
             c2: Input correlation array
-            
+
         Returns:
             PreprocessingResult with processed data
         """
@@ -228,13 +263,13 @@ def preprocess_correlation(
     symmetrize: bool = True,
 ) -> PreprocessingResult:
     """Convenience function for standard preprocessing.
-    
+
     Args:
         c2: Input correlation array
         normalize: Whether to normalize diagonal to 1
         remove_outliers: Whether to remove outliers
         symmetrize: Whether to symmetrize
-        
+
     Returns:
         PreprocessingResult
     """

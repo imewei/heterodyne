@@ -38,17 +38,17 @@ class HeterodyneModelBase(ABC):
         t: jnp.ndarray,
         q: float,
         dt: float,
-        phi: float,
+        phi_angle: float,
     ) -> jnp.ndarray:
         """Compute model correlation matrix.
-        
+
         Args:
             params: Parameter array
             t: Time array
             q: Wavevector
             dt: Time step
-            phi: Angle
-            
+            phi_angle: Detector phi angle (degrees)
+
         Returns:
             Correlation matrix
         """
@@ -63,7 +63,7 @@ class HeterodyneModelBase(ABC):
 @dataclass
 class TwoComponentModel(HeterodyneModelBase):
     """Two-component heterodyne correlation model.
-    
+
     Implements the 14-parameter model:
     - Reference transport (3): D0_ref, alpha_ref, D_offset_ref
     - Sample transport (3): D0_sample, alpha_sample, D_offset_sample
@@ -110,21 +110,21 @@ class TwoComponentModel(HeterodyneModelBase):
         t: jnp.ndarray,
         q: float,
         dt: float,
-        phi: float,
+        phi_angle: float,
     ) -> jnp.ndarray:
         """Compute two-time heterodyne correlation.
-        
+
         Args:
             params: Parameter array, shape (14,)
             t: Time array
             q: Scattering wavevector
             dt: Time step
-            phi: Detector phi angle
-            
+            phi_angle: Detector phi angle (degrees)
+
         Returns:
             Correlation matrix c2(t1, t2), shape (N, N)
         """
-        return compute_c2_heterodyne(params, t, q, dt, phi)  # type: ignore[no-any-return]
+        return compute_c2_heterodyne(params, t, q, dt, phi_angle)  # type: ignore[no-any-return]
 
     def get_default_params(self) -> np.ndarray:
         """Get default parameter values as array."""
@@ -132,10 +132,10 @@ class TwoComponentModel(HeterodyneModelBase):
 
     def params_to_dict(self, params: np.ndarray | jnp.ndarray) -> dict[str, float]:
         """Convert parameter array to dictionary.
-        
+
         Args:
             params: Parameter array, shape (14,)
-            
+
         Returns:
             Dict mapping names to values
         """
@@ -143,10 +143,10 @@ class TwoComponentModel(HeterodyneModelBase):
 
     def dict_to_params(self, param_dict: dict[str, float]) -> np.ndarray:
         """Convert parameter dictionary to array.
-        
+
         Args:
             param_dict: Dict with parameter names as keys
-            
+
         Returns:
             Parameter array, shape (14,)
         """
@@ -159,12 +159,12 @@ class TwoComponentModel(HeterodyneModelBase):
         q: float,
     ) -> jnp.ndarray:
         """Compute reference g1 correlation only.
-        
+
         Args:
             params: Full parameter array
             t: Time array
             q: Wavevector
-            
+
         Returns:
             g1_ref array
         """
@@ -181,12 +181,12 @@ class TwoComponentModel(HeterodyneModelBase):
         q: float,
     ) -> jnp.ndarray:
         """Compute sample g1 correlation only.
-        
+
         Args:
             params: Full parameter array
             t: Time array
             q: Wavevector
-            
+
         Returns:
             g1_sample array
         """
@@ -202,11 +202,11 @@ class TwoComponentModel(HeterodyneModelBase):
         t: jnp.ndarray,
     ) -> jnp.ndarray:
         """Compute sample fraction only.
-        
+
         Args:
             params: Full parameter array
             t: Time array
-            
+
         Returns:
             f_sample array in [0, 1]
         """

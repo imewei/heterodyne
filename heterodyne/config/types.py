@@ -17,18 +17,34 @@ class ParameterConfig(TypedDict):
 
 
 class ParameterGroupConfig(TypedDict):
-    """Configuration for a parameter group."""
+    """Configuration for a parameter group.
 
-    D0: NotRequired[ParameterConfig]
-    alpha: NotRequired[ParameterConfig]
-    D_offset: NotRequired[ParameterConfig]
+    Keys use full parameter names matching parameter_space.from_config().
+    Group 'reference': D0_ref, alpha_ref, D_offset_ref
+    Group 'sample': D0_sample, alpha_sample, D_offset_sample
+    Group 'velocity': v0, beta, v_offset
+    Group 'fraction': f0, f1, f2, f3
+    Group 'angle': phi0
+    """
+
+    # Reference transport
+    D0_ref: NotRequired[ParameterConfig]
+    alpha_ref: NotRequired[ParameterConfig]
+    D_offset_ref: NotRequired[ParameterConfig]
+    # Sample transport
+    D0_sample: NotRequired[ParameterConfig]
+    alpha_sample: NotRequired[ParameterConfig]
+    D_offset_sample: NotRequired[ParameterConfig]
+    # Velocity
     v0: NotRequired[ParameterConfig]
     beta: NotRequired[ParameterConfig]
     v_offset: NotRequired[ParameterConfig]
+    # Fraction
     f0: NotRequired[ParameterConfig]
     f1: NotRequired[ParameterConfig]
     f2: NotRequired[ParameterConfig]
     f3: NotRequired[ParameterConfig]
+    # Angle
     phi0: NotRequired[ParameterConfig]
 
 
