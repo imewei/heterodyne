@@ -18,12 +18,12 @@ class TestComputeRHat:
     """Scientific tests for compute_r_hat."""
 
     @pytest.mark.unit
-    def test_identical_chains_rhat_less_than_one(self) -> None:
-        """Identical chains with internal variance give R-hat < 1.
+    def test_identical_chains_rhat_finite(self) -> None:
+        """Identical chains produce a finite R-hat.
 
-        When chains are identical, B=0 (no between-chain variance) but
-        W>0 (within-chain variance exists). This gives:
-        var_hat = (1-1/n)*W < W, so R-hat = sqrt(var_hat/W) < 1.
+        Rank-normalized R-hat (Vehtari et al. 2021) may exceed 1.0 for
+        identical chains due to rank discretization effects, but must
+        remain finite.
         """
         from heterodyne.optimization.cmc.diagnostics import compute_r_hat
 
@@ -37,10 +37,7 @@ class TestComputeRHat:
 
         r_hat = compute_r_hat(samples)
 
-        # R-hat should be less than 1 for identical chains with variance
-        assert r_hat < 1.0
-        # But should be close to 1 (chains are "converged")
-        assert r_hat > 0.8
+        assert np.isfinite(r_hat)
 
     @pytest.mark.unit
     def test_converged_chains_rhat_near_one(self) -> None:
@@ -87,30 +84,19 @@ class TestComputeRHat:
         assert r_hat > 0
 
     @pytest.mark.unit
-    def test_rhat_formula_correctness(self) -> None:
-        """Verify R-hat formula components are correct."""
+    def test_rhat_matches_arviz(self) -> None:
+        """compute_r_hat delegates to arviz.rhat correctly."""
+        import arviz as az
+
         from heterodyne.optimization.cmc.diagnostics import compute_r_hat
 
-        # Simple case for manual verification
-        samples = np.array([
-            [1.0, 2.0, 3.0, 4.0],
-            [2.0, 3.0, 4.0, 5.0],
-        ])
+        rng = np.random.default_rng(42)
+        samples = rng.standard_normal((4, 200))
 
-        n_chains, n_samples = samples.shape
+        computed = compute_r_hat(samples)
+        expected = float(az.rhat(samples))
 
-        # Manual calculation
-        chain_means = np.mean(samples, axis=1)  # [2.5, 3.5]
-        np.mean(chain_means)  # 3.0
-
-        B = n_samples * np.var(chain_means, ddof=1)
-        W = np.mean(np.var(samples, axis=1, ddof=1))
-        var_hat = (1 - 1/n_samples) * W + B / n_samples
-        expected_rhat = np.sqrt(var_hat / W)
-
-        computed_rhat = compute_r_hat(samples)
-
-        assert_allclose(computed_rhat, expected_rhat, rtol=1e-10)
+        assert_allclose(computed, expected, rtol=1e-12)
 
 
 # ============================================================================
@@ -214,21 +200,18 @@ class TestComputeBFMI:
         assert bfmi == 1.0
 
     @pytest.mark.unit
-    def test_bfmi_formula(self) -> None:
-        """Verify BFMI = Var(diff(E)) / Var(E)."""
+    def test_bfmi_matches_arviz(self) -> None:
+        """compute_bfmi delegates to arviz.bfmi correctly."""
+        import arviz as az
+
         from heterodyne.optimization.cmc.diagnostics import compute_bfmi
 
         energy = np.array([1.0, 2.0, 4.0, 3.0, 5.0, 4.0])
 
-        computed_bfmi = compute_bfmi(energy)
+        computed = compute_bfmi(energy)
+        expected = float(az.bfmi(energy)[0])
 
-        # Manual calculation
-        energy_diff = np.diff(energy)
-        var_diff = np.var(energy_diff)
-        var_energy = np.var(energy)
-        expected_bfmi = var_diff / var_energy
-
-        assert_allclose(computed_bfmi, expected_bfmi, rtol=1e-10)
+        assert_allclose(computed, expected, rtol=1e-12)
 
     @pytest.mark.unit
     def test_bfmi_bounded(self) -> None:
@@ -337,7 +320,11 @@ class TestStatisticalProperties:
 
     @pytest.mark.unit
     def test_rhat_invariant_to_location_shift(self) -> None:
-        """R-hat should be invariant to shifting all chains by constant."""
+        """R-hat should be approximately invariant to location shifts.
+
+        Rank-normalized R-hat preserves ordering under affine transforms,
+        but rank discretization introduces O(1e-4) numerical noise.
+        """
         from heterodyne.optimization.cmc.diagnostics import compute_r_hat
 
         rng = np.random.default_rng(42)
@@ -346,11 +333,15 @@ class TestStatisticalProperties:
         rhat_original = compute_r_hat(samples)
         rhat_shifted = compute_r_hat(samples + 1000.0)
 
-        assert_allclose(rhat_original, rhat_shifted, rtol=1e-10)
+        assert_allclose(rhat_original, rhat_shifted, rtol=1e-3)
 
     @pytest.mark.unit
     def test_rhat_invariant_to_scale(self) -> None:
-        """R-hat should be invariant to scaling all chains."""
+        """R-hat should be approximately invariant to scaling.
+
+        Rank-normalized R-hat preserves ordering under affine transforms,
+        but rank discretization introduces O(1e-4) numerical noise.
+        """
         from heterodyne.optimization.cmc.diagnostics import compute_r_hat
 
         rng = np.random.default_rng(42)
@@ -359,7 +350,7 @@ class TestStatisticalProperties:
         rhat_original = compute_r_hat(samples)
         rhat_scaled = compute_r_hat(samples * 100.0)
 
-        assert_allclose(rhat_original, rhat_scaled, rtol=1e-10)
+        assert_allclose(rhat_original, rhat_scaled, rtol=1e-3)
 
     @pytest.mark.unit
     def test_ess_invariant_to_location_shift(self) -> None:
@@ -520,11 +511,11 @@ class TestRhatEdgeCases:
 
     @pytest.mark.unit
     def test_single_chain_rhat(self) -> None:
-        """Single-chain R-hat is ill-defined; should not crash."""
+        """Single-chain R-hat is ill-defined; returns NaN without crashing."""
         from heterodyne.optimization.cmc.diagnostics import compute_r_hat
 
         samples = np.array([[1.0, 2.0, 3.0, 4.0, 5.0]])  # shape (1, 5)
         r_hat = compute_r_hat(samples)
-        # With ddof=1 on 1 element, np.var gives NaN.
-        # Either NaN or 1.0 is acceptable — just don't crash.
+        # ArviZ returns NaN for single-chain input (requires >= 2 chains)
         assert isinstance(r_hat, float)
+        assert np.isnan(r_hat)

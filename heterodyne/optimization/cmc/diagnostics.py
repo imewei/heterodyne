@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import arviz as az
 import numpy as np
 
 from heterodyne.utils.logging import get_logger
@@ -155,111 +156,49 @@ def compute_posterior_contraction(
 
 
 def compute_r_hat(samples: np.ndarray) -> float:
-    """Compute R-hat (Gelman-Rubin statistic) from samples.
+    """Compute rank-normalized R-hat from samples.
 
-    .. deprecated::
-        Use ``arviz.rhat()`` instead.
+    Delegates to ``arviz.rhat()`` which implements the recommended
+    rank-normalized split-R-hat from Vehtari et al. (2021).
 
     Args:
-        samples: Array of shape (n_chains, n_samples)
+        samples: Array of shape (n_chains, n_samples).
+            Requires at least 2 chains; single-chain input returns NaN.
 
     Returns:
-        R-hat value
+        R-hat value (1.0 indicates convergence; >1.01 suggests issues)
     """
-    import warnings
-    warnings.warn("Use arviz.rhat() instead", DeprecationWarning, stacklevel=2)
-    n_chains, n_samples = samples.shape
-
-    # Chain means
-    chain_means = np.mean(samples, axis=1)
-
-    # Between-chain variance
-    B = n_samples * np.var(chain_means, ddof=1)
-
-    # Within-chain variance
-    chain_vars = np.var(samples, axis=1, ddof=1)
-    W = np.mean(chain_vars)
-
-    # Pooled variance estimate
-    var_hat = (1 - 1/n_samples) * W + B / n_samples
-
-    # R-hat (handle degenerate case where W=0)
-    if W == 0:
-        # No within-chain variance: if B=0 too, chains are identical (R-hat=1)
-        # otherwise chains haven't mixed (R-hat=inf)
-        return 1.0 if B == 0 else float("inf")
-
-    r_hat = np.sqrt(var_hat / W)
-
-    return float(r_hat)
+    return float(az.rhat(samples))
 
 
 def compute_ess(samples: np.ndarray) -> float:
-    """Compute effective sample size using autocorrelation.
+    """Compute effective sample size.
 
-    .. deprecated::
-        Use ``arviz.ess()`` instead.
+    Delegates to ``arviz.ess()`` which uses FFT-based autocorrelation
+    with Geyer's initial monotone sequence estimator.
 
     Args:
-        samples: 1D array of samples
+        samples: 1D array of samples, or 2D array of shape (n_chains, n_draws)
 
     Returns:
-        Effective sample size
+        Effective sample size (always >= 1.0)
     """
-    import warnings
-    warnings.warn("Use arviz.ess() instead", DeprecationWarning, stacklevel=2)
-    n = len(samples)
-
-    # Mean-center
-    x = samples - np.mean(samples)
-
-    # Autocorrelation via FFT
-    acf = np.correlate(x, x, mode='full')[n-1:]
-
-    # Handle degenerate case where samples are constant (no variance)
-    if acf[0] == 0:
-        return 1.0  # Constant samples = effectively 1 independent sample
-
-    acf = acf / acf[0]
-
-    # Find first negative autocorrelation
-    negative_idx = np.where(acf < 0)[0]
-    if len(negative_idx) > 0:
-        cutoff = negative_idx[0]
-    else:
-        cutoff = len(acf)
-
-    # Sum of autocorrelations
-    tau = 1 + 2 * np.sum(acf[1:cutoff])
-
-    # ESS
-    ess = n / tau
-
-    return max(1.0, float(ess))
+    return max(1.0, float(az.ess(samples)))
 
 
 def compute_bfmi(energy: np.ndarray) -> float:
     """Compute Bayesian Fraction of Missing Information.
 
-    .. deprecated::
-        Use ``arviz.bfmi()`` instead.
-
-    BFMI measures how well the sampler explores the posterior.
-    Values < 0.3 indicate potential problems.
+    Delegates to ``arviz.bfmi()``. Values < 0.3 indicate potential
+    problems with HMC sampling.
 
     Args:
         energy: Array of HMC energies
 
     Returns:
-        BFMI value
+        BFMI value (1.0 for constant energy)
     """
-    import warnings
-    warnings.warn("Use arviz.bfmi() instead", DeprecationWarning, stacklevel=2)
-    energy_diff = np.diff(energy)
-    var_diff = np.var(energy_diff)
-    var_energy = np.var(energy)
-
-    if var_energy == 0:
+    if np.var(energy) == 0:
         return 1.0
-
-    return float(var_diff / var_energy)
+    result = az.bfmi(energy)
+    return float(result[0])
