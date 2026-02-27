@@ -205,7 +205,12 @@ class PhiAngleFilter:
         Returns:
             PhiFilterResult with averaged data
         """
-        if c2.ndim == 2 or self._phi_angles is None:
+        if c2.ndim == 3 and self._phi_angles is None:
+            raise ValueError(
+                "phi_angles must be provided for 3D correlation data "
+                f"(shape {c2.shape}) to perform symmetric averaging"
+            )
+        if c2.ndim == 2:
             return PhiFilterResult(
                 c2=c2,
                 phi_angles=np.array([symmetry_center]),

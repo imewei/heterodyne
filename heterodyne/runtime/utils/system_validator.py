@@ -116,10 +116,12 @@ class SystemValidator:
 
         # Check if running in a virtual environment
         in_venv = sys.prefix != sys.base_prefix
-        venv = os.environ.get("VIRTUAL_ENV") or os.environ.get("CONDA_DEFAULT_ENV")
-        conda_env = os.environ.get("CONDA_PREFIX")
+        venv = os.environ.get("VIRTUAL_ENV")
+        conda_env_name = os.environ.get("CONDA_DEFAULT_ENV")
+        # conda "base" is not an isolated environment
+        is_conda_isolated = conda_env_name is not None and conda_env_name != "base"
 
-        if in_venv or venv or conda_env:
+        if in_venv or venv or is_conda_isolated:
             return ValidationResult(
                 name="Environment Detection",
                 success=True,
@@ -268,15 +270,15 @@ class SystemValidator:
 
             devices = jax.devices()
             device_count = len(devices)
-            platform = devices[0].platform if devices else "unknown"
+            jax_platform = devices[0].platform if devices else "unknown"
 
             details = {
                 "device_count": device_count,
-                "platform": platform,
+                "platform": jax_platform,
                 "xla_flags": os.environ.get("XLA_FLAGS", ""),
             }
 
-            if platform == "cpu":
+            if jax_platform == "cpu":
                 msg = f"JAX CPU backend active with {device_count} device(s)"
                 return ValidationResult(
                     name="JAX CPU Backend",
@@ -289,7 +291,7 @@ class SystemValidator:
                 return ValidationResult(
                     name="JAX CPU Backend",
                     success=False,
-                    message=f"JAX using {platform} backend instead of CPU",
+                    message=f"JAX using {jax_platform} backend instead of CPU",
                     severity=Severity.WARNING,
                     remediation="Set JAX_PLATFORMS=cpu before importing JAX",
                     details=details,

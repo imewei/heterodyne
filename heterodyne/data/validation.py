@@ -62,7 +62,7 @@ def validate_xpcs_data(
     check_nans: bool = True,
 ) -> DataQualityReport:
     """Validate XPCS correlation data.
-    
+
     Args:
         data: XPCSData to validate
         expected_shape: Expected shape of c2 matrix
@@ -70,7 +70,7 @@ def validate_xpcs_data(
         max_value: Maximum allowed value
         check_symmetry: Whether to check for c2(t1,t2) ≈ c2(t2,t1)
         check_nans: Whether to check for NaN/Inf values
-        
+
     Returns:
         DataQualityReport with validation results
     """
@@ -172,12 +172,12 @@ def validate_time_consistency(
     dt_expected: float | None = None,
 ) -> DataQualityReport:
     """Validate time array consistency with correlation data.
-    
+
     Args:
         t: Time array
         c2_shape: Shape of correlation matrix
         dt_expected: Expected time step (optional)
-        
+
     Returns:
         DataQualityReport
     """

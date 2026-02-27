@@ -20,16 +20,16 @@ def save_nlsq_json_files(
     prefix: str = "nlsq",
 ) -> dict[str, Path]:
     """Save NLSQ results to JSON files.
-    
+
     Creates:
     - {prefix}_parameters.json: Fitted parameter values and uncertainties
     - {prefix}_metadata.json: Fit statistics and convergence info
-    
+
     Args:
         result: NLSQ fitting result
         output_dir: Output directory
         prefix: Filename prefix
-        
+
     Returns:
         Dict mapping file type to saved path
     """
@@ -74,15 +74,15 @@ def save_nlsq_npz_file(
     include_jacobian: bool = False,
 ) -> Path:
     """Save NLSQ results to compressed NPZ file.
-    
+
     NPZ format is efficient for large arrays (correlation matrices, residuals).
-    
+
     Args:
         result: NLSQ fitting result
         output_path: Output file path
         include_residuals: Whether to include residual array
         include_jacobian: Whether to include Jacobian matrix (large)
-        
+
     Returns:
         Path to saved file
     """
@@ -93,7 +93,7 @@ def save_nlsq_npz_file(
 
     arrays: dict[str, Any] = {
         "parameters": np.asarray(result.parameters),
-        "parameter_names": np.array(result.parameter_names, dtype=object),
+        "parameter_names": np.array(result.parameter_names, dtype="U64"),
         "success": np.array(result.success),
         "final_cost": np.array(result.final_cost if result.final_cost is not None else np.nan),
     }
@@ -119,10 +119,10 @@ def save_nlsq_npz_file(
 
 def format_nlsq_summary(result: NLSQResult) -> str:
     """Format NLSQ result as human-readable summary.
-    
+
     Args:
         result: NLSQ fitting result
-        
+
     Returns:
         Formatted summary string
     """

@@ -58,9 +58,13 @@ def json_safe(obj: Any) -> Any:
     except ImportError:
         pass
 
-    # Handle complex numpy arrays
+    # Handle complex numpy arrays — preserve shape for round-trip
     if isinstance(obj, np.ndarray) and np.issubdtype(obj.dtype, np.complexfloating):
-        return [{"real": float(z.real), "imag": float(z.imag)} for z in obj.flat]
+        return {
+            "__complex_array__": True,
+            "shape": list(obj.shape),
+            "data": [{"real": float(z.real), "imag": float(z.imag)} for z in obj.flat],
+        }
 
     # Handle numpy arrays
     if isinstance(obj, np.ndarray):

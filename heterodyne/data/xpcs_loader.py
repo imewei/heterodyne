@@ -42,7 +42,9 @@ class XPCSData:
 
     @property
     def n_times(self) -> int:
-        """Number of time points (assumes square c2)."""
+        """Number of time points."""
+        if self.c2.ndim == 3:
+            return self.c2.shape[1]
         return self.c2.shape[0]
 
     @property
@@ -60,7 +62,7 @@ class XPCSDataLoader:
         format: str | None = None,
     ) -> None:
         """Initialize loader.
-        
+
         Args:
             file_path: Path to data file
             format: File format ('hdf5', 'npz', 'mat'), or None to auto-detect
@@ -91,13 +93,13 @@ class XPCSDataLoader:
         phi_key: str | None = "phi",
     ) -> XPCSData:
         """Load XPCS data from file.
-        
+
         Args:
             c2_key: Key/path for correlation data
             time_key: Key/path for time array
             q_key: Optional key for wavevector
             phi_key: Optional key for phi angles
-            
+
         Returns:
             XPCSData container
         """
@@ -134,7 +136,8 @@ class XPCSDataLoader:
                 t = np.asarray(f[time_key], dtype=np.float64)
             else:
                 logger.warning(f"Time key '{time_key}' not found, using indices")
-                t = np.arange(c2.shape[0], dtype=np.float64)
+                n_t = c2.shape[-2] if c2.ndim == 3 else c2.shape[0]
+                t = np.arange(n_t, dtype=np.float64)
 
             # Load optional q
             q = float(f[q_key][()]) if q_key and q_key in f else None
@@ -192,7 +195,8 @@ class XPCSDataLoader:
             if time_key in data:
                 t = np.asarray(data[time_key], dtype=np.float64)
             else:
-                t = np.arange(c2.shape[0], dtype=np.float64)
+                n_t = c2.shape[-2] if c2.ndim == 3 else c2.shape[0]
+                t = np.arange(n_t, dtype=np.float64)
 
             q = float(data[q_key]) if q_key and q_key in data else None
             phi = None
@@ -209,7 +213,7 @@ class XPCSDataLoader:
 
     def _load_npy(self) -> XPCSData:
         """Load from NPY file (just the array)."""
-        c2 = np.load(self.file_path).astype(np.float64)
+        c2 = np.load(self.file_path, allow_pickle=False).astype(np.float64)
         if c2.ndim < 2:
             raise ValueError(
                 f"Expected 2D or 3D array from {self.file_path}, got {c2.ndim}D"
@@ -239,7 +243,8 @@ class XPCSDataLoader:
         if time_key in data:
             t = np.asarray(data[time_key], dtype=np.float64).ravel()
         else:
-            t = np.arange(c2.shape[0], dtype=np.float64)
+            n_t = c2.shape[-2] if c2.ndim == 3 else c2.shape[0]
+            t = np.arange(n_t, dtype=np.float64)
 
         q = float(data[q_key].ravel()[0]) if q_key and q_key in data else None
         phi = None
@@ -262,13 +267,13 @@ def load_xpcs_data(
     format: str | None = None,
 ) -> XPCSData:
     """Convenience function to load XPCS data.
-    
+
     Args:
         file_path: Path to data file
         c2_key: Key for correlation data
         time_key: Key for time array
         format: File format (auto-detected if None)
-        
+
     Returns:
         XPCSData container
     """

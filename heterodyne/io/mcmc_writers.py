@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -22,17 +23,17 @@ def save_mcmc_results(
     prefix: str = "mcmc",
 ) -> dict[str, Path]:
     """Save MCMC/CMC results to files.
-    
+
     Creates:
     - {prefix}_summary.json: Parameter summaries with credible intervals
     - {prefix}_diagnostics.json: Convergence diagnostics (R-hat, ESS)
     - {prefix}_samples.npz: Full posterior samples (compressed)
-    
+
     Args:
         result: CMC result object
         output_dir: Output directory
         prefix: Filename prefix
-        
+
     Returns:
         Dict mapping file type to saved path
     """
@@ -65,8 +66,14 @@ def save_mcmc_results(
         _save_posterior_samples(result, tmp / f"{prefix}_samples.npz")
 
         # Move all staged files to the real output directory
+        # Use os.replace for atomic same-device moves; fall back to
+        # shutil.move for cross-device (e.g. NFS tmpdir → local output)
         for f in tmp.iterdir():
-            os.replace(str(f), str(output_dir / f.name))
+            dest = str(output_dir / f.name)
+            try:
+                os.replace(str(f), dest)
+            except OSError:
+                shutil.move(str(f), dest)
 
     saved_paths["summary"] = output_dir / f"{prefix}_summary.json"
     saved_paths["diagnostics"] = output_dir / f"{prefix}_diagnostics.json"
@@ -118,7 +125,8 @@ def save_mcmc_diagnostics(
     # Overall statistics
     if result.r_hat is not None:
         diagnostics["max_r_hat"] = float(np.max(result.r_hat))
-        diagnostics[f"all_r_hat_below_{r_hat_threshold}"] = bool(
+        diagnostics["r_hat_threshold"] = r_hat_threshold
+        diagnostics["all_r_hat_passed"] = bool(
             np.all(result.r_hat < r_hat_threshold)
         )
 
@@ -154,7 +162,7 @@ def _save_posterior_samples(
         Path to saved file
     """
     arrays: dict[str, Any] = {
-        "parameter_names": np.array(result.parameter_names, dtype=object),
+        "parameter_names": np.array(result.parameter_names, dtype="U64"),
     }
 
     # Save samples for each parameter
@@ -178,10 +186,10 @@ def _save_posterior_samples(
 
 def format_mcmc_summary(result: CMCResult) -> str:
     """Format MCMC result as human-readable summary.
-    
+
     Args:
         result: CMC result object
-        
+
     Returns:
         Formatted summary string
     """

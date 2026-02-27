@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import subprocess
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -450,14 +451,11 @@ def configure_jax_cpu(
     # Configure threading
     env_vars = configure_cpu_hpc(cpu_info)
 
-    # Configure XLA (avoid duplicating flags on repeated calls)
+    # Configure XLA — strip any previous device-count flag before setting new one
     new_flags = get_jax_cpu_flags(cpu_info, num_devices)
     existing_flags = os.environ.get("XLA_FLAGS", "")
-    # Remove any previous flags we set to avoid duplication
-    if new_flags not in existing_flags:
-        xla_flags = f"{existing_flags} {new_flags}".strip()
-    else:
-        xla_flags = existing_flags
+    cleaned = re.sub(r"--xla_force_host_platform_device_count=\d+", "", existing_flags).strip()
+    xla_flags = f"{cleaned} {new_flags}".strip() if cleaned else new_flags
     os.environ["XLA_FLAGS"] = xla_flags
     env_vars["XLA_FLAGS"] = xla_flags
 

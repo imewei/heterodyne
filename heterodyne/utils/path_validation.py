@@ -12,10 +12,10 @@ class PathValidationError(Exception):
 
 def resolve_path(path: str | Path) -> Path:
     """Resolve path to absolute, expanding user and symlinks.
-    
+
     Args:
         path: Path string or Path object
-        
+
     Returns:
         Resolved absolute Path
     """
@@ -24,14 +24,14 @@ def resolve_path(path: str | Path) -> Path:
 
 def validate_file_exists(path: str | Path, description: str = "File") -> Path:
     """Validate that a file exists and is readable.
-    
+
     Args:
         path: Path to validate
         description: Description for error messages
-        
+
     Returns:
         Resolved Path object
-        
+
     Raises:
         PathValidationError: If file doesn't exist or isn't readable
     """
@@ -51,14 +51,14 @@ def validate_file_exists(path: str | Path, description: str = "File") -> Path:
 
 def validate_output_path(path: str | Path, create_parents: bool = True) -> Path:
     """Validate and prepare output path.
-    
+
     Args:
         path: Output path to validate
         create_parents: Whether to create parent directories
-        
+
     Returns:
         Resolved Path object
-        
+
     Raises:
         PathValidationError: If path is invalid
     """
@@ -77,10 +77,10 @@ def validate_output_path(path: str | Path, create_parents: bool = True) -> Path:
 
 def ensure_directory(path: str | Path) -> Path:
     """Ensure directory exists, creating if necessary.
-    
+
     Args:
         path: Directory path
-        
+
     Returns:
         Resolved Path object
     """
