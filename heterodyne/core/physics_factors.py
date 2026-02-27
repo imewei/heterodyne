@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 @dataclass
 class PhysicsFactors:
     """Pre-computed factors that don't depend on fit parameters.
-    
+
     These are computed once from experimental setup and reused across
     all optimization iterations for efficiency.
     """
@@ -45,17 +45,17 @@ class PhysicsFactors:
         """Total time span."""
         return float(self.t[-1] - self.t[0])
 
-    def get_q_cosine(self, phi0: float = 0.0) -> float:
+    def get_q_cosine(self, phi0: float = 0.0) -> jnp.ndarray:
         """Get q * cos(phi_total) for cross-term phase.
-        
+
         Args:
             phi0: Additional angle from fit parameters
-            
+
         Returns:
-            q * cos(phi_angle + phi0)
+            q * cos(phi_angle + phi0) as JAX scalar
         """
         total_phi_rad = jnp.deg2rad(self.phi_angle + phi0)
-        return self.q * float(jnp.cos(total_phi_rad))
+        return self.q * jnp.cos(total_phi_rad)
 
 
 def create_physics_factors(
@@ -66,14 +66,14 @@ def create_physics_factors(
     t_start: float = 0.0,
 ) -> PhysicsFactors:
     """Create physics factors from experimental parameters.
-    
+
     Args:
         n_times: Number of time points
         dt: Time step
         q: Scattering wavevector magnitude
         phi_angle: Detector phi angle (degrees)
         t_start: Starting time (default 0)
-        
+
     Returns:
         PhysicsFactors instance
     """
@@ -92,10 +92,10 @@ def create_physics_factors(
 
 def create_physics_factors_from_config(config: dict) -> PhysicsFactors:
     """Create physics factors from configuration dictionary.
-    
+
     Args:
         config: Configuration with 'temporal' and 'scattering' sections
-        
+
     Returns:
         PhysicsFactors instance
     """
@@ -114,7 +114,7 @@ def create_physics_factors_from_config(config: dict) -> PhysicsFactors:
 @dataclass
 class CachedMatrices:
     """Cached matrices that depend only on time grid.
-    
+
     These are expensive to recompute and don't change during fitting.
     """
 
@@ -131,10 +131,10 @@ class CachedMatrices:
 
 def create_cached_matrices(factors: PhysicsFactors) -> CachedMatrices:
     """Create cached matrices from physics factors.
-    
+
     Args:
         factors: PhysicsFactors instance
-        
+
     Returns:
         CachedMatrices instance
     """

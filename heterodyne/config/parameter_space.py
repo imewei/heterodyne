@@ -54,10 +54,10 @@ class PriorDistribution:
 
     def to_numpyro(self, name: str) -> Any:
         """Convert to NumPyro distribution.
-        
+
         Args:
             name: Parameter name for the distribution
-            
+
         Returns:
             NumPyro distribution object
         """
@@ -80,7 +80,7 @@ class PriorDistribution:
 @dataclass
 class ParameterSpace:
     """Complete parameter space for heterodyne model optimization.
-    
+
     Manages parameter values, bounds, vary flags, and priors.
     """
 
@@ -127,7 +127,7 @@ class ParameterSpace:
 
     def get_initial_array(self) -> np.ndarray:
         """Get initial values as numpy array in canonical order.
-        
+
         Returns:
             Array of shape (14,) with parameter values
         """
@@ -135,7 +135,7 @@ class ParameterSpace:
 
     def get_bounds_arrays(self) -> tuple[np.ndarray, np.ndarray]:
         """Get bounds as numpy arrays.
-        
+
         Returns:
             (lower_bounds, upper_bounds) each of shape (14,)
         """
@@ -145,7 +145,7 @@ class ParameterSpace:
 
     def get_vary_mask(self) -> np.ndarray:
         """Get boolean mask for varying parameters.
-        
+
         Returns:
             Boolean array of shape (14,)
         """
@@ -153,10 +153,10 @@ class ParameterSpace:
 
     def array_to_dict(self, arr: np.ndarray | jnp.ndarray) -> dict[str, float]:
         """Convert parameter array to dictionary.
-        
+
         Args:
             arr: Array of shape (14,)
-            
+
         Returns:
             Dict mapping parameter names to values
         """
@@ -181,7 +181,7 @@ class ParameterSpace:
 
     def validate(self) -> list[str]:
         """Validate parameter space configuration.
-        
+
         Returns:
             List of validation error messages (empty if valid)
         """
@@ -210,10 +210,10 @@ class ParameterSpace:
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> ParameterSpace:
         """Create ParameterSpace from configuration dictionary.
-        
+
         Args:
             config: Config dict with 'parameters' section
-            
+
         Returns:
             Configured ParameterSpace
         """

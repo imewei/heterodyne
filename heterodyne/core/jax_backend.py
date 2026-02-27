@@ -6,7 +6,7 @@ and compatible with JAX transformations (jit, vmap, grad).
 
 The 14 model parameters in canonical order:
 0: D0_ref, 1: alpha_ref, 2: D_offset_ref
-3: D0_sample, 4: alpha_sample, 5: D_offset_sample  
+3: D0_sample, 4: alpha_sample, 5: D_offset_sample
 6: v0, 7: beta, 8: v_offset
 9: f0, 10: f1, 11: f2, 12: f3
 13: phi0
@@ -63,13 +63,13 @@ def compute_g1_transport(
     q: float,
 ) -> jnp.ndarray:
     """JIT-compiled g1 correlation from transport coefficient.
-    
+
     g1(t) = exp(-q² * J(t))
-    
+
     Args:
         J: Transport coefficient array
         q: Scattering wavevector
-        
+
     Returns:
         g1 correlation array
     """
@@ -85,16 +85,16 @@ def compute_fraction_jit(
     f3: float,
 ) -> jnp.ndarray:
     """JIT-compiled sample fraction computation.
-    
+
     f_s(t) = f0 * exp(f1 * (t - f2)) + f3, clipped to [0, 1]
-    
+
     Args:
         t: Time array
         f0: Amplitude
         f1: Exponential rate
         f2: Time shift
         f3: Baseline
-        
+
     Returns:
         Fraction array in [0, 1]
     """
@@ -112,19 +112,19 @@ def compute_velocity_integral_matrix(
     dt: float,
 ) -> jnp.ndarray:
     """JIT-compiled velocity integral matrix.
-    
+
     Computes M[i,j] = ∫_{t_i}^{t_j} v(t') dt'
     where v(t) = v0 * t^beta + v_offset
-    
+
     Uses cumsum for O(N) efficiency instead of O(N²) nested loops.
-    
+
     Args:
         t: Time array, shape (N,)
         v0: Velocity prefactor
         beta: Velocity exponent
         v_offset: Velocity offset
         dt: Time step
-        
+
     Returns:
         Integral matrix, shape (N, N)
     """
@@ -151,10 +151,10 @@ def compute_c2_heterodyne(
     phi_angle: float,
 ) -> jnp.ndarray:
     """JIT-compiled two-time heterodyne correlation computation.
-    
+
     Computes the full c2(t1, t2, phi) correlation matrix for the
     14-parameter two-component model.
-    
+
     Args:
         params: Parameter array of shape (14,) in canonical order:
             [D0_ref, alpha_ref, D_offset_ref,
@@ -166,7 +166,7 @@ def compute_c2_heterodyne(
         q: Scattering wavevector magnitude
         dt: Time step
         phi_angle: Detector phi angle (degrees)
-        
+
     Returns:
         Correlation matrix c2, shape (N, N)
     """
@@ -217,7 +217,8 @@ def compute_c2_heterodyne(
     # Fraction matrices
     f_ref_matrix = f_ref[:, None] * f_ref[None, :]
     f_sample_matrix = f_sample[:, None] * f_sample[None, :]
-    f_cross_matrix = f_ref[:, None] * f_sample[None, :] * f_sample[:, None] * f_ref[None, :]
+    f_cross_vec = f_ref * f_sample
+    f_cross_matrix = f_cross_vec[:, None] * f_cross_vec[None, :]
 
     # Reference term: (f_r(t1) * f_r(t2) * g1_r)²
     ref_term = (f_ref_matrix * g1_ref_matrix) ** 2

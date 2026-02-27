@@ -22,13 +22,13 @@ if TYPE_CHECKING:
 @dataclass
 class HeterodyneModel:
     """Main heterodyne correlation model with stateful parameter management.
-    
+
     This class provides a convenient interface for:
     - Managing model parameters through ParameterManager
     - Computing correlation matrices
     - Computing residuals for fitting
     - Accessing pre-computed physics factors
-    
+
     Example:
         >>> model = HeterodyneModel.from_config(config)
         >>> c2 = model.compute_correlation(phi_angle=45.0)
@@ -50,10 +50,10 @@ class HeterodyneModel:
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> HeterodyneModel:
         """Create model from configuration dictionary.
-        
+
         Args:
             config: Configuration with temporal, scattering, and parameters sections
-            
+
         Returns:
             Configured HeterodyneModel
         """
@@ -127,7 +127,7 @@ class HeterodyneModel:
 
     def get_params(self) -> np.ndarray:
         """Get current full parameter array.
-        
+
         Returns:
             Array of shape (14,)
         """
@@ -139,7 +139,7 @@ class HeterodyneModel:
 
     def set_params(self, params: np.ndarray | dict[str, float]) -> None:
         """Set parameter values.
-        
+
         Args:
             params: Either array of shape (14,) or dict with param names
         """
@@ -151,11 +151,11 @@ class HeterodyneModel:
         params: np.ndarray | None = None,
     ) -> jnp.ndarray:
         """Compute two-time correlation matrix.
-        
+
         Args:
             phi_angle: Detector phi angle (degrees)
             params: Optional parameter array (uses stored values if None)
-            
+
         Returns:
             Correlation matrix c2(t1, t2), shape (N, N)
         """
@@ -178,13 +178,13 @@ class HeterodyneModel:
         weights: np.ndarray | jnp.ndarray | None = None,
     ) -> jnp.ndarray:
         """Compute residuals between model and data.
-        
+
         Args:
             c2_data: Experimental correlation data
             phi_angle: Detector phi angle
             params: Optional parameter array
             weights: Optional weights (1/sigma²)
-            
+
         Returns:
             Flattened residual array
         """
@@ -203,10 +203,10 @@ class HeterodyneModel:
 
     def compute_g1_reference(self, params: np.ndarray | None = None) -> jnp.ndarray:
         """Compute reference g1 correlation.
-        
+
         Args:
             params: Optional parameter array
-            
+
         Returns:
             g1_ref array, shape (N,)
         """
@@ -216,10 +216,10 @@ class HeterodyneModel:
 
     def compute_g1_sample(self, params: np.ndarray | None = None) -> jnp.ndarray:
         """Compute sample g1 correlation.
-        
+
         Args:
             params: Optional parameter array
-            
+
         Returns:
             g1_sample array, shape (N,)
         """
@@ -229,10 +229,10 @@ class HeterodyneModel:
 
     def compute_fraction(self, params: np.ndarray | None = None) -> jnp.ndarray:
         """Compute sample fraction evolution.
-        
+
         Args:
             params: Optional parameter array
-            
+
         Returns:
             f_sample array, shape (N,)
         """
@@ -247,14 +247,14 @@ class HeterodyneModel:
         weights: np.ndarray | jnp.ndarray | None = None,
     ) -> Any:
         """Create a residual function for optimization.
-        
+
         Returns a function that takes varying parameters and returns residuals.
-        
+
         Args:
             c2_data: Experimental correlation data
             phi_angle: Detector phi angle
             weights: Optional weights
-            
+
         Returns:
             Callable that maps varying params -> residuals
         """
@@ -283,7 +283,7 @@ class HeterodyneModel:
 
     def summary(self) -> str:
         """Return summary of model configuration.
-        
+
         Returns:
             Multi-line summary string
         """

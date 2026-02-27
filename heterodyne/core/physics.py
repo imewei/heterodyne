@@ -11,7 +11,7 @@ import numpy as np
 @dataclass(frozen=True)
 class PhysicsConstants:
     """Physical constants for XPCS scattering analysis.
-    
+
     All values in SI base units unless otherwise noted.
     """
 
@@ -33,11 +33,11 @@ class PhysicsConstants:
 # Default parameter bounds for heterodyne model
 PARAMETER_BOUNDS: dict[str, tuple[float, float]] = {
     # Reference transport
-    "D0_ref": (0.0, 1e6),
+    "D0_ref": (1e-12, 1e6),
     "alpha_ref": (-2.0, 2.0),
     "D_offset_ref": (-1e5, 1e5),
     # Sample transport
-    "D0_sample": (0.0, 1e6),
+    "D0_sample": (1e-12, 1e6),
     "alpha_sample": (-2.0, 2.0),
     "D_offset_sample": (-1e5, 1e5),
     # Velocity
@@ -56,7 +56,7 @@ PARAMETER_BOUNDS: dict[str, tuple[float, float]] = {
 
 def get_default_bounds_array() -> tuple[np.ndarray, np.ndarray]:
     """Get default bounds as arrays in canonical parameter order.
-    
+
     Returns:
         (lower_bounds, upper_bounds) each of shape (14,)
     """
@@ -70,9 +70,9 @@ def get_default_bounds_array() -> tuple[np.ndarray, np.ndarray]:
 @dataclass(frozen=True)
 class TransportPhysics:
     """Physical interpretation of transport parameters.
-    
+
     Transport coefficient: J(t) = D0 * t^alpha + offset
-    
+
     Physical regimes based on alpha:
     - alpha = 1.0: Normal (Brownian) diffusion
     - alpha < 1.0: Subdiffusion (crowded/constrained)
@@ -87,10 +87,10 @@ class TransportPhysics:
     @staticmethod
     def interpret_alpha(alpha: float) -> str:
         """Interpret alpha value physically.
-        
+
         Args:
             alpha: Diffusion exponent
-            
+
         Returns:
             Physical interpretation string
         """
@@ -110,15 +110,15 @@ class TransportPhysics:
     @staticmethod
     def diffusion_coefficient(D0: float, alpha: float, t: float = 1.0) -> float:
         """Compute effective diffusion coefficient at time t.
-        
+
         For J(t) = D0 * t^alpha, the effective D is:
         D_eff = dJ/dt = D0 * alpha * t^(alpha-1)
-        
+
         Args:
             D0: Transport prefactor
             alpha: Transport exponent
             t: Time point (default 1.0)
-            
+
         Returns:
             Effective diffusion coefficient
         """

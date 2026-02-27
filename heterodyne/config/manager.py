@@ -22,13 +22,13 @@ class ConfigurationError(Exception):
 
 class ConfigManager:
     """Manager for heterodyne analysis configuration.
-    
+
     Handles loading, validation, and access to configuration settings.
     """
 
     def __init__(self, config: dict[str, Any]) -> None:
         """Initialize with configuration dictionary.
-        
+
         Args:
             config: Configuration dictionary
         """
@@ -59,10 +59,10 @@ class ConfigManager:
     @classmethod
     def from_yaml(cls, path: Path | str) -> ConfigManager:
         """Load configuration from YAML file.
-        
+
         Args:
             path: Path to YAML file
-            
+
         Returns:
             ConfigManager instance
         """
@@ -74,10 +74,10 @@ class ConfigManager:
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> ConfigManager:
         """Create from dictionary.
-        
+
         Args:
             config: Configuration dictionary
-            
+
         Returns:
             ConfigManager instance
         """
@@ -145,11 +145,11 @@ class ConfigManager:
 
     def get_parameter_value(self, group: str, name: str) -> float:
         """Get a specific parameter value.
-        
+
         Args:
             group: Parameter group ('reference', 'sample', etc.)
             name: Parameter name within group
-            
+
         Returns:
             Parameter value
         """
@@ -166,11 +166,11 @@ class ConfigManager:
 
     def get_parameter_vary(self, group: str, name: str) -> bool:
         """Check if parameter varies in optimization.
-        
+
         Args:
             group: Parameter group
             name: Parameter name
-            
+
         Returns:
             Whether parameter varies
         """
@@ -189,13 +189,17 @@ class ConfigManager:
 
     @property
     def nlsq_config(self) -> dict[str, Any]:
-        """NLSQ optimization settings."""
-        return cast(dict[str, Any], self._config.get("optimization", {}).get("nlsq", {}))
+        """NLSQ optimization settings (returns a copy to prevent mutation)."""
+        return copy.deepcopy(
+            cast(dict[str, Any], self._config.get("optimization", {}).get("nlsq", {}))
+        )
 
     @property
     def cmc_config(self) -> dict[str, Any]:
-        """CMC analysis settings."""
-        return cast(dict[str, Any], self._config.get("optimization", {}).get("cmc", {}))
+        """CMC analysis settings (returns a copy to prevent mutation)."""
+        return copy.deepcopy(
+            cast(dict[str, Any], self._config.get("optimization", {}).get("cmc", {}))
+        )
 
     # === Output Settings ===
 
@@ -207,7 +211,7 @@ class ConfigManager:
 
     def to_yaml(self, path: Path | str) -> None:
         """Save configuration to YAML file.
-        
+
         Args:
             path: Output path
         """
@@ -219,12 +223,12 @@ class ConfigManager:
 
 def load_xpcs_config(path: Path | str) -> ConfigManager:
     """Load XPCS analysis configuration from file.
-    
+
     Convenience function for loading configuration.
-    
+
     Args:
         path: Path to YAML configuration file
-        
+
     Returns:
         ConfigManager instance
     """

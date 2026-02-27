@@ -27,10 +27,10 @@ class ValidationResult:
 
 def validate_parameters(params: np.ndarray | dict[str, float]) -> ValidationResult:
     """Validate heterodyne model parameters against physical constraints.
-    
+
     Args:
         params: Either array of 14 values or dict with parameter names
-        
+
     Returns:
         ValidationResult with errors and warnings
     """
@@ -118,16 +118,16 @@ def validate_time_integral_safety(
     t_max: float,
 ) -> ValidationResult:
     """Validate that time integral won't have numerical issues.
-    
+
     For J(t) = D0 * t^alpha, the integral from 0 to T needs care when:
     - alpha < 0: singularity at t=0
     - alpha > large: potential overflow
-    
+
     Args:
         alpha: Exponent value
         t_min: Minimum time (should be > 0 if alpha < 0)
         t_max: Maximum time
-        
+
     Returns:
         ValidationResult
     """
@@ -146,9 +146,15 @@ def validate_time_integral_safety(
 
     if alpha > 3:
         # t^alpha can overflow for large t
-        if t_max ** alpha > 1e15:
+        try:
+            power_val = t_max ** alpha
+            if power_val > 1e15:
+                warnings.append(
+                    f"t_max^alpha = {t_max}^{alpha} = {power_val:.2e} may overflow"
+                )
+        except OverflowError:
             warnings.append(
-                f"t_max^alpha = {t_max}^{alpha} = {t_max**alpha:.2e} may overflow"
+                f"t_max^alpha = {t_max}^{alpha:.1f} overflows float range"
             )
 
     return ValidationResult(
@@ -164,12 +170,12 @@ def validate_correlation_inputs(
     c2_data: np.ndarray,
 ) -> ValidationResult:
     """Validate correlation matrix inputs.
-    
+
     Args:
         t1: Time axis 1
         t2: Time axis 2
         c2_data: Correlation data
-        
+
     Returns:
         ValidationResult
     """

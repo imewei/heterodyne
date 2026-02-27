@@ -63,13 +63,13 @@ PARAM_INDICES: dict[str, int] = {name: i for i, name in enumerate(ALL_PARAM_NAME
 
 def get_param_index(name: str) -> int:
     """Get index of parameter in flattened array.
-    
+
     Args:
         name: Parameter name
-        
+
     Returns:
         Index (0-13)
-        
+
     Raises:
         KeyError: If parameter name is invalid
     """
@@ -81,10 +81,10 @@ def get_param_index(name: str) -> int:
 
 def get_group_indices(group: str) -> tuple[int, ...]:
     """Get indices for all parameters in a group.
-    
+
     Args:
         group: Group name ('reference', 'sample', 'velocity', 'fraction', 'angle')
-        
+
     Returns:
         Tuple of indices
     """

@@ -28,24 +28,23 @@ def compute_transport_coefficient(
     offset: float = 0.0,
 ) -> jnp.ndarray:
     """Compute transport coefficient J(t) = D0 * t^alpha + offset.
-    
+
     Handles the singularity at t=0 for negative alpha by using
     the physical limit (J(0) = offset for alpha > 0, 0 for alpha <= 0).
-    
+
     Args:
         t: Time array, shape (N,)
         D0: Diffusion prefactor
         alpha: Diffusion exponent
         offset: Constant offset
-        
+
     Returns:
         Transport coefficient array, shape (N,)
     """
     t = jnp.asarray(t)
 
-    # Handle t=0 singularity for negative alpha
-    # Use small epsilon to avoid division by zero
-    t_safe = jnp.where(t > 0, t, 1e-10)
+    # Handle t=0 singularity for negative alpha (matches jax_backend pattern)
+    t_safe = jnp.maximum(t, 1e-10)
 
     # Compute t^alpha
     t_power = jnp.power(t_safe, alpha)
@@ -64,21 +63,22 @@ def compute_fraction(
     f3: float,
 ) -> jnp.ndarray:
     """Compute sample fraction f_s(t) = f0 * exp(f1 * (t - f2)) + f3.
-    
+
     Result is clipped to [0, 1] to ensure physical validity.
-    
+
     Args:
         t: Time array, shape (N,)
         f0: Fraction amplitude
         f1: Exponential rate
         f2: Time shift
         f3: Baseline offset
-        
+
     Returns:
         Sample fraction array, shape (N,), values in [0, 1]
     """
     t = jnp.asarray(t)
-    fraction = f0 * jnp.exp(f1 * (t - f2)) + f3
+    exponent = jnp.clip(f1 * (t - f2), -100, 100)
+    fraction = f0 * jnp.exp(exponent) + f3
     return jnp.clip(fraction, 0.0, 1.0)
 
 
@@ -87,13 +87,13 @@ def compute_g1_decay(
     q: float,
 ) -> jnp.ndarray:
     """Compute g1 field correlation from transport coefficient.
-    
+
     g₁(t) = exp(-q² · J(t))
-    
+
     Args:
         J: Transport coefficient array
         q: Scattering wavevector magnitude
-        
+
     Returns:
         g1 correlation array
     """
@@ -105,15 +105,15 @@ def compute_time_integral_matrix(
     dt: float,
 ) -> jnp.ndarray:
     """Compute cumulative integral matrix for velocity field.
-    
+
     Returns matrix M where M[i,j] = ∫_{t_i}^{t_j} values(t) dt
-    
+
     Uses cumsum broadcasting for O(N) computation instead of O(N²) nested loops.
-    
+
     Args:
         values: Time-dependent values to integrate, shape (N,)
         dt: Time step
-        
+
     Returns:
         Integral matrix, shape (N, N)
     """
@@ -134,13 +134,13 @@ def compute_velocity_field(
     v_offset: float,
 ) -> jnp.ndarray:
     """Compute velocity field v(t) = v0 * t^beta + v_offset.
-    
+
     Args:
         t: Time array, shape (N,)
         v0: Velocity prefactor
         beta: Velocity exponent
         v_offset: Constant velocity offset
-        
+
     Returns:
         Velocity array, shape (N,)
     """
@@ -156,14 +156,14 @@ def compute_cross_term_phase(
     phi: float,
 ) -> jnp.ndarray:
     """Compute cross-term phase factor.
-    
+
     phase = q * cos(phi) * ∫v(t)dt
-    
+
     Args:
         velocity_integral: Integral matrix from compute_time_integral_matrix
         q: Scattering wavevector magnitude
         phi: Flow angle (degrees)
-        
+
     Returns:
         Phase matrix, shape (N, N)
     """
@@ -176,15 +176,15 @@ def compute_normalization_factor(
     f_s_2: jnp.ndarray,
 ) -> jnp.ndarray:
     """Compute normalization factor f² for correlation.
-    
+
     f² = (f_s(t₁)² + f_r(t₁)²) · (f_s(t₂)² + f_r(t₂)²)
-    
+
     where f_r(t) = 1 - f_s(t)
-    
+
     Args:
         f_s_1: Sample fraction at t1 times, shape (N1,)
         f_s_2: Sample fraction at t2 times, shape (N2,)
-        
+
     Returns:
         Normalization matrix, shape (N1, N2)
     """
