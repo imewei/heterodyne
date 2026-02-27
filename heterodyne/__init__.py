@@ -2,6 +2,7 @@
 # This must be set before JAX is imported
 # ruff: noqa: E402, I001
 import os
+import types
 os.environ.setdefault("JAX_ENABLE_X64", "True")
 
 # Now import JAX and configure
@@ -59,7 +60,7 @@ from heterodyne.optimization.cmc import fit_cmc_jax, CMCConfig, CMCResult
 # Use: from heterodyne.device import configure_optimal_device
 
 
-def get_device_config():
+def get_device_config() -> types.ModuleType:
     """Get the device configuration module.
 
     Returns:

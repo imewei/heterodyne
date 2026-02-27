@@ -1,7 +1,9 @@
 """Command-line interface for heterodyne analysis."""
 
+from typing import Any
 
-def __getattr__(name: str):
+
+def __getattr__(name: str) -> Any:
     """Lazy imports to avoid eagerly loading heavy dependencies (JAX, etc.)."""
     _imports = {
         "main": ("heterodyne.cli.main", "main"),

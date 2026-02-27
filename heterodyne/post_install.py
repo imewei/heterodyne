@@ -209,7 +209,7 @@ source "{source}"
         if verbose:
             print(f"Installed zsh completion to: {dest}")
         return True
-    except (OSError, IOError) as e:
+    except OSError as e:
         if verbose:
             print(f"Failed to install zsh completion: {e}")
         return False
@@ -257,7 +257,7 @@ complete -c heterodyne-cleanup -s h -l help -d 'Show help'
         if verbose:
             print(f"Installed fish completion to: {dest}")
         return True
-    except (OSError, IOError) as e:
+    except OSError as e:
         if verbose:
             print(f"Failed to install fish completion: {e}")
         return False
@@ -369,7 +369,7 @@ fi
         if verbose:
             print(f"Added XLA activation to: {activate_script}")
         return True
-    except (OSError, IOError) as e:
+    except OSError as e:
         if verbose:
             print(f"Failed to modify activate script: {e}")
         return False
@@ -413,7 +413,7 @@ end
         if verbose:
             print(f"Added XLA activation to: {activate_script}")
         return True
-    except (OSError, IOError) as e:
+    except OSError as e:
         if verbose:
             print(f"Failed to modify fish activate script: {e}")
         return False
@@ -436,7 +436,7 @@ def configure_xla_mode(mode: str = "auto", verbose: bool = False) -> bool:
         if verbose:
             print(f"Set XLA mode to '{mode}' in {config_file}")
         return True
-    except (OSError, IOError) as e:
+    except OSError as e:
         if verbose:
             print(f"Failed to write XLA mode config: {e}")
         return False

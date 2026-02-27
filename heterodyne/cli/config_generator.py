@@ -17,13 +17,13 @@ def get_template_path() -> Path:
         Path to template YAML
     """
     import heterodyne
-    
+
     pkg_dir = Path(heterodyne.__file__).parent
     template_path = pkg_dir / "config" / "templates" / "heterodyne_master_template.yaml"
-    
+
     if not template_path.exists():
         raise FileNotFoundError(f"Template not found: {template_path}")
-    
+
     return template_path
 
 
@@ -49,16 +49,16 @@ def generate_config(
         Path to generated config
     """
     output_path = Path(output_path)
-    
+
     if output_path.exists() and not overwrite:
         raise FileExistsError(f"File exists: {output_path}. Use --overwrite to replace.")
-    
+
     template_path = get_template_path()
-    
+
     # Read template
     with open(template_path, encoding="utf-8") as f:
         content = f.read()
-    
+
     # Substitute values if provided
     import yaml
 
@@ -84,14 +84,14 @@ def generate_config(
         if placeholder not in content:
             logger.warning(f"Placeholder '{placeholder}' not found in template")
         content = content.replace(placeholder, replacement)
-    
+
     # Write output
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(content)
-    
+
     logger.info(f"Generated configuration: {output_path}")
-    
+
     return output_path
 
 
@@ -101,7 +101,7 @@ def main() -> None:
         prog="heterodyne-config",
         description="Generate heterodyne configuration file from template",
     )
-    
+
     parser.add_argument(
         "--output",
         "-o",
@@ -109,7 +109,7 @@ def main() -> None:
         default=Path("heterodyne_config.yaml"),
         help="Output path for configuration file (default: heterodyne_config.yaml)",
     )
-    
+
     parser.add_argument(
         "--data",
         "-d",
@@ -117,46 +117,46 @@ def main() -> None:
         default=None,
         help="Path to experimental data file",
     )
-    
+
     parser.add_argument(
         "--q",
         type=float,
         default=None,
         help="Wavevector magnitude",
     )
-    
+
     parser.add_argument(
         "--dt",
         type=float,
         default=None,
         help="Time step",
     )
-    
+
     parser.add_argument(
         "--time-length",
         type=int,
         default=None,
         help="Number of time points",
     )
-    
+
     parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Overwrite existing file",
     )
-    
+
     parser.add_argument(
         "--show-template",
         action="store_true",
         help="Print template path and exit",
     )
-    
+
     args = parser.parse_args()
-    
+
     if args.show_template:
         print(f"Template: {get_template_path()}")
         return
-    
+
     try:
         output = generate_config(
             output_path=args.output,
@@ -169,7 +169,7 @@ def main() -> None:
         print(f"Created: {output}")
     except FileExistsError as e:
         print(f"Error: {e}")
-        raise SystemExit(1)
+        raise SystemExit(1) from e
 
 
 if __name__ == "__main__":

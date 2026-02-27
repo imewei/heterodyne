@@ -27,11 +27,11 @@ def configure_xla(
         Dict of environment variables that were set
     """
     env_vars = {}
-    
+
     # Force CPU backend
     os.environ["JAX_PLATFORM_NAME"] = "cpu"
     env_vars["JAX_PLATFORM_NAME"] = "cpu"
-    
+
     # Thread configuration
     if num_threads is not None:
         existing = os.environ.get("XLA_FLAGS", "")
@@ -46,17 +46,17 @@ def configure_xla(
         env_vars["XLA_FLAGS"] = os.environ["XLA_FLAGS"]
         env_vars["OMP_NUM_THREADS"] = str(num_threads)
         env_vars["MKL_NUM_THREADS"] = str(num_threads)
-    
+
     # Disable JIT for debugging
     if disable_jit:
         os.environ["JAX_DISABLE_JIT"] = "1"
         env_vars["JAX_DISABLE_JIT"] = "1"
-    
+
     # Enable 64-bit precision
     if enable_x64:
         os.environ["JAX_ENABLE_X64"] = "1"
         env_vars["JAX_ENABLE_X64"] = "1"
-    
+
     # Disable GPU/TPU memory preallocation (only relevant when GPU is present)
     try:
         import jax  # noqa: E402
@@ -66,7 +66,7 @@ def configure_xla(
     except Exception:
         # JAX not yet importable or no GPU; skip GPU-only flag
         pass
-    
+
     return env_vars
 
 
@@ -77,17 +77,17 @@ def get_cpu_info() -> dict[str, int | str]:
         Dict with cpu_count, physical_cores, etc.
     """
     import psutil
-    
+
     info = {
         "cpu_count": psutil.cpu_count(),
         "physical_cores": psutil.cpu_count(logical=False) or psutil.cpu_count(),
     }
-    
+
     # Available memory
     mem = psutil.virtual_memory()
     info["available_memory_gb"] = round(mem.available / (1024**3), 1)
     info["total_memory_gb"] = round(mem.total / (1024**3), 1)
-    
+
     return info
 
 
@@ -98,17 +98,17 @@ def auto_configure() -> dict[str, str]:
         Dict of environment variables set
     """
     cpu_info = get_cpu_info()
-    
+
     # Use physical cores (not hyperthreaded)
     num_threads = cpu_info.get("physical_cores", 4)
-    
+
     return configure_xla(num_threads=num_threads, enable_x64=True)
 
 
 def main() -> None:
     """CLI entry point for XLA configuration."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(
         description="Configure XLA for heterodyne analysis"
     )
@@ -133,22 +133,22 @@ def main() -> None:
         action="store_true",
         help="Print CPU info and exit",
     )
-    
+
     args = parser.parse_args()
-    
+
     if args.info:
         info = get_cpu_info()
         print("CPU Information:")
         for key, value in info.items():
             print(f"  {key}: {value}")
         return
-    
+
     env_vars = configure_xla(
         num_threads=args.threads,
         disable_jit=args.debug,
         enable_x64=not args.no_x64,
     )
-    
+
     print("XLA Configuration:")
     for key, value in env_vars.items():
         print(f"  {key}={value}")
