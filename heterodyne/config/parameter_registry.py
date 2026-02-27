@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -44,7 +45,9 @@ class ParameterRegistry:
     def __post_init__(self) -> None:
         """Initialize with default heterodyne parameters."""
         if not self._parameters:
-            self._parameters = _create_default_registry()
+            self._parameters = MappingProxyType(_create_default_registry())
+        elif not isinstance(self._parameters, MappingProxyType):
+            self._parameters = MappingProxyType(dict(self._parameters))
     
     def __getitem__(self, name: str) -> ParameterInfo:
         """Get parameter info by name."""
@@ -94,7 +97,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
     params["D0_ref"] = ParameterInfo(
         name="D0_ref",
         default=1.0,
-        min_bound=0.0,
+        min_bound=1e-12,
         max_bound=1e6,
         description="Reference diffusion coefficient prefactor",
         unit="nm²/s^α",
@@ -126,7 +129,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
     params["D0_sample"] = ParameterInfo(
         name="D0_sample",
         default=1.0,
-        min_bound=0.0,
+        min_bound=1e-12,
         max_bound=1e6,
         description="Sample diffusion coefficient prefactor",
         unit="nm²/s^α",
@@ -232,8 +235,8 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
     params["phi0"] = ParameterInfo(
         name="phi0",
         default=0.0,
-        min_bound=-360.0,
-        max_bound=360.0,
+        min_bound=0.0,
+        max_bound=180.0,
         description="Flow angle relative to q-vector",
         unit="degrees",
         group="angle",

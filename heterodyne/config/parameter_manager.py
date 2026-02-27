@@ -9,6 +9,7 @@ import numpy as np
 
 from heterodyne.config.parameter_names import ALL_PARAM_NAMES, PARAM_GROUPS
 from heterodyne.config.parameter_space import ParameterSpace
+from heterodyne.config.physics_validators import validate_time_integral_safety
 
 if TYPE_CHECKING:
     import jax.numpy as jnp
@@ -179,7 +180,17 @@ class ParameterManager:
             val = param_dict[name]
             if abs(val) > 2:
                 violations.append(f"{name}={val:.3f} has unusual magnitude (>2)")
-        
+
+        # Time integral safety for alpha exponents
+        for alpha_name in ("alpha_ref", "alpha_sample"):
+            result = validate_time_integral_safety(
+                alpha=param_dict[alpha_name],
+                t_min=0.0,
+                t_max=1e6,
+            )
+            violations.extend(result.errors)
+            violations.extend(result.warnings)
+
         return violations
     
     @classmethod

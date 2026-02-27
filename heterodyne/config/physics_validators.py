@@ -52,8 +52,14 @@ def validate_parameters(params: np.ndarray | dict[str, float]) -> ValidationResu
     
     # Diffusion coefficients must be non-negative
     for name in ("D0_ref", "D0_sample"):
-        if name in param_dict and param_dict[name] < 0:
-            errors.append(f"{name}={param_dict[name]:.3e} must be non-negative")
+        if name in param_dict:
+            if param_dict[name] < 0:
+                errors.append(f"{name}={param_dict[name]:.3e} must be non-negative")
+            elif param_dict[name] < 1e-12:
+                warnings.append(
+                    f"{name}={param_dict[name]:.3e} is near zero; "
+                    "this may cause degenerate diffusion behaviour"
+                )
     
     # Fraction amplitude f0 must be in [0, 1]
     if "f0" in param_dict:
@@ -67,12 +73,12 @@ def validate_parameters(params: np.ndarray | dict[str, float]) -> ValidationResu
         if not (0 <= f3 <= 1):
             errors.append(f"f3={f3:.3f} must be in [0, 1]")
     
-    # Combined fraction should not exceed 1
+    # Combined fraction must not exceed 1 (physical impossibility)
     if "f0" in param_dict and "f3" in param_dict:
         if param_dict["f0"] + param_dict["f3"] > 1.0:
-            warnings.append(
-                f"f0 + f3 = {param_dict['f0'] + param_dict['f3']:.3f} > 1, "
-                "fraction may clip to [0, 1]"
+            errors.append(
+                f"f0 + f3 = {param_dict['f0'] + param_dict['f3']:.3f} > 1; "
+                "total fraction exceeds unity, which is physically impossible"
             )
     
     # === Soft constraints (warnings) ===

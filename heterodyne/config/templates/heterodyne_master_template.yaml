@@ -57,7 +57,7 @@ parameters:
   reference:
     D0_ref:
       value: 1.0
-      min: 0.0
+      min: 1.0e-12
       max: 1000000.0
       vary: true
     alpha_ref:
@@ -76,7 +76,7 @@ parameters:
   sample:
     D0_sample:
       value: 1.0
-      min: 0.0
+      min: 1.0e-12
       max: 1000000.0
       vary: true
     alpha_sample:
@@ -125,8 +125,8 @@ parameters:
       vary: false
     f2:
       value: 0.0
-      min: -1000.0
-      max: 1000.0
+      min: -10000.0
+      max: 10000.0
       vary: false
     f3:
       value: 0.0
@@ -138,8 +138,8 @@ parameters:
   angle:
     phi0:
       value: 0.0
-      min: -360.0
-      max: 360.0
+      min: 0.0
+      max: 180.0
       vary: true
 
 # Optimization Settings

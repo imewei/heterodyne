@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TypedDict, NotRequired
+from typing import Literal, TypedDict, NotRequired
 
 
 class ParameterConfig(TypedDict):
@@ -45,7 +45,7 @@ class NLSQOptimizationConfig(TypedDict):
 class CMCOptimizationConfig(TypedDict):
     """CMC (Consensus Monte Carlo) configuration."""
     
-    enable: NotRequired[str]  # "auto", "always", "never"
+    enable: NotRequired[Literal["auto", "always", "never"]]
     num_warmup: NotRequired[int]
     num_samples: NotRequired[int]
     num_chains: NotRequired[int]

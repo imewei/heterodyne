@@ -113,17 +113,17 @@ class ParameterSpace:
     @property
     def n_varying(self) -> int:
         """Number of parameters that vary in optimization."""
-        return sum(1 for v in self.vary.values() if v)
-    
+        return len(self.varying_names)
+
     @property
     def varying_names(self) -> list[str]:
         """Names of parameters that vary."""
         return [name for name in ALL_PARAM_NAMES if self.vary.get(name, False)]
-    
+
     @property
     def fixed_names(self) -> list[str]:
         """Names of parameters that are fixed."""
-        return [name for name in ALL_PARAM_NAMES if not self.vary.get(name, True)]
+        return [name for name in ALL_PARAM_NAMES if not self.vary.get(name, False)]
     
     def get_initial_array(self) -> np.ndarray:
         """Get initial values as numpy array in canonical order.
@@ -164,13 +164,20 @@ class ParameterSpace:
     
     def update_from_dict(self, params: dict[str, float]) -> None:
         """Update parameter values from dictionary.
-        
+
         Args:
             params: Dict with parameter names as keys
+
+        Raises:
+            ValueError: If a key doesn't match any known parameter
         """
         for name, value in params.items():
-            if name in self.values:
-                self.values[name] = value
+            if name not in self.values:
+                raise ValueError(
+                    f"Unknown parameter '{name}'. "
+                    f"Valid parameters: {list(ALL_PARAM_NAMES)}"
+                )
+            self.values[name] = value
     
     def validate(self) -> list[str]:
         """Validate parameter space configuration.
@@ -223,36 +230,30 @@ class ParameterSpace:
             "angle": ["phi0"],
         }
         
-        # Map config names to internal names
-        config_to_internal = {
-            "D0": lambda g: f"D0_{g}" if g in ("ref", "sample") else "D0_sample",
-            "alpha": lambda g: f"alpha_{g}" if g in ("ref", "sample") else "alpha_sample",
-            "D_offset": lambda g: f"D_offset_{g}" if g in ("ref", "sample") else "D_offset_sample",
-        }
-        
         for group_name, param_names in group_map.items():
             group_config = params_config.get(group_name, {})
-            
+
+            # Check for unknown keys in this group
+            known_params = set(param_names)
+            for ck in group_config:
+                if ck not in known_params:
+                    raise ValueError(
+                        f"Unknown parameter key '{ck}' in group '{group_name}'. "
+                        f"Valid keys: {param_names}"
+                    )
+
             for param_name in param_names:
-                # Try to find matching config key
-                config_key = None
-                for ck in group_config:
-                    if ck in param_name or param_name.startswith(ck):
-                        config_key = ck
-                        break
-                
-                # Direct match
-                if param_name in group_config:
-                    config_key = param_name
-                
-                if config_key and config_key in group_config:
-                    pconfig = group_config[config_key]
-                    if isinstance(pconfig, dict):
-                        if "value" in pconfig:
-                            space.values[param_name] = pconfig["value"]
-                        if "min" in pconfig and "max" in pconfig:
-                            space.bounds[param_name] = (pconfig["min"], pconfig["max"])
-                        if "vary" in pconfig:
-                            space.vary[param_name] = pconfig["vary"]
-        
+                # Direct key match only — no substring matching
+                if param_name not in group_config:
+                    continue
+
+                pconfig = group_config[param_name]
+                if isinstance(pconfig, dict):
+                    if "value" in pconfig:
+                        space.values[param_name] = pconfig["value"]
+                    if "min" in pconfig and "max" in pconfig:
+                        space.bounds[param_name] = (pconfig["min"], pconfig["max"])
+                    if "vary" in pconfig:
+                        space.vary[param_name] = pconfig["vary"]
+
         return space

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import copy
+import logging
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from heterodyne.utils.path_validation import validate_file_exists
+
+logger = logging.getLogger(__name__)
+
+_ALLOWED_OPTIMIZATION_METHODS = {"nlsq", "cmc"}
 
 
 class ConfigurationError(Exception):
@@ -35,6 +41,20 @@ class ConfigManager:
         missing = [s for s in required_sections if s not in self._config]
         if missing:
             raise ConfigurationError(f"Missing required sections: {missing}")
+
+        # Warn if optimization section is absent; validate method if present
+        if "optimization" not in self._config:
+            logger.warning(
+                "Configuration has no 'optimization' section; "
+                "defaults will be used (method='nlsq')"
+            )
+        else:
+            method = self._config["optimization"].get("method")
+            if method is not None and method not in _ALLOWED_OPTIMIZATION_METHODS:
+                raise ConfigurationError(
+                    f"Invalid optimization method '{method}'. "
+                    f"Allowed values: {sorted(_ALLOWED_OPTIMIZATION_METHODS)}"
+                )
     
     @classmethod
     def from_yaml(cls, path: Path | str) -> ConfigManager:
@@ -65,8 +85,8 @@ class ConfigManager:
     
     @property
     def raw_config(self) -> dict[str, Any]:
-        """Get raw configuration dictionary."""
-        return self._config
+        """Get raw configuration dictionary (deep copy to prevent mutation)."""
+        return copy.deepcopy(self._config)
     
     # === Experimental Data ===
     
@@ -136,7 +156,12 @@ class ConfigManager:
         group_config = self._config["parameters"].get(group, {})
         param_config = group_config.get(name, {})
         if isinstance(param_config, dict):
-            return float(param_config.get("value", 0.0))
+            if "value" not in param_config:
+                raise ConfigurationError(
+                    f"Parameter '{name}' in group '{group}' is missing "
+                    f"the required 'value' key"
+                )
+            return float(param_config["value"])
         return float(param_config)
     
     def get_parameter_vary(self, group: str, name: str) -> bool:
