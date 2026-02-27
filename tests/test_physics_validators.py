@@ -121,12 +121,12 @@ class TestValidateParameters:
         assert any("f3" in e for e in result.errors)
 
     @pytest.mark.unit
-    def test_f0_plus_f3_exceeds_one_warning(self) -> None:
-        """f0 + f3 > 1 generates a warning."""
+    def test_f0_plus_f3_exceeds_one_error(self) -> None:
+        """f0 + f3 > 1 is a physical impossibility — produces error."""
         params = {"f0": 0.8, "f3": 0.5}
         result = validate_parameters(params)
-        assert result.is_valid  # Only a warning, not an error
-        assert any("f0 + f3" in w and "clip" in w for w in result.warnings)
+        assert not result.is_valid  # Error, not just a warning
+        assert any("f0 + f3" in e for e in result.errors)
 
     @pytest.mark.unit
     def test_unusual_alpha_warning(self) -> None:

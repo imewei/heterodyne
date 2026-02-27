@@ -70,8 +70,11 @@ def plot_nlsq_fit(
         axes[1].set_title("Fitted Model")
     
     # Residual plot
-    if result.residuals is not None and result.fitted_correlation is not None:
-        residual_2d = c2_data - result.fitted_correlation
+    if result.fitted_correlation is not None:
+        if result.residuals is not None:
+            residual_2d = result.residuals
+        else:
+            residual_2d = c2_data - result.fitted_correlation
         vmax = np.percentile(np.abs(residual_2d), 99)
         im2 = axes[2].imshow(
             residual_2d,
@@ -90,14 +93,16 @@ def plot_nlsq_fit(
         axes[2].set_title("Residuals")
     
     # Add fit statistics
-    stats_text = f"χ²_red = {result.reduced_chi_squared:.3f}" if result.reduced_chi_squared else ""
+    chi2 = result.reduced_chi_squared
+    stats_text = f"χ²_red = {chi2:.3f}" if chi2 is not None else ""
     fig.suptitle(f"NLSQ Fit Results  {stats_text}", fontsize=12, fontweight='bold')
     
     plt.tight_layout()
     
     if save_path is not None:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    
+        plt.close(fig)
+
     return fig
 
 
@@ -123,8 +128,11 @@ def plot_residual_map(
     if result.fitted_correlation is None:
         fig.suptitle("No fitted correlation available")
         return fig
-    
-    residuals = c2_data - result.fitted_correlation
+
+    if result.residuals is not None:
+        residuals = result.residuals
+    else:
+        residuals = c2_data - result.fitted_correlation
     
     if t is None:
         t = np.arange(c2_data.shape[0])
@@ -181,7 +189,8 @@ def plot_residual_map(
     
     if save_path is not None:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    
+        plt.close(fig)
+
     return fig
 
 
@@ -227,5 +236,6 @@ def plot_parameter_uncertainties(
     
     if save_path is not None:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    
+        plt.close(fig)
+
     return fig

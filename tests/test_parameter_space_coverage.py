@@ -209,12 +209,10 @@ class TestParameterSpaceArrays:
         assert space.values["D0_ref"] == 99.0
         assert space.values["alpha_ref"] == 0.5
 
-    def test_update_from_dict_ignores_unknown(self, space: ParameterSpace) -> None:
-        """update_from_dict ignores unknown keys."""
-        original_d0 = space.values["D0_ref"]
-        space.update_from_dict({"unknown_param": 1.0})
-        # No error, D0_ref unchanged
-        assert space.values["D0_ref"] == original_d0
+    def test_update_from_dict_rejects_unknown(self, space: ParameterSpace) -> None:
+        """update_from_dict raises ValueError for unknown keys."""
+        with pytest.raises(ValueError, match="Unknown parameter"):
+            space.update_from_dict({"unknown_param": 1.0})
 
 
 # ============================================================================

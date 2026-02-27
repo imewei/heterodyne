@@ -15,7 +15,6 @@ from heterodyne.utils.logging import (
     ConvergenceLogger,
     configure_logging,
     get_logger,
-    _loggers,
 )
 
 

@@ -80,7 +80,11 @@ def plot_posterior(
         
         ax.set_xlabel(name)
         ax.set_ylabel("Density")
-        ax.set_title(f"{name} (R-hat={result.r_hat[idx]:.3f})" if result.r_hat is not None else name)
+        if result.r_hat is not None and idx < len(result.r_hat):
+            rhat_str = f" (R-hat={result.r_hat[idx]:.3f})"
+        else:
+            rhat_str = ""
+        ax.set_title(f"{name}{rhat_str}")
     
     # Hide unused axes
     for i in range(n_params, len(axes)):
@@ -90,7 +94,8 @@ def plot_posterior(
     
     if save_path is not None:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    
+        plt.close(fig)
+
     return fig
 
 
@@ -159,7 +164,8 @@ def plot_trace(
     
     if save_path is not None:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    
+        plt.close(fig)
+
     return fig
 
 
@@ -221,5 +227,6 @@ def plot_corner(
     
     if save_path is not None:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    
+        plt.close(fig)
+
     return fig

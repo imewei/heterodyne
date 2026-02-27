@@ -32,19 +32,19 @@ def basic_config() -> dict:
         },
         "parameters": {
             "reference": {
-                "D0": {"value": 1.0, "vary": True, "min": 0.0, "max": 10.0},
-                "alpha": {"value": 1.0, "vary": False},
-                "offset": {"value": 0.0, "vary": False},
+                "D0_ref": {"value": 1.0, "vary": True, "min": 0.0, "max": 10.0},
+                "alpha_ref": {"value": 1.0, "vary": False},
+                "D_offset_ref": {"value": 0.0, "vary": False},
             },
             "sample": {
-                "D0": {"value": 1.0, "vary": True, "min": 0.0, "max": 10.0},
-                "alpha": {"value": 1.0, "vary": False},
-                "offset": {"value": 0.0, "vary": False},
+                "D0_sample": {"value": 1.0, "vary": True, "min": 0.0, "max": 10.0},
+                "alpha_sample": {"value": 1.0, "vary": False},
+                "D_offset_sample": {"value": 0.0, "vary": False},
             },
             "velocity": {
                 "v0": {"value": 0.0, "vary": False},
                 "beta": {"value": 1.0, "vary": False},
-                "phase": {"value": 0.0, "vary": False},
+                "v_offset": {"value": 0.0, "vary": False},
             },
             "fraction": {
                 "f0": {"value": 0.5, "vary": True, "min": 0.0, "max": 1.0},

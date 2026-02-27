@@ -406,8 +406,8 @@ class TestMultiStartFit:
             config=nlsq_config,
         )
 
-        # Should use last result
-        assert result.best_result.message == "Failed 2"
+        # Should use result with lowest cost (first when equal)
+        assert result.best_result.message == "Failed 1"
         assert result.n_successful == 0
 
     @pytest.mark.unit

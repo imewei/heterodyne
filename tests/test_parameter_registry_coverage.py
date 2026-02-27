@@ -203,7 +203,7 @@ class TestDefaultRegistry:
     def test_default_registry_d0_ref_bounds(self) -> None:
         """DEFAULT_REGISTRY has correct D0_ref bounds."""
         info = DEFAULT_REGISTRY["D0_ref"]
-        assert info.min_bound == 0.0
+        assert info.min_bound == 1e-12  # Nonzero to prevent degenerate fits
         assert info.max_bound == 1e6
 
     def test_default_registry_alpha_bounds(self) -> None:
