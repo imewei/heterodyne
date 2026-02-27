@@ -1,9 +1,9 @@
 """Runtime utilities for heterodyne package."""
 
 from heterodyne.runtime.utils.system_validator import (
+    Severity,
     SystemValidator,
     ValidationResult,
-    Severity,
     run_validation,
 )
 

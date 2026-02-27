@@ -36,10 +36,10 @@ def validate_file_exists(path: str | Path, description: str = "File") -> Path:
         PathValidationError: If file doesn't exist or isn't readable
     """
     resolved = resolve_path(path)
-    
+
     if not resolved.exists():
         raise PathValidationError(f"{description} not found: {resolved}")
-    
+
     if not resolved.is_file():
         raise PathValidationError(f"{description} is not a file: {resolved}")
 
@@ -63,15 +63,15 @@ def validate_output_path(path: str | Path, create_parents: bool = True) -> Path:
         PathValidationError: If path is invalid
     """
     resolved = resolve_path(path)
-    
+
     if resolved.exists() and resolved.is_dir():
         raise PathValidationError(f"Output path is a directory: {resolved}")
-    
+
     if create_parents:
         resolved.parent.mkdir(parents=True, exist_ok=True)
     elif not resolved.parent.exists():
         raise PathValidationError(f"Parent directory does not exist: {resolved.parent}")
-    
+
     return resolved
 
 

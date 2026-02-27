@@ -30,21 +30,11 @@ os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 logging.getLogger("jax").setLevel(logging.WARNING)
 logging.getLogger("jax._src").setLevel(logging.WARNING)
 
-# CPU detection and configuration
-from heterodyne.device.cpu import (
-    CPUInfo,
-    benchmark_cpu_performance,
-    configure_cpu_hpc,
-    configure_jax_cpu,
-    detect_cpu_info,
-    get_jax_cpu_flags,
-    get_optimal_batch_size,
-)
-
+# CPU detection and configuration  # noqa: E402
 # Hardware configuration for CMC
-from heterodyne.device.config import (
-    CMCBackend,
+from heterodyne.device.config import (  # noqa: E402
     ClusterType,
+    CMCBackend,
     HardwareConfig,
     configure_optimal_device,
     detect_cluster_type,
@@ -52,6 +42,15 @@ from heterodyne.device.config import (
     get_available_memory,
     get_backend_name,
     get_device_status,
+)
+from heterodyne.device.cpu import (  # noqa: E402
+    CPUInfo,
+    benchmark_cpu_performance,
+    configure_cpu_hpc,
+    configure_jax_cpu,
+    detect_cpu_info,
+    get_jax_cpu_flags,
+    get_optimal_batch_size,
 )
 
 __all__ = [

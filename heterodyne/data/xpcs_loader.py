@@ -21,30 +21,30 @@ logger = get_logger(__name__)
 @dataclass
 class XPCSData:
     """Container for loaded XPCS data."""
-    
+
     # Two-time correlation matrix c2(t1, t2)
     c2: np.ndarray
-    
+
     # Time arrays
     t1: np.ndarray
     t2: np.ndarray
-    
+
     # Optional metadata
     q: float | None = None
     phi_angles: np.ndarray | None = None
     uncertainties: np.ndarray | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    
+
     @property
     def shape(self) -> tuple[int, ...]:
         """Shape of correlation data."""
         return self.c2.shape
-    
+
     @property
     def n_times(self) -> int:
         """Number of time points (assumes square c2)."""
         return self.c2.shape[0]
-    
+
     @property
     def has_multi_phi(self) -> bool:
         """Whether data has multiple phi angles."""
@@ -53,7 +53,7 @@ class XPCSData:
 
 class XPCSDataLoader:
     """Loader for XPCS correlation data from various file formats."""
-    
+
     def __init__(
         self,
         file_path: Path | str,
@@ -67,7 +67,7 @@ class XPCSDataLoader:
         """
         self.file_path = validate_file_exists(file_path, "XPCS data file")
         self.format = format or self._detect_format()
-    
+
     def _detect_format(self) -> str:
         """Detect file format from extension."""
         suffix = self.file_path.suffix.lower()
@@ -82,7 +82,7 @@ class XPCSDataLoader:
         if suffix not in format_map:
             raise ValueError(f"Unknown file format: {suffix}")
         return format_map[suffix]
-    
+
     def load(
         self,
         c2_key: str = "c2",
@@ -102,7 +102,7 @@ class XPCSDataLoader:
             XPCSData container
         """
         logger.info(f"Loading XPCS data from {self.file_path}")
-        
+
         if self.format == "hdf5":
             return self._load_hdf5(c2_key, time_key, q_key, phi_key)
         elif self.format == "npz":
@@ -113,7 +113,7 @@ class XPCSDataLoader:
             return self._load_mat(c2_key, time_key, q_key, phi_key)
         else:
             raise ValueError(f"Unsupported format: {self.format}")
-    
+
     def _load_hdf5(
         self,
         c2_key: str,
@@ -135,15 +135,15 @@ class XPCSDataLoader:
             else:
                 logger.warning(f"Time key '{time_key}' not found, using indices")
                 t = np.arange(c2.shape[0], dtype=np.float64)
-            
+
             # Load optional q
             q = float(f[q_key][()]) if q_key and q_key in f else None
-            
+
             # Load optional phi angles
             phi = None
             if phi_key and phi_key in f:
                 phi = np.asarray(f[phi_key], dtype=np.float64)
-            
+
             # Collect metadata (sanitize HDF5 attribute types)
             metadata = {}
             for key in f.attrs:
@@ -153,7 +153,7 @@ class XPCSDataLoader:
                 elif isinstance(value, np.generic):
                     value = value.item()
                 metadata[key] = value
-        
+
         return XPCSData(
             c2=c2,
             t1=t,
@@ -162,7 +162,7 @@ class XPCSDataLoader:
             phi_angles=phi,
             metadata=metadata,
         )
-    
+
     def _load_npz(
         self,
         c2_key: str,
@@ -177,11 +177,11 @@ class XPCSDataLoader:
         """
         try:
             npz_file = np.load(self.file_path, allow_pickle=False)
-        except ValueError:
+        except ValueError as exc:
             raise ValueError(
                 f"NPZ file {self.file_path} contains pickled objects, "
                 "which is not allowed for security"
-            )
+            ) from exc
 
         with npz_file as data:
             if c2_key not in data:
@@ -206,13 +206,17 @@ class XPCSDataLoader:
             q=q,
             phi_angles=phi,
         )
-    
+
     def _load_npy(self) -> XPCSData:
         """Load from NPY file (just the array)."""
-        c2 = np.load(self.file_path)
-        t = np.arange(c2.shape[0])
+        c2 = np.load(self.file_path).astype(np.float64)
+        if c2.ndim < 2:
+            raise ValueError(
+                f"Expected 2D or 3D array from {self.file_path}, got {c2.ndim}D"
+            )
+        t = np.arange(c2.shape[-2] if c2.ndim == 3 else c2.shape[0])
         return XPCSData(c2=c2, t1=t, t2=t)
-    
+
     def _load_mat(
         self,
         c2_key: str,
@@ -222,14 +226,14 @@ class XPCSDataLoader:
     ) -> XPCSData:
         """Load from MATLAB .mat file."""
         from scipy.io import loadmat
-        
+
         data = loadmat(self.file_path)
-        
+
         if c2_key not in data:
             # Filter out MATLAB internal keys
             available = [k for k in data.keys() if not k.startswith("__")]
             raise KeyError(f"Key '{c2_key}' not found. Available: {available}")
-        
+
         c2 = np.asarray(data[c2_key], dtype=np.float64)
 
         if time_key in data:
@@ -241,7 +245,7 @@ class XPCSDataLoader:
         phi = None
         if phi_key and phi_key in data:
             phi = np.asarray(data[phi_key], dtype=np.float64).ravel()
-        
+
         return XPCSData(
             c2=c2,
             t1=t,

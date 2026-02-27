@@ -35,9 +35,9 @@ def save_nlsq_json_files(
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     saved_paths: dict[str, Path] = {}
-    
+
     # Parameters file
     params_data = {
         "parameters": json_safe(result.parameters),
@@ -48,7 +48,7 @@ def save_nlsq_json_files(
     params_path = output_dir / f"{prefix}_parameters.json"
     save_json(params_data, params_path)
     saved_paths["parameters"] = params_path
-    
+
     # Metadata file
     metadata = {
         "success": result.success,
@@ -63,7 +63,7 @@ def save_nlsq_json_files(
     metadata_path = output_dir / f"{prefix}_metadata.json"
     save_json(metadata, metadata_path)
     saved_paths["metadata"] = metadata_path
-    
+
     return saved_paths
 
 
@@ -97,22 +97,22 @@ def save_nlsq_npz_file(
         "success": np.array(result.success),
         "final_cost": np.array(result.final_cost if result.final_cost is not None else np.nan),
     }
-    
+
     if result.uncertainties is not None:
         arrays["uncertainties"] = np.asarray(result.uncertainties)
-    
+
     if result.covariance is not None:
         arrays["covariance"] = np.asarray(result.covariance)
-    
+
     if include_residuals and result.residuals is not None:
         arrays["residuals"] = np.asarray(result.residuals)
-    
+
     if include_jacobian and result.jacobian is not None:
         arrays["jacobian"] = np.asarray(result.jacobian)
-    
+
     if result.fitted_correlation is not None:
         arrays["fitted_correlation"] = np.asarray(result.fitted_correlation)
-    
+
     np.savez_compressed(output_path, **arrays)
     return output_path
 
@@ -136,7 +136,7 @@ def format_nlsq_summary(result: NLSQResult) -> str:
         "Fitted Parameters:",
         "-" * 40,
     ]
-    
+
     for i, name in enumerate(result.parameter_names):
         value = result.parameters[i]
         if result.uncertainties is not None:
@@ -144,7 +144,7 @@ def format_nlsq_summary(result: NLSQResult) -> str:
             lines.append(f"  {name:20s}: {value:12.6e} ± {unc:.2e}")
         else:
             lines.append(f"  {name:20s}: {value:12.6e}")
-    
+
     lines.extend([
         "",
         "Fit Statistics:",
@@ -152,16 +152,16 @@ def format_nlsq_summary(result: NLSQResult) -> str:
         f"  Iterations:          {result.n_iterations}",
         f"  Function evaluations: {result.n_function_evals}",
     ])
-    
+
     if result.final_cost is not None:
         lines.append(f"  Final cost:          {result.final_cost:.6e}")
-    
+
     if result.reduced_chi_squared is not None:
         lines.append(f"  Reduced χ²:          {result.reduced_chi_squared:.4f}")
-    
+
     if result.wall_time_seconds is not None:
         lines.append(f"  Wall time:           {result.wall_time_seconds:.2f} s")
-    
+
     lines.append("=" * 60)
-    
+
     return "\n".join(lines)

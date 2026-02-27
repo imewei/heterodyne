@@ -7,7 +7,7 @@ import math
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -135,7 +135,7 @@ def load_json(path: Path | str) -> dict[str, Any]:
         Parsed JSON data
     """
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        return cast(dict[str, Any], json.load(f))
 
 
 def save_json(data: Any, path: Path | str) -> None:

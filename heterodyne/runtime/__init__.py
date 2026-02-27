@@ -11,15 +11,15 @@ Example:
     >>> all_passed = all(r.success for r in results)
 """
 
-from heterodyne.runtime.utils import (
-    SystemValidator,
-    ValidationResult,
-    Severity,
-    run_validation,
-)
 from heterodyne.runtime.shell import (
     get_completion_script,
     get_xla_config_script,
+)
+from heterodyne.runtime.utils import (
+    Severity,
+    SystemValidator,
+    ValidationResult,
+    run_validation,
 )
 
 __all__ = [

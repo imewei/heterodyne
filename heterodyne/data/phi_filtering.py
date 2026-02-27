@@ -17,47 +17,55 @@ logger = get_logger(__name__)
 
 @dataclass
 class PhiFilterResult:
-    """Result of phi angle filtering."""
-    
+    """Result of phi angle filtering.
+
+    Note on ``selected_indices``: For ``select_angles`` and
+    ``select_angle_range``, these are indices into the *original*
+    phi_angles array. For ``average_symmetric_angles``, they are
+    output-space indices (0, 1, 2, ...) because symmetric averaging
+    produces a new, smaller set of angles with no 1-to-1 mapping
+    back to the input.
+    """
+
     # Filtered correlation data
     c2: np.ndarray
-    
+
     # Selected phi angles
     phi_angles: np.ndarray
-    
-    # Indices of selected angles in original data
+
+    # Indices of selected angles (see class docstring for semantics)
     selected_indices: np.ndarray
-    
+
     # Number of angles selected
     n_angles: int
 
 
 class PhiAngleFilter:
     """Filter correlation data by phi angles.
-    
+
     Heterodyne data typically has multiple phi angles (detector positions).
     This filter selects specific angles or ranges.
     """
-    
+
     def __init__(
         self,
         phi_angles: np.ndarray | None = None,
     ) -> None:
         """Initialize filter.
-        
+
         Args:
             phi_angles: Available phi angles in data
         """
         self._phi_angles = phi_angles
-    
+
     def set_available_angles(self, phi_angles: np.ndarray) -> None:
         """Set available phi angles.
-        
+
         Args:
             phi_angles: Array of available angles (degrees)
         """
         self._phi_angles = np.asarray(phi_angles)
-    
+
     def select_angles(
         self,
         c2: np.ndarray,
@@ -65,12 +73,12 @@ class PhiAngleFilter:
         angle_tolerance: float = 5.0,
     ) -> PhiFilterResult:
         """Select specific phi angles from data.
-        
+
         Args:
             c2: Correlation data, shape (n_phi, n_t, n_t) or (n_t, n_t)
             target_angles: Angles to select (None for all)
             angle_tolerance: Tolerance for angle matching (degrees)
-            
+
         Returns:
             PhiFilterResult with filtered data
         """
@@ -82,10 +90,10 @@ class PhiAngleFilter:
                 selected_indices=np.array([0]),
                 n_angles=1,
             )
-        
+
         if self._phi_angles is None:
             raise ValueError("Phi angles not set. Call set_available_angles first.")
-        
+
         if target_angles is None:
             # Return all angles
             return PhiFilterResult(
@@ -94,18 +102,18 @@ class PhiAngleFilter:
                 selected_indices=np.arange(len(self._phi_angles)),
                 n_angles=len(self._phi_angles),
             )
-        
+
         target_angles = np.asarray(target_angles)
-        
+
         # Find closest matching angles
         selected_indices = []
         matched_angles = []
-        
+
         for target in target_angles:
             # Find closest angle
             diffs = np.abs(self._phi_angles - target)
             min_idx = np.argmin(diffs)
-            
+
             if diffs[min_idx] <= angle_tolerance:
                 selected_indices.append(min_idx)
                 matched_angles.append(self._phi_angles[min_idx])
@@ -114,12 +122,12 @@ class PhiAngleFilter:
                     f"No angle within {angle_tolerance}° of target {target}°. "
                     f"Closest: {self._phi_angles[min_idx]:.1f}°"
                 )
-        
+
         # Deduplicate indices while preserving order
         seen = set()
         deduped_indices = []
         deduped_angles = []
-        for idx, angle in zip(selected_indices, matched_angles):
+        for idx, angle in zip(selected_indices, matched_angles, strict=True):
             if idx not in seen:
                 seen.add(idx)
                 deduped_indices.append(idx)
@@ -129,14 +137,14 @@ class PhiAngleFilter:
 
         if len(selected_indices) == 0:
             raise ValueError(f"No angles matched targets {target_angles}")
-        
+
         return PhiFilterResult(
             c2=c2[selected_indices],
             phi_angles=matched_angles,
             selected_indices=selected_indices,
             n_angles=len(selected_indices),
         )
-    
+
     def select_angle_range(
         self,
         c2: np.ndarray,
@@ -144,12 +152,12 @@ class PhiAngleFilter:
         phi_max: float,
     ) -> PhiFilterResult:
         """Select angles within a range.
-        
+
         Args:
             c2: Correlation data
             phi_min: Minimum angle (degrees)
             phi_max: Maximum angle (degrees)
-            
+
         Returns:
             PhiFilterResult with filtered data
         """
@@ -160,7 +168,7 @@ class PhiAngleFilter:
                 selected_indices=np.array([0]),
                 n_angles=1,
             )
-        
+
         if self._phi_angles is None:
             raise ValueError("Phi angles not set.")
 
@@ -169,31 +177,31 @@ class PhiAngleFilter:
 
         mask = (self._phi_angles >= phi_min) & (self._phi_angles <= phi_max)
         selected_indices = np.where(mask)[0]
-        
+
         if len(selected_indices) == 0:
             raise ValueError(f"No angles in range [{phi_min}, {phi_max}]")
-        
+
         return PhiFilterResult(
             c2=c2[selected_indices],
             phi_angles=self._phi_angles[mask],
             selected_indices=selected_indices,
             n_angles=len(selected_indices),
         )
-    
+
     def average_symmetric_angles(
         self,
         c2: np.ndarray,
         symmetry_center: float = 0.0,
     ) -> PhiFilterResult:
         """Average correlation at symmetric phi angles.
-        
+
         For angles symmetric about a center (e.g., +45° and -45°),
         average their correlations to improve statistics.
-        
+
         Args:
             c2: Correlation data
             symmetry_center: Center of symmetry (degrees)
-            
+
         Returns:
             PhiFilterResult with averaged data
         """
@@ -204,7 +212,7 @@ class PhiAngleFilter:
                 selected_indices=np.array([0]),
                 n_angles=1,
             )
-        
+
         # Find symmetric pairs
         relative_angles = self._phi_angles - symmetry_center
         unique_abs_angles = np.unique(np.abs(relative_angles))
@@ -237,12 +245,12 @@ def filter_by_phi(
     angle_tolerance: float = 5.0,
 ) -> PhiFilterResult:
     """Convenience function to filter data by phi angles.
-    
+
     Args:
         data: XPCSData with multi-phi correlation
         target_angles: Specific angles to select
         angle_tolerance: Matching tolerance
-        
+
     Returns:
         PhiFilterResult
     """

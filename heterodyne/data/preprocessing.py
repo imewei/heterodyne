@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 import numpy as np
 
@@ -18,7 +19,7 @@ logger = get_logger(__name__)
 @dataclass
 class PreprocessingResult:
     """Result of preprocessing operations."""
-    
+
     c2: np.ndarray
     applied_steps: list[str] = field(default_factory=list)
     statistics: dict[str, float] = field(default_factory=dict)
@@ -33,11 +34,11 @@ class PreprocessingPipeline:
     - Outlier removal
     - Smoothing
     """
-    
+
     def __init__(self) -> None:
         """Initialize empty pipeline."""
         self._steps: list[tuple[str, Callable[[np.ndarray], np.ndarray]]] = []
-    
+
     def add_step(
         self,
         name: str,
@@ -54,7 +55,7 @@ class PreprocessingPipeline:
         """
         self._steps.append((name, func))
         return self
-    
+
     def normalize_diagonal(self) -> PreprocessingPipeline:
         """Add diagonal normalization step.
         
@@ -76,10 +77,10 @@ class PreprocessingPipeline:
             diag_safe = np.where(np.abs(diag) > 1e-10, diag, 1.0)
             # Normalize using outer product of sqrt(diag)
             norm = np.sqrt(np.outer(diag_safe, diag_safe))
-            return c2 / norm
-        
+            return np.asarray(c2 / norm)
+
         return self.add_step("normalize_diagonal", _normalize)
-    
+
     def subtract_baseline(self, baseline: float = 1.0) -> PreprocessingPipeline:
         """Add baseline subtraction step.
         
@@ -88,9 +89,9 @@ class PreprocessingPipeline:
         """
         def _subtract(c2: np.ndarray) -> np.ndarray:
             return c2 - baseline
-        
+
         return self.add_step(f"subtract_baseline({baseline})", _subtract)
-    
+
     def clip_values(
         self,
         min_val: float | None = None,
@@ -104,9 +105,9 @@ class PreprocessingPipeline:
         """
         def _clip(c2: np.ndarray) -> np.ndarray:
             return np.clip(c2, min_val, max_val)
-        
+
         return self.add_step(f"clip({min_val}, {max_val})", _clip)
-    
+
     def remove_outliers(
         self,
         n_sigma: float = 5.0,
@@ -130,7 +131,7 @@ class PreprocessingPipeline:
                 mean = np.nanmean(c2)
                 std = np.nanstd(c2)
             outlier_mask = np.abs(c2 - mean) > n_sigma * std
-            
+
             result = c2.copy()
             if replace_with == "median":
                 result[outlier_mask] = np.nanmedian(c2)
@@ -138,15 +139,15 @@ class PreprocessingPipeline:
                 result[outlier_mask] = np.nan
             elif replace_with == "clip":
                 result = np.clip(result, mean - n_sigma * std, mean + n_sigma * std)
-            
+
             n_outliers = np.sum(outlier_mask)
             if n_outliers > 0:
                 logger.info(f"Removed {n_outliers} outliers ({100*n_outliers/c2.size:.2f}%)")
-            
+
             return result
-        
+
         return self.add_step(f"remove_outliers({n_sigma}σ)", _remove_outliers)
-    
+
     def symmetrize(self) -> PreprocessingPipeline:
         """Add symmetrization step for 2D correlation.
         
@@ -155,10 +156,10 @@ class PreprocessingPipeline:
         def _symmetrize(c2: np.ndarray) -> np.ndarray:
             if c2.ndim != 2:
                 return c2
-            return np.nanmean(np.stack([c2, c2.T]), axis=0)
-        
+            return np.asarray(np.nanmean(np.stack([c2, c2.T]), axis=0))
+
         return self.add_step("symmetrize", _symmetrize)
-    
+
     def crop_time(
         self,
         t_start: int = 0,
@@ -186,7 +187,7 @@ class PreprocessingPipeline:
             return c2
 
         return self.add_step(f"crop_time({t_start}:{t_end})", _crop)
-    
+
     def process(self, c2: np.ndarray) -> PreprocessingResult:
         """Apply all preprocessing steps.
         
@@ -198,12 +199,12 @@ class PreprocessingPipeline:
         """
         result = c2.copy()
         applied = []
-        
+
         for name, func in self._steps:
             logger.debug(f"Applying: {name}")
             result = func(result)
             applied.append(name)
-        
+
         # Compute statistics
         statistics = {
             "min": float(np.nanmin(result)),
@@ -212,7 +213,7 @@ class PreprocessingPipeline:
             "std": float(np.nanstd(result)),
             "nan_count": int(np.sum(np.isnan(result))),
         }
-        
+
         return PreprocessingResult(
             c2=result,
             applied_steps=applied,
@@ -238,14 +239,14 @@ def preprocess_correlation(
         PreprocessingResult
     """
     pipeline = PreprocessingPipeline()
-    
+
     if remove_outliers:
         pipeline.remove_outliers(n_sigma=5.0)
-    
+
     if symmetrize:
         pipeline.symmetrize()
-    
+
     if normalize:
         pipeline.normalize_diagonal()
-    
+
     return pipeline.process(c2)

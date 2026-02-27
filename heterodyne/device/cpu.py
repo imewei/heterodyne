@@ -113,14 +113,25 @@ def _detect_linux_cpu() -> CPUInfo:
                         info.vendor = vendor_str
                 if info.model_name and info.vendor:
                     break
-    except (OSError, IOError):
+    except OSError:
         pass
 
     return info
 
 
+def _safe_int(value: str) -> int | None:
+    """Parse an integer from lscpu value, handling formats like '4 (2 online)'."""
+    try:
+        return int(value.split()[0])
+    except (ValueError, IndexError):
+        return None
+
+
 def _parse_lscpu(output: str, info: CPUInfo) -> CPUInfo:
     """Parse lscpu output to extract CPU information."""
+    cores_per_socket: int | None = None
+    sockets: int | None = None
+
     for line in output.split("\n"):
         if ":" not in line:
             continue
@@ -130,17 +141,17 @@ def _parse_lscpu(output: str, info: CPUInfo) -> CPUInfo:
         value = value.strip()
 
         if key == "cpu(s)":
-            info.logical_cores = int(value)
+            parsed = _safe_int(value)
+            if parsed is not None:
+                info.logical_cores = parsed
         elif key == "core(s) per socket":
-            cores_per_socket = int(value)
-            # Get socket count
-            for line2 in output.split("\n"):
-                if "Socket(s):" in line2:
-                    sockets = int(line2.split(":")[1].strip())
-                    info.physical_cores = cores_per_socket * sockets
-                    break
+            cores_per_socket = _safe_int(value)
+        elif key == "socket(s)":
+            sockets = _safe_int(value)
         elif key == "numa node(s)":
-            info.numa_nodes = int(value)
+            parsed = _safe_int(value)
+            if parsed is not None:
+                info.numa_nodes = parsed
         elif key == "architecture":
             info.architecture = value
         elif key == "vendor id":
@@ -150,6 +161,10 @@ def _parse_lscpu(output: str, info: CPUInfo) -> CPUInfo:
                 info.vendor = "AMD"
             else:
                 info.vendor = value
+
+    # Compute physical cores from cores_per_socket * sockets
+    if cores_per_socket is not None and sockets is not None:
+        info.physical_cores = cores_per_socket * sockets
 
     return info
 
