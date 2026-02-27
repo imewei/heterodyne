@@ -58,11 +58,11 @@ requires-python = ">=3.12"
 # ============================================================================
 dependencies = [
     # Core scientific computing
-    "numpy>=2.3,<3.0",
-    "scipy>=1.17,<2.0",
-    # JAX ecosystem (CPU-only, pin to 0.8.x for stability)
-    "jax>=0.8.2,<0.9.0",
-    "jaxlib>=0.8.2,<0.9.0",
+    "numpy>=2.3",
+    "scipy>=1.17",
+    # JAX ecosystem (CPU-only)
+    "jax>=0.8.2",
+    "jaxlib>=0.8.2",
     "jaxopt>=0.8.3",
     "interpax>=0.3.12",
     "nlsq>=0.6.4",
@@ -77,11 +77,14 @@ dependencies = [
     # System utilities
     "psutil>=7.2",
     "cloudpickle>=3.1",
+    "tqdm>=4.67.1",
     # Plotting
     "matplotlib>=3.10",
     # Fast visualization (includes numba as transitive dependency)
     "datashader>=0.18",
     "xarray>=2025.12",
+    # Machine learning utilities (for GMM bimodal detection)
+    "scikit-learn>=1.6",
 ]
 
 [project.optional-dependencies]
@@ -89,17 +92,17 @@ dev = [
     "pytest>=9.0.2",
     "pytest-cov>=7.0",
     "pytest-xdist>=3.8",
-    "ruff>=0.14.11",
+    "ruff>=0.15.2",
     "mypy>=1.19.1",
     "pre-commit>=4.5.1",
-    "tqdm>=4.67.1",
+    "types-pyyaml>=6.0.12.20250915",
 ]
 
 docs = [
-    "sphinx>=8.2.3",
+    "sphinx>=9.1.0",
     "furo>=2025.12.19",
-    "myst-parser>=4.0.1",
-    "sphinx-autodoc-typehints>=3.5.2",
+    "myst-parser>=5.0.0",
+    "sphinx-autodoc-typehints>=3.6.3",
     "sphinx-copybutton>=0.5.2",
 ]
 
@@ -108,10 +111,11 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/heterodyne"
+Homepage = "https://github.com/imewei/heterodyne"
 Documentation = "https://heterodyne.readthedocs.io"
-Repository = "https://github.com/your-org/heterodyne.git"
-Issues = "https://github.com/your-org/heterodyne/issues"
+Repository = "https://github.com/imewei/heterodyne.git"
+Issues = "https://github.com/imewei/heterodyne/issues"
+Changelog = "https://github.com/imewei/heterodyne/blob/main/CHANGELOG.md"
 
 [project.scripts]
 heterodyne = "heterodyne.cli.main:main"
@@ -160,6 +164,7 @@ heterodyne = [
 [tool.ruff]
 line-length = 88
 target-version = "py313"
+exclude = ["heterodyne/_version.py"]
 
 [tool.ruff.lint]
 select = [
@@ -179,6 +184,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"docs/notebooks/*.ipynb" = ["E402", "B905"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "docs", "build", "dist"]
@@ -212,6 +218,8 @@ module = [
     "matplotlib.*",
     "datashader.*",
     "xarray.*",
+    "scipy.*",
+    "zstd.*",
 ]
 ignore_missing_imports = true
 
@@ -272,8 +280,9 @@ module = [
 ignore_errors = true
 
 [tool.pytest.ini_options]
-minversion = "9.0"
-addopts = "-ra -q --strict-markers --strict-config"
+# Pytest configuration for Heterodyne test suite (CPU-only)
+minversion = "8.0"
+addopts = "-ra -q --strict-markers --strict-config --tb=short --maxfail=10 --durations=10"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
@@ -291,15 +300,39 @@ markers = [
     "validation: marks tests as CMC accuracy validation tests",
     "arviz: marks tests as ArviZ integration tests",
     "visualization: marks tests as visualization tests",
+    "regression: marks tests as regression tests",
 ]
 filterwarnings = [
+    # JAX warnings
+    "ignore::DeprecationWarning:jax.*",
+    "ignore::FutureWarning:jax.*",
+    "ignore::UserWarning:jax.*",
+    # NumPyro warnings
+    "ignore::UserWarning:numpyro.*",
+    "ignore::DeprecationWarning:numpyro.*",
+    # General warnings
+    "ignore::PendingDeprecationWarning",
+    "ignore::matplotlib.MatplotlibDeprecationWarning",
+    "ignore::RuntimeWarning:heterodyne.optimization.sequential_angle",
+    # Specific warnings
     "ignore:There are not enough devices to run parallel chains:UserWarning",
     "ignore:Covariance of the parameters could not be estimated:scipy.optimize.OptimizeWarning",
+    "ignore:scatter inputs have incompatible types.*:FutureWarning",
     "ignore:invalid escape sequence:SyntaxWarning",
     # NumPyro uses deprecated JAX internals (xla_pmap_p) - awaiting upstream fix
-    # See: https://github.com/pyro-ppl/numpyro/issues (JAX 0.8.2+ compatibility)
     "ignore:jax.interpreters.pxla.xla_pmap_p is deprecated:DeprecationWarning",
+    # Multiprocessing fork warnings (Python 3.13 + JAX multithreaded)
+    "ignore:os.fork\\(\\) was called.*:RuntimeWarning",
+    "ignore:This process.*is multi-threaded, use of fork\\(\\).*:DeprecationWarning",
+    # NLSQ wrapper dt derivation warning (expected with synthetic test data)
+    "ignore:data\\.dt missing.*:UserWarning",
 ]
+# Logging
+log_cli = false
+log_cli_level = "WARNING"
+# Performance
+junit_family = "xunit2"
+cache_dir = ".pytest_cache"
 
 [tool.coverage.run]
 source = ["heterodyne"]
@@ -378,8 +411,14 @@ cache_compilation = true
 
 [dependency-groups]
 dev = [
-    "hypothesis>=6.150.3",
-    "types-pyyaml>=6.0.12.20250915",
+    "ipykernel>=7.2.0",
+]
+
+[tool.uv]
+# Override uvloop to be Unix-only (orbax-checkpoint declares it unconditionally,
+# but uvloop does not support Windows)
+override-dependencies = [
+    "uvloop>=0.22.1; sys_platform != 'win32'",
 ]
 
 # [tool.uv.sources]
