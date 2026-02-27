@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 import numpy as np
 
@@ -18,7 +19,7 @@ class NLSQAdapterBase(ABC):
     Adapters wrap different optimization backends (scipy, nlsq library, etc.)
     with a consistent interface.
     """
-    
+
     @abstractmethod
     def fit(
         self,
@@ -41,17 +42,17 @@ class NLSQAdapterBase(ABC):
             NLSQResult with optimization results
         """
         ...
-    
+
     @abstractmethod
     def supports_bounds(self) -> bool:
         """Whether this adapter supports bounded optimization."""
         ...
-    
+
     @abstractmethod
     def supports_jacobian(self) -> bool:
         """Whether this adapter supports analytic Jacobian."""
         ...
-    
+
     @property
     @abstractmethod
     def name(self) -> str:

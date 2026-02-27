@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 import numpy as np
 
@@ -20,7 +21,7 @@ logger = get_logger(__name__)
 @dataclass
 class MultiStartResult:
     """Result of multi-start optimization."""
-    
+
     best_result: NLSQResult
     all_results: list[NLSQResult]
     n_successful: int
@@ -33,7 +34,7 @@ class MultiStartOptimizer:
     Runs optimization from multiple starting points to improve
     chances of finding the global minimum.
     """
-    
+
     def __init__(
         self,
         adapter: NLSQAdapterBase,
@@ -50,7 +51,7 @@ class MultiStartOptimizer:
         self._adapter = adapter
         self._n_starts = n_starts
         self._rng = np.random.default_rng(seed)
-    
+
     def generate_starting_points(
         self,
         initial_params: np.ndarray,
@@ -67,18 +68,18 @@ class MultiStartOptimizer:
         """
         lower, upper = bounds
         n_params = len(initial_params)
-        
+
         # First point is user-provided
         starting_points = [initial_params.copy()]
-        
+
         # Generate LHS points for remaining starts
         n_lhs = self._n_starts - 1
         if n_lhs > 0:
             lhs_points = self._latin_hypercube_sample(n_lhs, n_params, lower, upper)
             starting_points.extend(lhs_points)
-        
+
         return np.array(starting_points)
-    
+
     def _latin_hypercube_sample(
         self,
         n_samples: int,
@@ -111,7 +112,7 @@ class MultiStartOptimizer:
                 result[i, d] = low_edge + self._rng.random() * (high_edge - low_edge)
 
         return [result[i] for i in range(n_samples)]
-    
+
     def fit(
         self,
         residual_fn: Callable[[np.ndarray], np.ndarray],
@@ -133,16 +134,16 @@ class MultiStartOptimizer:
             MultiStartResult with best and all results
         """
         starting_points = self.generate_starting_points(initial_params, bounds)
-        
+
         logger.info(f"Running multi-start optimization with {len(starting_points)} starts")
-        
+
         all_results: list[NLSQResult] = []
         best_result: NLSQResult | None = None
         best_cost = np.inf
-        
+
         for i, start in enumerate(starting_points):
             logger.debug(f"Starting point {i+1}/{len(starting_points)}")
-            
+
             result = self._adapter.fit(
                 residual_fn=residual_fn,
                 initial_params=start,
@@ -150,29 +151,29 @@ class MultiStartOptimizer:
                 config=config,
                 jacobian_fn=jacobian_fn,
             )
-            
+
             all_results.append(result)
-            
+
             if result.success and result.final_cost is not None:
                 if result.final_cost < best_cost:
                     best_cost = result.final_cost
                     best_result = result
                     logger.debug(f"  New best cost: {best_cost:.6e}")
-        
+
         n_successful = sum(1 for r in all_results if r.success)
-        
+
         if best_result is None:
             logger.warning("All optimization runs failed, using result with lowest cost")
             best_result = min(
                 all_results,
                 key=lambda r: r.final_cost if r.final_cost is not None else np.inf,
             )
-        
+
         logger.info(
             f"Multi-start complete: {n_successful}/{len(starting_points)} successful, "
             f"best cost = {best_cost:.6e}"
         )
-        
+
         return MultiStartResult(
             best_result=best_result,
             all_results=all_results,

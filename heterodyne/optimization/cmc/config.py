@@ -21,7 +21,7 @@ class CMCConfig:
         dense_mass: Whether to use dense mass matrix
         init_strategy: Initialization strategy
     """
-    
+
     enable: Literal["auto", "always", "never"] = "auto"
     num_warmup: int = 500
     num_samples: int = 1000
@@ -31,19 +31,19 @@ class CMCConfig:
     seed: int | None = None
     dense_mass: bool = False
     init_strategy: Literal["init_to_median", "init_to_sample", "init_to_value"] = "init_to_median"
-    
+
     # Convergence thresholds
     r_hat_threshold: float = 1.1
     min_ess: int = 100
     min_bfmi: float = 0.3
-    
+
     # NLSQ warm-start
     use_nlsq_warmstart: bool = True
 
     # Reparameterization
     use_reparam: bool = True
     prior_width_factor: float = 2.0
-    
+
     def __post_init__(self) -> None:
         """Validate configuration."""
         if self.num_warmup < 100:
@@ -54,7 +54,7 @@ class CMCConfig:
             raise ValueError("num_chains must be >= 1")
         if not (0.5 <= self.target_accept <= 0.99):
             raise ValueError("target_accept should be in [0.5, 0.99]")
-    
+
     @classmethod
     def from_dict(cls, config: dict) -> CMCConfig:
         """Create from dictionary."""
@@ -66,7 +66,7 @@ class CMCConfig:
         }
         filtered = {k: v for k, v in config.items() if k in known_fields}
         return cls(**filtered)
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {

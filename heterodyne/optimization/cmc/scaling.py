@@ -93,7 +93,7 @@ def smooth_bound(
     mid = jnp.float64((low + high) / 2.0)
     half = jnp.float64((high - low) / 2.0)
     # Guard degenerate bounds (low == high) to avoid 0/0 → NaN
-    return jnp.where(half > 0, mid + half * jnp.tanh((raw - mid) / half), mid)
+    return jnp.where(half > 0, mid + half * jnp.tanh((raw - mid) / half), mid)  # type: ignore[no-any-return]
 
 
 def smooth_bound_inverse(

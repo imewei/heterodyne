@@ -231,7 +231,8 @@ def fit_cmc_jax(
                 if name in nlsq_result.parameter_names:
                     perturb_key, subkey = jax.random.split(perturb_key)
                     base = jnp.full(
-                        (config.num_chains,), nlsq_result.get_param(name)
+                        (config.num_chains,),
+                        jnp.float64(nlsq_result.get_param(name)),
                     )
                     perturbation = 0.01 * jax.random.normal(
                         subkey, shape=(config.num_chains,)
@@ -356,10 +357,14 @@ def fit_cmc_jax(
 
     wall_time = time.perf_counter() - start_time
 
-    # Check convergence
+    # Check convergence — NaN R-hat or zero ESS means failure, not skip
+    r_hat_finite = r_hat[~np.isnan(r_hat)]
+    ess_finite = ess_bulk[~np.isnan(ess_bulk)]
     convergence_passed = bool(
-        np.all(r_hat[~np.isnan(r_hat)] < config.r_hat_threshold)
-        and np.all(ess_bulk[ess_bulk > 0] > config.min_ess)
+        len(r_hat_finite) > 0
+        and np.all(r_hat_finite < config.r_hat_threshold)
+        and len(ess_finite) > 0
+        and np.all(ess_finite > config.min_ess)
     )
     if bfmi is not None:
         convergence_passed = convergence_passed and min(bfmi) > config.min_bfmi

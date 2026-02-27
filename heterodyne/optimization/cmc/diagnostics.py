@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 @dataclass
 class ConvergenceReport:
     """Report of convergence diagnostic checks."""
-    
+
     passed: bool
     r_hat_passed: bool
     ess_passed: bool
@@ -49,7 +49,7 @@ def validate_convergence(
         ConvergenceReport
     """
     messages = []
-    
+
     # Check R-hat
     r_hat_passed = True
     if result.r_hat is not None:
@@ -67,7 +67,7 @@ def validate_convergence(
     else:
         messages.append("R-hat: not computed")
         r_hat_passed = False
-    
+
     # Check ESS
     ess_passed = True
     if result.ess_bulk is not None:
@@ -85,7 +85,7 @@ def validate_convergence(
     else:
         messages.append("ESS: not computed")
         ess_passed = False
-    
+
     # Check BFMI
     bfmi_passed = True
     if result.bfmi is not None:
@@ -97,7 +97,7 @@ def validate_convergence(
             messages.append(f"BFMI: min={min_bfmi_actual:.3f} (PASS)")
     else:
         messages.append("BFMI: not computed")
-    
+
     # Check posterior contraction (if prior_std available in metadata)
     metadata = getattr(result, "metadata", None)
     prior_std = metadata.get("prior_std") if metadata else None
@@ -169,17 +169,17 @@ def compute_r_hat(samples: np.ndarray) -> float:
     import warnings
     warnings.warn("Use arviz.rhat() instead", DeprecationWarning, stacklevel=2)
     n_chains, n_samples = samples.shape
-    
+
     # Chain means
     chain_means = np.mean(samples, axis=1)
-    
+
     # Between-chain variance
     B = n_samples * np.var(chain_means, ddof=1)
-    
+
     # Within-chain variance
     chain_vars = np.var(samples, axis=1, ddof=1)
     W = np.mean(chain_vars)
-    
+
     # Pooled variance estimate
     var_hat = (1 - 1/n_samples) * W + B / n_samples
 
@@ -209,10 +209,10 @@ def compute_ess(samples: np.ndarray) -> float:
     import warnings
     warnings.warn("Use arviz.ess() instead", DeprecationWarning, stacklevel=2)
     n = len(samples)
-    
+
     # Mean-center
     x = samples - np.mean(samples)
-    
+
     # Autocorrelation via FFT
     acf = np.correlate(x, x, mode='full')[n-1:]
 
@@ -221,20 +221,20 @@ def compute_ess(samples: np.ndarray) -> float:
         return 1.0  # Constant samples = effectively 1 independent sample
 
     acf = acf / acf[0]
-    
+
     # Find first negative autocorrelation
     negative_idx = np.where(acf < 0)[0]
     if len(negative_idx) > 0:
         cutoff = negative_idx[0]
     else:
         cutoff = len(acf)
-    
+
     # Sum of autocorrelations
     tau = 1 + 2 * np.sum(acf[1:cutoff])
-    
+
     # ESS
     ess = n / tau
-    
+
     return max(1.0, float(ess))
 
 
@@ -258,8 +258,8 @@ def compute_bfmi(energy: np.ndarray) -> float:
     energy_diff = np.diff(energy)
     var_diff = np.var(energy_diff)
     var_energy = np.var(energy)
-    
+
     if var_energy == 0:
         return 1.0
-    
+
     return float(var_diff / var_energy)

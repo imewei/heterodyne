@@ -1,15 +1,15 @@
 """Optimization modules for heterodyne analysis."""
 
-from heterodyne.optimization.nlsq import (
-    fit_nlsq_jax,
-    NLSQConfig,
-    NLSQResult,
-    NLSQAdapter,
-)
 from heterodyne.optimization.cmc import (
-    fit_cmc_jax,
     CMCConfig,
     CMCResult,
+    fit_cmc_jax,
+)
+from heterodyne.optimization.nlsq import (
+    NLSQAdapter,
+    NLSQConfig,
+    NLSQResult,
+    fit_nlsq_jax,
 )
 
 __all__ = [

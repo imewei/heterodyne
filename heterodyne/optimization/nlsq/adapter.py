@@ -230,30 +230,45 @@ class NLSQAdapter(NLSQAdapterBase):
 
             wall_time = time.perf_counter() - start_time
 
-            # Attempt to read iteration count from the fitter result object
-            n_iters = getattr(fitter, 'n_iterations', None)
-            if n_iters is None:
-                n_iters = getattr(fitter, 'nit', None)
-            if n_iters is None:
-                n_iters = 0
-            n_fevals = getattr(fitter, 'n_function_evals', None)
-            if n_fevals is None:
-                n_fevals = getattr(fitter, 'nfev', None)
-            if n_fevals is None:
-                n_fevals = 0
+            # Assess convergence: nlsq does not expose a status flag,
+            # so we infer convergence from the result quality.
+            success = True
+            message = "Optimization converged"
+            convergence_reason = "tolerance"
+
+            # Check 1: NaN/Inf in fitted parameters indicates failure
+            if not np.all(np.isfinite(fitted_params)):
+                success = False
+                message = "Non-finite parameters in result"
+                convergence_reason = "failed"
+
+            # Check 2: reduced chi-squared sanity (extremely large = not converged)
+            elif reduced_chi2 is not None and reduced_chi2 > 1e6:
+                success = False
+                message = f"Poor fit quality (reduced chi-squared = {reduced_chi2:.2e})"
+                convergence_reason = "poor_fit"
+
+            # Check 3: parameters stuck at initial values (no progress)
+            elif np.allclose(fitted_params, initial_params, rtol=1e-12, atol=0):
+                success = False
+                message = "Optimizer made no progress from initial values"
+                convergence_reason = "no_progress"
+
+            if not success:
+                logger.warning(f"NLSQ convergence check failed: {message}")
 
             return NLSQResult(
                 parameters=np.asarray(fitted_params),
                 parameter_names=self._parameter_names,
-                success=True,
-                message="Optimization converged",
+                success=success,
+                message=message,
                 uncertainties=uncertainties,
                 covariance=np.asarray(covariance) if covariance is not None else None,
                 final_cost=final_cost,
                 reduced_chi_squared=reduced_chi2,
-                n_iterations=n_iters,
-                n_function_evals=n_fevals,
-                convergence_reason="tolerance",
+                n_iterations=0,
+                n_function_evals=0,
+                convergence_reason=convergence_reason,
                 residuals=final_residuals,
                 wall_time_seconds=wall_time,
             )

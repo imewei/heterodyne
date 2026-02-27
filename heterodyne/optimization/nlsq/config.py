@@ -24,7 +24,7 @@ class NLSQConfig:
         gtol: Gradient tolerance
         loss: Loss function ('linear', 'soft_l1', 'huber', 'cauchy')
     """
-    
+
     max_iterations: int = 100
     tolerance: float = 1e-8
     method: Literal["trf", "lm", "dogbox"] = "trf"
@@ -37,14 +37,14 @@ class NLSQConfig:
     xtol: float = 1e-8
     gtol: float = 1e-8
     loss: Literal["linear", "soft_l1", "huber", "cauchy"] = "linear"
-    
+
     # Advanced options
     diff_step: float | None = None
     max_nfev: int | None = None
-    
+
     # Memory management
     chunk_size: int | None = None  # None for auto
-    
+
     def __post_init__(self) -> None:
         """Validate configuration."""
         if self.max_iterations < 1:
@@ -53,7 +53,7 @@ class NLSQConfig:
             raise ValueError("tolerance must be positive")
         if self.multistart_n < 1:
             raise ValueError("multistart_n must be >= 1")
-    
+
     @classmethod
     def from_dict(cls, config: dict) -> NLSQConfig:
         """Create from dictionary.
@@ -73,7 +73,7 @@ class NLSQConfig:
         }
         filtered = {k: v for k, v in config.items() if k in known_fields}
         return cls(**filtered)
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
@@ -98,14 +98,14 @@ class NLSQConfig:
 @dataclass
 class NLSQValidationConfig:
     """Configuration for NLSQ result validation."""
-    
+
     # Reduced chi-squared thresholds
     chi2_warn_low: float = 0.5
     chi2_warn_high: float = 2.0
     chi2_fail_high: float = 10.0
-    
+
     # Uncertainty validation
     max_relative_uncertainty: float = 1.0  # 100%
-    
+
     # Correlation threshold for parameters
     correlation_warn: float = 0.95

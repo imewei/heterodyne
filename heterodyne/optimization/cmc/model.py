@@ -60,17 +60,17 @@ def get_heterodyne_model(
                 prior = space.priors[name]
                 param = numpyro.sample(name, prior.to_numpyro(name))
                 params = params.at[i].set(param)
-        
+
         # Compute model prediction
         c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
-        
+
         # Likelihood
         numpyro.sample(
             "obs",
             dist.Normal(c2_model, sigma),
             obs=c2_data,
         )
-    
+
     return model
 
 
@@ -270,21 +270,21 @@ def estimate_sigma(c2_data: jnp.ndarray, method: str = "diagonal") -> jnp.ndarra
         expected_diag = jnp.mean(diag)
         sigma = jnp.std(diag - expected_diag)
         return jnp.maximum(sigma, 1e-6)
-    
+
     elif method == "constant":
         # Use overall standard deviation
         return jnp.std(c2_data)
-    
+
     elif method == "local":
         # Local variance estimation
-        from scipy.ndimage import uniform_filter
         import numpy as np
-        
+        from scipy.ndimage import uniform_filter
+
         c2_np = np.asarray(c2_data)
         mean_local = uniform_filter(c2_np, size=5, mode='reflect')
         var_local = uniform_filter(c2_np**2, size=5, mode='reflect') - mean_local**2
         sigma = np.sqrt(np.maximum(var_local, 1e-12))
         return jnp.asarray(sigma)
-    
+
     else:
         raise ValueError(f"Unknown method: {method}")

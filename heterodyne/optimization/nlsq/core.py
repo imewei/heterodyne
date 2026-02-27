@@ -225,14 +225,19 @@ def fit_nlsq_multi_phi(
 ) -> list[NLSQResult]:
     """Fit model to correlation data at multiple phi angles.
 
-    Each angle is fit independently using the same parameter configuration.
+    Angles are fit sequentially. After each successful fit, the model's
+    parameters are updated with the fitted values (warm-start), so each
+    subsequent angle starts from the previous angle's optimum. This
+    accelerates convergence when adjacent angles have similar parameters,
+    but introduces ordering dependence.
 
     Args:
-        model: HeterodyneModel instance
-        c2_data: Correlation data, shape (n_phi, N, N) or list of (N, N)
-        phi_angles: Array of phi angles
+        model: HeterodyneModel instance. Its parameters are mutated
+            after each successful per-angle fit (warm-start).
+        c2_data: Correlation data, shape (n_phi, N, N) or (N, N) for single angle
+        phi_angles: Array of phi angles (degrees)
         config: NLSQ configuration
-        weights: Optional weights
+        weights: Optional weights, shape (n_phi, N, N) for per-angle or (N, N) shared
 
     Returns:
         List of NLSQResult, one per angle
@@ -250,7 +255,13 @@ def fit_nlsq_multi_phi(
 
     results = []
     for i, phi in enumerate(phi_angles):
-        logger.info(f"Fitting phi angle {i+1}/{len(phi_angles)}: {phi}°")
+        if i > 0:
+            logger.info(
+                f"Fitting phi angle {i+1}/{len(phi_angles)}: {phi}° "
+                f"(warm-start from angle {phi_angles[i-1]}°)"
+            )
+        else:
+            logger.info(f"Fitting phi angle {i+1}/{len(phi_angles)}: {phi}°")
 
         c2_i = c2_data[i]
         weights_i = weights[i] if weights is not None and weights.ndim == 3 else weights
