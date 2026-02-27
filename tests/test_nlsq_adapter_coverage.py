@@ -110,7 +110,7 @@ class TestNLSQAdapterFitJaxExceptionHandling:
         # Return covariance that causes sqrt to fail (negative diagonal)
         bad_covariance = np.array([[-1.0, 0.0], [0.0, -1.0]])
         mock_fitter.curve_fit.return_value = (
-            np.array([1.0, 1.0]),
+            np.array([2.0, 3.0]),  # Different from initial to pass convergence check
             bad_covariance,
         )
 
@@ -126,8 +126,9 @@ class TestNLSQAdapterFitJaxExceptionHandling:
                 n_data=100,
             )
 
-            # Should still succeed but uncertainties may be None or NaN
+            # Should succeed (params moved from initial) but uncertainties None due to bad covariance
             assert result.success
+            assert result.uncertainties is None
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
@@ -362,7 +363,7 @@ class TestNLSQAdapterNoneCovariance:
             return jnp.zeros_like(x)
 
         mock_fitter = MagicMock()
-        mock_fitter.curve_fit.return_value = (np.array([1.0, 1.0]), None)
+        mock_fitter.curve_fit.return_value = (np.array([2.0, 3.0]), None)
 
         with patch(
             "heterodyne.optimization.nlsq.adapter.get_or_create_fitter",
@@ -376,7 +377,7 @@ class TestNLSQAdapterNoneCovariance:
                 n_data=100,
             )
 
-            # Should succeed with None uncertainties
+            # Should succeed (params moved) with None uncertainties
             assert result.success
             assert result.covariance is None
             assert result.uncertainties is None

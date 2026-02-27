@@ -11,8 +11,6 @@ import pytest
 
 from heterodyne.config.parameter_manager import ParameterManager
 from heterodyne.config.parameter_names import ALL_PARAM_NAMES
-from heterodyne.config.parameter_space import ParameterSpace
-
 
 # ============================================================================
 # Test ParameterManager Basic Properties

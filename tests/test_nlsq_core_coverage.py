@@ -12,7 +12,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-import jax.numpy as jnp
 import numpy as np
 import pytest
 
@@ -142,8 +141,6 @@ class TestFitNLSQJaxImportErrorFallback:
         from heterodyne.optimization.nlsq import core
 
         # Mock NLSQAdapter to raise ImportError
-        original_nlsq_adapter = core.NLSQAdapter
-
         def mock_adapter_init(*args, **kwargs):
             raise ImportError("nlsq not available")
 

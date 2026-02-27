@@ -5,7 +5,6 @@ Covers ParameterInfo, ParameterRegistry methods for improved coverage.
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from heterodyne.config.parameter_names import ALL_PARAM_NAMES
@@ -14,7 +13,6 @@ from heterodyne.config.parameter_registry import (
     ParameterInfo,
     ParameterRegistry,
 )
-
 
 # ============================================================================
 # Test ParameterInfo
@@ -123,8 +121,8 @@ class TestParameterRegistry:
         assert len(lower) == 14
         assert len(upper) == 14
         # All bounds should be sensible
-        for l, u in zip(lower, upper):
-            assert l <= u
+        for lo, hi in zip(lower, upper, strict=True):
+            assert lo <= hi
 
     def test_get_group_reference(self, registry: ParameterRegistry) -> None:
         """get_group returns ParameterInfo list for reference group."""
@@ -176,11 +174,11 @@ class TestParameterRegistry:
     ) -> None:
         """get_varying_indices uses provided vary flags."""
         # All fixed
-        indices = registry.get_varying_indices({name: False for name in ALL_PARAM_NAMES})
+        indices = registry.get_varying_indices(dict.fromkeys(ALL_PARAM_NAMES, False))
         assert len(indices) == 0
 
         # All varying
-        indices = registry.get_varying_indices({name: True for name in ALL_PARAM_NAMES})
+        indices = registry.get_varying_indices(dict.fromkeys(ALL_PARAM_NAMES, True))
         assert len(indices) == 14
 
 
