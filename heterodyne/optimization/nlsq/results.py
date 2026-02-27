@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 @dataclass
 class NLSQResult:
     """Result of NLSQ optimization.
-    
+
     Contains fitted parameters, uncertainties, and fit quality metrics.
     """
 
@@ -58,13 +58,13 @@ class NLSQResult:
 
     def get_param(self, name: str) -> float:
         """Get parameter value by name.
-        
+
         Args:
             name: Parameter name
-            
+
         Returns:
             Parameter value
-            
+
         Raises:
             KeyError: If parameter not found
         """
@@ -76,10 +76,10 @@ class NLSQResult:
 
     def get_uncertainty(self, name: str) -> float | None:
         """Get uncertainty for parameter by name.
-        
+
         Args:
             name: Parameter name
-            
+
         Returns:
             Uncertainty or None if not available
         """
@@ -93,7 +93,7 @@ class NLSQResult:
 
     def get_correlation_matrix(self) -> np.ndarray | None:
         """Compute correlation matrix from covariance.
-        
+
         Returns:
             Correlation matrix or None if covariance not available
         """
@@ -108,7 +108,7 @@ class NLSQResult:
 
     def validate(self) -> list[str]:
         """Validate result quality.
-        
+
         Returns:
             List of warning/error messages
         """
@@ -146,7 +146,7 @@ class NLSQResult:
 
     def summary(self) -> str:
         """Generate summary string.
-        
+
         Returns:
             Multi-line summary
         """

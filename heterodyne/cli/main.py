@@ -15,10 +15,10 @@ if TYPE_CHECKING:
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for heterodyne CLI.
-    
+
     Args:
         argv: Command-line arguments (default: sys.argv[1:])
-        
+
     Returns:
         Exit code (0 for success)
     """

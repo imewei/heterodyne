@@ -15,14 +15,14 @@ def configure_xla(
     enable_x64: bool = True,
 ) -> dict[str, str]:
     """Configure XLA/JAX environment variables for CPU execution.
-    
+
     MUST be called before importing JAX.
-    
+
     Args:
         num_threads: Number of CPU threads (None for auto)
         disable_jit: Disable JIT compilation (for debugging)
         enable_x64: Enable 64-bit float precision
-        
+
     Returns:
         Dict of environment variables that were set
     """
@@ -63,7 +63,7 @@ def configure_xla(
         if any(d.platform == "gpu" for d in jax.devices()):
             os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
             env_vars["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
-    except Exception:
+    except (ImportError, RuntimeError):
         # JAX not yet importable or no GPU; skip GPU-only flag
         pass
 
@@ -72,7 +72,7 @@ def configure_xla(
 
 def get_cpu_info() -> dict[str, int | str]:
     """Get CPU information for configuration.
-    
+
     Returns:
         Dict with cpu_count, physical_cores, etc.
     """
@@ -93,7 +93,7 @@ def get_cpu_info() -> dict[str, int | str]:
 
 def auto_configure() -> dict[str, str]:
     """Automatically configure XLA based on system resources.
-    
+
     Returns:
         Dict of environment variables set
     """

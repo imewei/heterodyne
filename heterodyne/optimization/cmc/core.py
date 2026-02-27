@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import time
 from typing import TYPE_CHECKING
 
@@ -194,12 +195,25 @@ def fit_cmc_jax(
         )
 
     # Set up NUTS sampler
+    from numpyro.infer import initialization as numpyro_init
+
+    _init_strategy_map = {
+        "init_to_median": numpyro_init.init_to_median,
+        "init_to_sample": numpyro_init.init_to_sample,
+        "init_to_value": numpyro_init.init_to_value,
+    }
+    init_fn = _init_strategy_map.get(config.init_strategy, numpyro_init.init_to_median)
+
     kernel = NUTS(
         numpyro_model,
         target_accept_prob=config.target_accept,
         max_tree_depth=config.max_tree_depth,
         dense_mass=config.dense_mass,
+        init_strategy=init_fn(),
     )
+
+    # Compute seed early (needed for both init perturbation and sampling)
+    rng_seed = config.seed if config.seed is not None else secrets.randbelow(2**31)
 
     # Initialize from NLSQ if available
     init_params = None
@@ -210,9 +224,7 @@ def fit_cmc_jax(
             # Initialize in z-space: z = (value - center) / scale
             # Add small random perturbation per chain to break symmetry
             init_params = {}
-            perturb_key = jax.random.PRNGKey(
-                config.seed + 1 if config.seed is not None else 1
-            )
+            perturb_key = jax.random.PRNGKey(rng_seed + 1)
             for sname, sc in scalings.items():
                 perturb_key, subkey = jax.random.split(perturb_key)
                 reparam_val = reparam_values.get(sname, sc.center)
@@ -224,9 +236,7 @@ def fit_cmc_jax(
             # Legacy: replicate NLSQ values for each chain
             # Add small random perturbation per chain to break symmetry
             init_params = {}
-            perturb_key = jax.random.PRNGKey(
-                config.seed + 1 if config.seed is not None else 1
-            )
+            perturb_key = jax.random.PRNGKey(rng_seed + 1)
             for name in varying_names:
                 if name in nlsq_result.parameter_names:
                     perturb_key, subkey = jax.random.split(perturb_key)
@@ -249,11 +259,11 @@ def fit_cmc_jax(
     )
 
     # Run sampling
-    rng_key = jax.random.PRNGKey(config.seed if config.seed is not None else 0)
+    rng_key = jax.random.PRNGKey(rng_seed)
 
     try:
-        mcmc.run(rng_key, init_params=init_params)
-    except Exception as e:
+        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy",))
+    except (RuntimeError, ValueError) as e:
         logger.error(f"MCMC sampling failed: {e}")
         return _create_failed_result(varying_names, str(e))
 
@@ -296,11 +306,11 @@ def fit_cmc_jax(
             for name in output_names
         ])
         ess_bulk = np.array([
-            float(summary.loc[name, "ess_bulk"]) if name in summary.index else 0.0
+            float(summary.loc[name, "ess_bulk"]) if name in summary.index else np.nan
             for name in output_names
         ])
         ess_tail = np.array([
-            float(summary.loc[name, "ess_tail"]) if name in summary.index else 0.0
+            float(summary.loc[name, "ess_tail"]) if name in summary.index else np.nan
             for name in output_names
         ])
     else:
@@ -314,8 +324,8 @@ def fit_cmc_jax(
             for name in output_names
         ])
         r_hat = np.full(len(output_names), np.nan)
-        ess_bulk = np.full(len(output_names), 0.0)
-        ess_tail = np.full(len(output_names), 0.0)
+        ess_bulk = np.full(len(output_names), np.nan)
+        ess_tail = np.full(len(output_names), np.nan)
 
     # Credible intervals
     credible_intervals = {}
@@ -341,8 +351,8 @@ def fit_cmc_jax(
             bfmi = list(bfmi_result.values)
         elif isinstance(bfmi_result, (list, np.ndarray)):
             bfmi = list(bfmi_result)
-    except Exception:
-        logger.warning("Could not compute BFMI")
+    except (TypeError, KeyError) as e:
+        logger.warning(f"Could not compute BFMI: {e}")
         bfmi_compute_failed = True
 
     # Store physics-space samples

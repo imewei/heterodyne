@@ -31,7 +31,7 @@ def get_heterodyne_model(
     space: ParameterSpace,
 ):
     """Create NumPyro model for heterodyne correlation fitting.
-    
+
     Args:
         t: Time array
         q: Wavevector
@@ -40,7 +40,7 @@ def get_heterodyne_model(
         c2_data: Observed correlation data
         sigma: Measurement uncertainty (scalar or array)
         space: Parameter space with priors
-        
+
     Returns:
         NumPyro model function
     """
@@ -256,11 +256,11 @@ def _build_reparam_model(
 
 def estimate_sigma(c2_data: jnp.ndarray, method: str = "diagonal") -> jnp.ndarray:
     """Estimate measurement uncertainty from data.
-    
+
     Args:
         c2_data: Correlation data
         method: Estimation method ('diagonal', 'constant', 'local')
-        
+
     Returns:
         Estimated sigma (same shape as c2_data or scalar)
     """
@@ -269,7 +269,10 @@ def estimate_sigma(c2_data: jnp.ndarray, method: str = "diagonal") -> jnp.ndarra
         diag = jnp.diag(c2_data)
         expected_diag = jnp.mean(diag)
         sigma = jnp.std(diag - expected_diag)
-        return jnp.maximum(sigma, 1e-6)
+        # Floor at 1% of data scale to avoid near-zero sigma for
+        # normalized data where diagonal values are very uniform
+        data_scale = jnp.maximum(jnp.std(c2_data), 1e-6)
+        return jnp.maximum(sigma, 0.01 * data_scale)
 
     elif method == "constant":
         # Use overall standard deviation

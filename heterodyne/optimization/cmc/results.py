@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 @dataclass
 class CMCResult:
     """Result of CMC (Consensus Monte Carlo) analysis.
-    
+
     Contains posterior samples, summaries, and convergence diagnostics.
     """
 
@@ -53,10 +53,10 @@ class CMCResult:
 
     def get_param_summary(self, name: str) -> dict[str, float]:
         """Get summary statistics for a parameter.
-        
+
         Args:
             name: Parameter name
-            
+
         Returns:
             Dict with mean, std, and credible interval bounds
         """
@@ -83,10 +83,10 @@ class CMCResult:
 
     def get_samples(self, name: str) -> np.ndarray | None:
         """Get posterior samples for a parameter.
-        
+
         Args:
             name: Parameter name
-            
+
         Returns:
             Array of samples or None if not stored
         """
@@ -108,12 +108,12 @@ class CMCResult:
         min_bfmi: float = 0.3,
     ) -> list[str]:
         """Validate convergence diagnostics.
-        
+
         Args:
             r_hat_threshold: Maximum acceptable R-hat
             min_ess: Minimum effective sample size
             min_bfmi: Minimum BFMI value
-            
+
         Returns:
             List of warning messages
         """

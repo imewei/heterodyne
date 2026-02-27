@@ -224,7 +224,7 @@ def plot_parameter_uncertainties(
     # Normalize parameters for visualization
     params = result.parameters
     if result.uncertainties is not None:
-        errors = result.uncertainties
+        errors = np.maximum(result.uncertainties, 0.0)
     else:
         errors = np.zeros(n_params)
 

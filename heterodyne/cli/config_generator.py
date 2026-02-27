@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 
 def get_template_path() -> Path:
     """Get path to master template file.
-    
+
     Returns:
         Path to template YAML
     """
@@ -36,7 +36,7 @@ def generate_config(
     overwrite: bool = False,
 ) -> Path:
     """Generate configuration file from template.
-    
+
     Args:
         output_path: Output path for configuration
         data_path: Path to experimental data file
@@ -44,7 +44,7 @@ def generate_config(
         dt: Time step
         time_length: Number of time points
         overwrite: Whether to overwrite existing file
-        
+
     Returns:
         Path to generated config
     """

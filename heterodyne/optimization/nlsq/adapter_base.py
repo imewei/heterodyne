@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class NLSQAdapterBase(ABC):
     """Abstract base class for NLSQ optimization adapters.
-    
+
     Adapters wrap different optimization backends (scipy, nlsq library, etc.)
     with a consistent interface.
     """
@@ -30,14 +30,14 @@ class NLSQAdapterBase(ABC):
         jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None,
     ) -> NLSQResult:
         """Run optimization.
-        
+
         Args:
             residual_fn: Function that computes residuals given parameters
             initial_params: Initial parameter values
             bounds: (lower_bounds, upper_bounds) arrays
             config: Optimization configuration
             jacobian_fn: Optional function that computes Jacobian
-            
+
         Returns:
             NLSQResult with optimization results
         """

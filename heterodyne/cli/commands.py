@@ -31,10 +31,10 @@ logger = get_logger(__name__)
 
 def dispatch_command(args: argparse.Namespace) -> int:
     """Dispatch to appropriate analysis command.
-    
+
     Args:
         args: Parsed command-line arguments
-        
+
     Returns:
         Exit code
     """
@@ -89,10 +89,6 @@ def dispatch_command(args: argparse.Namespace) -> int:
         )
 
     if args.method == "cmc" or args.method == "both":
-        nlsq_result = (
-            nlsq_results[0] if args.method == "both" and nlsq_results
-            else None
-        )
         cmc_results = run_cmc_analysis(
             model=model,
             c2_data=data.c2,
@@ -100,7 +96,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
             config_manager=config_manager,
             args=args,
             output_dir=output_dir,
-            nlsq_result=nlsq_result,
+            nlsq_results=nlsq_results if args.method == "both" else None,
         )
 
     # Generate plots if requested
@@ -125,7 +121,7 @@ def run_nlsq_analysis(
     output_dir: Path,
 ) -> list[NLSQResult]:
     """Run NLSQ analysis.
-    
+
     Args:
         model: HeterodyneModel instance
         c2_data: Correlation data
@@ -133,7 +129,7 @@ def run_nlsq_analysis(
         config_manager: Configuration manager
         args: CLI arguments
         output_dir: Output directory
-        
+
     Returns:
         List of NLSQResult objects
     """
@@ -190,10 +186,10 @@ def run_cmc_analysis(
     config_manager: ConfigManager,
     args: argparse.Namespace,
     output_dir: Path,
-    nlsq_result: NLSQResult | None = None,
+    nlsq_results: list[NLSQResult] | None = None,
 ) -> list[CMCResult]:
     """Run CMC Bayesian analysis.
-    
+
     Args:
         model: HeterodyneModel instance
         c2_data: Correlation data
@@ -201,8 +197,8 @@ def run_cmc_analysis(
         config_manager: Configuration manager
         args: CLI arguments
         output_dir: Output directory
-        nlsq_result: Optional NLSQ result for warm-starting
-        
+        nlsq_results: Optional NLSQ results for warm-starting (one per phi)
+
     Returns:
         List of CMCResult objects
     """
@@ -227,12 +223,13 @@ def run_cmc_analysis(
         else:
             c2_phi = c2_data
 
+        nlsq_result_i = nlsq_results[i] if nlsq_results and i < len(nlsq_results) else None
         result = fit_cmc_jax(
             model=model,
             c2_data=c2_phi,
             phi_angle=phi,
             config=cmc_config,
-            nlsq_result=nlsq_result,
+            nlsq_result=nlsq_result_i,
         )
 
         result.metadata["phi_angle"] = phi
@@ -259,7 +256,7 @@ def generate_plots(
     output_dir: Path,
 ) -> None:
     """Generate diagnostic plots.
-    
+
     Args:
         model: HeterodyneModel
         c2_data: Correlation data

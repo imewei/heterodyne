@@ -225,7 +225,7 @@ class NLSQAdapter(NLSQAdapterBase):
                 try:
                     with np.errstate(invalid='raise'):
                         uncertainties = np.sqrt(np.diag(covariance))
-                except Exception:
+                except (FloatingPointError, ValueError, np.linalg.LinAlgError):
                     logger.warning("Could not extract uncertainties from covariance")
 
             wall_time = time.perf_counter() - start_time
@@ -273,7 +273,7 @@ class NLSQAdapter(NLSQAdapterBase):
                 wall_time_seconds=wall_time,
             )
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError) as e:
             logger.error(f"NLSQ optimization failed: {e}")
             wall_time = time.perf_counter() - start_time
 
@@ -397,7 +397,9 @@ class ScipyNLSQAdapter(NLSQAdapterBase):
                 covariance=covariance,
                 final_cost=final_cost,
                 reduced_chi_squared=reduced_chi2,
-                n_iterations=result.njev if hasattr(result, 'njev') else 0,
+                # least_squares doesn't expose iteration count; njev
+                # (Jacobian evaluations) is the closest available proxy
+                n_iterations=result.njev if result.njev is not None else 0,
                 n_function_evals=result.nfev,
                 convergence_reason=str(result.status),
                 residuals=final_residuals,
@@ -405,7 +407,7 @@ class ScipyNLSQAdapter(NLSQAdapterBase):
                 wall_time_seconds=wall_time,
             )
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, np.linalg.LinAlgError) as e:
             logger.error(f"Scipy optimization failed: {e}")
             wall_time = time.perf_counter() - start_time
 

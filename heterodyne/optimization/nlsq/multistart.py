@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from collections.abc import Callable
 
 import numpy as np
 
@@ -30,7 +30,7 @@ class MultiStartResult:
 
 class MultiStartOptimizer:
     """Multi-start optimizer using Latin Hypercube Sampling.
-    
+
     Runs optimization from multiple starting points to improve
     chances of finding the global minimum.
     """
@@ -42,7 +42,7 @@ class MultiStartOptimizer:
         seed: int | None = None,
     ) -> None:
         """Initialize multi-start optimizer.
-        
+
         Args:
             adapter: NLSQ adapter to use for each optimization
             n_starts: Number of starting points
@@ -58,11 +58,11 @@ class MultiStartOptimizer:
         bounds: tuple[np.ndarray, np.ndarray],
     ) -> np.ndarray:
         """Generate starting points using Latin Hypercube Sampling.
-        
+
         Args:
             initial_params: User-provided initial values (used as first point)
             bounds: (lower, upper) bound arrays
-            
+
         Returns:
             Array of shape (n_starts, n_params)
         """
@@ -88,13 +88,13 @@ class MultiStartOptimizer:
         upper: np.ndarray,
     ) -> list[np.ndarray]:
         """Generate Latin Hypercube samples.
-        
+
         Args:
             n_samples: Number of samples
             n_dims: Number of dimensions
             lower: Lower bounds
             upper: Upper bounds
-            
+
         Returns:
             List of sample arrays
         """
@@ -122,14 +122,14 @@ class MultiStartOptimizer:
         jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None,
     ) -> MultiStartResult:
         """Run multi-start optimization.
-        
+
         Args:
             residual_fn: Residual function
             initial_params: Initial guess
             bounds: Parameter bounds
             config: Optimization config
             jacobian_fn: Optional Jacobian
-            
+
         Returns:
             MultiStartResult with best and all results
         """

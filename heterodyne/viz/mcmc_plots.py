@@ -19,13 +19,13 @@ def plot_posterior(
     figsize: tuple[float, float] | None = None,
 ) -> plt.Figure:
     """Plot posterior distributions.
-    
+
     Args:
         result: CMC result with samples
         params: Parameters to plot (None for all)
         save_path: Optional save path
         figsize: Optional figure size
-        
+
     Returns:
         Matplotlib figure
     """
@@ -110,12 +110,12 @@ def plot_trace(
     save_path: Path | str | None = None,
 ) -> plt.Figure:
     """Plot trace plots for MCMC chains.
-    
+
     Args:
         result: CMC result with samples
         params: Parameters to plot
         save_path: Optional save path
-        
+
     Returns:
         Matplotlib figure
     """
@@ -185,12 +185,12 @@ def plot_corner(
     save_path: Path | str | None = None,
 ) -> plt.Figure:
     """Plot corner plot showing parameter correlations.
-    
+
     Args:
         result: CMC result
         params: Parameters to include
         save_path: Optional save path
-        
+
     Returns:
         Matplotlib figure
     """

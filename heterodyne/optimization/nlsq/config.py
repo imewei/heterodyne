@@ -9,7 +9,7 @@ from typing import Literal
 @dataclass
 class NLSQConfig:
     """Configuration for NLSQ (Non-Linear Least Squares) fitting.
-    
+
     Attributes:
         max_iterations: Maximum number of optimization iterations
         tolerance: Convergence tolerance for cost function
@@ -57,10 +57,10 @@ class NLSQConfig:
     @classmethod
     def from_dict(cls, config: dict) -> NLSQConfig:
         """Create from dictionary.
-        
+
         Args:
             config: Configuration dictionary
-            
+
         Returns:
             NLSQConfig instance
         """

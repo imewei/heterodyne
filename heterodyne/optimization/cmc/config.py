@@ -9,7 +9,7 @@ from typing import Literal
 @dataclass
 class CMCConfig:
     """Configuration for CMC Bayesian analysis.
-    
+
     Attributes:
         enable: When to run CMC ('auto', 'always', 'never')
         num_warmup: Number of warmup/burn-in samples

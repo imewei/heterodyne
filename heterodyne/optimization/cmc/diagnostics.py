@@ -33,18 +33,18 @@ def validate_convergence(
     min_bfmi: float = 0.3,
 ) -> ConvergenceReport:
     """Validate MCMC convergence from CMC result.
-    
+
     Checks:
     1. R-hat (Gelman-Rubin statistic) < threshold for all parameters
     2. Effective sample size (ESS) > minimum for all parameters
     3. Bayesian Fraction of Missing Information (BFMI) > minimum
-    
+
     Args:
         result: CMC result with diagnostics
         r_hat_threshold: Maximum acceptable R-hat
         min_ess: Minimum acceptable ESS
         min_bfmi: Minimum acceptable BFMI
-        
+
     Returns:
         ConvergenceReport
     """

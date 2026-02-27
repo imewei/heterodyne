@@ -8,7 +8,7 @@ from pathlib import Path
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for heterodyne CLI.
-    
+
     Returns:
         Configured ArgumentParser
     """
@@ -20,13 +20,13 @@ def create_parser() -> argparse.ArgumentParser:
 Examples:
   # Run NLSQ fitting
   heterodyne --config analysis.yaml --method nlsq
-  
+
   # Run CMC (Bayesian) analysis
   heterodyne --config analysis.yaml --method cmc
-  
+
   # Specify output directory
   heterodyne --config analysis.yaml --output ./results
-  
+
   # Run with verbose output
   heterodyne --config analysis.yaml --verbose
 """,
@@ -162,10 +162,10 @@ Examples:
 
 def validate_args(args: argparse.Namespace) -> list[str]:
     """Validate parsed arguments.
-    
+
     Args:
         args: Parsed arguments
-        
+
     Returns:
         List of warning messages (empty if all valid)
     """
@@ -175,8 +175,9 @@ def validate_args(args: argparse.Namespace) -> list[str]:
     if not args.config.exists():
         raise FileNotFoundError(f"Configuration file not found: {args.config}")
 
-    # Check conflicting options
+    # Check conflicting options — enforce --quiet taking precedence
     if args.verbose > 0 and args.quiet:
         warnings.append("Both --verbose and --quiet specified; using --quiet")
+        args.verbose = 0
 
     return warnings
