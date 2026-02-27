@@ -115,9 +115,18 @@ class PhiAngleFilter:
                     f"Closest: {self._phi_angles[min_idx]:.1f}°"
                 )
         
-        selected_indices = np.array(selected_indices)
-        matched_angles = np.array(matched_angles)
-        
+        # Deduplicate indices while preserving order
+        seen = set()
+        deduped_indices = []
+        deduped_angles = []
+        for idx, angle in zip(selected_indices, matched_angles):
+            if idx not in seen:
+                seen.add(idx)
+                deduped_indices.append(idx)
+                deduped_angles.append(angle)
+        selected_indices = np.array(deduped_indices)
+        matched_angles = np.array(deduped_angles)
+
         if len(selected_indices) == 0:
             raise ValueError(f"No angles matched targets {target_angles}")
         
@@ -154,7 +163,10 @@ class PhiAngleFilter:
         
         if self._phi_angles is None:
             raise ValueError("Phi angles not set.")
-        
+
+        if phi_min > phi_max:
+            raise ValueError(f"phi_min ({phi_min}) must be <= phi_max ({phi_max})")
+
         mask = (self._phi_angles >= phi_min) & (self._phi_angles <= phi_max)
         selected_indices = np.where(mask)[0]
         
@@ -196,17 +208,21 @@ class PhiAngleFilter:
         # Find symmetric pairs
         relative_angles = self._phi_angles - symmetry_center
         unique_abs_angles = np.unique(np.abs(relative_angles))
-        
+
         averaged_c2 = []
         averaged_phi = []
-        
+
         for abs_angle in unique_abs_angles:
             # Find indices of +angle and -angle
             mask = np.isclose(np.abs(relative_angles), abs_angle, atol=0.1)
             if np.sum(mask) > 0:
                 averaged_c2.append(np.mean(c2[mask], axis=0))
                 averaged_phi.append(symmetry_center + abs_angle)
-        
+
+        # Note: selected_indices are in output-space (post-averaging), not
+        # indices into the original phi_angles array. After symmetric averaging,
+        # the output has fewer angles than the input, so these indices simply
+        # enumerate the new averaged result (0, 1, 2, ...).
         return PhiFilterResult(
             c2=np.array(averaged_c2),
             phi_angles=np.array(averaged_phi),

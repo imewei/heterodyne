@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -36,34 +38,40 @@ def save_mcmc_results(
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     saved_paths: dict[str, Path] = {}
-    
-    # Summary file
-    summary_data = {
-        "parameter_names": result.parameter_names,
-        "posterior_mean": json_safe(result.posterior_mean),
-        "posterior_std": json_safe(result.posterior_std),
-        "credible_intervals": json_safe(result.credible_intervals),
-        "map_estimate": json_safe(result.map_estimate) if result.map_estimate is not None else None,
-        "timestamp": datetime.now().isoformat(),
-        "num_samples": result.num_samples,
-        "num_chains": result.num_chains,
-    }
-    summary_path = output_dir / f"{prefix}_summary.json"
-    save_json(summary_data, summary_path)
-    saved_paths["summary"] = summary_path
-    
-    # Diagnostics file
-    diagnostics_path = output_dir / f"{prefix}_diagnostics.json"
-    save_mcmc_diagnostics(result, diagnostics_path)
-    saved_paths["diagnostics"] = diagnostics_path
-    
-    # Samples file (NPZ for efficiency)
-    samples_path = output_dir / f"{prefix}_samples.npz"
-    _save_posterior_samples(result, samples_path)
-    saved_paths["samples"] = samples_path
-    
+
+    # Stage all files in a temp directory, then move atomically
+    with tempfile.TemporaryDirectory(dir=str(output_dir.parent)) as tmp_dir:
+        tmp = Path(tmp_dir)
+
+        # Summary file
+        summary_data = {
+            "parameter_names": result.parameter_names,
+            "posterior_mean": json_safe(result.posterior_mean),
+            "posterior_std": json_safe(result.posterior_std),
+            "credible_intervals": json_safe(result.credible_intervals),
+            "map_estimate": json_safe(result.map_estimate) if result.map_estimate is not None else None,
+            "timestamp": datetime.now().isoformat(),
+            "num_samples": result.num_samples,
+            "num_chains": result.num_chains,
+        }
+        save_json(summary_data, tmp / f"{prefix}_summary.json")
+
+        # Diagnostics file
+        save_mcmc_diagnostics(result, tmp / f"{prefix}_diagnostics.json")
+
+        # Samples file (NPZ for efficiency)
+        _save_posterior_samples(result, tmp / f"{prefix}_samples.npz")
+
+        # Move all staged files to the real output directory
+        for f in tmp.iterdir():
+            os.replace(str(f), str(output_dir / f.name))
+
+    saved_paths["summary"] = output_dir / f"{prefix}_summary.json"
+    saved_paths["diagnostics"] = output_dir / f"{prefix}_diagnostics.json"
+    saved_paths["samples"] = output_dir / f"{prefix}_samples.npz"
+
     return saved_paths
 
 
@@ -129,28 +137,37 @@ def save_mcmc_diagnostics(
 def _save_posterior_samples(
     result: CMCResult,
     output_path: Path,
-) -> None:
-    """Save posterior samples to NPZ file."""
+) -> Path:
+    """Save posterior samples to NPZ file.
+
+    Args:
+        result: CMC result object
+        output_path: Output file path
+
+    Returns:
+        Path to saved file
+    """
     arrays: dict[str, Any] = {
         "parameter_names": np.array(result.parameter_names, dtype=object),
     }
-    
+
     # Save samples for each parameter
     if result.samples is not None:
         for name, samples in result.samples.items():
             arrays[f"samples_{name}"] = np.asarray(samples)
-    
+
     # Save diagnostics arrays
     if result.r_hat is not None:
         arrays["r_hat"] = np.asarray(result.r_hat)
-    
+
     if result.ess_bulk is not None:
         arrays["ess_bulk"] = np.asarray(result.ess_bulk)
-    
+
     if result.ess_tail is not None:
         arrays["ess_tail"] = np.asarray(result.ess_tail)
-    
+
     np.savez_compressed(output_path, **arrays)
+    return output_path
 
 
 def format_mcmc_summary(result: CMCResult) -> str:

@@ -61,8 +61,16 @@ class PreprocessingPipeline:
         Normalizes c2 so that diagonal values are 1.
         """
         def _normalize(c2: np.ndarray) -> np.ndarray:
+            if c2.ndim == 3:
+                # Batch of matrices: normalize each slice
+                result = np.empty_like(c2)
+                for i in range(c2.shape[0]):
+                    result[i] = _normalize(c2[i])
+                return result
             if c2.ndim != 2:
                 return c2
+            if c2.shape[0] != c2.shape[1]:
+                raise ValueError(f"Expected square matrix, got shape {c2.shape}")
             diag = np.diag(c2)
             # Avoid division by zero
             diag_safe = np.where(np.abs(diag) > 1e-10, diag, 1.0)
@@ -111,8 +119,16 @@ class PreprocessingPipeline:
             replace_with: Replacement strategy ('median', 'nan', 'clip')
         """
         def _remove_outliers(c2: np.ndarray) -> np.ndarray:
-            mean = np.nanmean(c2)
-            std = np.nanstd(c2)
+            # Compute statistics on off-diagonal elements only to avoid
+            # diagonal values inflating mean/std
+            if c2.ndim == 2 and c2.shape[0] == c2.shape[1]:
+                off_diag_mask = ~np.eye(c2.shape[0], dtype=bool)
+                off_diag = c2[off_diag_mask]
+                mean = np.nanmean(off_diag)
+                std = np.nanstd(off_diag)
+            else:
+                mean = np.nanmean(c2)
+                std = np.nanstd(c2)
             outlier_mask = np.abs(c2 - mean) > n_sigma * std
             
             result = c2.copy()
@@ -139,7 +155,7 @@ class PreprocessingPipeline:
         def _symmetrize(c2: np.ndarray) -> np.ndarray:
             if c2.ndim != 2:
                 return c2
-            return (c2 + c2.T) / 2
+            return np.nanmean(np.stack([c2, c2.T]), axis=0)
         
         return self.add_step("symmetrize", _symmetrize)
     
@@ -154,13 +170,21 @@ class PreprocessingPipeline:
             t_start: Starting index
             t_end: Ending index (exclusive), None for end
         """
+        if t_start < 0:
+            raise ValueError(f"Crop bounds must be non-negative, got start={t_start}")
+        if t_end is not None:
+            if t_end < 0:
+                raise ValueError(f"Crop bounds must be non-negative, got end={t_end}")
+            if t_start >= t_end:
+                raise ValueError(f"start ({t_start}) must be less than end ({t_end})")
+
         def _crop(c2: np.ndarray) -> np.ndarray:
             if c2.ndim == 2:
                 return c2[t_start:t_end, t_start:t_end]
             elif c2.ndim == 3:
                 return c2[:, t_start:t_end, t_start:t_end]
             return c2
-        
+
         return self.add_step(f"crop_time({t_start}:{t_end})", _crop)
     
     def process(self, c2: np.ndarray) -> PreprocessingResult:

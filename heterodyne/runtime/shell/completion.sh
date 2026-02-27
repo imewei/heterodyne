@@ -37,15 +37,15 @@ _heterodyne_get_config_files() {
 
     # Refresh cache: find YAML files in current and config directories
     {
-        find . -maxdepth 2 -name "*.yaml" -o -name "*.yml" 2>/dev/null
-        [[ -d "config" ]] && find config -name "*.yaml" -o -name "*.yml" 2>/dev/null
-        [[ -d "configs" ]] && find configs -name "*.yaml" -o -name "*.yml" 2>/dev/null
+        find . -maxdepth 2 \( -name "*.yaml" -o -name "*.yml" \) -type f 2>/dev/null
+        [[ -d "config" ]] && find config \( -name "*.yaml" -o -name "*.yml" \) -type f 2>/dev/null
+        [[ -d "configs" ]] && find configs \( -name "*.yaml" -o -name "*.yml" \) -type f 2>/dev/null
     } | sort -u | tee "$cache_file"
 }
 
 # Get HDF5 data files
 _heterodyne_get_data_files() {
-    find . -maxdepth 3 \( -name "*.h5" -o -name "*.hdf5" -o -name "*.nxs" \) 2>/dev/null
+    find . -maxdepth 3 \( -name "*.h5" -o -name "*.hdf5" -o -name "*.nxs" \) -type f 2>/dev/null
 }
 
 # Main heterodyne completion
@@ -57,7 +57,7 @@ _heterodyne() {
     local global_opts="--config --data-file --method --verbose --quiet --help --version"
 
     # Method options
-    local methods="nlsq cmc"
+    local methods="nlsq cmc both"
 
     # Subcommands (if any)
     local subcommands=""
@@ -65,17 +65,17 @@ _heterodyne() {
     case "$prev" in
         --config|-c)
             # Complete with YAML config files
-            COMPREPLY=($(compgen -W "$(_heterodyne_get_config_files)" -- "$cur"))
+            mapfile -t COMPREPLY < <(compgen -W "$(_heterodyne_get_config_files)" -- "${cur}")
             return
             ;;
         --data-file|-d)
             # Complete with HDF5 files
-            COMPREPLY=($(compgen -W "$(_heterodyne_get_data_files)" -- "$cur"))
+            mapfile -t COMPREPLY < <(compgen -W "$(_heterodyne_get_data_files)" -- "${cur}")
             return
             ;;
         --method|-m)
             # Complete with available methods
-            COMPREPLY=($(compgen -W "$methods" -- "$cur"))
+            mapfile -t COMPREPLY < <(compgen -W "${methods}" -- "${cur}")
             return
             ;;
         --output|-o)
@@ -84,19 +84,19 @@ _heterodyne() {
             return
             ;;
         --log-level)
-            COMPREPLY=($(compgen -W "DEBUG INFO WARNING ERROR" -- "$cur"))
+            mapfile -t COMPREPLY < <(compgen -W "DEBUG INFO WARNING ERROR" -- "${cur}")
             return
             ;;
     esac
 
     # If current word starts with -, complete options
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=($(compgen -W "$global_opts" -- "$cur"))
+        mapfile -t COMPREPLY < <(compgen -W "${global_opts}" -- "${cur}")
         return
     fi
 
     # Default: complete with config files
-    COMPREPLY=($(compgen -W "$(_heterodyne_get_config_files) $global_opts" -- "$cur"))
+    mapfile -t COMPREPLY < <(compgen -W "$(_heterodyne_get_config_files) ${global_opts}" -- "${cur}")
 }
 
 # heterodyne-config completion
@@ -112,13 +112,13 @@ _heterodyne_config() {
             return
             ;;
         --template|-t)
-            COMPREPLY=($(compgen -W "default minimal cmc" -- "$cur"))
+            mapfile -t COMPREPLY < <(compgen -W "default minimal cmc" -- "${cur}")
             return
             ;;
     esac
 
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=($(compgen -W "$opts" -- "$cur"))
+        mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
     fi
 }
 
@@ -131,13 +131,13 @@ _heterodyne_post_install() {
 
     case "$prev" in
         --shell|-s)
-            COMPREPLY=($(compgen -W "bash zsh fish" -- "$cur"))
+            mapfile -t COMPREPLY < <(compgen -W "bash zsh fish" -- "${cur}")
             return
             ;;
     esac
 
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=($(compgen -W "$opts" -- "$cur"))
+        mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
     fi
 }
 
@@ -149,7 +149,7 @@ _heterodyne_cleanup() {
     local opts="--dry-run --force --interactive --help"
 
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=($(compgen -W "$opts" -- "$cur"))
+        mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
     fi
 }
 
@@ -161,7 +161,7 @@ _heterodyne_validate() {
     local opts="--verbose --json --help"
 
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=($(compgen -W "$opts" -- "$cur"))
+        mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
     fi
 }
 

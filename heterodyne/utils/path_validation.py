@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 
@@ -41,7 +42,10 @@ def validate_file_exists(path: str | Path, description: str = "File") -> Path:
     
     if not resolved.is_file():
         raise PathValidationError(f"{description} is not a file: {resolved}")
-    
+
+    if not os.access(resolved, os.R_OK):
+        raise PathValidationError(f"{description} is not readable: {resolved}")
+
     return resolved
 
 

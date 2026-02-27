@@ -99,12 +99,11 @@ def _detect_linux_cpu() -> CPUInfo:
             info.has_avx2 = "avx2" in cpuinfo
             info.has_avx512 = "avx512" in cpuinfo
 
-            # Extract model name
+            # Extract model name and vendor
             for line in cpuinfo.split("\n"):
-                if line.startswith("model name"):
+                if line.startswith("model name") and not info.model_name:
                     info.model_name = line.split(":", 1)[1].strip()
-                    break
-                if line.startswith("vendor_id"):
+                elif line.startswith("vendor_id") and not info.vendor:
                     vendor_str = line.split(":", 1)[1].strip()
                     if "Intel" in vendor_str:
                         info.vendor = "Intel"
@@ -112,6 +111,8 @@ def _detect_linux_cpu() -> CPUInfo:
                         info.vendor = "AMD"
                     else:
                         info.vendor = vendor_str
+                if info.model_name and info.vendor:
+                    break
     except (OSError, IOError):
         pass
 
@@ -303,6 +304,9 @@ def get_optimal_batch_size(
     if cpu_info is None:
         cpu_info = detect_cpu_info()
 
+    if data_size <= 0:
+        raise ValueError(f"Invalid data size: {data_size}")
+
     # Default L3 cache assumption: 8 MB per core, shared
     l3_cache = cpu_info.cache_sizes.get("L3", 8 * 1024 * 1024 * cpu_info.physical_cores)
 
@@ -312,8 +316,8 @@ def get_optimal_batch_size(
     # Estimate batch size
     batch_size = max(1, target_bytes // (data_size * element_bytes))
 
-    # Round to power of 2 for SIMD efficiency
-    batch_size = 1 << (batch_size - 1).bit_length()
+    # Round down to power of 2 for SIMD efficiency (avoid exceeding available resources)
+    batch_size = 1 << (batch_size.bit_length() - 1) if batch_size > 0 else 1
 
     # Clamp to reasonable range
     return max(16, min(batch_size, 4096))
@@ -431,11 +435,14 @@ def configure_jax_cpu(
     # Configure threading
     env_vars = configure_cpu_hpc(cpu_info)
 
-    # Configure XLA
-    xla_flags = get_jax_cpu_flags(cpu_info, num_devices)
+    # Configure XLA (avoid duplicating flags on repeated calls)
+    new_flags = get_jax_cpu_flags(cpu_info, num_devices)
     existing_flags = os.environ.get("XLA_FLAGS", "")
-    if existing_flags:
-        xla_flags = f"{existing_flags} {xla_flags}"
+    # Remove any previous flags we set to avoid duplication
+    if new_flags not in existing_flags:
+        xla_flags = f"{existing_flags} {new_flags}".strip()
+    else:
+        xla_flags = existing_flags
     os.environ["XLA_FLAGS"] = xla_flags
     env_vars["XLA_FLAGS"] = xla_flags
 

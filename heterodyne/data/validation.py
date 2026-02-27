@@ -86,15 +86,16 @@ def validate_xpcs_data(
     
     # NaN/Inf checks
     if check_nans:
-        nan_count = np.sum(np.isnan(c2))
-        inf_count = np.sum(np.isinf(c2))
-        
+        nan_count = float(np.sum(np.isnan(c2)))
+        inf_count = float(np.sum(np.isinf(c2)))
+
         if nan_count > 0:
-            errors.append(f"Contains {nan_count} NaN values ({100*nan_count/c2.size:.2f}%)")
+            pct = 100 * nan_count / c2.size
+            errors.append(f"Contains {int(nan_count)} NaN values ({pct:.2f}%)")
             statistics["nan_count"] = nan_count
-        
+
         if inf_count > 0:
-            errors.append(f"Contains {inf_count} infinite values")
+            errors.append(f"Contains {int(inf_count)} infinite values")
             statistics["inf_count"] = inf_count
     
     # Value range checks
@@ -114,13 +115,21 @@ def validate_xpcs_data(
     # Symmetry check (for 2D square matrices)
     if check_symmetry and c2.ndim == 2 and c2.shape[0] == c2.shape[1]:
         asymmetry = np.abs(c2 - c2.T)
-        max_asymmetry = np.max(asymmetry[np.isfinite(asymmetry)])
-        rel_asymmetry = max_asymmetry / (np.abs(c2).max() + 1e-10)
+        finite_asymm = asymmetry[np.isfinite(asymmetry)]
+        if len(finite_asymm) == 0:
+            max_asymmetry = None
+        else:
+            max_asymmetry = np.max(np.abs(finite_asymm))
+
+        if max_asymmetry is None:
+            rel_asymmetry = None
+        else:
+            rel_asymmetry = max_asymmetry / (np.abs(c2).max() + 1e-10)
         
-        statistics["max_asymmetry"] = float(max_asymmetry)
-        statistics["relative_asymmetry"] = float(rel_asymmetry)
-        
-        if rel_asymmetry > 0.01:
+        statistics["max_asymmetry"] = max_asymmetry
+        statistics["relative_asymmetry"] = rel_asymmetry
+
+        if rel_asymmetry is not None and rel_asymmetry > 0.01:
             warnings.append(f"Significant asymmetry: {100*rel_asymmetry:.2f}%")
     
     # Time array validation
@@ -129,6 +138,12 @@ def validate_xpcs_data(
             errors.append("Time array t1 is not strictly increasing")
         statistics["t1_min"] = float(data.t1.min())
         statistics["t1_max"] = float(data.t1.max())
+
+    if data.t2 is not None:
+        if not np.all(np.diff(data.t2) > 0):
+            errors.append("Time array t2 is not strictly increasing")
+        statistics["t2_min"] = float(data.t2.min())
+        statistics["t2_max"] = float(data.t2.max())
     
     # Diagonal check (should typically be ~1 for normalized correlation)
     if c2.ndim == 2 and c2.shape[0] == c2.shape[1]:
@@ -169,9 +184,18 @@ def validate_time_consistency(
     statistics: dict[str, float] = {}
     
     # Length check
+    if len(t) < 2:
+        errors.append("Time array must have at least 2 elements")
+        return DataQualityReport(
+            is_valid=False,
+            errors=errors,
+            warnings=warnings,
+            statistics=statistics,
+        )
+
     if len(t) != c2_shape[0]:
         errors.append(f"Time length {len(t)} doesn't match c2 dimension {c2_shape[0]}")
-    
+
     # Monotonicity
     diffs = np.diff(t)
     if not np.all(diffs > 0):

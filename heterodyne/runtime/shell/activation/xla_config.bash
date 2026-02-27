@@ -80,7 +80,10 @@ _heterodyne_configure_xla() {
 # Save mode to config file
 _heterodyne_save_xla_mode() {
     local mode="$1"
-    echo "$mode" > "$_HETERODYNE_XLA_MODE_FILE"
+    local tmp_file
+    tmp_file=$(mktemp "${_HETERODYNE_XLA_MODE_FILE}.XXXXXX")
+    echo "$mode" > "$tmp_file"
+    mv "$tmp_file" "$_HETERODYNE_XLA_MODE_FILE"
 }
 
 # Load mode from config file

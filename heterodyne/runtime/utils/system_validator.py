@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import shutil
 import sys
 from dataclasses import dataclass
@@ -75,6 +76,7 @@ class SystemValidator:
             self.test_python_version,
             self.test_jax_installation,
             self.test_jax_cpu_backend,
+            self.test_jax_x64_precision,
             self.test_numpy_installation,
             self.test_numpyro_installation,
             self.test_shell_completion,
@@ -114,9 +116,10 @@ class SystemValidator:
 
         # Check if running in a virtual environment
         in_venv = sys.prefix != sys.base_prefix
+        venv = os.environ.get("VIRTUAL_ENV") or os.environ.get("CONDA_DEFAULT_ENV")
         conda_env = os.environ.get("CONDA_PREFIX")
 
-        if in_venv or conda_env:
+        if in_venv or venv or conda_env:
             return ValidationResult(
                 name="Environment Detection",
                 success=True,
@@ -218,9 +221,13 @@ class SystemValidator:
 
             version = jax.__version__
 
-            # Parse version
+            # Parse version (strip pre-release suffixes like dev, rc, etc.)
             major, minor, *_ = version.split(".")
-            major, minor = int(major), int(minor.split("+")[0].split("rc")[0])
+            major_match = re.match(r'(\d+)', major)
+            minor_clean = minor.split("+")[0].split("rc")[0]
+            minor_match = re.match(r'(\d+)', minor_clean)
+            major = int(major_match.group(1)) if major_match else 0
+            minor = int(minor_match.group(1)) if minor_match else 0
 
             details = {
                 "version": version,
@@ -296,6 +303,34 @@ class SystemValidator:
                 severity=Severity.ERROR,
             )
 
+    def test_jax_x64_precision(self) -> ValidationResult:
+        """Verify JAX is configured for 64-bit precision."""
+        try:
+            import jax
+
+            if not jax.config.x64_enabled:
+                return ValidationResult(
+                    name="JAX x64 Precision",
+                    success=False,
+                    message="JAX x64 mode not enabled. Set JAX_ENABLE_X64=true for full precision.",
+                    severity=Severity.WARNING,
+                    remediation="Set environment variable JAX_ENABLE_X64=true before importing JAX",
+                )
+            return ValidationResult(
+                name="JAX x64 Precision",
+                success=True,
+                message="JAX x64 precision enabled",
+                severity=Severity.SUCCESS,
+            )
+
+        except ImportError:
+            return ValidationResult(
+                name="JAX x64 Precision",
+                success=True,
+                message="JAX not installed (skipped)",
+                severity=Severity.INFO,
+            )
+
     def test_numpy_installation(self) -> ValidationResult:
         """Test NumPy installation and BLAS backend."""
         try:
@@ -319,8 +354,9 @@ class SystemValidator:
                 "blas_backend": blas_name,
             }
 
-            # Check version (numpy 2.x required)
-            major = int(version.split(".")[0])
+            # Check version (numpy 2.x required, strip pre-release suffixes)
+            major_match = re.match(r'(\d+)', version.split(".")[0])
+            major = int(major_match.group(1)) if major_match else 0
             if major >= 2:
                 return ValidationResult(
                     name="NumPy Installation",
@@ -359,9 +395,12 @@ class SystemValidator:
                 "version": version,
             }
 
-            # Check version (0.19+ required)
-            major, minor = version.split(".")[:2]
-            major, minor = int(major), int(minor)
+            # Check version (0.19+ required, strip pre-release suffixes)
+            parts = version.split(".")[:2]
+            major_match = re.match(r'(\d+)', parts[0])
+            minor_match = re.match(r'(\d+)', parts[1])
+            major = int(major_match.group(1)) if major_match else 0
+            minor = int(minor_match.group(1)) if minor_match else 0
             if (major, minor) >= (0, 19):
                 return ValidationResult(
                     name="NumPyro Installation",

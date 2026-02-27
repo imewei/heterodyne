@@ -127,25 +127,32 @@ class XPCSDataLoader:
             if c2_key not in f:
                 available = list(f.keys())
                 raise KeyError(f"Key '{c2_key}' not found. Available: {available}")
-            c2 = np.asarray(f[c2_key])
-            
+            c2 = np.asarray(f[c2_key], dtype=np.float64)
+
             # Load time array
             if time_key in f:
-                t = np.asarray(f[time_key])
+                t = np.asarray(f[time_key], dtype=np.float64)
             else:
                 logger.warning(f"Time key '{time_key}' not found, using indices")
-                t = np.arange(c2.shape[0])
+                t = np.arange(c2.shape[0], dtype=np.float64)
             
             # Load optional q
             q = float(f[q_key][()]) if q_key and q_key in f else None
             
             # Load optional phi angles
-            phi = np.asarray(f[phi_key]) if phi_key and phi_key in f else None
+            phi = None
+            if phi_key and phi_key in f:
+                phi = np.asarray(f[phi_key], dtype=np.float64)
             
-            # Collect metadata
+            # Collect metadata (sanitize HDF5 attribute types)
             metadata = {}
             for key in f.attrs:
-                metadata[key] = f.attrs[key]
+                value = f.attrs[key]
+                if isinstance(value, bytes):
+                    value = value.decode('utf-8')
+                elif isinstance(value, np.generic):
+                    value = value.item()
+                metadata[key] = value
         
         return XPCSData(
             c2=c2,
@@ -163,22 +170,35 @@ class XPCSDataLoader:
         q_key: str | None,
         phi_key: str | None,
     ) -> XPCSData:
-        """Load from NPZ file."""
-        data = np.load(self.file_path, allow_pickle=True)
-        
-        if c2_key not in data:
-            available = list(data.keys())
-            raise KeyError(f"Key '{c2_key}' not found. Available: {available}")
-        c2 = data[c2_key]
-        
-        if time_key in data:
-            t = data[time_key]
-        else:
-            t = np.arange(c2.shape[0])
-        
-        q = float(data[q_key]) if q_key and q_key in data else None
-        phi = data[phi_key] if phi_key and phi_key in data else None
-        
+        """Load from NPZ file.
+
+        Security: allow_pickle=False prevents arbitrary code execution
+        from untrusted NPZ files.
+        """
+        try:
+            npz_file = np.load(self.file_path, allow_pickle=False)
+        except ValueError:
+            raise ValueError(
+                f"NPZ file {self.file_path} contains pickled objects, "
+                "which is not allowed for security"
+            )
+
+        with npz_file as data:
+            if c2_key not in data:
+                available = list(data.keys())
+                raise KeyError(f"Key '{c2_key}' not found. Available: {available}")
+            c2 = np.asarray(data[c2_key], dtype=np.float64)
+
+            if time_key in data:
+                t = np.asarray(data[time_key], dtype=np.float64)
+            else:
+                t = np.arange(c2.shape[0], dtype=np.float64)
+
+            q = float(data[q_key]) if q_key and q_key in data else None
+            phi = None
+            if phi_key and phi_key in data:
+                phi = np.asarray(data[phi_key], dtype=np.float64)
+
         return XPCSData(
             c2=c2,
             t1=t,
@@ -210,15 +230,17 @@ class XPCSDataLoader:
             available = [k for k in data.keys() if not k.startswith("__")]
             raise KeyError(f"Key '{c2_key}' not found. Available: {available}")
         
-        c2 = np.asarray(data[c2_key])
-        
+        c2 = np.asarray(data[c2_key], dtype=np.float64)
+
         if time_key in data:
-            t = np.asarray(data[time_key]).ravel()
+            t = np.asarray(data[time_key], dtype=np.float64).ravel()
         else:
-            t = np.arange(c2.shape[0])
-        
+            t = np.arange(c2.shape[0], dtype=np.float64)
+
         q = float(data[q_key].ravel()[0]) if q_key and q_key in data else None
-        phi = np.asarray(data[phi_key]).ravel() if phi_key and phi_key in data else None
+        phi = None
+        if phi_key and phi_key in data:
+            phi = np.asarray(data[phi_key], dtype=np.float64).ravel()
         
         return XPCSData(
             c2=c2,

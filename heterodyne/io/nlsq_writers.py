@@ -24,7 +24,6 @@ def save_nlsq_json_files(
     Creates:
     - {prefix}_parameters.json: Fitted parameter values and uncertainties
     - {prefix}_metadata.json: Fit statistics and convergence info
-    - {prefix}_config.json: Configuration used for fitting
     
     Args:
         result: NLSQ fitting result
@@ -88,8 +87,10 @@ def save_nlsq_npz_file(
         Path to saved file
     """
     output_path = Path(output_path)
+    if output_path.suffix != ".npz":
+        output_path = output_path.with_suffix(".npz")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     arrays: dict[str, Any] = {
         "parameters": np.asarray(result.parameters),
         "parameter_names": np.array(result.parameter_names, dtype=object),
