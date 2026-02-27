@@ -27,7 +27,7 @@ class PhysicsConstants:
     # X-ray wavelengths (nm) - common energies
     WAVELENGTH_8KEV: ClassVar[float] = 0.155  # nm
     WAVELENGTH_10KEV: ClassVar[float] = 0.124  # nm
-    WAVELENGTH_12KEV: ClassVar[float] = 0.103  # nm
+    WAVELENGTH_12KEV: ClassVar[float] = 0.10332  # nm
 
 
 # Default parameter bounds for heterodyne model
@@ -50,7 +50,7 @@ PARAMETER_BOUNDS: dict[str, tuple[float, float]] = {
     "f2": (-1e4, 1e4),
     "f3": (0.0, 1.0),
     # Angle
-    "phi0": (-360.0, 360.0),
+    "phi0": (0.0, 180.0),
 }
 
 

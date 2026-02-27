@@ -33,16 +33,21 @@ def compute_transport_jit(
     n_times: int,
 ) -> jnp.ndarray:
     """JIT-compiled transport coefficient computation.
-    
+
     J(t) = D0 * t^alpha + offset
-    
+
+    .. deprecated::
+        Not used in production code. Retained for test compatibility
+        (test_jax_backend_scientific.py). Use inline transport
+        computation in compute_c2_heterodyne instead.
+
     Args:
         t: Time array
         D0: Transport prefactor
         alpha: Transport exponent
         offset: Constant offset
         n_times: Number of time points (static for JIT)
-        
+
     Returns:
         Transport coefficient array
     """
@@ -93,7 +98,8 @@ def compute_fraction_jit(
     Returns:
         Fraction array in [0, 1]
     """
-    fraction = f0 * jnp.exp(f1 * (t - f2)) + f3
+    exponent = jnp.clip(f1 * (t - f2), -100, 100)
+    fraction = f0 * jnp.exp(exponent) + f3
     return jnp.clip(fraction, 0.0, 1.0)
 
 
@@ -129,10 +135,11 @@ def compute_velocity_integral_matrix(
     
     # Cumulative integral from t=0
     cumsum = jnp.cumsum(velocity) * dt
-    cumsum_padded = jnp.concatenate([jnp.zeros(1), cumsum[:-1]])
-    
-    # M[i,j] = cumsum[j] - cumsum[i-1] = integral from t_i to t_j
-    return cumsum[None, :] - cumsum_padded[:, None]
+
+    # M[i,j] = cumsum[j] - cumsum[i] = integral from t_i to t_j
+    # v_integral[i,i] = 0 by construction (outer-subtraction pattern)
+    v_integral = cumsum[None, :] - cumsum[:, None]
+    return v_integral
 
 
 @jax.jit
@@ -169,31 +176,31 @@ def compute_c2_heterodyne(
     v0, beta, v_offset = params[6], params[7], params[8]
     f0, f1, f2, f3 = params[9], params[10], params[11], params[12]
     phi0 = params[13]
-    
-    n = t.shape[0]
-    
+
     # Compute transport coefficients
     t_safe = jnp.maximum(t, 1e-10)
     
     # Reference transport: J_r(t) = D0_ref * t^alpha_ref + D_offset_ref
     J_ref = D0_ref * jnp.where(t > 0, jnp.power(t_safe, alpha_ref), 0.0) + D_offset_ref
-    
+    J_ref = jnp.maximum(J_ref, 0.0)
+
     # Sample transport: J_s(t) = D0_sample * t^alpha_sample + D_offset_sample
     J_sample = D0_sample * jnp.where(t > 0, jnp.power(t_safe, alpha_sample), 0.0) + D_offset_sample
+    J_sample = jnp.maximum(J_sample, 0.0)
     
     # g1 correlations: g1 = exp(-q² * J)
     g1_ref = jnp.exp(-q * q * J_ref)
     g1_sample = jnp.exp(-q * q * J_sample)
     
     # Sample fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3
-    f_sample = jnp.clip(f0 * jnp.exp(f1 * (t - f2)) + f3, 0.0, 1.0)
+    exponent = jnp.clip(f1 * (t - f2), -100, 100)
+    f_sample = jnp.clip(f0 * jnp.exp(exponent) + f3, 0.0, 1.0)
     f_ref = 1.0 - f_sample
     
     # Velocity integral matrix
     velocity = v0 * jnp.where(t > 0, jnp.power(t_safe, beta), 0.0) + v_offset
     cumsum = jnp.cumsum(velocity) * dt
-    cumsum_padded = jnp.concatenate([jnp.zeros(1), cumsum[:-1]])
-    v_integral = cumsum[None, :] - cumsum_padded[:, None]
+    v_integral = cumsum[None, :] - cumsum[:, None]
     
     # Combined phi angle: phi_angle from detector + phi0 from fit
     total_phi = phi_angle + phi0
@@ -223,8 +230,7 @@ def compute_c2_heterodyne(
     
     # Normalization: f² = (f_s² + f_r²)_t1 * (f_s² + f_r²)_t2
     norm_1 = f_sample ** 2 + f_ref ** 2
-    norm_2 = f_sample ** 2 + f_ref ** 2
-    normalization = norm_1[:, None] * norm_2[None, :]
+    normalization = norm_1[:, None] * norm_1[None, :]
     
     # Full correlation
     c2 = (ref_term + sample_term + cross_term) / jnp.maximum(normalization, 1e-10)
@@ -232,7 +238,6 @@ def compute_c2_heterodyne(
     return c2
 
 
-@jax.jit
 def compute_residuals(
     params: jnp.ndarray,
     t: jnp.ndarray,
@@ -243,7 +248,7 @@ def compute_residuals(
     weights: jnp.ndarray | None = None,
 ) -> jnp.ndarray:
     """Compute weighted residuals between model and data.
-    
+
     Args:
         params: Parameter array, shape (14,)
         t: Time array
@@ -252,18 +257,58 @@ def compute_residuals(
         phi_angle: Detector phi angle
         c2_data: Experimental correlation data
         weights: Optional weights (1/uncertainty²)
-        
+
     Returns:
         Flattened residual array
     """
+    if weights is None:
+        weights = jnp.ones_like(c2_data)
+    return _compute_residuals_jit(params, t, q, dt, phi_angle, c2_data, weights)
+
+
+@jax.jit
+def _compute_residuals_jit(
+    params: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_angle: float,
+    c2_data: jnp.ndarray,
+    weights: jnp.ndarray,
+) -> jnp.ndarray:
+    """JIT-compiled residuals computation (always receives weights)."""
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
-    residuals = c2_model - c2_data
-    
-    if weights is not None:
-        residuals = residuals * jnp.sqrt(weights)
-    
+    residuals = (c2_model - c2_data) * jnp.sqrt(weights)
     return residuals.ravel()
 
 
 # Gradient of residuals with respect to parameters (for NLSQ)
-compute_residuals_jacobian = jax.jit(jax.jacobian(compute_residuals, argnums=0))
+_compute_residuals_jacobian_jit = jax.jit(jax.jacobian(_compute_residuals_jit, argnums=0))
+
+
+def compute_residuals_jacobian(
+    params: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_angle: float,
+    c2_data: jnp.ndarray,
+    weights: jnp.ndarray | None = None,
+) -> jnp.ndarray:
+    """Compute Jacobian of residuals with respect to parameters.
+
+    Args:
+        params: Parameter array, shape (14,)
+        t: Time array
+        q: Scattering wavevector
+        dt: Time step
+        phi_angle: Detector phi angle
+        c2_data: Experimental correlation data
+        weights: Optional weights (1/uncertainty²)
+
+    Returns:
+        Jacobian matrix
+    """
+    if weights is None:
+        weights = jnp.ones_like(c2_data)
+    return _compute_residuals_jacobian_jit(params, t, q, dt, phi_angle, c2_data, weights)

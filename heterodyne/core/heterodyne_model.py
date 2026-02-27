@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -258,23 +259,26 @@ class HeterodyneModel:
             Callable that maps varying params -> residuals
         """
         c2_jax = jnp.asarray(c2_data)
-        weights_jax = jnp.asarray(weights) if weights is not None else None
+        weights_jax = (
+            jnp.asarray(weights) if weights is not None
+            else jnp.ones_like(c2_jax)
+        )
         t = self.t
         q = self.q
         dt = self.dt
-        
-        varying_idx = self.param_manager.varying_indices
-        fixed_values = self.param_manager.get_full_values()
-        
+
+        varying_idx_jax = jnp.array(self.param_manager.varying_indices)
+        fixed_values_jax = jnp.array(self.param_manager.get_full_values())
+
+        @jax.jit
         def residual_fn(varying_params: jnp.ndarray) -> jnp.ndarray:
             # Reconstruct full params
-            full_params = jnp.array(fixed_values)
-            full_params = full_params.at[jnp.array(varying_idx)].set(varying_params)
-            
+            full_params = fixed_values_jax.at[varying_idx_jax].set(varying_params)
+
             return compute_residuals(
                 full_params, t, q, dt, phi_angle, c2_jax, weights_jax
             )
-        
+
         return residual_fn
     
     def summary(self) -> str:

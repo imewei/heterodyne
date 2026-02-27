@@ -21,8 +21,6 @@ class PhysicsFactors:
     
     # Time arrays
     t: jnp.ndarray  # Time array, shape (N,)
-    t_grid_1: jnp.ndarray  # Meshgrid t1, shape (N, N)
-    t_grid_2: jnp.ndarray  # Meshgrid t2, shape (N, N)
     
     # Scattering
     q: float  # Wavevector magnitude
@@ -82,13 +80,8 @@ def create_physics_factors(
     # Create time array
     t = jnp.arange(n_times) * dt + t_start
     
-    # Create meshgrids for 2D correlation
-    t_grid_1, t_grid_2 = jnp.meshgrid(t, t, indexing="ij")
-    
     return PhysicsFactors(
         t=t,
-        t_grid_1=t_grid_1,
-        t_grid_2=t_grid_2,
         q=float(q),
         q_squared=float(q * q),
         dt=float(dt),
@@ -145,8 +138,7 @@ def create_cached_matrices(factors: PhysicsFactors) -> CachedMatrices:
     Returns:
         CachedMatrices instance
     """
-    t1 = factors.t_grid_1
-    t2 = factors.t_grid_2
+    t1, t2 = jnp.meshgrid(factors.t, factors.t, indexing="ij")
     n = factors.n_times
     
     return CachedMatrices(

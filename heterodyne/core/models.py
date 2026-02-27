@@ -171,8 +171,9 @@ class TwoComponentModel(HeterodyneModelBase):
         D0, alpha, offset = params[0], params[1], params[2]
         t_safe = jnp.maximum(t, 1e-10)
         J = D0 * jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0) + offset
+        J = jnp.maximum(J, 0.0)
         return jnp.exp(-q * q * J)
-    
+
     def compute_g1_sample(
         self,
         params: np.ndarray | jnp.ndarray,
@@ -192,6 +193,7 @@ class TwoComponentModel(HeterodyneModelBase):
         D0, alpha, offset = params[3], params[4], params[5]
         t_safe = jnp.maximum(t, 1e-10)
         J = D0 * jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0) + offset
+        J = jnp.maximum(J, 0.0)
         return jnp.exp(-q * q * J)
     
     def compute_fraction(
@@ -209,7 +211,8 @@ class TwoComponentModel(HeterodyneModelBase):
             f_sample array in [0, 1]
         """
         f0, f1, f2, f3 = params[9], params[10], params[11], params[12]
-        return jnp.clip(f0 * jnp.exp(f1 * (t - f2)) + f3, 0.0, 1.0)
+        exponent = jnp.clip(f1 * (t - f2), -100, 100)
+        return jnp.clip(f0 * jnp.exp(exponent) + f3, 0.0, 1.0)
 
 
 # Default model instance

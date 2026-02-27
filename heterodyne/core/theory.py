@@ -119,15 +119,11 @@ def compute_time_integral_matrix(
     """
     # Cumulative sum from t=0
     cumsum = jnp.cumsum(values) * dt
-    
-    # Integral from t_i to t_j = cumsum[j] - cumsum[i-1]
-    # Using broadcasting: M[i,j] = cumsum[j] - cumsum[i]
-    # (Note: this is integral from t_i to t_j, which may be negative if j < i)
-    cumsum_with_zero = jnp.concatenate([jnp.zeros(1), cumsum[:-1]])
-    
-    # M[i,j] = cumsum[j] - cumsum[i-1] for proper trapezoidal-like integral
-    integral_matrix = cumsum[None, :] - cumsum_with_zero[:, None]
-    
+
+    # M[i,j] = cumsum[j] - cumsum[i] = integral from t_i to t_j
+    # v_integral[i,i] = 0 by construction (outer-subtraction pattern)
+    integral_matrix = cumsum[None, :] - cumsum[:, None]
+
     return integral_matrix
 
 
