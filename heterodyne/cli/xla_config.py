@@ -34,7 +34,13 @@ def configure_xla(
     
     # Thread configuration
     if num_threads is not None:
-        os.environ["XLA_FLAGS"] = f"--xla_cpu_multi_thread_eigen=true --intra_op_parallelism_threads={num_threads}"
+        existing = os.environ.get("XLA_FLAGS", "")
+        new_flags = (
+            "--xla_cpu_multi_thread_eigen=true"
+            f" --intra_op_parallelism_threads={num_threads}"
+        )
+        if new_flags not in existing:
+            os.environ["XLA_FLAGS"] = f"{existing} {new_flags}".strip()
         os.environ["OMP_NUM_THREADS"] = str(num_threads)
         os.environ["MKL_NUM_THREADS"] = str(num_threads)
         env_vars["XLA_FLAGS"] = os.environ["XLA_FLAGS"]
@@ -51,9 +57,15 @@ def configure_xla(
         os.environ["JAX_ENABLE_X64"] = "1"
         env_vars["JAX_ENABLE_X64"] = "1"
     
-    # Disable GPU/TPU memory preallocation warnings
-    os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
-    env_vars["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+    # Disable GPU/TPU memory preallocation (only relevant when GPU is present)
+    try:
+        import jax  # noqa: E402
+        if any(d.platform == "gpu" for d in jax.devices()):
+            os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+            env_vars["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+    except Exception:
+        # JAX not yet importable or no GPU; skip GPU-only flag
+        pass
     
     return env_vars
 

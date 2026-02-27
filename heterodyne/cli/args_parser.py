@@ -133,24 +133,28 @@ Examples:
         help="Disable JIT compilation (for debugging)",
     )
     
-    # Plotting
-    parser.add_argument(
+    # Plotting (mutually exclusive)
+    plot_group = parser.add_mutually_exclusive_group()
+    plot_group.add_argument(
         "--plot",
+        dest="plot",
         action="store_true",
-        help="Generate diagnostic plots",
+        default=True,
+        help="Generate plots (default)",
     )
-    
-    parser.add_argument(
+    plot_group.add_argument(
         "--no-plot",
-        action="store_true",
-        help="Disable plot generation",
+        dest="plot",
+        action="store_false",
+        help="Skip plot generation",
     )
-    
+
     # Version
+    from heterodyne._version import __version__
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s {version}",
+        version=f"%(prog)s {__version__}",
     )
     
     return parser
@@ -174,8 +178,5 @@ def validate_args(args: argparse.Namespace) -> list[str]:
     # Check conflicting options
     if args.verbose > 0 and args.quiet:
         warnings.append("Both --verbose and --quiet specified; using --quiet")
-    
-    if args.plot and args.no_plot:
-        warnings.append("Both --plot and --no-plot specified; using --no-plot")
     
     return warnings

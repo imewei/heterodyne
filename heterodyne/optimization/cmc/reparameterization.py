@@ -19,6 +19,10 @@ from dataclasses import dataclass
 import jax.numpy as jnp
 import numpy as np
 
+from heterodyne.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
 # Power-law pairs: (prefactor_name, exponent_name)
 POWER_LAW_PAIRS: tuple[tuple[str, str], ...] = (
     ("D0_ref", "alpha_ref"),
@@ -142,8 +146,9 @@ def transform_nlsq_to_reparam_space(
 
         # Forward transform: log(A0 * t_ref^alpha) = log(A0) + alpha * log(t_ref)
         if a0 <= 0:
-            # Fallback: use log(|a0|) with a floor
-            log_a0 = math.log(max(abs(a0), 1e-30))
+            logger.warning(f"Negative prefactor {prefactor}={a0}, clamping to 1e-10")
+            a0 = max(abs(a0), 1e-10)
+            log_a0 = math.log(a0)
         else:
             log_a0 = math.log(a0)
 
@@ -206,7 +211,9 @@ def transform_to_sampling_space(
         alpha = params[exponent]
 
         if a0 <= 0:
-            log_a0 = math.log(max(abs(a0), 1e-30))
+            logger.warning(f"Negative prefactor {prefactor}={a0}, clamping to 1e-10")
+            a0 = max(abs(a0), 1e-10)
+            log_a0 = math.log(a0)
         else:
             log_a0 = math.log(a0)
 

@@ -46,24 +46,20 @@ def get_heterodyne_model(
     """
     # Pre-compute indices and masks
     varying_names = space.varying_names
-    varying_indices = [ALL_PARAM_NAMES.index(name) for name in varying_names]
     fixed_values = space.get_initial_array()
-    
+
     def model():
         """NumPyro model for heterodyne correlation."""
-        # Sample varying parameters
-        params_list = []
-        
+        # Sample varying parameters and scatter into fixed array
+        # Using .at[].set() instead of jnp.array([...]) to avoid
+        # tracing issues with mixed tracer/concrete values.
+        params = jnp.asarray(fixed_values)
+
         for i, name in enumerate(ALL_PARAM_NAMES):
             if name in varying_names:
                 prior = space.priors[name]
                 param = numpyro.sample(name, prior.to_numpyro(name))
-                params_list.append(param)
-            else:
-                params_list.append(fixed_values[i])
-        
-        # Stack into parameter array
-        params = jnp.array(params_list)
+                params = params.at[i].set(param)
         
         # Compute model prediction
         c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
@@ -149,7 +145,9 @@ def get_heterodyne_model_reparam(
 
     def model():
         """NumPyro model with centered parameterization (legacy)."""
-        params_list = []
+        # Using .at[].set() instead of jnp.array([...]) to avoid
+        # tracing issues with mixed tracer/concrete values.
+        params = jnp.asarray(fixed_values)
 
         for i, name in enumerate(ALL_PARAM_NAMES):
             if name in varying_names:
@@ -158,13 +156,11 @@ def get_heterodyne_model_reparam(
                 scale = (bounds[1] - bounds[0]) / 6.0
 
                 raw = numpyro.sample(f"{name}_raw", dist.Normal(center, scale))
+                # NOTE: jnp.clip has discontinuous gradient at bounds.
+                # The reparameterized path uses smooth_bound() instead.
                 param = jnp.clip(raw, bounds[0], bounds[1])
                 numpyro.deterministic(name, param)
-                params_list.append(param)
-            else:
-                params_list.append(fixed_values[i])
-
-        params = jnp.array(params_list)
+                params = params.at[i].set(param)
         c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
@@ -270,7 +266,6 @@ def estimate_sigma(c2_data: jnp.ndarray, method: str = "diagonal") -> jnp.ndarra
     """
     if method == "diagonal":
         # Use deviation from diagonal as proxy for noise
-        n = c2_data.shape[0]
         diag = jnp.diag(c2_data)
         expected_diag = jnp.mean(diag)
         sigma = jnp.std(diag - expected_diag)

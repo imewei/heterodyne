@@ -75,6 +75,12 @@ def fit_nlsq_jax(
     c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
     weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
 
+    # Validate weights shape matches data shape
+    if weights_jax is not None and weights_jax.shape != c2_jax.shape:
+        raise ValueError(
+            f"Weights shape {weights_jax.shape} does not match data shape {c2_jax.shape}"
+        )
+
     # Get fixed values for reconstruction (float64 for JAX scatter compatibility)
     fixed_values = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
     varying_indices = jnp.array(param_manager.varying_indices)

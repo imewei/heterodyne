@@ -60,17 +60,30 @@ def generate_config(
         content = f.read()
     
     # Substitute values if provided
+    import yaml
+
+    substitutions: list[tuple[str, str]] = []
+
     if data_path is not None:
-        content = content.replace('file_path: ""', f'file_path: "{data_path}"')
-    
+        safe_data_path = yaml.dump(data_path, default_flow_style=True).strip()
+        substitutions.append(('file_path: ""', f"file_path: {safe_data_path}"))
+
     if q is not None:
-        content = content.replace("wavevector_q: 0.01", f"wavevector_q: {q}")
-    
+        safe_q = yaml.dump(q, default_flow_style=True).strip()
+        substitutions.append(("wavevector_q: 0.01", f"wavevector_q: {safe_q}"))
+
     if dt is not None:
-        content = content.replace("dt: 1.0", f"dt: {dt}")
-    
+        safe_dt = yaml.dump(dt, default_flow_style=True).strip()
+        substitutions.append(("dt: 1.0", f"dt: {safe_dt}"))
+
     if time_length is not None:
-        content = content.replace("time_length: 1000", f"time_length: {time_length}")
+        safe_tl = yaml.dump(time_length, default_flow_style=True).strip()
+        substitutions.append(("time_length: 1000", f"time_length: {safe_tl}"))
+
+    for placeholder, replacement in substitutions:
+        if placeholder not in content:
+            logger.warning(f"Placeholder '{placeholder}' not found in template")
+        content = content.replace(placeholder, replacement)
     
     # Write output
     output_path.parent.mkdir(parents=True, exist_ok=True)

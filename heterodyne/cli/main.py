@@ -25,15 +25,6 @@ def main(argv: list[str] | None = None) -> int:
     from heterodyne.cli.args_parser import create_parser, validate_args
     
     parser = create_parser()
-    
-    # Add version after imports
-    from heterodyne import __version__
-    parser.formatter_class = type(
-        parser.formatter_class.__name__,
-        (parser.formatter_class,),
-        {"_format_version": lambda self, version: version.format(version=__version__)},
-    )
-    
     args = parser.parse_args(argv)
     
     # Validate arguments

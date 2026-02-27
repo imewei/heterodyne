@@ -74,7 +74,7 @@ def get_or_create_fitter(n_data: int, n_params: int) -> tuple[object, bool]:
         oldest_key = min(_model_cache, key=lambda k: _model_cache[k].last_accessed)
         del _model_cache[oldest_key]
 
-    fitter = CurveFit(flength=float(n_data))
+    fitter = CurveFit(flength=int(n_data))
     _model_cache[key] = CachedModel(fitter=fitter)
     return fitter, False
 
@@ -192,6 +192,12 @@ class NLSQAdapter(NLSQAdapterBase):
             if cache_hit:
                 logger.debug(f"CurveFit cache hit for shape ({n_data}, {n_params})")
 
+            # Resolve optimization method
+            method = config.method
+            if method == "dogbox":
+                logger.warning("Method 'dogbox' not supported by backend, coercing to 'trf'")
+                method = "trf"
+
             # Run optimization
             fitted_params, covariance = fitter.curve_fit(
                 f=jax_residual_fn,
@@ -199,7 +205,7 @@ class NLSQAdapter(NLSQAdapterBase):
                 ydata=ydata,
                 p0=initial_params,
                 bounds=(lower_bounds, upper_bounds),
-                method=config.method if config.method != "dogbox" else "trf",
+                method=method,
             )
 
             # Compute final residuals and cost (using the JAX function)
@@ -209,8 +215,9 @@ class NLSQAdapter(NLSQAdapterBase):
             final_cost = 0.5 * np.sum(final_residuals ** 2)
 
             # Degrees of freedom
+            # final_cost = 0.5 * sum(residuals^2), so chi2 = 2 * final_cost
             n_dof = n_data - n_params
-            reduced_chi2 = final_cost / n_dof if n_dof > 0 else None
+            reduced_chi2 = 2.0 * final_cost / n_dof if n_dof > 0 else None
 
             # Get uncertainties from covariance
             uncertainties = None
@@ -223,6 +230,18 @@ class NLSQAdapter(NLSQAdapterBase):
 
             wall_time = time.perf_counter() - start_time
 
+            # Attempt to read iteration count from the fitter result object
+            n_iters = getattr(fitter, 'n_iterations', None)
+            if n_iters is None:
+                n_iters = getattr(fitter, 'nit', None)
+            if n_iters is None:
+                n_iters = 0
+            n_fevals = getattr(fitter, 'n_function_evals', None)
+            if n_fevals is None:
+                n_fevals = getattr(fitter, 'nfev', None)
+            if n_fevals is None:
+                n_fevals = 0
+
             return NLSQResult(
                 parameters=np.asarray(fitted_params),
                 parameter_names=self._parameter_names,
@@ -232,8 +251,8 @@ class NLSQAdapter(NLSQAdapterBase):
                 covariance=np.asarray(covariance) if covariance is not None else None,
                 final_cost=final_cost,
                 reduced_chi_squared=reduced_chi2,
-                n_iterations=0,
-                n_function_evals=0,
+                n_iterations=n_iters,
+                n_function_evals=n_fevals,
                 convergence_reason="tolerance",
                 residuals=final_residuals,
                 wall_time_seconds=wall_time,

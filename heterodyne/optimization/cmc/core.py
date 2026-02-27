@@ -208,20 +208,35 @@ def fit_cmc_jax(
 
         if use_reparam and scalings is not None:
             # Initialize in z-space: z = (value - center) / scale
+            # Add small random perturbation per chain to break symmetry
             init_params = {}
+            perturb_key = jax.random.PRNGKey(
+                config.seed + 1 if config.seed is not None else 1
+            )
             for sname, sc in scalings.items():
+                perturb_key, subkey = jax.random.split(perturb_key)
                 reparam_val = reparam_values.get(sname, sc.center)
                 z_init = sc.to_normalized(reparam_val)
-                init_params[f"{sname}_z"] = jnp.full(
-                    (config.num_chains,), jnp.float64(z_init)
-                )
+                base = jnp.full((config.num_chains,), jnp.float64(z_init))
+                perturbation = 0.01 * jax.random.normal(subkey, shape=(config.num_chains,))
+                init_params[f"{sname}_z"] = base + perturbation
         else:
             # Legacy: replicate NLSQ values for each chain
-            init_params = {
-                name: jnp.full((config.num_chains,), nlsq_result.get_param(name))
-                for name in varying_names
-                if name in nlsq_result.parameter_names
-            }
+            # Add small random perturbation per chain to break symmetry
+            init_params = {}
+            perturb_key = jax.random.PRNGKey(
+                config.seed + 1 if config.seed is not None else 1
+            )
+            for name in varying_names:
+                if name in nlsq_result.parameter_names:
+                    perturb_key, subkey = jax.random.split(perturb_key)
+                    base = jnp.full(
+                        (config.num_chains,), nlsq_result.get_param(name)
+                    )
+                    perturbation = 0.01 * jax.random.normal(
+                        subkey, shape=(config.num_chains,)
+                    )
+                    init_params[name] = base + perturbation
 
     # Set up MCMC
     mcmc = MCMC(
@@ -259,11 +274,11 @@ def fit_cmc_jax(
         # Compute diagnostics from deterministic sites (physics space)
         # ArviZ summary uses the deterministic sites which are in physics space
         available_names = [n for n in output_names if n in idata.posterior]
-        summary = az.summary(idata, var_names=available_names) if available_names else None
+        summary = az.summary(idata, var_names=available_names, hdi_prob=0.95) if available_names else None
     else:
         physics_samples = {k: np.asarray(v) for k, v in samples.items()}
         output_names = varying_names
-        summary = az.summary(idata, var_names=output_names)
+        summary = az.summary(idata, var_names=output_names, hdi_prob=0.95)
 
     # Extract posterior statistics
     if summary is not None and len(summary) > 0:
@@ -306,8 +321,8 @@ def fit_cmc_jax(
     for name in output_names:
         if summary is not None and name in summary.index:
             credible_intervals[name] = {
-                "2.5%": float(summary.loc[name, "hdi_3%"]),
-                "97.5%": float(summary.loc[name, "hdi_97%"]),
+                "2.5%": float(summary.loc[name, "hdi_2.5%"]),
+                "97.5%": float(summary.loc[name, "hdi_97.5%"]),
             }
         elif name in physics_samples:
             s = physics_samples[name]
@@ -318,6 +333,7 @@ def fit_cmc_jax(
 
     # BFMI
     bfmi = None
+    bfmi_compute_failed = False
     try:
         bfmi_result = az.bfmi(idata)
         if hasattr(bfmi_result, 'values'):
@@ -326,6 +342,7 @@ def fit_cmc_jax(
             bfmi = list(bfmi_result)
     except Exception:
         logger.warning("Could not compute BFMI")
+        bfmi_compute_failed = True
 
     # Store physics-space samples
     samples_dict = {
@@ -346,6 +363,8 @@ def fit_cmc_jax(
     )
     if bfmi is not None:
         convergence_passed = convergence_passed and min(bfmi) > config.min_bfmi
+    if bfmi_compute_failed:
+        convergence_passed = False
 
     # Build metadata
     metadata: dict = {}

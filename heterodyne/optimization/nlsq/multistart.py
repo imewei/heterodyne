@@ -97,18 +97,20 @@ class MultiStartOptimizer:
         Returns:
             List of sample arrays
         """
-        samples = []
-        
-        # Create permutation for each dimension
-        for _ in range(n_samples):
-            sample = np.zeros(n_dims)
-            for d in range(n_dims):
-                # Random position within this sample's interval
-                interval = (upper[d] - lower[d]) / n_samples
-                sample[d] = lower[d] + self._rng.random() * (upper[d] - lower[d])
-            samples.append(sample)
-        
-        return samples
+        # Proper Latin Hypercube Sampling:
+        # Divide each dimension into n_samples equal strata,
+        # place one sample per stratum, then shuffle across dimensions.
+        result = np.zeros((n_samples, n_dims))
+        for d in range(n_dims):
+            # Create one sample per stratum with random offset within stratum
+            perm = self._rng.permutation(n_samples)
+            for i in range(n_samples):
+                stratum = perm[i]
+                low_edge = lower[d] + stratum * (upper[d] - lower[d]) / n_samples
+                high_edge = lower[d] + (stratum + 1) * (upper[d] - lower[d]) / n_samples
+                result[i, d] = low_edge + self._rng.random() * (high_edge - low_edge)
+
+        return [result[i] for i in range(n_samples)]
     
     def fit(
         self,
@@ -160,8 +162,11 @@ class MultiStartOptimizer:
         n_successful = sum(1 for r in all_results if r.success)
         
         if best_result is None:
-            logger.warning("All optimization runs failed, using last result")
-            best_result = all_results[-1]
+            logger.warning("All optimization runs failed, using result with lowest cost")
+            best_result = min(
+                all_results,
+                key=lambda r: r.final_cost if r.final_cost is not None else np.inf,
+            )
         
         logger.info(
             f"Multi-start complete: {n_successful}/{len(starting_points)} successful, "

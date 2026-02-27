@@ -12,7 +12,9 @@ from heterodyne.config.manager import ConfigManager
 from heterodyne.core.heterodyne_model import HeterodyneModel
 from heterodyne.data.xpcs_loader import load_xpcs_data
 from heterodyne.data.validation import validate_xpcs_data
-from heterodyne.io.nlsq_writers import save_nlsq_json_files, save_nlsq_npz_file, format_nlsq_summary
+from heterodyne.io.nlsq_writers import (
+    save_nlsq_json_files, save_nlsq_npz_file, format_nlsq_summary,
+)
 from heterodyne.io.mcmc_writers import save_mcmc_results, format_mcmc_summary
 from heterodyne.optimization.nlsq import fit_nlsq_jax, NLSQConfig
 from heterodyne.optimization.cmc import fit_cmc_jax, CMCConfig
@@ -68,7 +70,11 @@ def dispatch_command(args: argparse.Namespace) -> int:
         phi_angles = [0.0]  # Default single angle
     
     logger.info(f"Analyzing phi angles: {phi_angles}")
-    
+
+    # Initialize result containers to avoid UnboundLocalError
+    nlsq_results: list[NLSQResult] = []
+    cmc_results: list[CMCResult] = []
+
     # Run analysis based on method
     if args.method == "nlsq" or args.method == "both":
         nlsq_results = run_nlsq_analysis(
@@ -81,7 +87,10 @@ def dispatch_command(args: argparse.Namespace) -> int:
         )
     
     if args.method == "cmc" or args.method == "both":
-        nlsq_result = nlsq_results[0] if args.method == "both" and nlsq_results else None
+        nlsq_result = (
+            nlsq_results[0] if args.method == "both" and nlsq_results
+            else None
+        )
         cmc_results = run_cmc_analysis(
             model=model,
             c2_data=data.c2,
@@ -93,7 +102,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
         )
     
     # Generate plots if requested
-    if args.plot and not args.no_plot:
+    if args.plot:
         generate_plots(
             model=model,
             c2_data=data.c2,
@@ -256,12 +265,12 @@ def generate_plots(
         cmc_results: CMC results (if any)
         output_dir: Output directory
     """
+    import matplotlib
+    matplotlib.use('Agg')  # Non-interactive backend -- must precede viz imports
+
     from heterodyne.viz.nlsq_plots import plot_nlsq_fit, plot_residual_map
     from heterodyne.viz.mcmc_plots import plot_posterior, plot_trace
     from heterodyne.viz.experimental_plots import plot_correlation, plot_g1_components
-    
-    import matplotlib
-    matplotlib.use('Agg')  # Non-interactive backend
     
     plots_dir = output_dir / "plots"
     plots_dir.mkdir(exist_ok=True)
@@ -279,7 +288,10 @@ def generate_plots(
             suffix = f"_phi{int(phi)}" if len(nlsq_results) > 1 else ""
             
             plot_nlsq_fit(c2_2d, result, save_path=plots_dir / f"nlsq_fit{suffix}.png")
-            plot_residual_map(result, c2_2d, save_path=plots_dir / f"nlsq_residuals{suffix}.png")
+            plot_residual_map(
+                result, c2_2d,
+                save_path=plots_dir / f"nlsq_residuals{suffix}.png",
+            )
     
     # CMC plots
     if cmc_results:

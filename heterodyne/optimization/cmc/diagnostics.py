@@ -156,20 +156,22 @@ def compute_posterior_contraction(
 
 def compute_r_hat(samples: np.ndarray) -> float:
     """Compute R-hat (Gelman-Rubin statistic) from samples.
-    
+
+    .. deprecated::
+        Use ``arviz.rhat()`` instead.
+
     Args:
         samples: Array of shape (n_chains, n_samples)
-        
+
     Returns:
         R-hat value
     """
+    import warnings
+    warnings.warn("Use arviz.rhat() instead", DeprecationWarning, stacklevel=2)
     n_chains, n_samples = samples.shape
     
     # Chain means
     chain_means = np.mean(samples, axis=1)
-    
-    # Overall mean
-    overall_mean = np.mean(chain_means)
     
     # Between-chain variance
     B = n_samples * np.var(chain_means, ddof=1)
@@ -194,13 +196,18 @@ def compute_r_hat(samples: np.ndarray) -> float:
 
 def compute_ess(samples: np.ndarray) -> float:
     """Compute effective sample size using autocorrelation.
-    
+
+    .. deprecated::
+        Use ``arviz.ess()`` instead.
+
     Args:
         samples: 1D array of samples
-        
+
     Returns:
         Effective sample size
     """
+    import warnings
+    warnings.warn("Use arviz.ess() instead", DeprecationWarning, stacklevel=2)
     n = len(samples)
     
     # Mean-center
@@ -233,16 +240,21 @@ def compute_ess(samples: np.ndarray) -> float:
 
 def compute_bfmi(energy: np.ndarray) -> float:
     """Compute Bayesian Fraction of Missing Information.
-    
+
+    .. deprecated::
+        Use ``arviz.bfmi()`` instead.
+
     BFMI measures how well the sampler explores the posterior.
     Values < 0.3 indicate potential problems.
-    
+
     Args:
         energy: Array of HMC energies
-        
+
     Returns:
         BFMI value
     """
+    import warnings
+    warnings.warn("Use arviz.bfmi() instead", DeprecationWarning, stacklevel=2)
     energy_diff = np.diff(energy)
     var_diff = np.var(energy_diff)
     var_energy = np.var(energy)
