@@ -266,6 +266,9 @@ class NLSQAdapter(NLSQAdapterBase):
                 covariance=np.asarray(covariance) if covariance is not None else None,
                 final_cost=final_cost,
                 reduced_chi_squared=reduced_chi2,
+                # nlsq.CurveFit does not expose iteration/function-eval counts
+                # at the Python level; convergence is assessed via result quality
+                # checks above (NaN detection, chi-squared, no-progress).
                 n_iterations=0,
                 n_function_evals=0,
                 convergence_reason=convergence_reason,
