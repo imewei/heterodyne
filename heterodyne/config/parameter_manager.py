@@ -25,34 +25,34 @@ class ParameterManager:
     - Constructing full parameter arrays from varying subsets
     - Validating parameter values against physics constraints
     """
-    
+
     space: ParameterSpace = field(default_factory=ParameterSpace)
-    
+
     @property
     def n_params(self) -> int:
         """Total number of model parameters (14)."""
         return len(ALL_PARAM_NAMES)
-    
+
     @property
     def n_varying(self) -> int:
         """Number of parameters that vary in optimization."""
         return self.space.n_varying
-    
+
     @property
     def varying_names(self) -> list[str]:
         """Names of varying parameters."""
         return self.space.varying_names
-    
+
     @property
     def varying_indices(self) -> list[int]:
         """Indices of varying parameters in full array."""
         return [i for i, name in enumerate(ALL_PARAM_NAMES) if self.space.vary[name]]
-    
+
     @property
     def fixed_indices(self) -> list[int]:
         """Indices of fixed parameters in full array."""
         return [i for i, name in enumerate(ALL_PARAM_NAMES) if not self.space.vary[name]]
-    
+
     def get_initial_values(self) -> np.ndarray:
         """Get initial parameter values for optimization.
         
@@ -61,7 +61,7 @@ class ParameterManager:
         """
         full = self.space.get_initial_array()
         return full[self.varying_indices]
-    
+
     def get_full_values(self) -> np.ndarray:
         """Get all 14 parameter values.
         
@@ -69,7 +69,7 @@ class ParameterManager:
             Array of shape (14,)
         """
         return self.space.get_initial_array()
-    
+
     def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:
         """Get bounds for varying parameters.
         
@@ -79,7 +79,7 @@ class ParameterManager:
         lower_full, upper_full = self.space.get_bounds_arrays()
         idx = self.varying_indices
         return lower_full[idx], upper_full[idx]
-    
+
     def expand_varying_to_full(
         self,
         varying_params: np.ndarray | jnp.ndarray,
@@ -98,7 +98,7 @@ class ParameterManager:
         for i, idx in enumerate(self.varying_indices):
             full[idx] = float(varying_params[i])
         return full
-    
+
     def extract_varying(self, full_params: np.ndarray | jnp.ndarray) -> np.ndarray:
         """Extract varying parameters from full array.
         
@@ -109,7 +109,7 @@ class ParameterManager:
             Array of shape (n_varying,)
         """
         return np.array([full_params[i] for i in self.varying_indices])
-    
+
     def update_values(self, params: np.ndarray | dict[str, float]) -> None:
         """Update stored parameter values.
         
@@ -121,11 +121,11 @@ class ParameterManager:
         else:
             params_dict = self.space.array_to_dict(np.asarray(params))
             self.space.update_from_dict(params_dict)
-    
+
     def get_parameter_dict(self) -> dict[str, float]:
         """Get current parameter values as dictionary."""
         return dict(self.space.values)
-    
+
     def set_vary(self, name: str, vary: bool) -> None:
         """Set whether a parameter varies in optimization.
         
@@ -136,7 +136,7 @@ class ParameterManager:
         if name not in ALL_PARAM_NAMES:
             raise ValueError(f"Unknown parameter: {name}")
         self.space.vary[name] = vary
-    
+
     def set_bounds(self, name: str, lower: float, upper: float) -> None:
         """Set bounds for a parameter.
         
@@ -148,7 +148,7 @@ class ParameterManager:
         if name not in ALL_PARAM_NAMES:
             raise ValueError(f"Unknown parameter: {name}")
         self.space.bounds[name] = (lower, upper)
-    
+
     def validate_physics(self, params: np.ndarray | None = None) -> list[str]:
         """Validate parameters against physics constraints.
         
@@ -160,21 +160,21 @@ class ParameterManager:
         """
         if params is None:
             params = self.get_full_values()
-        
+
         violations = []
         param_dict = self.space.array_to_dict(params)
-        
+
         # Diffusion coefficients must be non-negative
         for prefix in ("D0_ref", "D0_sample"):
             if param_dict[prefix] < 0:
                 violations.append(f"{prefix} must be non-negative")
-        
+
         # Fraction parameters f0, f3 should be in [0, 1]
         for name in ("f0", "f3"):
             val = param_dict[name]
             if not (0 <= val <= 1):
                 violations.append(f"{name}={val:.3f} should be in [0, 1]")
-        
+
         # Alpha exponents typically in [-2, 2]
         for name in ("alpha_ref", "alpha_sample", "beta"):
             val = param_dict[name]
@@ -192,7 +192,7 @@ class ParameterManager:
             violations.extend(result.warnings)
 
         return violations
-    
+
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> ParameterManager:
         """Create ParameterManager from configuration dictionary.
@@ -205,7 +205,7 @@ class ParameterManager:
         """
         space = ParameterSpace.from_config(config)
         return cls(space=space)
-    
+
     def get_group_values(self, group: str) -> dict[str, float]:
         """Get parameter values for a specific group.
         

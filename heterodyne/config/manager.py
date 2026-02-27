@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -25,7 +25,7 @@ class ConfigManager:
     
     Handles loading, validation, and access to configuration settings.
     """
-    
+
     def __init__(self, config: dict[str, Any]) -> None:
         """Initialize with configuration dictionary.
         
@@ -34,7 +34,7 @@ class ConfigManager:
         """
         self._config = config
         self._validate()
-    
+
     def _validate(self) -> None:
         """Validate configuration structure."""
         required_sections = ["experimental_data", "temporal", "scattering", "parameters"]
@@ -55,7 +55,7 @@ class ConfigManager:
                     f"Invalid optimization method '{method}'. "
                     f"Allowed values: {sorted(_ALLOWED_OPTIMIZATION_METHODS)}"
                 )
-    
+
     @classmethod
     def from_yaml(cls, path: Path | str) -> ConfigManager:
         """Load configuration from YAML file.
@@ -70,7 +70,7 @@ class ConfigManager:
         with open(path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
         return cls(config)
-    
+
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> ConfigManager:
         """Create from dictionary.
@@ -82,67 +82,67 @@ class ConfigManager:
             ConfigManager instance
         """
         return cls(config)
-    
+
     @property
     def raw_config(self) -> dict[str, Any]:
         """Get raw configuration dictionary (deep copy to prevent mutation)."""
         return copy.deepcopy(self._config)
-    
+
     # === Experimental Data ===
-    
+
     @property
     def data_file_path(self) -> Path:
         """Path to experimental data file."""
         return Path(self._config["experimental_data"]["file_path"])
-    
+
     @property
     def data_folder_path(self) -> Path | None:
         """Optional folder path for data."""
         path = self._config["experimental_data"].get("data_folder_path")
         return Path(path) if path else None
-    
+
     @property
     def file_format(self) -> str:
         """Data file format."""
-        return self._config["experimental_data"].get("file_format", "hdf5")
-    
+        return cast(str, self._config["experimental_data"].get("file_format", "hdf5"))
+
     # === Temporal Settings ===
-    
+
     @property
     def dt(self) -> float:
         """Time step."""
         return float(self._config["temporal"]["dt"])
-    
+
     @property
     def time_length(self) -> int:
         """Number of time points."""
         return int(self._config["temporal"]["time_length"])
-    
+
     @property
     def t_start(self) -> int:
         """Starting time index."""
         return int(self._config["temporal"].get("t_start", 0))
-    
+
     # === Scattering Settings ===
-    
+
     @property
     def wavevector_q(self) -> float:
         """Scattering wavevector magnitude."""
         return float(self._config["scattering"]["wavevector_q"])
-    
+
     @property
     def phi_angles(self) -> list[float] | None:
         """List of phi angles for analysis."""
         angles = self._config["scattering"].get("phi_angles")
         return [float(a) for a in angles] if angles else None
-    
+
     # === Parameter Settings ===
-    
+
     @property
     def parameters_config(self) -> dict[str, Any]:
         """Get parameters configuration section."""
-        return self._config.get("parameters", {})
-    
+        return cast(dict[str, Any], self._config.get("parameters", {}))
+
     def get_parameter_value(self, group: str, name: str) -> float:
         """Get a specific parameter value.
         
@@ -163,7 +163,7 @@ class ConfigManager:
                 )
             return float(param_config["value"])
         return float(param_config)
-    
+
     def get_parameter_vary(self, group: str, name: str) -> bool:
         """Check if parameter varies in optimization.
         
@@ -179,32 +179,32 @@ class ConfigManager:
         if isinstance(param_config, dict):
             return bool(param_config.get("vary", True))
         return True
-    
+
     # === Optimization Settings ===
-    
+
     @property
     def optimization_method(self) -> str:
         """Optimization method ('nlsq' or 'cmc')."""
-        return self._config.get("optimization", {}).get("method", "nlsq")
-    
+        return cast(str, self._config.get("optimization", {}).get("method", "nlsq"))
+
     @property
     def nlsq_config(self) -> dict[str, Any]:
         """NLSQ optimization settings."""
-        return self._config.get("optimization", {}).get("nlsq", {})
-    
+        return cast(dict[str, Any], self._config.get("optimization", {}).get("nlsq", {}))
+
     @property
     def cmc_config(self) -> dict[str, Any]:
         """CMC analysis settings."""
-        return self._config.get("optimization", {}).get("cmc", {})
-    
+        return cast(dict[str, Any], self._config.get("optimization", {}).get("cmc", {}))
+
     # === Output Settings ===
-    
+
     @property
     def output_dir(self) -> Path:
         """Output directory path."""
         output = self._config.get("output", {})
         return Path(output.get("output_dir", "./output"))
-    
+
     def to_yaml(self, path: Path | str) -> None:
         """Save configuration to YAML file.
         

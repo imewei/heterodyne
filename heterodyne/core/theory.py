@@ -42,17 +42,17 @@ def compute_transport_coefficient(
         Transport coefficient array, shape (N,)
     """
     t = jnp.asarray(t)
-    
+
     # Handle t=0 singularity for negative alpha
     # Use small epsilon to avoid division by zero
     t_safe = jnp.where(t > 0, t, 1e-10)
-    
+
     # Compute t^alpha
     t_power = jnp.power(t_safe, alpha)
-    
+
     # For t=0: if alpha > 0, t^alpha -> 0; if alpha <= 0, use 0 (physical limit)
     t_power = jnp.where(t > 0, t_power, 0.0)
-    
+
     return D0 * t_power + offset
 
 
@@ -190,10 +190,10 @@ def compute_normalization_factor(
     """
     f_r_1 = 1.0 - f_s_1
     f_r_2 = 1.0 - f_s_2
-    
+
     # (f_s² + f_r²) at each time
     norm_1 = f_s_1 ** 2 + f_r_1 ** 2  # shape (N1,)
     norm_2 = f_s_2 ** 2 + f_r_2 ** 2  # shape (N2,)
-    
+
     # Outer product for matrix
     return norm_1[:, None] * norm_2[None, :]

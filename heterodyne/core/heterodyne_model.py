@@ -34,19 +34,19 @@ class HeterodyneModel:
         >>> c2 = model.compute_correlation(phi_angle=45.0)
         >>> residuals = model.compute_residuals(c2_data, phi_angle=45.0)
     """
-    
+
     # Core model
     _model: TwoComponentModel = field(default_factory=TwoComponentModel)
-    
+
     # Parameter management
     param_manager: ParameterManager = field(default_factory=ParameterManager)
-    
+
     # Physics factors (pre-computed from config)
     _factors: PhysicsFactors | None = field(default=None)
-    
+
     # Cached time array
     _t: jnp.ndarray | None = field(default=None)
-    
+
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> HeterodyneModel:
         """Create model from configuration dictionary.
@@ -58,10 +58,10 @@ class HeterodyneModel:
             Configured HeterodyneModel
         """
         param_manager = ParameterManager.from_config(config)
-        
+
         temporal = config.get("temporal", {})
         scattering = config.get("scattering", {})
-        
+
         factors = create_physics_factors(
             n_times=int(temporal.get("time_length", 1000)),
             dt=float(temporal.get("dt", 1.0)),
@@ -69,62 +69,62 @@ class HeterodyneModel:
             phi_angle=0.0,
             t_start=float(temporal.get("t_start", 0.0)),
         )
-        
+
         return cls(
             _model=TwoComponentModel(),
             param_manager=param_manager,
             _factors=factors,
             _t=factors.t,
         )
-    
+
     @property
     def n_params(self) -> int:
         """Total number of model parameters (14)."""
         return 14
-    
+
     @property
     def n_varying(self) -> int:
         """Number of varying parameters."""
         return self.param_manager.n_varying
-    
+
     @property
     def param_names(self) -> tuple[str, ...]:
         """All parameter names in canonical order."""
         return ALL_PARAM_NAMES
-    
+
     @property
     def varying_names(self) -> list[str]:
         """Names of varying parameters."""
         return self.param_manager.varying_names
-    
+
     @property
     def q(self) -> float:
         """Scattering wavevector magnitude."""
         if self._factors is None:
             raise ValueError("Physics factors not initialized")
         return self._factors.q
-    
+
     @property
     def dt(self) -> float:
         """Time step."""
         if self._factors is None:
             raise ValueError("Physics factors not initialized")
         return self._factors.dt
-    
+
     @property
     def t(self) -> jnp.ndarray:
         """Time array."""
         if self._t is None:
             raise ValueError("Time array not initialized")
         return self._t
-    
+
     @property
     def n_times(self) -> int:
         """Number of time points."""
         if self._factors is None:
             raise ValueError("Physics factors not initialized")
         return self._factors.n_times
-    
+
     def get_params(self) -> np.ndarray:
         """Get current full parameter array.
         
@@ -132,11 +132,11 @@ class HeterodyneModel:
             Array of shape (14,)
         """
         return self.param_manager.get_full_values()
-    
+
     def get_params_dict(self) -> dict[str, float]:
         """Get current parameters as dictionary."""
         return self.param_manager.get_parameter_dict()
-    
+
     def set_params(self, params: np.ndarray | dict[str, float]) -> None:
         """Set parameter values.
         
@@ -144,7 +144,7 @@ class HeterodyneModel:
             params: Either array of shape (14,) or dict with param names
         """
         self.param_manager.update_values(params)
-    
+
     def compute_correlation(
         self,
         phi_angle: float = 0.0,
@@ -161,15 +161,15 @@ class HeterodyneModel:
         """
         if params is None:
             params = self.get_params()
-        
-        return compute_c2_heterodyne(
+
+        return compute_c2_heterodyne(  # type: ignore[no-any-return]
             jnp.asarray(params),
             self.t,
             self.q,
             self.dt,
             phi_angle,
         )
-    
+
     def compute_residuals(
         self,
         c2_data: np.ndarray | jnp.ndarray,
@@ -190,7 +190,7 @@ class HeterodyneModel:
         """
         if params is None:
             params = self.get_params()
-        
+
         return compute_residuals(
             jnp.asarray(params),
             self.t,
@@ -200,7 +200,7 @@ class HeterodyneModel:
             jnp.asarray(c2_data),
             jnp.asarray(weights) if weights is not None else None,
         )
-    
+
     def compute_g1_reference(self, params: np.ndarray | None = None) -> jnp.ndarray:
         """Compute reference g1 correlation.
         
@@ -213,7 +213,7 @@ class HeterodyneModel:
         if params is None:
             params = self.get_params()
         return self._model.compute_g1_reference(params, self.t, self.q)
-    
+
     def compute_g1_sample(self, params: np.ndarray | None = None) -> jnp.ndarray:
         """Compute sample g1 correlation.
         
@@ -226,7 +226,7 @@ class HeterodyneModel:
         if params is None:
             params = self.get_params()
         return self._model.compute_g1_sample(params, self.t, self.q)
-    
+
     def compute_fraction(self, params: np.ndarray | None = None) -> jnp.ndarray:
         """Compute sample fraction evolution.
         
@@ -239,13 +239,13 @@ class HeterodyneModel:
         if params is None:
             params = self.get_params()
         return self._model.compute_fraction(params, self.t)
-    
+
     def create_residual_function(
         self,
         c2_data: np.ndarray | jnp.ndarray,
         phi_angle: float,
         weights: np.ndarray | jnp.ndarray | None = None,
-    ):
+    ) -> Any:
         """Create a residual function for optimization.
         
         Returns a function that takes varying parameters and returns residuals.
@@ -280,7 +280,7 @@ class HeterodyneModel:
             )
 
         return residual_fn
-    
+
     def summary(self) -> str:
         """Return summary of model configuration.
         
@@ -299,10 +299,10 @@ class HeterodyneModel:
             "Current Parameters:",
             "-" * 40,
         ]
-        
+
         params = self.get_params_dict()
         for name in ALL_PARAM_NAMES:
             vary = "vary" if name in self.varying_names else "fixed"
             lines.append(f"  {name:18s}: {params[name]:12.4e} ({vary})")
-        
+
         return "\n".join(lines)

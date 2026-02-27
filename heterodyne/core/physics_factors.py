@@ -18,33 +18,33 @@ class PhysicsFactors:
     These are computed once from experimental setup and reused across
     all optimization iterations for efficiency.
     """
-    
+
     # Time arrays
     t: jnp.ndarray  # Time array, shape (N,)
-    
+
     # Scattering
     q: float  # Wavevector magnitude
     q_squared: float  # q²
-    
+
     # Temporal
     dt: float  # Time step
     n_times: int  # Number of time points
-    
+
     # Geometry
     phi_angle: float  # Detector phi angle (degrees)
-    
+
     def __post_init__(self) -> None:
         """Validate factors."""
         if self.q <= 0:
             raise ValueError(f"q must be positive, got {self.q}")
         if self.dt <= 0:
             raise ValueError(f"dt must be positive, got {self.dt}")
-    
+
     @property
     def time_extent(self) -> float:
         """Total time span."""
         return float(self.t[-1] - self.t[0])
-    
+
     def get_q_cosine(self, phi0: float = 0.0) -> float:
         """Get q * cos(phi_total) for cross-term phase.
         
@@ -79,7 +79,7 @@ def create_physics_factors(
     """
     # Create time array
     t = jnp.arange(n_times) * dt + t_start
-    
+
     return PhysicsFactors(
         t=t,
         q=float(q),
@@ -101,7 +101,7 @@ def create_physics_factors_from_config(config: dict) -> PhysicsFactors:
     """
     temporal = config.get("temporal", {})
     scattering = config.get("scattering", {})
-    
+
     return create_physics_factors(
         n_times=int(temporal.get("time_length", 1000)),
         dt=float(temporal.get("dt", 1.0)),
@@ -117,13 +117,13 @@ class CachedMatrices:
     
     These are expensive to recompute and don't change during fitting.
     """
-    
+
     # Time difference matrix: |t1 - t2|
     time_diff: jnp.ndarray
-    
+
     # Age matrix: (t1 + t2) / 2
     mean_time: jnp.ndarray
-    
+
     # Indices for upper/lower triangular
     triu_indices: tuple[jnp.ndarray, jnp.ndarray]
     tril_indices: tuple[jnp.ndarray, jnp.ndarray]
@@ -140,7 +140,7 @@ def create_cached_matrices(factors: PhysicsFactors) -> CachedMatrices:
     """
     t1, t2 = jnp.meshgrid(factors.t, factors.t, indexing="ij")
     n = factors.n_times
-    
+
     return CachedMatrices(
         time_diff=jnp.abs(t1 - t2),
         mean_time=(t1 + t2) / 2,

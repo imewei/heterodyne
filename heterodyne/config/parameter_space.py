@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 class PriorType(Enum):
     """Available prior distribution types."""
-    
+
     UNIFORM = "uniform"
     NORMAL = "normal"
     LOGNORMAL = "lognormal"
@@ -28,30 +28,30 @@ class PriorType(Enum):
 @dataclass
 class PriorDistribution:
     """Prior distribution specification for a parameter."""
-    
+
     prior_type: PriorType
     params: dict[str, float] = field(default_factory=dict)
-    
+
     @classmethod
     def uniform(cls, low: float, high: float) -> PriorDistribution:
         """Create uniform prior."""
         return cls(PriorType.UNIFORM, {"low": low, "high": high})
-    
+
     @classmethod
     def normal(cls, loc: float, scale: float) -> PriorDistribution:
         """Create normal (Gaussian) prior."""
         return cls(PriorType.NORMAL, {"loc": loc, "scale": scale})
-    
+
     @classmethod
     def lognormal(cls, loc: float, scale: float) -> PriorDistribution:
         """Create log-normal prior (for positive parameters)."""
         return cls(PriorType.LOGNORMAL, {"loc": loc, "scale": scale})
-    
+
     @classmethod
     def halfnormal(cls, scale: float) -> PriorDistribution:
         """Create half-normal prior (for positive parameters)."""
         return cls(PriorType.HALFNORMAL, {"scale": scale})
-    
+
     def to_numpyro(self, name: str) -> Any:
         """Convert to NumPyro distribution.
         
@@ -62,7 +62,7 @@ class PriorDistribution:
             NumPyro distribution object
         """
         import numpyro.distributions as dist
-        
+
         if self.prior_type == PriorType.UNIFORM:
             return dist.Uniform(self.params["low"], self.params["high"])
         elif self.prior_type == PriorType.NORMAL:
@@ -83,12 +83,12 @@ class ParameterSpace:
     
     Manages parameter values, bounds, vary flags, and priors.
     """
-    
+
     values: dict[str, float] = field(default_factory=dict)
     vary: dict[str, bool] = field(default_factory=dict)
     bounds: dict[str, tuple[float, float]] = field(default_factory=dict)
     priors: dict[str, PriorDistribution] = field(default_factory=dict)
-    
+
     def __post_init__(self) -> None:
         """Initialize with defaults from registry."""
         for name in ALL_PARAM_NAMES:
@@ -104,12 +104,12 @@ class ParameterSpace:
                 self.priors[name] = PriorDistribution.uniform(
                     info.min_bound, info.max_bound
                 )
-    
+
     @property
     def n_total(self) -> int:
         """Total number of parameters."""
         return len(ALL_PARAM_NAMES)
-    
+
     @property
     def n_varying(self) -> int:
         """Number of parameters that vary in optimization."""
@@ -124,7 +124,7 @@ class ParameterSpace:
     def fixed_names(self) -> list[str]:
         """Names of parameters that are fixed."""
         return [name for name in ALL_PARAM_NAMES if not self.vary.get(name, False)]
-    
+
     def get_initial_array(self) -> np.ndarray:
         """Get initial values as numpy array in canonical order.
         
@@ -132,7 +132,7 @@ class ParameterSpace:
             Array of shape (14,) with parameter values
         """
         return np.array([self.values[name] for name in ALL_PARAM_NAMES])
-    
+
     def get_bounds_arrays(self) -> tuple[np.ndarray, np.ndarray]:
         """Get bounds as numpy arrays.
         
@@ -142,7 +142,7 @@ class ParameterSpace:
         lower = np.array([self.bounds[name][0] for name in ALL_PARAM_NAMES])
         upper = np.array([self.bounds[name][1] for name in ALL_PARAM_NAMES])
         return lower, upper
-    
+
     def get_vary_mask(self) -> np.ndarray:
         """Get boolean mask for varying parameters.
         
@@ -150,7 +150,7 @@ class ParameterSpace:
             Boolean array of shape (14,)
         """
         return np.array([self.vary[name] for name in ALL_PARAM_NAMES])
-    
+
     def array_to_dict(self, arr: np.ndarray | jnp.ndarray) -> dict[str, float]:
         """Convert parameter array to dictionary.
         
@@ -161,7 +161,7 @@ class ParameterSpace:
             Dict mapping parameter names to values
         """
         return {name: float(arr[i]) for i, name in enumerate(ALL_PARAM_NAMES)}
-    
+
     def update_from_dict(self, params: dict[str, float]) -> None:
         """Update parameter values from dictionary.
 
@@ -178,7 +178,7 @@ class ParameterSpace:
                     f"Valid parameters: {list(ALL_PARAM_NAMES)}"
                 )
             self.values[name] = value
-    
+
     def validate(self) -> list[str]:
         """Validate parameter space configuration.
         
@@ -186,27 +186,27 @@ class ParameterSpace:
             List of validation error messages (empty if valid)
         """
         errors = []
-        
+
         for name in ALL_PARAM_NAMES:
             value = self.values.get(name)
             bounds = self.bounds.get(name)
-            
+
             if value is None:
                 errors.append(f"Missing value for {name}")
                 continue
-            
+
             if bounds is None:
                 errors.append(f"Missing bounds for {name}")
                 continue
-            
+
             low, high = bounds
             if not (low <= value <= high):
                 errors.append(
                     f"{name}={value} outside bounds [{low}, {high}]"
                 )
-        
+
         return errors
-    
+
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> ParameterSpace:
         """Create ParameterSpace from configuration dictionary.
@@ -218,9 +218,9 @@ class ParameterSpace:
             Configured ParameterSpace
         """
         space = cls()
-        
+
         params_config = config.get("parameters", {})
-        
+
         # Process each parameter group
         group_map = {
             "reference": ["D0_ref", "alpha_ref", "D_offset_ref"],
@@ -229,7 +229,7 @@ class ParameterSpace:
             "fraction": ["f0", "f1", "f2", "f3"],
             "angle": ["phi0"],
         }
-        
+
         for group_name, param_names in group_map.items():
             group_config = params_config.get(group_name, {})
 

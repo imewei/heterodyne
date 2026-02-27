@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict, NotRequired
+from typing import Literal, NotRequired, TypedDict
 
 
 class ParameterConfig(TypedDict):
     """Configuration for a single parameter."""
-    
+
     value: float
     min: float
     max: float
@@ -18,7 +18,7 @@ class ParameterConfig(TypedDict):
 
 class ParameterGroupConfig(TypedDict):
     """Configuration for a parameter group."""
-    
+
     D0: NotRequired[ParameterConfig]
     alpha: NotRequired[ParameterConfig]
     D_offset: NotRequired[ParameterConfig]
@@ -34,7 +34,7 @@ class ParameterGroupConfig(TypedDict):
 
 class NLSQOptimizationConfig(TypedDict):
     """NLSQ optimization configuration."""
-    
+
     max_iterations: NotRequired[int]
     tolerance: NotRequired[float]
     method: NotRequired[str]
@@ -44,7 +44,7 @@ class NLSQOptimizationConfig(TypedDict):
 
 class CMCOptimizationConfig(TypedDict):
     """CMC (Consensus Monte Carlo) configuration."""
-    
+
     enable: NotRequired[Literal["auto", "always", "never"]]
     num_warmup: NotRequired[int]
     num_samples: NotRequired[int]
@@ -54,7 +54,7 @@ class CMCOptimizationConfig(TypedDict):
 
 class OptimizationConfig(TypedDict):
     """Full optimization configuration."""
-    
+
     method: str  # "nlsq" or "cmc"
     nlsq: NotRequired[NLSQOptimizationConfig]
     cmc: NotRequired[CMCOptimizationConfig]
@@ -62,7 +62,7 @@ class OptimizationConfig(TypedDict):
 
 class ExperimentalDataConfig(TypedDict):
     """Experimental data file configuration."""
-    
+
     file_path: str
     data_folder_path: NotRequired[str]
     file_format: NotRequired[str]  # "hdf5", "npz", "mat"
@@ -70,7 +70,7 @@ class ExperimentalDataConfig(TypedDict):
 
 class TemporalConfig(TypedDict):
     """Temporal/timing configuration."""
-    
+
     dt: float
     time_length: int
     t_start: NotRequired[int]
@@ -78,14 +78,14 @@ class TemporalConfig(TypedDict):
 
 class ScatteringConfig(TypedDict):
     """Scattering geometry configuration."""
-    
+
     wavevector_q: float
     phi_angles: NotRequired[list[float]]
 
 
 class OutputConfig(TypedDict):
     """Output configuration."""
-    
+
     output_dir: NotRequired[str]
     save_correlation: NotRequired[bool]
     save_residuals: NotRequired[bool]
@@ -94,7 +94,7 @@ class OutputConfig(TypedDict):
 
 class HeterodyneConfig(TypedDict):
     """Complete heterodyne analysis configuration."""
-    
+
     experimental_data: ExperimentalDataConfig
     temporal: TemporalConfig
     scattering: ScatteringConfig

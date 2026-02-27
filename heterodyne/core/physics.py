@@ -14,16 +14,16 @@ class PhysicsConstants:
     
     All values in SI base units unless otherwise noted.
     """
-    
+
     # Boltzmann constant (J/K)
     k_B: ClassVar[float] = 1.380649e-23
-    
+
     # Planck constant (J·s)
     h: ClassVar[float] = 6.62607015e-34
-    
+
     # Speed of light (m/s)
     c: ClassVar[float] = 299792458.0
-    
+
     # X-ray wavelengths (nm) - common energies
     WAVELENGTH_8KEV: ClassVar[float] = 0.155  # nm
     WAVELENGTH_10KEV: ClassVar[float] = 0.124  # nm
@@ -61,7 +61,7 @@ def get_default_bounds_array() -> tuple[np.ndarray, np.ndarray]:
         (lower_bounds, upper_bounds) each of shape (14,)
     """
     from heterodyne.config.parameter_names import ALL_PARAM_NAMES
-    
+
     lower = np.array([PARAMETER_BOUNDS[name][0] for name in ALL_PARAM_NAMES])
     upper = np.array([PARAMETER_BOUNDS[name][1] for name in ALL_PARAM_NAMES])
     return lower, upper
@@ -79,11 +79,11 @@ class TransportPhysics:
     - alpha > 1.0: Superdiffusion (active/directed)
     - alpha = 2.0: Ballistic motion
     """
-    
+
     # Alpha value regimes
     NORMAL_DIFFUSION: ClassVar[float] = 1.0
     BALLISTIC: ClassVar[float] = 2.0
-    
+
     @staticmethod
     def interpret_alpha(alpha: float) -> str:
         """Interpret alpha value physically.
@@ -106,7 +106,7 @@ class TransportPhysics:
             return "superdiffusive"
         else:
             return "ballistic/directed"
-    
+
     @staticmethod
     def diffusion_coefficient(D0: float, alpha: float, t: float = 1.0) -> float:
         """Compute effective diffusion coefficient at time t.
@@ -124,4 +124,4 @@ class TransportPhysics:
         """
         if t <= 0:
             return 0.0
-        return D0 * alpha * (t ** (alpha - 1))
+        return float(D0 * alpha * (t ** (alpha - 1)))

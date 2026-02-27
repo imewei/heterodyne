@@ -18,19 +18,19 @@ if TYPE_CHECKING:
 
 class HeterodyneModelBase(ABC):
     """Abstract base class for heterodyne models."""
-    
+
     @property
     @abstractmethod
     def n_params(self) -> int:
         """Number of model parameters."""
         ...
-    
+
     @property
     @abstractmethod
     def param_names(self) -> tuple[str, ...]:
         """Parameter names in order."""
         ...
-    
+
     @abstractmethod
     def compute_correlation(
         self,
@@ -53,7 +53,7 @@ class HeterodyneModelBase(ABC):
             Correlation matrix
         """
         ...
-    
+
     @abstractmethod
     def get_default_params(self) -> np.ndarray:
         """Get default parameter values."""
@@ -71,9 +71,9 @@ class TwoComponentModel(HeterodyneModelBase):
     - Fraction (4): f0, f1, f2, f3
     - Angle (1): phi0
     """
-    
+
     _defaults: dict[str, float] = field(default_factory=dict)
-    
+
     def __post_init__(self) -> None:
         """Set default parameter values."""
         if not self._defaults:
@@ -93,17 +93,17 @@ class TwoComponentModel(HeterodyneModelBase):
                 "f3": 0.0,
                 "phi0": 0.0,
             }
-    
+
     @property
     def n_params(self) -> int:
         """Number of parameters (14)."""
         return 14
-    
+
     @property
     def param_names(self) -> tuple[str, ...]:
         """Parameter names in canonical order."""
         return ALL_PARAM_NAMES
-    
+
     def compute_correlation(
         self,
         params: jnp.ndarray,
@@ -124,12 +124,12 @@ class TwoComponentModel(HeterodyneModelBase):
         Returns:
             Correlation matrix c2(t1, t2), shape (N, N)
         """
-        return compute_c2_heterodyne(params, t, q, dt, phi)
-    
+        return compute_c2_heterodyne(params, t, q, dt, phi)  # type: ignore[no-any-return]
+
     def get_default_params(self) -> np.ndarray:
         """Get default parameter values as array."""
         return np.array([self._defaults[name] for name in ALL_PARAM_NAMES])
-    
+
     def params_to_dict(self, params: np.ndarray | jnp.ndarray) -> dict[str, float]:
         """Convert parameter array to dictionary.
         
@@ -140,7 +140,7 @@ class TwoComponentModel(HeterodyneModelBase):
             Dict mapping names to values
         """
         return {name: float(params[i]) for i, name in enumerate(ALL_PARAM_NAMES)}
-    
+
     def dict_to_params(self, param_dict: dict[str, float]) -> np.ndarray:
         """Convert parameter dictionary to array.
         
@@ -151,7 +151,7 @@ class TwoComponentModel(HeterodyneModelBase):
             Parameter array, shape (14,)
         """
         return np.array([param_dict.get(name, self._defaults[name]) for name in ALL_PARAM_NAMES])
-    
+
     def compute_g1_reference(
         self,
         params: np.ndarray | jnp.ndarray,
@@ -195,7 +195,7 @@ class TwoComponentModel(HeterodyneModelBase):
         J = D0 * jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0) + offset
         J = jnp.maximum(J, 0.0)
         return jnp.exp(-q * q * J)
-    
+
     def compute_fraction(
         self,
         params: np.ndarray | jnp.ndarray,

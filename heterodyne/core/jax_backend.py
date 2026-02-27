@@ -132,7 +132,7 @@ def compute_velocity_integral_matrix(
     t_safe = jnp.maximum(t, 1e-10)
     t_power = jnp.where(t > 0, jnp.power(t_safe, beta), 0.0)
     velocity = v0 * t_power + v_offset
-    
+
     # Cumulative integral from t=0
     cumsum = jnp.cumsum(velocity) * dt
 
@@ -179,7 +179,7 @@ def compute_c2_heterodyne(
 
     # Compute transport coefficients
     t_safe = jnp.maximum(t, 1e-10)
-    
+
     # Reference transport: J_r(t) = D0_ref * t^alpha_ref + D_offset_ref
     J_ref = D0_ref * jnp.where(t > 0, jnp.power(t_safe, alpha_ref), 0.0) + D_offset_ref
     J_ref = jnp.maximum(J_ref, 0.0)
@@ -187,54 +187,54 @@ def compute_c2_heterodyne(
     # Sample transport: J_s(t) = D0_sample * t^alpha_sample + D_offset_sample
     J_sample = D0_sample * jnp.where(t > 0, jnp.power(t_safe, alpha_sample), 0.0) + D_offset_sample
     J_sample = jnp.maximum(J_sample, 0.0)
-    
+
     # g1 correlations: g1 = exp(-q² * J)
     g1_ref = jnp.exp(-q * q * J_ref)
     g1_sample = jnp.exp(-q * q * J_sample)
-    
+
     # Sample fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3
     exponent = jnp.clip(f1 * (t - f2), -100, 100)
     f_sample = jnp.clip(f0 * jnp.exp(exponent) + f3, 0.0, 1.0)
     f_ref = 1.0 - f_sample
-    
+
     # Velocity integral matrix
     velocity = v0 * jnp.where(t > 0, jnp.power(t_safe, beta), 0.0) + v_offset
     cumsum = jnp.cumsum(velocity) * dt
     v_integral = cumsum[None, :] - cumsum[:, None]
-    
+
     # Combined phi angle: phi_angle from detector + phi0 from fit
     total_phi = phi_angle + phi0
     phi_rad = jnp.deg2rad(total_phi)
-    
+
     # Phase factor: q * cos(phi) * velocity_integral
     phase = q * jnp.cos(phi_rad) * v_integral
-    
+
     # Build correlation terms using outer products
     # g1 matrices: g1(t1) * g1(t2)
     g1_ref_matrix = g1_ref[:, None] * g1_ref[None, :]
     g1_sample_matrix = g1_sample[:, None] * g1_sample[None, :]
-    
+
     # Fraction matrices
     f_ref_matrix = f_ref[:, None] * f_ref[None, :]
     f_sample_matrix = f_sample[:, None] * f_sample[None, :]
     f_cross_matrix = f_ref[:, None] * f_sample[None, :] * f_sample[:, None] * f_ref[None, :]
-    
+
     # Reference term: (f_r(t1) * f_r(t2) * g1_r)²
     ref_term = (f_ref_matrix * g1_ref_matrix) ** 2
-    
-    # Sample term: (f_s(t1) * f_s(t2) * g1_s)²  
+
+    # Sample term: (f_s(t1) * f_s(t2) * g1_s)²
     sample_term = (f_sample_matrix * g1_sample_matrix) ** 2
-    
+
     # Cross term: 2 * f_r(t1)*f_r(t2)*f_s(t1)*f_s(t2) * g1_r*g1_s * cos(phase)
     cross_term = 2.0 * f_cross_matrix * g1_ref_matrix * g1_sample_matrix * jnp.cos(phase)
-    
+
     # Normalization: f² = (f_s² + f_r²)_t1 * (f_s² + f_r²)_t2
     norm_1 = f_sample ** 2 + f_ref ** 2
     normalization = norm_1[:, None] * norm_1[None, :]
-    
+
     # Full correlation
     c2 = (ref_term + sample_term + cross_term) / jnp.maximum(normalization, 1e-10)
-    
+
     return c2
 
 
@@ -263,7 +263,7 @@ def compute_residuals(
     """
     if weights is None:
         weights = jnp.ones_like(c2_data)
-    return _compute_residuals_jit(params, t, q, dt, phi_angle, c2_data, weights)
+    return _compute_residuals_jit(params, t, q, dt, phi_angle, c2_data, weights)  # type: ignore[no-any-return]
 
 
 @jax.jit
@@ -279,7 +279,7 @@ def _compute_residuals_jit(
     """JIT-compiled residuals computation (always receives weights)."""
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
     residuals = (c2_model - c2_data) * jnp.sqrt(weights)
-    return residuals.ravel()
+    return residuals.ravel()  # type: ignore[no-any-return]
 
 
 # Gradient of residuals with respect to parameters (for NLSQ)
@@ -311,4 +311,4 @@ def compute_residuals_jacobian(
     """
     if weights is None:
         weights = jnp.ones_like(c2_data)
-    return _compute_residuals_jacobian_jit(params, t, q, dt, phi_angle, c2_data, weights)
+    return _compute_residuals_jacobian_jit(params, t, q, dt, phi_angle, c2_data, weights)  # type: ignore[no-any-return]

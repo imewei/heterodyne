@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import MappingProxyType
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class ParameterInfo:
     """Metadata for a single model parameter."""
-    
+
     name: str
     default: float
     min_bound: float
@@ -26,60 +27,62 @@ class ParameterInfo:
     unit: str = ""
     group: str = ""
     vary_default: bool = True
-    
+
     def validate_value(self, value: float) -> bool:
         """Check if value is within bounds."""
         return self.min_bound <= value <= self.max_bound
-    
+
     def clip_value(self, value: float) -> float:
         """Clip value to bounds."""
-        return np.clip(value, self.min_bound, self.max_bound)
+        return float(np.clip(value, self.min_bound, self.max_bound))
 
 
 @dataclass
 class ParameterRegistry:
     """Registry of all heterodyne model parameters with metadata."""
-    
-    _parameters: dict[str, ParameterInfo] = field(default_factory=dict)
-    
+
+    _parameters: Mapping[str, ParameterInfo] = field(
+        default_factory=lambda: MappingProxyType(_create_default_registry())
+    )
+
     def __post_init__(self) -> None:
-        """Initialize with default heterodyne parameters."""
-        if not self._parameters:
-            self._parameters = MappingProxyType(_create_default_registry())
-        elif not isinstance(self._parameters, MappingProxyType):
-            self._parameters = MappingProxyType(dict(self._parameters))
-    
+        """Ensure parameters are immutable."""
+        if not isinstance(self._parameters, MappingProxyType):
+            object.__setattr__(
+                self, "_parameters", MappingProxyType(dict(self._parameters))
+            )
+
     def __getitem__(self, name: str) -> ParameterInfo:
         """Get parameter info by name."""
         if name not in self._parameters:
             raise KeyError(f"Unknown parameter: {name}")
         return self._parameters[name]
-    
+
     def __iter__(self) -> Iterator[str]:
         """Iterate over parameter names in canonical order."""
         for name in ALL_PARAM_NAMES:
             if name in self._parameters:
                 yield name
-    
+
     def __len__(self) -> int:
         return len(self._parameters)
-    
+
     def get_defaults(self) -> dict[str, float]:
         """Get default values for all parameters."""
         return {name: self._parameters[name].default for name in self}
-    
+
     def get_bounds(self) -> tuple[list[float], list[float]]:
         """Get (lower_bounds, upper_bounds) as lists."""
         lower = [self._parameters[name].min_bound for name in self]
         upper = [self._parameters[name].max_bound for name in self]
         return lower, upper
-    
+
     def get_group(self, group_name: str) -> list[ParameterInfo]:
         """Get all parameters in a group."""
         if group_name not in PARAM_GROUPS:
             raise KeyError(f"Unknown group: {group_name}")
         return [self._parameters[name] for name in PARAM_GROUPS[group_name]]
-    
+
     def get_varying_indices(self, vary_flags: dict[str, bool]) -> list[int]:
         """Get indices of parameters that vary in optimization."""
         indices = []
@@ -92,7 +95,7 @@ class ParameterRegistry:
 def _create_default_registry() -> dict[str, ParameterInfo]:
     """Create default parameter registry for heterodyne model."""
     params: dict[str, ParameterInfo] = {}
-    
+
     # Reference transport: J_r(t) = D0_ref * t^alpha_ref + D_offset_ref
     params["D0_ref"] = ParameterInfo(
         name="D0_ref",
@@ -124,7 +127,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="reference",
         vary_default=False,
     )
-    
+
     # Sample transport: J_s(t) = D0_sample * t^alpha_sample + D_offset_sample
     params["D0_sample"] = ParameterInfo(
         name="D0_sample",
@@ -156,7 +159,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="sample",
         vary_default=False,
     )
-    
+
     # Velocity: v(t) = v0 * t^beta + v_offset
     params["v0"] = ParameterInfo(
         name="v0",
@@ -188,7 +191,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="velocity",
         vary_default=False,
     )
-    
+
     # Fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3
     params["f0"] = ParameterInfo(
         name="f0",
@@ -230,7 +233,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="fraction",
         vary_default=False,
     )
-    
+
     # Flow angle
     params["phi0"] = ParameterInfo(
         name="phi0",
@@ -242,7 +245,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="angle",
         vary_default=True,
     )
-    
+
     return params
 
 
