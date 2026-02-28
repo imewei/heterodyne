@@ -29,6 +29,8 @@ def get_heterodyne_model(
     c2_data: jnp.ndarray,
     sigma: jnp.ndarray | float,
     space: ParameterSpace,
+    contrast: float = 1.0,
+    offset: float = 1.0,
 ):
     """Create NumPyro model for heterodyne correlation fitting.
 
@@ -40,6 +42,8 @@ def get_heterodyne_model(
         c2_data: Observed correlation data
         sigma: Measurement uncertainty (scalar or array)
         space: Parameter space with priors
+        contrast: Speckle contrast (beta), default 1.0
+        offset: Baseline offset, default 1.0
 
     Returns:
         NumPyro model function
@@ -62,7 +66,7 @@ def get_heterodyne_model(
                 params = params.at[i].set(param)
 
         # Compute model prediction
-        c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
+        c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
 
         # Likelihood
         numpyro.sample(
@@ -87,6 +91,8 @@ def get_heterodyne_model_reparam(
     reparam_config: ReparamConfig | None = None,
     scalings: dict[str, ParameterScaling] | None = None,
     prior_width_factor: float = 2.0,
+    contrast: float = 1.0,
+    offset: float = 1.0,
 ):
     """Create NumPyro model with reparameterization for better sampling.
 
@@ -132,6 +138,8 @@ def get_heterodyne_model_reparam(
             varying_names=varying_names,
             reparam_config=reparam_config,
             scalings=scalings,
+            contrast=contrast,
+            offset=offset,
         )
 
     # --- Legacy clip-based path (backward compatibility) ---
@@ -161,7 +169,7 @@ def get_heterodyne_model_reparam(
                 param = jnp.clip(raw, bounds[0], bounds[1])
                 numpyro.deterministic(name, param)
                 params = params.at[i].set(param)
-        c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
+        c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model
@@ -180,6 +188,8 @@ def _build_reparam_model(
     varying_names: list[str],
     reparam_config: ReparamConfig,
     scalings: dict[str, ParameterScaling],
+    contrast: float = 1.0,
+    offset: float = 1.0,
 ):
     """Build NumPyro model using reference-time reparameterization + smooth bounds."""
     # Pre-compute which sampling-space names map to which physics params
@@ -248,7 +258,7 @@ def _build_reparam_model(
         params = jnp.asarray(fixed_values)
         for name, value in physics_values.items():
             params = params.at[PARAM_INDICES[name]].set(jnp.squeeze(value))
-        c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
+        c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model

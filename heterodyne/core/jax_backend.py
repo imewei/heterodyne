@@ -39,14 +39,15 @@ def compute_transport_jit(
     offset: float,
     n_times: int,
 ) -> jnp.ndarray:
-    """JIT-compiled transport coefficient computation.
+    """JIT-compiled pointwise transport coefficient computation.
 
     J(t) = D0 * t^alpha + offset
 
     .. deprecated::
-        Not used in production code. Retained for test compatibility
-        (test_jax_backend_scientific.py). Use inline transport
-        computation in compute_c2_heterodyne instead.
+        Pointwise approximation — not used in production correlation.
+        Production code uses compute_transport_integral_matrix for the
+        integral formulation (PNAS Eq. S-95). Retained for test
+        compatibility and 1D visualization helpers.
 
     Args:
         t: Time array
@@ -69,9 +70,15 @@ def compute_g1_transport(
     J: jnp.ndarray,
     q: float,
 ) -> jnp.ndarray:
-    """JIT-compiled g1 correlation from transport coefficient.
+    """JIT-compiled pointwise g1 correlation from transport coefficient.
 
     g1(t) = exp(-q² * J(t))
+
+    .. deprecated::
+        Pointwise approximation — not used in production correlation.
+        Production code uses the integral formulation via
+        compute_transport_integral_matrix. Retained for test
+        compatibility and 1D visualization helpers.
 
     Args:
         J: Transport coefficient array
@@ -150,17 +157,63 @@ def compute_velocity_integral_matrix(
 
 
 @jax.jit
+def compute_transport_integral_matrix(
+    t: jnp.ndarray,
+    D0: float,
+    alpha: float,
+    offset: float,
+    dt: float,
+) -> jnp.ndarray:
+    """JIT-compiled transport integral matrix.
+
+    Computes M[i,j] = |∫_{t_i}^{t_j} J_rate(t') dt'|
+    where J_rate(t) = D0 * t^alpha + offset
+
+    Uses cumsum for O(N) efficiency instead of O(N²) nested loops.
+    The absolute value ensures symmetric decay (direction-independent).
+
+    Args:
+        t: Time array, shape (N,)
+        D0: Transport prefactor
+        alpha: Transport exponent
+        offset: Transport rate offset
+        dt: Time step
+
+    Returns:
+        Transport integral matrix, shape (N, N)
+    """
+    # Compute transport rate at each time point
+    t_safe = jnp.maximum(t, 1e-10)
+    t_power = jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0)
+    J_rate = D0 * t_power + offset
+    J_rate = jnp.maximum(J_rate, 0.0)
+
+    # Cumulative integral from t=0
+    cumsum = jnp.cumsum(J_rate) * dt
+
+    # M[i,j] = |cumsum[j] - cumsum[i]| = |integral from t_i to t_j|
+    return jnp.abs(cumsum[None, :] - cumsum[:, None])
+
+
+@jax.jit
 def compute_c2_heterodyne(
     params: jnp.ndarray,
     t: jnp.ndarray,
     q: float,
     dt: float,
     phi_angle: float,
+    contrast: float = 1.0,
+    offset: float = 1.0,
 ) -> jnp.ndarray:
     """JIT-compiled two-time heterodyne correlation computation.
 
-    Computes the full c2(t1, t2, phi) correlation matrix for the
-    14-parameter two-component model.
+    Computes c2 = offset + contrast × [ref + sample + cross] / f²
+
+    Uses the integral formulation (PNAS Eq. S-95):
+        half_tr[i,j] = exp(-½q² × |∫_{t_i}^{t_j} J_rate(t') dt'|)
+
+    Self-terms use half_tr² to recover exp(-q²∫J), and cross-terms
+    multiply half_tr_ref × half_tr_sample.
 
     Args:
         params: Parameter array of shape (14,) in canonical order:
@@ -173,6 +226,8 @@ def compute_c2_heterodyne(
         q: Scattering wavevector magnitude
         dt: Time step
         phi_angle: Detector phi angle (degrees)
+        contrast: Speckle contrast (beta), default 1.0
+        offset: Baseline offset, default 1.0
 
     Returns:
         Correlation matrix c2, shape (N, N)
@@ -184,22 +239,22 @@ def compute_c2_heterodyne(
     f0, f1, f2, f3 = params[9], params[10], params[11], params[12]
     phi0 = params[13]
 
-    # Compute transport coefficients
-    t_safe = jnp.maximum(t, 1e-10)
+    # Transport integral matrices via cumsum
+    # J_integral[i,j] = |∫_{t_i}^{t_j} J_rate(t') dt'|
+    J_ref_integral = compute_transport_integral_matrix(
+        t, D0_ref, alpha_ref, D_offset_ref, dt
+    )
+    J_sample_integral = compute_transport_integral_matrix(
+        t, D0_sample, alpha_sample, D_offset_sample, dt
+    )
 
-    # Reference transport: J_r(t) = D0_ref * t^alpha_ref + D_offset_ref
-    J_ref = D0_ref * jnp.where(t > 0, jnp.power(t_safe, alpha_ref), 0.0) + D_offset_ref
-    J_ref = jnp.maximum(J_ref, 0.0)
-
-    # Sample transport: J_s(t) = D0_sample * t^alpha_sample + D_offset_sample
-    J_sample = D0_sample * jnp.where(t > 0, jnp.power(t_safe, alpha_sample), 0.0) + D_offset_sample
-    J_sample = jnp.maximum(J_sample, 0.0)
-
-    # g1 correlations: g1 = exp(-q² * J)
-    g1_ref = jnp.exp(-q * q * J_ref)
-    g1_sample = jnp.exp(-q * q * J_sample)
+    # Half-transport matrices: exp(-½q²∫J)
+    q2 = q * q
+    half_tr_ref = jnp.exp(-0.5 * q2 * J_ref_integral)
+    half_tr_sample = jnp.exp(-0.5 * q2 * J_sample_integral)
 
     # Sample fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3
+    t_safe = jnp.maximum(t, 1e-10)
     exponent = jnp.clip(f1 * (t - f2), -100, 100)
     f_sample = jnp.clip(f0 * jnp.exp(exponent) + f3, 0.0, 1.0)
     f_ref = 1.0 - f_sample
@@ -216,32 +271,31 @@ def compute_c2_heterodyne(
     # Phase factor: q * cos(phi) * velocity_integral
     phase = q * jnp.cos(phi_rad) * v_integral
 
-    # Build correlation terms using outer products
-    # g1 matrices: g1(t1) * g1(t2)
-    g1_ref_matrix = g1_ref[:, None] * g1_ref[None, :]
-    g1_sample_matrix = g1_sample[:, None] * g1_sample[None, :]
-
     # Fraction matrices
     f_ref_matrix = f_ref[:, None] * f_ref[None, :]
     f_sample_matrix = f_sample[:, None] * f_sample[None, :]
     f_cross_vec = f_ref * f_sample
     f_cross_matrix = f_cross_vec[:, None] * f_cross_vec[None, :]
 
-    # Reference term: (f_r(t1) * f_r(t2) * g1_r)²
-    ref_term = (f_ref_matrix * g1_ref_matrix) ** 2
+    # Reference term: f_ref_matrix² × half_tr_ref² (½×2 gives full q²∫J)
+    ref_term = f_ref_matrix ** 2 * half_tr_ref ** 2
 
-    # Sample term: (f_s(t1) * f_s(t2) * g1_s)²
-    sample_term = (f_sample_matrix * g1_sample_matrix) ** 2
+    # Sample term: f_sample_matrix² × half_tr_sample²
+    sample_term = f_sample_matrix ** 2 * half_tr_sample ** 2
 
-    # Cross term: 2 * f_r(t1)*f_r(t2)*f_s(t1)*f_s(t2) * g1_r*g1_s * cos(phase)
-    cross_term = 2.0 * f_cross_matrix * g1_ref_matrix * g1_sample_matrix * jnp.cos(phase)
+    # Cross term: 2 × f_cross × half_tr_ref × half_tr_sample × cos(phase)
+    cross_term = (
+        2.0 * f_cross_matrix * half_tr_ref * half_tr_sample * jnp.cos(phase)
+    )
 
     # Normalization: f² = (f_s² + f_r²)_t1 * (f_s² + f_r²)_t2
     norm_1 = f_sample ** 2 + f_ref ** 2
     normalization = norm_1[:, None] * norm_1[None, :]
 
-    # Full correlation
-    c2 = (ref_term + sample_term + cross_term) / jnp.maximum(normalization, 1e-10)
+    # Full correlation: offset + contrast × [terms] / f²
+    c2 = offset + contrast * (ref_term + sample_term + cross_term) / jnp.maximum(
+        normalization, 1e-10
+    )
 
     return c2
 
@@ -254,6 +308,8 @@ def compute_residuals(
     phi_angle: float,
     c2_data: jnp.ndarray,
     weights: jnp.ndarray | None = None,
+    contrast: float = 1.0,
+    offset: float = 1.0,
 ) -> jnp.ndarray:
     """Compute weighted residuals between model and data.
 
@@ -265,13 +321,17 @@ def compute_residuals(
         phi_angle: Detector phi angle
         c2_data: Experimental correlation data
         weights: Optional weights (1/uncertainty²)
+        contrast: Speckle contrast (beta), default 1.0
+        offset: Baseline offset, default 1.0
 
     Returns:
         Flattened residual array
     """
     if weights is None:
         weights = jnp.ones_like(c2_data)
-    return _compute_residuals_jit(params, t, q, dt, phi_angle, c2_data, weights)  # type: ignore[no-any-return]
+    return _compute_residuals_jit(  # type: ignore[no-any-return]
+        params, t, q, dt, phi_angle, c2_data, weights, contrast, offset
+    )
 
 
 @jax.jit
@@ -283,15 +343,19 @@ def _compute_residuals_jit(
     phi_angle: float,
     c2_data: jnp.ndarray,
     weights: jnp.ndarray,
+    contrast: float,
+    offset: float,
 ) -> jnp.ndarray:
     """JIT-compiled residuals computation (always receives weights)."""
-    c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle)
+    c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     residuals = (c2_model - c2_data) * jnp.sqrt(weights)
     return residuals.ravel()  # type: ignore[no-any-return]
 
 
 # Gradient of residuals with respect to parameters (for NLSQ)
-_compute_residuals_jacobian_jit = jax.jit(jax.jacobian(_compute_residuals_jit, argnums=0))
+_compute_residuals_jacobian_jit = jax.jit(
+    jax.jacobian(_compute_residuals_jit, argnums=0)
+)
 
 
 def compute_residuals_jacobian(
@@ -302,6 +366,8 @@ def compute_residuals_jacobian(
     phi_angle: float,
     c2_data: jnp.ndarray,
     weights: jnp.ndarray | None = None,
+    contrast: float = 1.0,
+    offset: float = 1.0,
 ) -> jnp.ndarray:
     """Compute Jacobian of residuals with respect to parameters.
 
@@ -313,10 +379,14 @@ def compute_residuals_jacobian(
         phi_angle: Detector phi angle
         c2_data: Experimental correlation data
         weights: Optional weights (1/uncertainty²)
+        contrast: Speckle contrast (beta), default 1.0
+        offset: Baseline offset, default 1.0
 
     Returns:
         Jacobian matrix
     """
     if weights is None:
         weights = jnp.ones_like(c2_data)
-    return _compute_residuals_jacobian_jit(params, t, q, dt, phi_angle, c2_data, weights)  # type: ignore[no-any-return]
+    return _compute_residuals_jacobian_jit(  # type: ignore[no-any-return]
+        params, t, q, dt, phi_angle, c2_data, weights, contrast, offset
+    )

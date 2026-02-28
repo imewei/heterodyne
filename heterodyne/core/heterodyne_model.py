@@ -149,12 +149,16 @@ class HeterodyneModel:
         self,
         phi_angle: float = 0.0,
         params: np.ndarray | None = None,
+        contrast: float = 1.0,
+        offset: float = 1.0,
     ) -> jnp.ndarray:
         """Compute two-time correlation matrix.
 
         Args:
             phi_angle: Detector phi angle (degrees)
             params: Optional parameter array (uses stored values if None)
+            contrast: Speckle contrast (beta), default 1.0
+            offset: Baseline offset, default 1.0
 
         Returns:
             Correlation matrix c2(t1, t2), shape (N, N)
@@ -168,6 +172,8 @@ class HeterodyneModel:
             self.q,
             self.dt,
             phi_angle,
+            contrast,
+            offset,
         )
 
     def compute_residuals(
@@ -176,6 +182,8 @@ class HeterodyneModel:
         phi_angle: float = 0.0,
         params: np.ndarray | None = None,
         weights: np.ndarray | jnp.ndarray | None = None,
+        contrast: float = 1.0,
+        offset: float = 1.0,
     ) -> jnp.ndarray:
         """Compute residuals between model and data.
 
@@ -184,6 +192,8 @@ class HeterodyneModel:
             phi_angle: Detector phi angle
             params: Optional parameter array
             weights: Optional weights (1/sigma²)
+            contrast: Speckle contrast (beta), default 1.0
+            offset: Baseline offset, default 1.0
 
         Returns:
             Flattened residual array
@@ -199,6 +209,8 @@ class HeterodyneModel:
             phi_angle,
             jnp.asarray(c2_data),
             jnp.asarray(weights) if weights is not None else None,
+            contrast,
+            offset,
         )
 
     def compute_g1_reference(self, params: np.ndarray | None = None) -> jnp.ndarray:

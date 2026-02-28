@@ -39,6 +39,8 @@ class HeterodyneModelBase(ABC):
         q: float,
         dt: float,
         phi_angle: float,
+        contrast: float = 1.0,
+        offset: float = 1.0,
     ) -> jnp.ndarray:
         """Compute model correlation matrix.
 
@@ -48,6 +50,8 @@ class HeterodyneModelBase(ABC):
             q: Wavevector
             dt: Time step
             phi_angle: Detector phi angle (degrees)
+            contrast: Speckle contrast (beta), default 1.0
+            offset: Baseline offset, default 1.0
 
         Returns:
             Correlation matrix
@@ -111,6 +115,8 @@ class TwoComponentModel(HeterodyneModelBase):
         q: float,
         dt: float,
         phi_angle: float,
+        contrast: float = 1.0,
+        offset: float = 1.0,
     ) -> jnp.ndarray:
         """Compute two-time heterodyne correlation.
 
@@ -120,11 +126,13 @@ class TwoComponentModel(HeterodyneModelBase):
             q: Scattering wavevector
             dt: Time step
             phi_angle: Detector phi angle (degrees)
+            contrast: Speckle contrast (beta), default 1.0
+            offset: Baseline offset, default 1.0
 
         Returns:
             Correlation matrix c2(t1, t2), shape (N, N)
         """
-        return compute_c2_heterodyne(params, t, q, dt, phi_angle)  # type: ignore[no-any-return]
+        return compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)  # type: ignore[no-any-return]
 
     def get_default_params(self) -> np.ndarray:
         """Get default parameter values as array."""
@@ -158,7 +166,12 @@ class TwoComponentModel(HeterodyneModelBase):
         t: jnp.ndarray,
         q: float,
     ) -> jnp.ndarray:
-        """Compute reference g1 correlation only.
+        """Compute reference g1 correlation only (1D visualization helper).
+
+        .. note::
+            Uses pointwise g1(t) = exp(-q²J(t)), which does not represent
+            the two-time integral physics. For production correlation, use
+            compute_correlation which uses the integral formulation.
 
         Args:
             params: Full parameter array
@@ -180,7 +193,12 @@ class TwoComponentModel(HeterodyneModelBase):
         t: jnp.ndarray,
         q: float,
     ) -> jnp.ndarray:
-        """Compute sample g1 correlation only.
+        """Compute sample g1 correlation only (1D visualization helper).
+
+        .. note::
+            Uses pointwise g1(t) = exp(-q²J(t)), which does not represent
+            the two-time integral physics. For production correlation, use
+            compute_correlation which uses the integral formulation.
 
         Args:
             params: Full parameter array
