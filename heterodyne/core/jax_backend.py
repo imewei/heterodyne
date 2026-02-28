@@ -1,8 +1,15 @@
 """JAX-accelerated computational backend for heterodyne correlation.
 
 This module provides JIT-compiled functions for computing the two-component
-heterodyne correlation function. All functions are designed to be stateless
-and compatible with JAX transformations (jit, vmap, grad).
+heterodyne correlation function using the integral formulation (PNAS Eq. S-95).
+All functions are designed to be stateless and compatible with JAX
+transformations (jit, vmap, grad).
+
+The correlation is computed as:
+    c2 = offset + contrast × [ref + sample + cross] / f²
+
+where transport terms use the integral of the rate J(t):
+    half_tr[i,j] = exp(-½q² × |∫_{t_i}^{t_j} J_rate(t') dt'|)
 
 The 14 model parameters in canonical order:
 0: D0_ref, 1: alpha_ref, 2: D_offset_ref

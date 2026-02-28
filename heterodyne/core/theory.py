@@ -1,16 +1,18 @@
 """Theory computations for heterodyne correlation model.
 
-Physical model for two-component heterodyne correlation:
+Physical model for two-component heterodyne correlation (PNAS Eq. S-95):
 
-c₂(t₁,t₂,φ) = [ref_term + sample_term + cross_term] / f²
+c₂(t₁,t₂,φ) = offset + contrast × [ref + sample + cross] / f²
 
-where:
-- ref_term = (f_r(t₁)·f_r(t₂)·g₁_r)²
-- sample_term = (f_s(t₁)·f_s(t₂)·g₁_s)²
-- cross_term = 2·f_r(t₁)·f_r(t₂)·f_s(t₁)·f_s(t₂)·g₁_r·g₁_s·cos(q·cos(φ)·∫v(t)dt)
+where transport uses the integral of the rate J(t):
+    half_tr[i,j] = exp(-½q² × |∫_{t_i}^{t_j} J_rate(t') dt'|)
+
+- ref_term = f_r(t₁)²·f_r(t₂)² × half_tr_ref²
+- sample_term = f_s(t₁)²·f_s(t₂)² × half_tr_sample²
+- cross_term = 2·f_cross × half_tr_ref × half_tr_sample × cos(phase)
 - f² = (f_s(t₁)² + f_r(t₁)²)·(f_s(t₂)² + f_r(t₂)²)
 
-Transport: J(t) = D0·t^α + offset → g₁ = exp(-q²·J(t))
+Transport rate: J_rate(t) = D0·t^α + offset (integrated numerically)
 Fraction: f_s(t) = f0·exp(f1·(t-f2)) + f3
 Velocity integral: ∫v(t)dt from t₁ to t₂
 """
@@ -125,6 +127,38 @@ def compute_time_integral_matrix(
     integral_matrix = cumsum[None, :] - cumsum[:, None]
 
     return integral_matrix
+
+
+def compute_transport_integral_matrix(
+    t: jnp.ndarray | np.ndarray,
+    D0: float,
+    alpha: float,
+    offset: float,
+    dt: float,
+) -> jnp.ndarray:
+    """Compute transport integral matrix using rate values and cumsum.
+
+    M[i,j] = |∫_{t_i}^{t_j} J_rate(t') dt'|
+
+    Uses compute_transport_coefficient for rate values and
+    compute_time_integral_matrix for the cumsum pattern. Applies
+    jnp.abs() for symmetric (direction-independent) decay and
+    jnp.maximum(..., 0.0) for positivity.
+
+    Args:
+        t: Time array, shape (N,)
+        D0: Diffusion prefactor
+        alpha: Diffusion exponent
+        offset: Constant offset for the rate
+        dt: Time step
+
+    Returns:
+        Transport integral matrix, shape (N, N), non-negative and symmetric
+    """
+    J_rate = compute_transport_coefficient(t, D0, alpha, offset)
+    J_rate = jnp.maximum(J_rate, 0.0)
+    integral_matrix = compute_time_integral_matrix(J_rate, dt)
+    return jnp.abs(integral_matrix)
 
 
 def compute_velocity_field(
