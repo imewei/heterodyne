@@ -348,6 +348,94 @@ class TestComputeVelocityIntegralMatrix:
 
 
 # ============================================================================
+# Transport Integral Matrix Tests
+# ============================================================================
+
+class TestComputeTransportIntegralMatrix:
+    """Scientific tests for compute_transport_integral_matrix."""
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_diagonal_is_zero(self) -> None:
+        """Diagonal M[i,i] = 0 (integral from t_i to t_i)."""
+        from heterodyne.core.jax_backend import compute_transport_integral_matrix
+
+        t = jnp.arange(10, dtype=jnp.float64) * 1.0
+        M = compute_transport_integral_matrix(t, D0=1.0, alpha=1.0, offset=0.0, dt=1.0)
+
+        assert_allclose(jnp.diag(M), 0.0, atol=1e-12)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_symmetric(self) -> None:
+        """M[i,j] = M[j,i] (absolute value ensures symmetry)."""
+        from heterodyne.core.jax_backend import compute_transport_integral_matrix
+
+        t = jnp.arange(10, dtype=jnp.float64) * 1.0
+        M = compute_transport_integral_matrix(t, D0=1.5, alpha=0.8, offset=0.1, dt=1.0)
+
+        assert_allclose(M, M.T, rtol=1e-12)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_non_negative(self) -> None:
+        """M[i,j] >= 0 for all i,j."""
+        from heterodyne.core.jax_backend import compute_transport_integral_matrix
+
+        t = jnp.arange(10, dtype=jnp.float64) * 1.0
+        M = compute_transport_integral_matrix(t, D0=1.0, alpha=1.0, offset=0.0, dt=1.0)
+
+        assert jnp.all(M >= 0)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_constant_rate_analytical(self) -> None:
+        """Constant rate D0 (alpha=0): integral = D0 * |j-i| * dt.
+
+        When alpha=0, J_rate(t) = D0 * t^0 + offset = D0 + offset.
+        But at t=0, t^0 is handled as 0, so J_rate(0) = offset.
+        For t>0 with alpha=0, J_rate = D0 + offset.
+
+        Use offset only (D0=0) for clean analytical check:
+        J_rate = offset (constant), integral = offset * |j-i| * dt.
+        """
+        from heterodyne.core.jax_backend import compute_transport_integral_matrix
+
+        N = 10
+        t = jnp.arange(N, dtype=jnp.float64) * 1.0
+        rate = 2.5
+        dt = 1.0
+        # Use D0=0, offset=rate to get constant rate for all t
+        M = compute_transport_integral_matrix(t, D0=0.0, alpha=1.0, offset=rate, dt=dt)
+
+        # Expected: rate * |j - i| * dt
+        indices = jnp.arange(N, dtype=jnp.float64)
+        expected = rate * dt * jnp.abs(indices[None, :] - indices[:, None])
+        assert_allclose(M, expected, rtol=1e-10)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_shape(self, time_array: jnp.ndarray) -> None:
+        """Output shape is (N, N)."""
+        from heterodyne.core.jax_backend import compute_transport_integral_matrix
+
+        M = compute_transport_integral_matrix(time_array, 1.0, 1.0, 0.0, 1.0)
+
+        assert M.shape == (len(time_array), len(time_array))
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_no_nan_or_inf(self, time_array: jnp.ndarray) -> None:
+        """Ensure no NaN or Inf values."""
+        from heterodyne.core.jax_backend import compute_transport_integral_matrix
+
+        M = compute_transport_integral_matrix(time_array, 1.0, 0.5, 0.1, 1.0)
+
+        assert not jnp.any(jnp.isnan(M))
+        assert not jnp.any(jnp.isinf(M))
+
+
+# ============================================================================
 # Full C2 Correlation Tests
 # ============================================================================
 
@@ -421,6 +509,39 @@ class TestComputeC2Heterodyne:
         c2_360 = compute_c2_heterodyne(default_params, time_array, 0.01, 1.0, 360.0)
 
         assert_allclose(c2_0, c2_360, rtol=1e-10)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_c2_offset_propagation(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+        """offset parameter shifts the baseline of c2."""
+        from heterodyne.core.jax_backend import compute_c2_heterodyne
+
+        c2_default = compute_c2_heterodyne(default_params, time_array, 0.01, 1.0, 0.0)
+        c2_offset = compute_c2_heterodyne(
+            default_params, time_array, 0.01, 1.0, 0.0, offset=2.0
+        )
+
+        # c2_offset = 2.0 + contrast * [terms]/f²
+        # c2_default = 1.0 + contrast * [terms]/f²
+        # Difference should be exactly 1.0 everywhere
+        assert_allclose(c2_offset - c2_default, 1.0, rtol=1e-10)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_c2_contrast_propagation(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+        """contrast parameter scales the signal above offset."""
+        from heterodyne.core.jax_backend import compute_c2_heterodyne
+
+        c2_c1 = compute_c2_heterodyne(
+            default_params, time_array, 0.01, 1.0, 0.0, contrast=1.0, offset=0.0
+        )
+        c2_c2 = compute_c2_heterodyne(
+            default_params, time_array, 0.01, 1.0, 0.0, contrast=2.0, offset=0.0
+        )
+
+        # With offset=0: c2 = contrast * [terms]/f²
+        # Doubling contrast should double the result
+        assert_allclose(c2_c2, 2.0 * c2_c1, rtol=1e-10)
 
 
 # ============================================================================

@@ -219,6 +219,93 @@ class TestComputeG1Decay:
 
 
 # ============================================================================
+# Transport Integral Matrix Tests
+# ============================================================================
+
+class TestComputeTransportIntegralMatrix:
+    """Scientific tests for compute_transport_integral_matrix (theory)."""
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_diagonal_is_zero(self) -> None:
+        """Diagonal M[i,i] = 0."""
+        from heterodyne.core.theory import compute_transport_integral_matrix
+
+        t = jnp.arange(10.0)
+        M = compute_transport_integral_matrix(t, D0=1.0, alpha=1.0, offset=0.0, dt=1.0)
+
+        assert_allclose(jnp.diag(M), 0.0, atol=1e-12)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_symmetric(self) -> None:
+        """M[i,j] = M[j,i]."""
+        from heterodyne.core.theory import compute_transport_integral_matrix
+
+        t = jnp.arange(10.0)
+        M = compute_transport_integral_matrix(t, D0=1.5, alpha=0.8, offset=0.1, dt=1.0)
+
+        assert_allclose(M, M.T, rtol=1e-12)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_non_negative(self) -> None:
+        """M[i,j] >= 0 for all i,j."""
+        from heterodyne.core.theory import compute_transport_integral_matrix
+
+        t = jnp.arange(10.0)
+        M = compute_transport_integral_matrix(t, D0=1.0, alpha=1.0, offset=0.0, dt=1.0)
+
+        assert jnp.all(M >= 0)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_constant_rate_analytical(self) -> None:
+        """Constant rate: integral = rate * |j-i| * dt."""
+        from heterodyne.core.theory import compute_transport_integral_matrix
+
+        N = 10
+        t = jnp.arange(N, dtype=jnp.float64)
+        rate = 2.5
+        dt = 1.0
+        M = compute_transport_integral_matrix(t, D0=0.0, alpha=1.0, offset=rate, dt=dt)
+
+        indices = jnp.arange(N, dtype=jnp.float64)
+        expected = rate * dt * jnp.abs(indices[None, :] - indices[:, None])
+        assert_allclose(M, expected, rtol=1e-10)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_matches_jax_backend(self) -> None:
+        """Theory result matches jax_backend result."""
+        from heterodyne.core.jax_backend import (
+            compute_transport_integral_matrix as jax_impl,
+        )
+        from heterodyne.core.theory import (
+            compute_transport_integral_matrix as theory_impl,
+        )
+
+        t = jnp.arange(15, dtype=jnp.float64) * 1.0
+        D0, alpha, offset, dt = 1.5, 0.8, 0.2, 1.0
+
+        M_jax = jax_impl(t, D0, alpha, offset, dt)
+        M_theory = theory_impl(t, D0, alpha, offset, dt)
+
+        assert_allclose(M_jax, M_theory, rtol=1e-12)
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_shape(self) -> None:
+        """Output shape is (N, N)."""
+        from heterodyne.core.theory import compute_transport_integral_matrix
+
+        t = jnp.arange(8.0)
+        M = compute_transport_integral_matrix(t, D0=1.0, alpha=1.0, offset=0.0, dt=0.5)
+
+        assert M.shape == (8, 8)
+
+
+# ============================================================================
 # Velocity Field Tests
 # ============================================================================
 

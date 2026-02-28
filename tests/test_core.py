@@ -45,9 +45,10 @@ class TestHeterodyneModel:
         # Correlation should be positive
         assert np.all(c2 >= 0)
 
-        # Diagonal should be close to 1 for normalized correlation
+        # Diagonal should be close to offset + contrast = 2.0
+        # (offset=1.0, contrast=1.0, normalized self-correlation=1.0)
         diag = np.diag(np.asarray(c2))
-        assert np.allclose(diag[0], 1.0, rtol=0.1)
+        assert np.allclose(diag[0], 2.0, rtol=0.1)
 
 
 class TestJaxBackend:
