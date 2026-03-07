@@ -180,7 +180,7 @@ class NLSQAdapter(NLSQAdapterBase):
         # Validate bounds
         initial_params = np.clip(initial_params, lower_bounds, upper_bounds)
 
-        logger.info(f"Starting NLSQ fit (JAX) with {n_params} parameters")
+        logger.info("Starting NLSQ fit (JAX) with %d parameters", n_params)
 
         try:
             # Create xdata and ydata for nlsq API
@@ -190,7 +190,7 @@ class NLSQAdapter(NLSQAdapterBase):
             # Get or create CurveFit instance (cached by shape)
             fitter, cache_hit = get_or_create_fitter(n_data, n_params)
             if cache_hit:
-                logger.debug(f"CurveFit cache hit for shape ({n_data}, {n_params})")
+                logger.debug("CurveFit cache hit for shape (%d, %d)", n_data, n_params)
 
             # Resolve optimization method
             method = config.method
@@ -255,7 +255,7 @@ class NLSQAdapter(NLSQAdapterBase):
                 convergence_reason = "no_progress"
 
             if not success:
-                logger.warning(f"NLSQ convergence check failed: {message}")
+                logger.warning("NLSQ convergence check failed: %s", message)
 
             return NLSQResult(
                 parameters=np.asarray(fitted_params),
@@ -277,7 +277,7 @@ class NLSQAdapter(NLSQAdapterBase):
             )
 
         except (RuntimeError, ValueError, TypeError) as e:
-            logger.error(f"NLSQ optimization failed: {e}")
+            logger.error("NLSQ optimization failed: %s", e)
             wall_time = time.perf_counter() - start_time
 
             return NLSQResult(
@@ -337,7 +337,7 @@ class ScipyNLSQAdapter(NLSQAdapterBase):
         lower_bounds, upper_bounds = bounds
         initial_params = np.clip(initial_params, lower_bounds, upper_bounds)
 
-        logger.info(f"Starting scipy NLSQ with {len(initial_params)} parameters")
+        logger.info("Starting scipy NLSQ with %d parameters", len(initial_params))
 
         try:
             # Prepare jacobian argument
@@ -411,7 +411,7 @@ class ScipyNLSQAdapter(NLSQAdapterBase):
             )
 
         except (RuntimeError, ValueError, TypeError, np.linalg.LinAlgError) as e:
-            logger.error(f"Scipy optimization failed: {e}")
+            logger.error("Scipy optimization failed: %s", e)
             wall_time = time.perf_counter() - start_time
 
             return NLSQResult(

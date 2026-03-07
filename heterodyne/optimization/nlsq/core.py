@@ -1,17 +1,22 @@
-"""Core NLSQ fitting function for heterodyne analysis."""
+"""Core NLSQ fitting for heterodyne analysis.
+
+Unified entry point for NLSQ optimization with:
+- Global optimization selection (CMA-ES → multi-start → local)
+- Adapter/wrapper fallback with automatic recovery
+- Memory-aware strategy selection
+- Per-angle and multi-angle fitting
+"""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any
 
 import jax.numpy as jnp
 import numpy as np
 
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
-from heterodyne.optimization.nlsq.adapter import NLSQAdapter, ScipyNLSQAdapter
 from heterodyne.optimization.nlsq.config import NLSQConfig
-from heterodyne.optimization.nlsq.memory import NLSQStrategy, select_nlsq_strategy
-from heterodyne.optimization.nlsq.multistart import MultiStartOptimizer
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import get_logger
 
@@ -19,6 +24,59 @@ if TYPE_CHECKING:
     from heterodyne.core.heterodyne_model import HeterodyneModel
 
 logger = get_logger(__name__)
+
+# ---------------------------------------------------------------------------
+# Optional imports — gated for graceful degradation
+# ---------------------------------------------------------------------------
+
+try:
+    from heterodyne.optimization.nlsq.adapter import NLSQAdapter, ScipyNLSQAdapter
+
+    HAS_ADAPTERS = True
+except ImportError:
+    HAS_ADAPTERS = False
+
+try:
+    from heterodyne.optimization.nlsq.wrapper import NLSQWrapper
+
+    HAS_WRAPPER = True
+except ImportError:
+    HAS_WRAPPER = False
+
+try:
+    from heterodyne.optimization.nlsq.multistart import (
+        MultiStartConfig,
+        MultiStartOptimizer,
+    )
+
+    HAS_MULTISTART = True
+except ImportError:
+    HAS_MULTISTART = False
+
+try:
+    from heterodyne.optimization.nlsq.cmaes_wrapper import (
+        CMAES_AVAILABLE,
+        fit_with_cmaes,
+    )
+
+    HAS_CMAES = CMAES_AVAILABLE
+except ImportError:
+    HAS_CMAES = False
+
+try:
+    from heterodyne.optimization.nlsq.memory import NLSQStrategy, select_nlsq_strategy
+
+    HAS_MEMORY = True
+except ImportError:
+    HAS_MEMORY = False
+
+# Export availability flag for tests
+NLSQ_AVAILABLE = HAS_ADAPTERS
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 
 def fit_nlsq_jax(
@@ -28,192 +86,55 @@ def fit_nlsq_jax(
     config: NLSQConfig | None = None,
     weights: np.ndarray | jnp.ndarray | None = None,
     use_nlsq_library: bool = True,
+    *,
+    _skip_global_selection: bool = False,
 ) -> NLSQResult:
     """Fit heterodyne model to correlation data using NLSQ.
 
+    This is the unified entry point for all NLSQ optimization.  When called
+    it first checks for global optimization methods:
+
+    1. If ``cmaes.enable: true`` → delegates to CMA-ES
+    2. If ``multi_start.enable: true`` → delegates to multi-start
+    3. Otherwise → runs local trust-region optimization
+
+    The adapter is tried first; on failure the wrapper provides automatic
+    retry with progressive recovery (HybridRecoveryConfig).
+
     Args:
-        model: HeterodyneModel instance with parameters configured
-        c2_data: Experimental correlation data, shape (N, N)
-        phi_angle: Detector phi angle (degrees)
-        config: NLSQ configuration (default if None)
-        weights: Optional weights (1/sigma²) for weighted least squares
-        use_nlsq_library: Whether to use nlsq library (True) or scipy fallback
+        model: HeterodyneModel instance with parameters configured.
+        c2_data: Experimental correlation data, shape (N, N).
+        phi_angle: Detector phi angle (degrees).
+        config: NLSQ configuration (default if None).
+        weights: Optional weights (1/sigma²) for weighted least squares.
+        use_nlsq_library: Whether to prefer nlsq library over scipy.
+        _skip_global_selection: Internal flag — skip CMA-ES / multi-start check.
 
     Returns:
-        NLSQResult with fitted parameters and diagnostics
+        NLSQResult with fitted parameters and diagnostics.
     """
     if config is None:
         config = NLSQConfig()
 
-    logger.info(f"Starting NLSQ fit: phi={phi_angle}°, method={config.method}")
+    logger.info("=" * 60)
+    logger.info("NLSQ OPTIMIZATION")
+    logger.info("=" * 60)
+    logger.info("phi=%s°, method=%s", phi_angle, config.method)
 
-    # Get parameter info
-    param_manager = model.param_manager
-    varying_names = param_manager.varying_names
-    n_varying = param_manager.n_varying
-
-    logger.info(f"Fitting {n_varying} parameters: {varying_names}")
-
-    # Memory-aware strategy selection
-    n_data_est = np.asarray(c2_data).size
-    decision = select_nlsq_strategy(n_data_est, n_varying)
-    if decision.strategy == NLSQStrategy.OUT_OF_CORE:
-        logger.warning(
-            f"Estimated peak memory ({decision.peak_memory_gb:.2f} GB) exceeds "
-            f"threshold ({decision.threshold_gb:.2f} GB). "
-            f"Fit may fail with OOM. Consider reducing data size or increasing memory."
+    # ------------------------------------------------------------------
+    # Global optimization selection (CMA-ES → multi-start → local)
+    # ------------------------------------------------------------------
+    if not _skip_global_selection:
+        global_result = _try_global_optimization(
+            model, c2_data, phi_angle, config, weights, use_nlsq_library,
         )
+        if global_result is not None:
+            return global_result
 
-    # Get initial values and bounds for varying parameters
-    initial_varying = param_manager.get_initial_values()
-    lower_bounds, upper_bounds = param_manager.get_bounds()
-
-    # Ensure initial values are within bounds
-    initial_varying = np.clip(initial_varying, lower_bounds, upper_bounds)
-
-    # Convert data to JAX arrays with explicit float64 for consistency
-    c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
-    weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
-
-    # Validate weights shape matches data shape
-    if weights_jax is not None and weights_jax.shape != c2_jax.shape:
-        raise ValueError(
-            f"Weights shape {weights_jax.shape} does not match data shape {c2_jax.shape}"
-        )
-
-    # Get fixed values for reconstruction (float64 for JAX scatter compatibility)
-    fixed_values = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
-    varying_indices = jnp.array(param_manager.varying_indices)
-    n_data = c2_jax.size  # Total number of residuals
-
-    # Capture constants for JAX residual function
-    t = model.t
-    q = model.q
-    dt = model.dt
-
-    # Create JAX-compatible residual function for nlsq
-    def jax_residual_fn(x: jnp.ndarray, *varying_params) -> jnp.ndarray:
-        """Pure JAX residual function for nlsq tracing."""
-        # Reconstruct full parameter array using JAX ops (explicit float64)
-        varying_array = jnp.array(varying_params, dtype=jnp.float64)
-        full_params = fixed_values.at[varying_indices].set(varying_array)
-
-        # Compute residuals
-        residuals = compute_residuals(
-            full_params,
-            t,
-            q,
-            dt,
-            phi_angle,
-            c2_jax,
-            weights_jax,
-        )
-        return residuals
-
-    # Create numpy residual function for scipy fallback
-    def numpy_residual_fn(varying_params: np.ndarray) -> np.ndarray:
-        """Numpy residual function for scipy."""
-        full_params = param_manager.get_full_values().copy()
-        for i, idx in enumerate(param_manager.varying_indices):
-            full_params[idx] = varying_params[i]
-
-        residuals = compute_residuals(
-            jnp.asarray(full_params),
-            t,
-            q,
-            dt,
-            phi_angle,
-            c2_jax,
-            weights_jax,
-        )
-        return np.asarray(residuals)
-
-    # Select adapter and run optimization
-    if use_nlsq_library:
-        try:
-            adapter = NLSQAdapter(parameter_names=varying_names)
-
-            if config.multistart:
-                # Use scipy for multistart (more reliable)
-                optimizer = MultiStartOptimizer(
-                    adapter=adapter,
-                    n_starts=config.multistart_n,
-                )
-                multi_result = optimizer.fit(
-                    residual_fn=numpy_residual_fn,
-                    initial_params=initial_varying,
-                    bounds=(lower_bounds, upper_bounds),
-                    config=config,
-                )
-                result = multi_result.best_result
-                result.metadata["multistart"] = {
-                    "n_starts": multi_result.n_total,
-                    "n_successful": multi_result.n_successful,
-                }
-            else:
-                # Use JAX-traced optimization with nlsq
-                result = adapter.fit_jax(
-                    jax_residual_fn=jax_residual_fn,
-                    initial_params=initial_varying,
-                    bounds=(lower_bounds, upper_bounds),
-                    config=config,
-                    n_data=n_data,
-                )
-        except ImportError:
-            logger.warning("nlsq library not available, falling back to scipy")
-            adapter = ScipyNLSQAdapter(parameter_names=varying_names)
-            result = adapter.fit(
-                residual_fn=numpy_residual_fn,
-                initial_params=initial_varying,
-                bounds=(lower_bounds, upper_bounds),
-                config=config,
-            )
-    else:
-        adapter = ScipyNLSQAdapter(parameter_names=varying_names)
-
-        if config.multistart:
-            optimizer = MultiStartOptimizer(
-                adapter=adapter,
-                n_starts=config.multistart_n,
-            )
-            multi_result = optimizer.fit(
-                residual_fn=numpy_residual_fn,
-                initial_params=initial_varying,
-                bounds=(lower_bounds, upper_bounds),
-                config=config,
-            )
-            result = multi_result.best_result
-            result.metadata["multistart"] = {
-                "n_starts": multi_result.n_total,
-                "n_successful": multi_result.n_successful,
-            }
-        else:
-            result = adapter.fit(
-                residual_fn=numpy_residual_fn,
-                initial_params=initial_varying,
-                bounds=(lower_bounds, upper_bounds),
-                config=config,
-            )
-
-    # Compute fitted correlation for output
-    if result.success:
-        full_fitted = param_manager.expand_varying_to_full(result.parameters)
-        fitted_c2 = compute_c2_heterodyne(
-            jnp.asarray(full_fitted),
-            t,
-            q,
-            dt,
-            phi_angle,
-        )
-        result.fitted_correlation = np.asarray(fitted_c2)
-
-        # Update model with fitted values
-        model.set_params(full_fitted)
-
-    cost_str = f"{result.final_cost:.4e}" if result.final_cost is not None else "N/A"
-    logger.info(f"NLSQ fit complete: success={result.success}, cost={cost_str}")
-
-    return result
+    # ------------------------------------------------------------------
+    # Local optimization
+    # ------------------------------------------------------------------
+    return _fit_local(model, c2_data, phi_angle, config, weights, use_nlsq_library)
 
 
 def fit_nlsq_multi_phi(
@@ -225,22 +146,29 @@ def fit_nlsq_multi_phi(
 ) -> list[NLSQResult]:
     """Fit model to correlation data at multiple phi angles.
 
-    Angles are fit sequentially. After each successful fit, the model's
-    parameters are updated with the fitted values (warm-start), so each
-    subsequent angle starts from the previous angle's optimum. This
-    accelerates convergence when adjacent angles have similar parameters,
-    but introduces ordering dependence.
+    Two modes of operation controlled by ``config.per_angle_mode``:
+
+    **Joint fit** (``"fourier"``, ``"independent"``, or ``"auto"``
+    with multiple angles):
+        All angles are fit simultaneously in a single optimization.
+        In ``"fourier"`` mode, the optimizer vector is
+        ``[physics_varying | fourier_contrast_coeffs | fourier_offset_coeffs]``,
+        where the Fourier basis constrains smooth angular variation.
+        In ``"independent"`` mode, each angle has its own contrast/offset
+        (2*n_phi scaling parameters), all optimized jointly.
+
+    **Sequential mode** (single angle or fallback):
+        Angles are fit one at a time with warm-starting.
 
     Args:
-        model: HeterodyneModel instance. Its parameters are mutated
-            after each successful per-angle fit (warm-start).
-        c2_data: Correlation data, shape (n_phi, N, N) or (N, N) for single angle
-        phi_angles: Array of phi angles (degrees)
-        config: NLSQ configuration
-        weights: Optional weights, shape (n_phi, N, N) for per-angle or (N, N) shared
+        model: HeterodyneModel instance.
+        c2_data: Correlation data, shape ``(n_phi, N, N)`` or ``(N, N)``.
+        phi_angles: Array of phi angles (degrees).
+        config: NLSQ configuration.
+        weights: Optional weights, shape ``(n_phi, N, N)`` or ``(N, N)``.
 
     Returns:
-        List of NLSQResult, one per angle
+        List of :class:`NLSQResult`, one per angle.
     """
     phi_angles = np.asarray(phi_angles)
 
@@ -253,15 +181,51 @@ def fit_nlsq_multi_phi(
             f"number of phi angles ({len(phi_angles)})"
         )
 
+    # ------------------------------------------------------------------
+    # Determine whether to use joint Fourier fit
+    # ------------------------------------------------------------------
+    use_joint = False
+    if config is not None and len(phi_angles) > 1:
+        try:
+            from heterodyne.optimization.nlsq.fourier_reparam import (
+                FourierReparamConfig,
+                FourierReparameterizer,
+            )
+            fourier_config = FourierReparamConfig(
+                mode=config.per_angle_mode,
+                fourier_order=config.fourier_order,
+                auto_threshold=config.fourier_auto_threshold,
+            )
+            phi_rad = np.deg2rad(phi_angles.astype(np.float64))
+            fourier = FourierReparameterizer(phi_rad, fourier_config)
+            use_joint = fourier.use_fourier or (
+                config.per_angle_mode == "independent" and len(phi_angles) > 1
+            )
+        except ImportError:
+            logger.warning(
+                "fourier_reparam not available, falling back to sequential fits"
+            )
+
+    if use_joint:
+        return _fit_joint_multi_phi(
+            model, c2_data, phi_angles, config, weights, fourier,
+        )
+
+    # ------------------------------------------------------------------
+    # Sequential per-angle fitting (warm-start chain)
+    # ------------------------------------------------------------------
     results = []
     for i, phi in enumerate(phi_angles):
         if i > 0:
             logger.info(
-                f"Fitting phi angle {i+1}/{len(phi_angles)}: {phi}° "
-                f"(warm-start from angle {phi_angles[i-1]}°)"
+                "Fitting phi angle %d/%d: %s° (warm-start from angle %s°)",
+                i + 1,
+                len(phi_angles),
+                phi,
+                phi_angles[i - 1],
             )
         else:
-            logger.info(f"Fitting phi angle {i+1}/{len(phi_angles)}: {phi}°")
+            logger.info("Fitting phi angle %d/%d: %s°", i + 1, len(phi_angles), phi)
 
         c2_i = c2_data[i]
         weights_i = weights[i] if weights is not None and weights.ndim == 3 else weights
@@ -277,3 +241,566 @@ def fit_nlsq_multi_phi(
         results.append(result)
 
     return results
+
+
+def _fit_joint_multi_phi(
+    model: HeterodyneModel,
+    c2_data: np.ndarray,
+    phi_angles: np.ndarray,
+    config: NLSQConfig,
+    weights: np.ndarray | None,
+    fourier: Any,
+) -> list[NLSQResult]:
+    """Joint multi-angle fit with Fourier-parameterized scaling.
+
+    The optimizer parameter vector is:
+        [physics_varying_params | fourier_contrast_coeffs | fourier_offset_coeffs]
+
+    The residual function evaluates all angles, using the Fourier basis to
+    convert coefficients → per-angle contrast/offset at each evaluation.
+
+    This is the heterodyne equivalent of homodyne's AntiDegeneracyController
+    joint-fit path.
+    """
+    from scipy.optimize import least_squares
+
+    t_start = time.perf_counter()
+
+    param_manager = model.param_manager
+    varying_names = param_manager.varying_names
+    n_physics_varying = param_manager.n_varying
+    n_phi = len(phi_angles)
+
+    # Physics parameter initial values and bounds
+    physics_initial = param_manager.get_initial_values()
+    physics_lower, physics_upper = param_manager.get_bounds()
+    physics_initial = np.clip(physics_initial, physics_lower, physics_upper)
+
+    # Fourier coefficient initial values and bounds
+    scaling = model.scaling
+    contrast_init = float(scaling.contrast[0]) if len(scaling.contrast) > 0 else 0.5
+    offset_init = float(scaling.offset[0]) if len(scaling.offset) > 0 else 1.0
+    fourier_initial = fourier.get_initial_coefficients(contrast_init, offset_init)
+    fourier_lower, fourier_upper = fourier.get_bounds()
+
+    # Combined parameter vector
+    x0 = np.concatenate([physics_initial, fourier_initial])
+    lb = np.concatenate([physics_lower, fourier_lower])
+    ub = np.concatenate([physics_upper, fourier_upper])
+
+    logger.info(
+        "Joint multi-angle fit: %d physics + %d Fourier = %d total params, %d angles",
+        n_physics_varying,
+        fourier.n_coeffs,
+        len(x0),
+        n_phi,
+    )
+
+    # Pre-convert data to JAX arrays
+    t, q, dt = model.t, model.q, model.dt
+    c2_data_list = [jnp.asarray(c2_data[i], dtype=jnp.float64) for i in range(n_phi)]
+    weights_list = []
+    for i in range(n_phi):
+        if weights is not None and weights.ndim == 3:
+            weights_list.append(jnp.asarray(weights[i], dtype=jnp.float64))
+        elif weights is not None:
+            weights_list.append(jnp.asarray(weights, dtype=jnp.float64))
+        else:
+            weights_list.append(None)
+
+    fixed_values = param_manager.get_full_values().copy()
+    varying_indices = param_manager.varying_indices
+
+    def joint_residual_fn(x: np.ndarray) -> np.ndarray:
+        """Compute concatenated residuals across all angles."""
+        # Split combined vector
+        physics_varying = x[:n_physics_varying]
+        fourier_coeffs = x[n_physics_varying:]
+
+        # Reconstruct full physics parameter array
+        full_params = fixed_values.copy()
+        for j, idx in enumerate(varying_indices):
+            full_params[idx] = physics_varying[j]
+        full_jax = jnp.asarray(full_params)
+
+        # Convert Fourier coefficients → per-angle contrast/offset
+        contrast_arr, offset_arr = fourier.fourier_to_per_angle(fourier_coeffs)
+
+        # Compute residuals per angle and concatenate
+        all_residuals = []
+        for i in range(n_phi):
+            residuals_i = compute_residuals(
+                full_jax, t, q, dt, float(phi_angles[i]),
+                c2_data_list[i], weights_list[i],
+                contrast=float(contrast_arr[i]),
+                offset=float(offset_arr[i]),
+            )
+            all_residuals.append(np.asarray(residuals_i))
+
+        return np.concatenate(all_residuals)
+
+    # Run optimization
+    scipy_result = least_squares(
+        joint_residual_fn,
+        x0,
+        bounds=(lb, ub),
+        method=config.method if config.method != "lm" else "trf",
+        ftol=config.ftol,
+        xtol=config.xtol,
+        gtol=config.gtol,
+        max_nfev=(config.max_nfev * n_phi if config.max_nfev is not None else None),
+        loss=config.loss,
+    )
+
+    # Extract results
+    fitted_physics = scipy_result.x[:n_physics_varying]
+    fitted_fourier = scipy_result.x[n_physics_varying:]
+    fitted_contrast, fitted_offset = fourier.fourier_to_per_angle(fitted_fourier)
+
+    # Update model with fitted physics parameters
+    full_fitted = param_manager.expand_varying_to_full(fitted_physics)
+    model.set_params(full_fitted)
+
+    # Update model scaling
+    if len(scaling.contrast) == n_phi:
+        scaling.contrast[:] = fitted_contrast
+        scaling.offset[:] = fitted_offset
+
+    wall_time = time.perf_counter() - t_start
+
+    # Build per-angle NLSQResult objects
+    results: list[NLSQResult] = []
+    for i in range(n_phi):
+        # Compute fitted correlation for this angle
+        fitted_c2 = compute_c2_heterodyne(
+            jnp.asarray(full_fitted), t, q, dt,
+            float(phi_angles[i]),
+            contrast=float(fitted_contrast[i]),
+            offset=float(fitted_offset[i]),
+        )
+
+        result = NLSQResult(
+            parameters=fitted_physics.copy(),
+            parameter_names=list(varying_names),
+            residuals=np.asarray(
+                compute_residuals(
+                    jnp.asarray(full_fitted), t, q, dt, float(phi_angles[i]),
+                    c2_data_list[i], weights_list[i],
+                    contrast=float(fitted_contrast[i]),
+                    offset=float(fitted_offset[i]),
+                )
+            ),
+            final_cost=float(scipy_result.cost),
+            success=bool(scipy_result.success),
+            message=str(scipy_result.message),
+            n_function_evals=int(scipy_result.nfev),
+            fitted_correlation=np.asarray(fitted_c2),
+            metadata={
+                "phi_angle": float(phi_angles[i]),
+                "contrast": float(fitted_contrast[i]),
+                "offset": float(fitted_offset[i]),
+                "optimizer": "joint_fourier",
+                "fourier_mode": fourier.config.mode,
+                "fourier_order": fourier.order,
+                "fourier_coeffs": fitted_fourier.tolist(),
+                "fourier_n_coeffs": fourier.n_coeffs,
+                "fourier_reduction": fourier.get_diagnostics()["reduction_ratio"],
+                "n_angles_joint": n_phi,
+                "wall_time_total": wall_time,
+            },
+        )
+        results.append(result)
+
+    logger.info(
+        "Joint multi-angle fit complete: success=%s, cost=%.6f, "
+        "n_evals=%d, wall_time=%.2fs, %d angles",
+        scipy_result.success,
+        scipy_result.cost,
+        scipy_result.nfev,
+        wall_time,
+        n_phi,
+    )
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _try_global_optimization(
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+    phi_angle: float,
+    config: NLSQConfig,
+    weights: np.ndarray | jnp.ndarray | None,
+    use_nlsq_library: bool,
+) -> NLSQResult | None:
+    """Attempt CMA-ES or multi-start if configured.
+
+    Returns the result if a global method was selected, or ``None`` to
+    fall through to local optimization.
+    """
+    # CMA-ES has highest priority
+    if getattr(config, "enable_cmaes", False):
+        if HAS_CMAES:
+            logger.info("CMA-ES enabled, delegating to fit_with_cmaes")
+            return _fit_cmaes(model, c2_data, phi_angle, config, weights)
+        logger.warning(
+            "CMA-ES enabled in config but not available (evosax not installed). "
+            "Falling back."
+        )
+
+    # Multi-start is second priority
+    if getattr(config, "multistart", False):
+        if HAS_MULTISTART:
+            logger.info("Multi-start enabled, delegating to multi-start optimizer")
+            return _fit_multistart(
+                model, c2_data, phi_angle, config, weights, use_nlsq_library,
+            )
+        logger.warning(
+            "Multi-start enabled in config but multistart module not available. "
+            "Falling back to local optimization."
+        )
+
+    return None
+
+
+def _fit_cmaes(
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+    phi_angle: float,
+    config: NLSQConfig,
+    weights: np.ndarray | jnp.ndarray | None,
+) -> NLSQResult:
+    """Run CMA-ES global optimization."""
+    param_manager = model.param_manager
+
+    initial_varying = param_manager.get_initial_values()
+    lower_bounds, upper_bounds = param_manager.get_bounds()
+    initial_varying = np.clip(initial_varying, lower_bounds, upper_bounds)
+
+    c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
+    weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+    t, q, dt = model.t, model.q, model.dt
+
+    def objective_fn(varying_params: np.ndarray) -> float:
+        full_params = np.array(param_manager.get_full_values())
+        for i, idx in enumerate(param_manager.varying_indices):
+            full_params[idx] = varying_params[i]
+        residuals = compute_residuals(
+            jnp.asarray(full_params), t, q, dt, phi_angle, c2_jax, weights_jax,
+        )
+        return float(0.5 * jnp.sum(residuals ** 2))
+
+    result = fit_with_cmaes(  # type: ignore[misc]
+        objective_fn=objective_fn,
+        initial_params=initial_varying,
+        bounds=(lower_bounds, upper_bounds),
+        parameter_names=param_manager.varying_names,
+    )
+
+    if result.success:
+        full_fitted = param_manager.expand_varying_to_full(result.parameters)
+        fitted_c2 = compute_c2_heterodyne(jnp.asarray(full_fitted), t, q, dt, phi_angle)
+        result.fitted_correlation = np.asarray(fitted_c2)
+        model.set_params(full_fitted)
+
+    result.metadata["optimizer"] = "cmaes"
+    _log_result(result)
+    return result
+
+
+def _fit_multistart(
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+    phi_angle: float,
+    config: NLSQConfig,
+    weights: np.ndarray | jnp.ndarray | None,
+    use_nlsq_library: bool,
+) -> NLSQResult:
+    """Run multi-start optimization."""
+    param_manager = model.param_manager
+    varying_names = param_manager.varying_names
+
+    initial_varying = param_manager.get_initial_values()
+    lower_bounds, upper_bounds = param_manager.get_bounds()
+    initial_varying = np.clip(initial_varying, lower_bounds, upper_bounds)
+
+    # Build residual function
+    residual_fn = _make_numpy_residual_fn(
+        model, c2_data, phi_angle, weights,
+    )
+
+    # Select adapter
+    adapter = _select_adapter(varying_names, use_nlsq_library)
+
+    # Build multistart config
+    ms_config = MultiStartConfig(
+        n_starts=getattr(config, "multistart_n", 10),
+        seed=getattr(config, "multistart_seed", None),
+    )
+    optimizer = MultiStartOptimizer(adapter=adapter, config=ms_config)
+
+    multi_result = optimizer.fit(
+        residual_fn=residual_fn,
+        initial_params=initial_varying,
+        bounds=(lower_bounds, upper_bounds),
+        config=config,
+    )
+
+    result = multi_result.to_nlsq_result()
+
+    if result.success:
+        full_fitted = param_manager.expand_varying_to_full(result.parameters)
+        fitted_c2 = compute_c2_heterodyne(
+            jnp.asarray(full_fitted), model.t, model.q, model.dt, phi_angle,
+        )
+        result.fitted_correlation = np.asarray(fitted_c2)
+        model.set_params(full_fitted)
+
+    result.metadata["optimizer"] = "multistart"
+    _log_result(result)
+    return result
+
+
+def _fit_local(
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+    phi_angle: float,
+    config: NLSQConfig,
+    weights: np.ndarray | jnp.ndarray | None,
+    use_nlsq_library: bool,
+) -> NLSQResult:
+    """Run local (single-start) optimization with adapter/wrapper fallback.
+
+    Tries adapter first; on failure falls back to wrapper with progressive
+    recovery.
+    """
+    t_start = time.perf_counter()
+
+    param_manager = model.param_manager
+    varying_names = param_manager.varying_names
+    n_varying = param_manager.n_varying
+
+    logger.info("Fitting %d parameters: %s", n_varying, varying_names)
+
+    # Memory-aware strategy selection
+    if HAS_MEMORY:
+        n_data_est = np.asarray(c2_data).size
+        decision = select_nlsq_strategy(n_data_est, n_varying)
+        if decision.strategy == NLSQStrategy.OUT_OF_CORE:
+            logger.warning(
+                "Estimated peak memory (%.2f GB) exceeds threshold (%.2f GB). "
+                "Fit may fail with OOM.",
+                decision.peak_memory_gb,
+                decision.threshold_gb,
+            )
+
+    # Get initial values and bounds
+    initial_varying = param_manager.get_initial_values()
+    lower_bounds, upper_bounds = param_manager.get_bounds()
+    initial_varying = np.clip(initial_varying, lower_bounds, upper_bounds)
+
+    # Convert data to JAX arrays
+    c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
+    weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+
+    if weights_jax is not None and weights_jax.shape != c2_jax.shape:
+        raise ValueError(
+            f"Weights shape {weights_jax.shape} does not match data shape {c2_jax.shape}"
+        )
+
+    # Capture constants
+    fixed_values = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
+    varying_indices = jnp.array(param_manager.varying_indices)
+    n_data = c2_jax.size
+    t, q, dt = model.t, model.q, model.dt
+
+    # Build residual functions
+    def jax_residual_fn(x: jnp.ndarray, *varying_params: float) -> jnp.ndarray:
+        """Pure JAX residual function for nlsq tracing."""
+        varying_array = jnp.array(varying_params, dtype=jnp.float64)
+        full_params = fixed_values.at[varying_indices].set(varying_array)
+        return compute_residuals(
+            full_params, t, q, dt, phi_angle, c2_jax, weights_jax,
+        )
+
+    numpy_residual_fn = _make_numpy_residual_fn(model, c2_data, phi_angle, weights)
+
+    # ------------------------------------------------------------------
+    # Adapter → wrapper fallback chain
+    # ------------------------------------------------------------------
+    adapter_error: Exception | None = None
+    fallback_occurred = False
+    result: NLSQResult | None = None
+
+    if use_nlsq_library and HAS_ADAPTERS:
+        try:
+            adapter = NLSQAdapter(parameter_names=varying_names)
+            logger.debug("Attempting optimization with NLSQAdapter (JAX)")
+
+            result = adapter.fit_jax(
+                jax_residual_fn=jax_residual_fn,
+                initial_params=initial_varying,
+                bounds=(lower_bounds, upper_bounds),
+                config=config,
+                n_data=n_data,
+            )
+
+            if result.success:
+                logger.info("NLSQAdapter optimization succeeded")
+            else:
+                raise RuntimeError(f"Adapter returned success=False: {result.message}")
+
+        except (ValueError, RuntimeError, TypeError, ImportError, OSError) as e:
+            adapter_error = e
+            logger.warning("NLSQAdapter failed, falling back to wrapper: %s", e)
+            fallback_occurred = True
+            result = None
+
+    # Wrapper fallback (or primary if use_nlsq_library=False)
+    if result is None and HAS_WRAPPER and HAS_ADAPTERS:
+        try:
+            enable_recovery = getattr(config, "enable_recovery", True)
+            wrapper = NLSQWrapper(
+                parameter_names=varying_names,
+                use_jax=False,
+                max_retries=getattr(config, "max_recovery_attempts", 3),
+                enable_recovery=enable_recovery,
+                enable_diagnostics=getattr(config, "enable_diagnostics", False),
+            )
+            logger.debug("Attempting optimization with NLSQWrapper")
+
+            result = wrapper.fit(
+                residual_fn=numpy_residual_fn,
+                initial_params=initial_varying,
+                bounds=(lower_bounds, upper_bounds),
+                config=config,
+            )
+
+            if fallback_occurred:
+                logger.info("NLSQWrapper fallback succeeded")
+            else:
+                logger.info("NLSQWrapper optimization succeeded")
+
+        except (ValueError, RuntimeError, TypeError, MemoryError) as wrapper_error:
+            logger.error(
+                "Both adapter and wrapper failed: adapter=%s, wrapper=%s",
+                adapter_error,
+                wrapper_error,
+            )
+            result = NLSQResult(
+                parameters=initial_varying,
+                parameter_names=varying_names,
+                success=False,
+                message=f"All optimizers failed. Adapter: {adapter_error}; "
+                f"Wrapper: {wrapper_error}",
+            )
+
+    # Final fallback: direct scipy
+    if result is None and HAS_ADAPTERS:
+        logger.debug("Falling back to direct ScipyNLSQAdapter")
+        scipy_adapter = ScipyNLSQAdapter(parameter_names=varying_names)
+        result = scipy_adapter.fit(
+            residual_fn=numpy_residual_fn,
+            initial_params=initial_varying,
+            bounds=(lower_bounds, upper_bounds),
+            config=config,
+        )
+
+    if result is None:
+        raise ImportError(
+            "No NLSQ optimization backend available. "
+            "Ensure heterodyne.optimization.nlsq.adapter is importable."
+        )
+
+    # ------------------------------------------------------------------
+    # Post-fit: compute fitted correlation, update model
+    # ------------------------------------------------------------------
+    if result.success:
+        full_fitted = param_manager.expand_varying_to_full(result.parameters)
+        fitted_c2 = compute_c2_heterodyne(
+            jnp.asarray(full_fitted), t, q, dt, phi_angle,
+        )
+        result.fitted_correlation = np.asarray(fitted_c2)
+        model.set_params(full_fitted)
+
+    result.metadata["fallback_occurred"] = fallback_occurred
+    if adapter_error is not None:
+        result.metadata["adapter_error"] = str(adapter_error)
+    result.metadata["optimizer"] = "local"
+    result.metadata["wall_time_total"] = time.perf_counter() - t_start
+
+    _log_result(result)
+    return result
+
+
+def _make_numpy_residual_fn(
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+    phi_angle: float,
+    weights: np.ndarray | jnp.ndarray | None,
+) -> Any:
+    """Create a numpy residual function closed over model/data.
+
+    Returns a callable ``(varying_params: np.ndarray) -> np.ndarray``.
+    """
+    param_manager = model.param_manager
+    c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
+    weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+    t, q, dt = model.t, model.q, model.dt
+
+    def residual_fn(varying_params: np.ndarray) -> np.ndarray:
+        full_params = param_manager.get_full_values().copy()
+        for i, idx in enumerate(param_manager.varying_indices):
+            full_params[idx] = varying_params[i]
+        residuals = compute_residuals(
+            jnp.asarray(full_params), t, q, dt, phi_angle, c2_jax, weights_jax,
+        )
+        return np.asarray(residuals)
+
+    return residual_fn
+
+
+def _select_adapter(
+    varying_names: list[str],
+    use_nlsq_library: bool,
+) -> Any:
+    """Select the appropriate adapter backend."""
+    if use_nlsq_library and HAS_ADAPTERS:
+        try:
+            return NLSQAdapter(parameter_names=varying_names)
+        except ImportError:
+            logger.warning("nlsq library not available, using scipy")
+    if HAS_ADAPTERS:
+        return ScipyNLSQAdapter(parameter_names=varying_names)
+    raise ImportError("No NLSQ adapter available")
+
+
+def _log_result(result: NLSQResult) -> None:
+    """Log optimization results summary."""
+    logger.info("=" * 60)
+    logger.info("NLSQ OPTIMIZATION COMPLETE")
+    logger.info("=" * 60)
+    status = "SUCCESS" if result.success else "FAILED"
+    logger.info("Status: %s", status)
+    logger.info("Message: %s", result.message)
+
+    if result.final_cost is not None:
+        logger.info("Final cost: %.6e", result.final_cost)
+    if result.reduced_chi_squared is not None:
+        logger.info("Reduced χ²: %.4f", result.reduced_chi_squared)
+    if result.wall_time_seconds is not None:
+        logger.info("Wall time: %.2f s", result.wall_time_seconds)
+
+    if result.success:
+        for name, val in zip(result.parameter_names, result.parameters, strict=True):
+            unc_val = result.get_uncertainty(name)
+            if unc_val is not None:
+                logger.info("  %s: %.6g ± %.3g", name, val, unc_val)
+            else:
+                logger.info("  %s: %.6g", name, val)
+
+    logger.info("=" * 60)

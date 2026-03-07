@@ -1,10 +1,18 @@
-"""Multi-start optimization with Latin Hypercube Sampling."""
+"""Multi-start optimization with Latin Hypercube Sampling.
+
+Supports parallel execution via ProcessPoolExecutor with automatic
+fallback to sequential when JAX functions cannot be serialized for
+inter-process communication.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import os
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -13,44 +21,229 @@ from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from heterodyne.optimization.nlsq.adapter_base import NLSQAdapterBase
 
 logger = get_logger(__name__)
 
+_WORKER_TIMEOUT = 1800.0  # 30 minutes default
+_MAX_POINTS_FOR_PARALLEL = 500_000
+
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class MultiStartConfig:
+    """Configuration for multi-start optimization.
+
+    Attributes:
+        n_starts: Number of starting points (including the user-provided one).
+        seed: Random seed for Latin Hypercube Sampling reproducibility.
+        parallel: Whether to attempt parallel execution via ProcessPoolExecutor.
+            Defaults to False because JAX closures cannot be sent across
+            process boundaries.
+        max_workers: Maximum number of worker processes.  Defaults to
+            ``min(n_starts, os.cpu_count() or 4)``.
+        worker_timeout: Per-worker timeout in seconds.
+        max_data_points_for_parallel: Auto-disable parallel when
+            ``n_data * n_starts`` exceeds this threshold.
+    """
+
+    n_starts: int = 10
+    seed: int | None = None
+    parallel: bool = False  # Default False — JAX closures cannot cross process boundaries
+    max_workers: int | None = None
+    worker_timeout: float = _WORKER_TIMEOUT
+    max_data_points_for_parallel: int = _MAX_POINTS_FOR_PARALLEL
+
+    def __post_init__(self) -> None:
+        if self.n_starts < 1:
+            raise ValueError(f"n_starts must be >= 1, got {self.n_starts}")
+        if self.worker_timeout <= 0:
+            raise ValueError(f"worker_timeout must be > 0, got {self.worker_timeout}")
+        if self.max_workers is None:
+            self.max_workers = min(self.n_starts, os.cpu_count() or 4)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> MultiStartConfig:
+        """Create from dictionary, ignoring unknown keys.
+
+        Args:
+            d: Dictionary of configuration values.
+
+        Returns:
+            Populated ``MultiStartConfig`` instance.
+        """
+        known = set(cls.__dataclass_fields__)
+        return cls(**{k: v for k, v in d.items() if k in known})
+
+
+# ---------------------------------------------------------------------------
+# Result containers
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SingleStartResult:
+    """Result from a single optimization start.
+
+    Attributes:
+        result: The ``NLSQResult`` returned by the adapter.
+        start_index: Zero-based index of this start within the run.
+        initial_params: Starting parameter vector used for this run.
+        wall_time: Wall-clock time in seconds for this single start.
+    """
+
+    result: NLSQResult
+    start_index: int
+    initial_params: np.ndarray
+    wall_time: float
+
 
 @dataclass
 class MultiStartResult:
-    """Result of multi-start optimization."""
+    """Aggregated result from a multi-start optimization run.
+
+    Attributes:
+        best_result: The ``NLSQResult`` with the lowest final cost.
+        all_starts: Ordered list of ``SingleStartResult`` for every start.
+        n_successful: Number of starts that reported ``success=True``.
+        n_total: Total number of starts attempted.
+        config: The ``MultiStartConfig`` used for this run.
+        wall_time_total: Total elapsed wall-clock time in seconds.
+    """
 
     best_result: NLSQResult
-    all_results: list[NLSQResult]
+    all_starts: list[SingleStartResult]
     n_successful: int
     n_total: int
+    config: MultiStartConfig
+    wall_time_total: float = 0.0
+
+    @property
+    def all_results(self) -> list[NLSQResult]:
+        """Backward-compatible accessor returning all ``NLSQResult`` objects."""
+        return [s.result for s in self.all_starts]
+
+    def to_nlsq_result(self) -> NLSQResult:
+        """Convert the best result to an ``NLSQResult`` with multistart metadata.
+
+        Attaches a ``"multistart"`` key to ``result.metadata`` containing
+        summary statistics for the full multi-start run.
+
+        Returns:
+            The best ``NLSQResult`` with metadata populated.
+        """
+        best_index = next(
+            (s.start_index for s in self.all_starts if s.result is self.best_result),
+            0,
+        )
+        self.best_result.metadata["multistart"] = {
+            "n_starts": self.n_total,
+            "n_successful": self.n_successful,
+            "wall_time_total": self.wall_time_total,
+            "best_start_index": best_index,
+        }
+        return self.best_result
+
+
+# ---------------------------------------------------------------------------
+# Module-level worker function (required for ProcessPoolExecutor)
+# ---------------------------------------------------------------------------
+
+
+def _multistart_worker_sequential(
+    adapter: NLSQAdapterBase,
+    residual_fn: Callable[[np.ndarray], np.ndarray],
+    initial_params: np.ndarray,
+    bounds: tuple[np.ndarray, np.ndarray],
+    config: NLSQConfig,
+    jacobian_fn: Callable[[np.ndarray], np.ndarray] | None,
+) -> NLSQResult:
+    """Run a single optimization start inside a worker process.
+
+    This function is defined at module level so that ProcessPoolExecutor
+    can submit it across process boundaries.  Note: JAX-based residual
+    functions cannot be sent across process boundaries, so this function
+    is only callable in practice when a serialization-safe residual is
+    supplied.  The ``MultiStartOptimizer.fit()`` method always falls back
+    to sequential execution for JAX residuals.
+
+    Args:
+        adapter: Adapter instance carrying solver configuration.
+        residual_fn: Residual callable (must be serialization-safe).
+        initial_params: Starting parameter vector.
+        bounds: ``(lower, upper)`` bound arrays.
+        config: NLSQ solver configuration.
+        jacobian_fn: Optional analytic Jacobian (must be serialization-safe).
+
+    Returns:
+        ``NLSQResult`` for this start.
+    """
+    return adapter.fit(
+        residual_fn=residual_fn,
+        initial_params=initial_params,
+        bounds=bounds,
+        config=config,
+        jacobian_fn=jacobian_fn,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Optimizer
+# ---------------------------------------------------------------------------
 
 
 class MultiStartOptimizer:
     """Multi-start optimizer using Latin Hypercube Sampling.
 
-    Runs optimization from multiple starting points to improve
-    chances of finding the global minimum.
+    Runs optimization from multiple starting points to improve the
+    chances of finding the global minimum.  The first starting point is
+    always the user-supplied ``initial_params``; the remaining
+    ``n_starts - 1`` points are drawn via Latin Hypercube Sampling within
+    the supplied bounds.
+
+    Parallel execution is available via ``MultiStartConfig.parallel=True``
+    but is disabled by default because JAX residual closures cannot be
+    transmitted across process boundaries.  When parallel is requested,
+    the optimizer logs a warning and falls back to sequential execution.
     """
 
     def __init__(
         self,
         adapter: NLSQAdapterBase,
-        n_starts: int = 10,
+        config: MultiStartConfig | None = None,
+        *,
+        # Legacy keyword arguments for backward compatibility
+        n_starts: int | None = None,
         seed: int | None = None,
     ) -> None:
-        """Initialize multi-start optimizer.
+        """Initialize the multi-start optimizer.
 
         Args:
-            adapter: NLSQ adapter to use for each optimization
-            n_starts: Number of starting points
-            seed: Random seed for reproducibility
+            adapter: NLSQ adapter used to run each individual fit.
+            config: Full ``MultiStartConfig``.  When provided, ``n_starts``
+                and ``seed`` keyword arguments are ignored.
+            n_starts: Legacy argument — number of starting points.
+            seed: Legacy argument — random seed.
         """
         self._adapter = adapter
-        self._n_starts = n_starts
-        self._rng = np.random.default_rng(seed)
+        if config is not None:
+            self._config = config
+        else:
+            self._config = MultiStartConfig(
+                n_starts=n_starts if n_starts is not None else 10,
+                seed=seed,
+            )
+        self._rng = np.random.default_rng(self._config.seed)
+
+    # ------------------------------------------------------------------
+    # Public helpers
+    # ------------------------------------------------------------------
 
     def generate_starting_points(
         self,
@@ -59,12 +252,15 @@ class MultiStartOptimizer:
     ) -> np.ndarray:
         """Generate starting points using Latin Hypercube Sampling.
 
+        The first point is always ``initial_params``.  The remaining
+        ``n_starts - 1`` points are drawn via LHS within ``bounds``.
+
         Args:
-            initial_params: User-provided initial values (used as first point)
-            bounds: (lower, upper) bound arrays
+            initial_params: User-provided initial values (used as first point).
+            bounds: ``(lower, upper)`` bound arrays of shape ``(n_params,)``.
 
         Returns:
-            Array of shape (n_starts, n_params)
+            Array of shape ``(n_starts, n_params)``.
         """
         lower, upper = bounds
         n_params = len(initial_params)
@@ -73,12 +269,16 @@ class MultiStartOptimizer:
         starting_points = [initial_params.copy()]
 
         # Generate LHS points for remaining starts
-        n_lhs = self._n_starts - 1
+        n_lhs = self._config.n_starts - 1
         if n_lhs > 0:
             lhs_points = self._latin_hypercube_sample(n_lhs, n_params, lower, upper)
             starting_points.extend(lhs_points)
 
         return np.array(starting_points)
+
+    # ------------------------------------------------------------------
+    # Sampling internals
+    # ------------------------------------------------------------------
 
     def _latin_hypercube_sample(
         self,
@@ -89,14 +289,18 @@ class MultiStartOptimizer:
     ) -> list[np.ndarray]:
         """Generate Latin Hypercube samples.
 
+        Divides each dimension into ``n_samples`` equal strata, places one
+        sample per stratum with a uniform random offset, then shuffles the
+        stratum assignment independently across dimensions.
+
         Args:
-            n_samples: Number of samples
-            n_dims: Number of dimensions
-            lower: Lower bounds
-            upper: Upper bounds
+            n_samples: Number of samples to generate.
+            n_dims: Dimensionality of the parameter space.
+            lower: Lower bounds, shape ``(n_dims,)``.
+            upper: Upper bounds, shape ``(n_dims,)``.
 
         Returns:
-            List of sample arrays
+            List of ``n_samples`` arrays each of shape ``(n_dims,)``.
         """
         # Proper Latin Hypercube Sampling:
         # Divide each dimension into n_samples equal strata,
@@ -113,6 +317,10 @@ class MultiStartOptimizer:
 
         return [result[i] for i in range(n_samples)]
 
+    # ------------------------------------------------------------------
+    # Main entry point
+    # ------------------------------------------------------------------
+
     def fit(
         self,
         residual_fn: Callable[[np.ndarray], np.ndarray],
@@ -123,26 +331,118 @@ class MultiStartOptimizer:
     ) -> MultiStartResult:
         """Run multi-start optimization.
 
+        Generates starting points via LHS, then runs the adapter from each
+        point sequentially.  If ``MultiStartConfig.parallel=True``, a warning
+        is emitted and execution falls back to sequential because JAX residual
+        closures cannot be transmitted across process boundaries.
+
         Args:
-            residual_fn: Residual function
-            initial_params: Initial guess
-            bounds: Parameter bounds
-            config: Optimization config
-            jacobian_fn: Optional Jacobian
+            residual_fn: Residual function mapping parameters to residual vector.
+            initial_params: Initial guess; always used as the first start.
+            bounds: ``(lower, upper)`` bound arrays.
+            config: Per-run NLSQ solver configuration.
+            jacobian_fn: Optional analytic Jacobian.
 
         Returns:
-            MultiStartResult with best and all results
+            ``MultiStartResult`` with the best result and per-start details.
         """
+        t_start = time.perf_counter()
         starting_points = self.generate_starting_points(initial_params, bounds)
+        n_points = len(starting_points)
 
-        logger.info(f"Running multi-start optimization with {len(starting_points)} starts")
+        logger.info(
+            "Multi-start: %d starts, parallel=%s",
+            n_points,
+            self._config.parallel,
+        )
 
-        all_results: list[NLSQResult] = []
-        best_result: NLSQResult | None = None
+        # JAX closures cannot cross process boundaries — always sequential.
+        if self._config.parallel:
+            logger.warning(
+                "Parallel multi-start requested but JAX closures cannot be "
+                "transmitted across process boundaries. "
+                "Falling back to sequential execution."
+            )
+
+        all_starts = self._run_sequential(
+            starting_points=starting_points,
+            residual_fn=residual_fn,
+            bounds=bounds,
+            config=config,
+            jacobian_fn=jacobian_fn,
+        )
+
+        # Identify best result
+        best: NLSQResult | None = None
         best_cost = np.inf
+        n_successful = 0
+
+        for s in all_starts:
+            if s.result.success:
+                n_successful += 1
+            cost = s.result.final_cost if s.result.final_cost is not None else np.inf
+            if cost < best_cost:
+                best_cost = cost
+                best = s.result
+
+        # Fallback: if nothing succeeded, take the run with the lowest cost
+        if best is None:
+            best = min(
+                (s.result for s in all_starts),
+                key=lambda r: r.final_cost if r.final_cost is not None else np.inf,
+            )
+
+        wall_total = time.perf_counter() - t_start
+
+        logger.info(
+            "Multi-start complete: %d/%d successful, best cost=%.4e, "
+            "total time=%.1fs",
+            n_successful,
+            n_points,
+            best_cost,
+            wall_total,
+        )
+
+        return MultiStartResult(
+            best_result=best,
+            all_starts=all_starts,
+            n_successful=n_successful,
+            n_total=n_points,
+            config=self._config,
+            wall_time_total=wall_total,
+        )
+
+    # ------------------------------------------------------------------
+    # Execution backends
+    # ------------------------------------------------------------------
+
+    def _run_sequential(
+        self,
+        starting_points: np.ndarray,
+        residual_fn: Callable[[np.ndarray], np.ndarray],
+        bounds: tuple[np.ndarray, np.ndarray],
+        config: NLSQConfig,
+        jacobian_fn: Callable[[np.ndarray], np.ndarray] | None,
+    ) -> list[SingleStartResult]:
+        """Execute all starts sequentially, logging progress after each.
+
+        Args:
+            starting_points: Array of shape ``(n_starts, n_params)``.
+            residual_fn: Residual callable.
+            bounds: ``(lower, upper)`` bound arrays.
+            config: NLSQ solver configuration.
+            jacobian_fn: Optional analytic Jacobian.
+
+        Returns:
+            Ordered list of ``SingleStartResult`` for every start.
+        """
+        all_starts: list[SingleStartResult] = []
+        best_cost = np.inf
+        n_total = len(starting_points)
 
         for i, start in enumerate(starting_points):
-            logger.debug(f"Starting point {i+1}/{len(starting_points)}")
+            logger.debug("Start %d/%d", i + 1, n_total)
+            t0 = time.perf_counter()
 
             result = self._adapter.fit(
                 residual_fn=residual_fn,
@@ -152,31 +452,164 @@ class MultiStartOptimizer:
                 jacobian_fn=jacobian_fn,
             )
 
-            all_results.append(result)
-
-            if result.success and result.final_cost is not None:
-                if result.final_cost < best_cost:
-                    best_cost = result.final_cost
-                    best_result = result
-                    logger.debug(f"  New best cost: {best_cost:.6e}")
-
-        n_successful = sum(1 for r in all_results if r.success)
-
-        if best_result is None:
-            logger.warning("All optimization runs failed, using result with lowest cost")
-            best_result = min(
-                all_results,
-                key=lambda r: r.final_cost if r.final_cost is not None else np.inf,
+            wall = time.perf_counter() - t0
+            all_starts.append(
+                SingleStartResult(
+                    result=result,
+                    start_index=i,
+                    initial_params=start,
+                    wall_time=wall,
+                )
             )
 
+            cost = result.final_cost if result.final_cost is not None else np.inf
+            if cost < best_cost:
+                best_cost = cost
+                logger.debug(
+                    "  Start %d/%d: new best cost=%.4e (%.2fs)",
+                    i + 1,
+                    n_total,
+                    best_cost,
+                    wall,
+                )
+            else:
+                logger.debug(
+                    "  Start %d/%d: cost=%.4e (%.2fs)",
+                    i + 1,
+                    n_total,
+                    cost,
+                    wall,
+                )
+
+        return all_starts
+
+    def _run_parallel(
+        self,
+        starting_points: np.ndarray,
+        residual_fn: Callable[[np.ndarray], np.ndarray],
+        bounds: tuple[np.ndarray, np.ndarray],
+        config: NLSQConfig,
+        jacobian_fn: Callable[[np.ndarray], np.ndarray] | None,
+    ) -> list[SingleStartResult]:
+        """Execute starts in parallel via ProcessPoolExecutor.
+
+        This method requires that ``residual_fn`` (and ``jacobian_fn``) are
+        safe to transmit across process boundaries.  If any worker raises an
+        error or times out, the failed starts are logged and excluded from the
+        results.  If all workers fail, raises ``RuntimeError``.
+
+        Note: This method is present for completeness and future use.  It is
+        not invoked by ``fit()`` for JAX-based residuals.  Use
+        ``MultiStartConfig.parallel=True`` only when supplying a residual
+        function that can be transmitted across process boundaries.
+
+        Args:
+            starting_points: Array of shape ``(n_starts, n_params)``.
+            residual_fn: Residual callable (must be transmittable across
+                process boundaries).
+            bounds: ``(lower, upper)`` bound arrays.
+            config: NLSQ solver configuration.
+            jacobian_fn: Optional analytic Jacobian (must be transmittable
+                across process boundaries).
+
+        Returns:
+            Ordered list of ``SingleStartResult`` for every completed start.
+
+        Raises:
+            RuntimeError: If every worker fails or times out.
+        """
+        n_total = len(starting_points)
+        max_workers = self._config.max_workers or min(n_total, os.cpu_count() or 4)
+        timeout = self._config.worker_timeout
+
+        # Map from future -> (start_index, initial_params, t0)
+        future_meta: dict[Any, tuple[int, np.ndarray, float]] = {}
+        results_map: dict[int, SingleStartResult] = {}
+
         logger.info(
-            f"Multi-start complete: {n_successful}/{len(starting_points)} successful, "
-            f"best cost = {best_cost:.6e}"
+            "Parallel multi-start: %d starts, %d workers, timeout=%.0fs",
+            n_total,
+            max_workers,
+            timeout,
         )
 
-        return MultiStartResult(
-            best_result=best_result,
-            all_results=all_results,
-            n_successful=n_successful,
-            n_total=len(starting_points),
-        )
+        try:
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                for i, start in enumerate(starting_points):
+                    t0 = time.perf_counter()
+                    future = executor.submit(
+                        _multistart_worker_sequential,
+                        self._adapter,
+                        residual_fn,
+                        start,
+                        bounds,
+                        config,
+                        jacobian_fn,
+                    )
+                    future_meta[future] = (i, start, t0)
+
+                best_cost = np.inf
+                for future in as_completed(future_meta, timeout=timeout):
+                    idx, start, t0 = future_meta[future]
+                    wall = time.perf_counter() - t0
+                    try:
+                        result: NLSQResult = future.result(timeout=0)
+                        cost = (
+                            result.final_cost
+                            if result.final_cost is not None
+                            else np.inf
+                        )
+                        if cost < best_cost:
+                            best_cost = cost
+                            logger.debug(
+                                "  Worker %d/%d done: new best cost=%.4e (%.2fs)",
+                                idx + 1,
+                                n_total,
+                                best_cost,
+                                wall,
+                            )
+                        else:
+                            logger.debug(
+                                "  Worker %d/%d done: cost=%.4e (%.2fs)",
+                                idx + 1,
+                                n_total,
+                                cost,
+                                wall,
+                            )
+                        results_map[idx] = SingleStartResult(
+                            result=result,
+                            start_index=idx,
+                            initial_params=start,
+                            wall_time=wall,
+                        )
+                    except FuturesTimeoutError:
+                        logger.warning(
+                            "Worker %d/%d timed out after %.0fs — skipping",
+                            idx + 1,
+                            n_total,
+                            timeout,
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning(
+                            "Worker %d/%d failed: %s — skipping",
+                            idx + 1,
+                            n_total,
+                            exc,
+                        )
+
+        except FuturesTimeoutError:
+            logger.warning(
+                "Global as_completed timeout reached after %.0fs — "
+                "proceeding with %d completed workers",
+                timeout,
+                len(results_map),
+            )
+
+        if not results_map:
+            raise RuntimeError(
+                "All parallel workers failed or timed out. "
+                "Consider using sequential execution."
+            )
+
+        # Return in original start order
+        return [results_map[i] for i in sorted(results_map)]
