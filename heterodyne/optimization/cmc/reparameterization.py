@@ -146,7 +146,7 @@ def transform_nlsq_to_reparam_space(
 
         # Forward transform: log(A0 * t_ref^alpha) = log(A0) + alpha * log(t_ref)
         if a0 <= 0:
-            logger.warning(f"Negative prefactor {prefactor}={a0}, clamping to 1e-10")
+            logger.warning("Negative prefactor %s=%s, clamping to 1e-10", prefactor, a0)
             a0 = max(abs(a0), 1e-10)
             log_a0 = math.log(a0)
         else:
@@ -211,7 +211,7 @@ def transform_to_sampling_space(
         alpha = params[exponent]
 
         if a0 <= 0:
-            logger.warning(f"Negative prefactor {prefactor}={a0}, clamping to 1e-10")
+            logger.warning("Negative prefactor %s=%s, clamping to 1e-10", prefactor, a0)
             a0 = max(abs(a0), 1e-10)
             log_a0 = math.log(a0)
         else:
