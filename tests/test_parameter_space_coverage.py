@@ -8,7 +8,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from heterodyne.config.parameter_names import ALL_PARAM_NAMES
+from heterodyne.config.parameter_names import (
+    ALL_PARAM_NAMES,
+    ALL_PARAM_NAMES_WITH_SCALING,
+)
 from heterodyne.config.parameter_space import (
     ParameterSpace,
     PriorDistribution,
@@ -116,25 +119,25 @@ class TestParameterSpaceBasics:
         return ParameterSpace()
 
     def test_post_init_populates_values(self, space: ParameterSpace) -> None:
-        """__post_init__ populates values for all parameters."""
-        assert len(space.values) == 14
-        for name in ALL_PARAM_NAMES:
+        """__post_init__ populates values for all parameters (14 physics + 2 scaling)."""
+        assert len(space.values) == 16
+        for name in ALL_PARAM_NAMES_WITH_SCALING:
             assert name in space.values
 
     def test_post_init_populates_vary(self, space: ParameterSpace) -> None:
         """__post_init__ populates vary flags for all parameters."""
-        assert len(space.vary) == 14
+        assert len(space.vary) == 16
 
     def test_post_init_populates_bounds(self, space: ParameterSpace) -> None:
         """__post_init__ populates bounds for all parameters."""
-        assert len(space.bounds) == 14
+        assert len(space.bounds) == 16
 
     def test_post_init_populates_priors(self, space: ParameterSpace) -> None:
         """__post_init__ populates priors for all parameters."""
-        assert len(space.priors) == 14
-        # Default priors are uniform
-        for name in ALL_PARAM_NAMES:
-            assert space.priors[name].prior_type == PriorType.UNIFORM
+        assert len(space.priors) == 16
+        # Default priors are TruncatedNormal
+        for name in ALL_PARAM_NAMES_WITH_SCALING:
+            assert space.priors[name].prior_type == PriorType.TRUNCATED_NORMAL
 
     def test_n_total(self, space: ParameterSpace) -> None:
         """n_total returns 14."""
@@ -144,7 +147,7 @@ class TestParameterSpaceBasics:
         """n_varying returns count of varying parameters."""
         n = space.n_varying
         assert n > 0
-        assert n <= 14
+        assert n <= 16
 
     def test_varying_names(self, space: ParameterSpace) -> None:
         """varying_names returns list of varying parameter names."""
@@ -188,11 +191,12 @@ class TestParameterSpaceArrays:
         assert np.all(lower <= upper)
 
     def test_get_vary_mask(self, space: ParameterSpace) -> None:
-        """get_vary_mask returns boolean array."""
+        """get_vary_mask returns boolean array for 14 physics params."""
         mask = space.get_vary_mask()
         assert mask.shape == (14,)
         assert mask.dtype == bool
-        assert np.sum(mask) == space.n_varying
+        # get_vary_mask covers physics params only; compare to physics varying count
+        assert np.sum(mask) == len(space.varying_physics_names)
 
     def test_array_to_dict(self, space: ParameterSpace) -> None:
         """array_to_dict converts array to dict."""

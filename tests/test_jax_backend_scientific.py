@@ -357,13 +357,17 @@ class TestComputeTransportIntegralMatrix:
     @pytest.mark.unit
     @pytest.mark.requires_jax
     def test_diagonal_is_zero(self) -> None:
-        """Diagonal M[i,i] = 0 (integral from t_i to t_i)."""
+        """Diagonal M[i,i] ≈ 0 (integral from t_i to t_i).
+
+        Uses smooth abs sqrt(x² + ε) with ε=1e-12, so diagonal values
+        are sqrt(ε) ≈ 1e-6 rather than exactly zero.
+        """
         from heterodyne.core.jax_backend import compute_transport_integral_matrix
 
         t = jnp.arange(10, dtype=jnp.float64) * 1.0
         M = compute_transport_integral_matrix(t, D0=1.0, alpha=1.0, offset=0.0, dt=1.0)
 
-        assert_allclose(jnp.diag(M), 0.0, atol=1e-12)
+        assert_allclose(jnp.diag(M), 0.0, atol=2e-6)
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
@@ -390,7 +394,7 @@ class TestComputeTransportIntegralMatrix:
     @pytest.mark.unit
     @pytest.mark.requires_jax
     def test_constant_rate_analytical(self) -> None:
-        """Constant rate D0 (alpha=0): integral = D0 * |j-i| * dt.
+        """Constant rate D0 (alpha=0): integral ≈ D0 * |j-i| * dt.
 
         When alpha=0, J_rate(t) = D0 * t^0 + offset = D0 + offset.
         But at t=0, t^0 is handled as 0, so J_rate(0) = offset.
@@ -398,6 +402,9 @@ class TestComputeTransportIntegralMatrix:
 
         Use offset only (D0=0) for clean analytical check:
         J_rate = offset (constant), integral = offset * |j-i| * dt.
+
+        Uses smooth abs sqrt(x² + ε) with ε=1e-12, so diagonal values
+        are sqrt(ε) ≈ 1e-6 rather than exactly zero.
         """
         from heterodyne.core.jax_backend import compute_transport_integral_matrix
 
@@ -408,9 +415,11 @@ class TestComputeTransportIntegralMatrix:
         # Use D0=0, offset=rate to get constant rate for all t
         M = compute_transport_integral_matrix(t, D0=0.0, alpha=1.0, offset=rate, dt=dt)
 
-        # Expected: rate * |j - i| * dt
+        # Expected: smooth_abs(rate * (j - i) * dt)
+        # smooth_abs(x) = sqrt(x² + 1e-12)
         indices = jnp.arange(N, dtype=jnp.float64)
-        expected = rate * dt * jnp.abs(indices[None, :] - indices[:, None])
+        diff = rate * dt * (indices[None, :] - indices[:, None])
+        expected = jnp.sqrt(diff ** 2 + 1e-12)
         assert_allclose(M, expected, rtol=1e-10)
 
     @pytest.mark.unit

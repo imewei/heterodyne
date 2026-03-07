@@ -336,3 +336,312 @@ class TestFitNLSQMultiPhi:
         )
 
         assert len(results) == 2
+
+
+    @pytest.mark.integration
+    @pytest.mark.requires_jax
+    def test_fit_nlsq_multi_phi_fourier_joint_fit(
+        self,
+        small_heterodyne_model: HeterodyneModel,
+        small_c2_data: np.ndarray,
+        fast_nlsq_config: NLSQConfig,
+    ) -> None:
+        """Test fit_nlsq_multi_phi with Fourier joint fit (per_angle_mode='fourier')."""
+        from heterodyne.optimization.nlsq.config import NLSQConfig as _NLSQConfig
+        from heterodyne.optimization.nlsq.core import fit_nlsq_multi_phi
+
+        # Need enough angles for Fourier mode (> 2*order+1 = 5 for order=2)
+        n_angles = 8
+        c2_3d = np.stack([small_c2_data * (1.0 - 0.02 * i) for i in range(n_angles)])
+        phi_angles = np.linspace(0, 315, n_angles)
+
+        # Enable Fourier mode
+        fourier_config = _NLSQConfig(
+            max_iterations=10,
+            tolerance=1e-4,
+            method="trf",
+            verbose=0,
+            per_angle_mode="fourier",
+            fourier_order=2,
+        )
+
+        results = fit_nlsq_multi_phi(
+            model=small_heterodyne_model,
+            c2_data=c2_3d,
+            phi_angles=phi_angles,
+            config=fourier_config,
+        )
+
+        assert len(results) == n_angles
+        # All results should have joint Fourier metadata
+        for r in results:
+            assert r.metadata["optimizer"] == "joint_fourier"
+            assert "fourier_coeffs" in r.metadata
+            assert r.metadata["fourier_order"] == 2
+            assert r.metadata["n_angles_joint"] == n_angles
+            assert "contrast" in r.metadata
+            assert "offset" in r.metadata
+
+    @pytest.mark.integration
+    @pytest.mark.requires_jax
+    def test_fit_nlsq_multi_phi_independent_joint_fit(
+        self,
+        small_heterodyne_model: HeterodyneModel,
+        small_c2_data: np.ndarray,
+    ) -> None:
+        """Test independent mode with >1 angle uses joint fit with identity."""
+        from heterodyne.optimization.nlsq.config import NLSQConfig as _NLSQConfig
+        from heterodyne.optimization.nlsq.core import fit_nlsq_multi_phi
+
+        c2_3d = np.stack([small_c2_data, small_c2_data * 0.95])
+        phi_angles = [0.0, 45.0]
+
+        ind_config = _NLSQConfig(
+            max_iterations=10,
+            tolerance=1e-4,
+            method="trf",
+            verbose=0,
+            per_angle_mode="independent",
+        )
+
+        results = fit_nlsq_multi_phi(
+            model=small_heterodyne_model,
+            c2_data=c2_3d,
+            phi_angles=phi_angles,
+            config=ind_config,
+        )
+
+        assert len(results) == 2
+        # Independent mode with >1 angle still uses joint fit path
+        for r in results:
+            assert r.metadata["optimizer"] == "joint_fourier"
+
+    @pytest.mark.integration
+    @pytest.mark.requires_jax
+    def test_fit_nlsq_multi_phi_auto_mode_few_angles(
+        self,
+        small_heterodyne_model: HeterodyneModel,
+        small_c2_data: np.ndarray,
+    ) -> None:
+        """Test auto mode falls back to sequential for few angles."""
+        from heterodyne.optimization.nlsq.config import NLSQConfig as _NLSQConfig
+        from heterodyne.optimization.nlsq.core import fit_nlsq_multi_phi
+
+        c2_3d = np.stack([small_c2_data, small_c2_data * 0.9])
+        phi_angles = [0.0, 90.0]
+
+        auto_config = _NLSQConfig(
+            max_iterations=10,
+            tolerance=1e-4,
+            method="trf",
+            verbose=0,
+            per_angle_mode="auto",
+            fourier_auto_threshold=6,  # 2 angles < threshold
+        )
+
+        results = fit_nlsq_multi_phi(
+            model=small_heterodyne_model,
+            c2_data=c2_3d,
+            phi_angles=phi_angles,
+            config=auto_config,
+        )
+
+        assert len(results) == 2
+
+
+# ============================================================================
+# Test FourierReparameterizer
+# ============================================================================
+
+
+class TestFourierReparameterizer:
+    """Tests for homodyne-parity FourierReparameterizer."""
+
+    def test_fourier_mode_roundtrip(self) -> None:
+        """Fourier coefficients -> per-angle -> coefficients roundtrip."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        phi = np.linspace(0, 2 * np.pi, 20, endpoint=False)
+        config = FourierReparamConfig(mode="fourier", fourier_order=2)
+        fourier = FourierReparameterizer(phi, config)
+
+        assert fourier.use_fourier
+        assert fourier.n_coeffs_per_param == 5  # 1 + 2*2
+        assert fourier.n_coeffs == 10  # 2 * 5
+
+        # Create smooth per-angle values
+        contrast = 0.3 + 0.1 * np.cos(phi)
+        offset = 1.0 + 0.05 * np.cos(2 * phi)
+
+        # Convert to Fourier and back
+        coeffs = fourier.per_angle_to_fourier(contrast, offset)
+        assert coeffs.shape == (10,)
+
+        c_out, o_out = fourier.fourier_to_per_angle(coeffs)
+        np.testing.assert_allclose(c_out, contrast, atol=1e-10)
+        np.testing.assert_allclose(o_out, offset, atol=1e-10)
+
+    def test_independent_mode_passthrough(self) -> None:
+        """Independent mode is identity transform."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        phi = np.linspace(0, np.pi, 5)
+        config = FourierReparamConfig(mode="independent")
+        fourier = FourierReparameterizer(phi, config)
+
+        assert not fourier.use_fourier
+        assert fourier.n_coeffs == 10  # 2 * 5
+
+        contrast = np.array([0.3, 0.35, 0.28, 0.32, 0.31])
+        offset = np.array([1.0, 1.02, 0.98, 1.01, 0.99])
+
+        coeffs = fourier.per_angle_to_fourier(contrast, offset)
+        c_out, o_out = fourier.fourier_to_per_angle(coeffs)
+        np.testing.assert_allclose(c_out, contrast)
+        np.testing.assert_allclose(o_out, offset)
+
+    def test_auto_mode_threshold(self) -> None:
+        """Auto mode uses Fourier only above threshold."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        config = FourierReparamConfig(mode="auto", auto_threshold=6)
+
+        # Below threshold: independent
+        phi_small = np.linspace(0, 2 * np.pi, 4)
+        f_small = FourierReparameterizer(phi_small, config)
+        assert not f_small.use_fourier
+
+        # Above threshold: Fourier
+        phi_large = np.linspace(0, 2 * np.pi, 10)
+        f_large = FourierReparameterizer(phi_large, config)
+        assert f_large.use_fourier
+
+    def test_get_bounds(self) -> None:
+        """Bounds have correct shape and values."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        phi = np.linspace(0, 2 * np.pi, 12)
+        config = FourierReparamConfig(mode="fourier", fourier_order=2)
+        fourier = FourierReparameterizer(phi, config)
+
+        lower, upper = fourier.get_bounds()
+        assert lower.shape == (10,)
+        assert upper.shape == (10,)
+
+        # c0 bounds = c0_bounds
+        assert lower[0] == config.c0_bounds[0]
+        assert upper[0] == config.c0_bounds[1]
+
+        # Harmonic bounds = ck_bounds
+        assert lower[1] == config.ck_bounds[0]
+
+    def test_get_initial_coefficients_scalar(self) -> None:
+        """Scalar init creates uniform Fourier coefficients."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        phi = np.linspace(0, 2 * np.pi, 10, endpoint=False)
+        config = FourierReparamConfig(mode="fourier", fourier_order=2)
+        fourier = FourierReparameterizer(phi, config)
+
+        coeffs = fourier.get_initial_coefficients(0.3, 1.0)
+        c_out, o_out = fourier.fourier_to_per_angle(coeffs)
+
+        # Uniform input -> only DC component, others ~0
+        np.testing.assert_allclose(c_out, 0.3, atol=1e-10)
+        np.testing.assert_allclose(o_out, 1.0, atol=1e-10)
+
+    def test_get_coefficient_labels(self) -> None:
+        """Labels match expected Fourier coefficient naming."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        phi = np.linspace(0, 2 * np.pi, 10)
+        config = FourierReparamConfig(mode="fourier", fourier_order=2)
+        fourier = FourierReparameterizer(phi, config)
+
+        labels = fourier.get_coefficient_labels()
+        assert labels[0] == "contrast_c0"
+        assert "contrast_c1" in labels
+        assert "contrast_s1" in labels
+        assert "offset_c0" in labels
+        assert len(labels) == 10
+
+    def test_jacobian_transform(self) -> None:
+        """Jacobian has correct shape and structure."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        phi = np.linspace(0, 2 * np.pi, 8, endpoint=False)
+        config = FourierReparamConfig(mode="fourier", fourier_order=1)
+        fourier = FourierReparameterizer(phi, config)
+
+        J = fourier.get_jacobian_transform()
+        # 2*n_phi rows (per-angle), n_coeffs columns
+        assert J.shape == (16, 6)  # 2*8, 2*3
+
+    def test_diagnostics(self) -> None:
+        """Diagnostics dict contains expected keys."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        phi = np.linspace(0, 2 * np.pi, 20)
+        config = FourierReparamConfig(mode="fourier", fourier_order=2)
+        fourier = FourierReparameterizer(phi, config)
+
+        diag = fourier.get_diagnostics()
+        assert diag["use_fourier"] is True
+        assert diag["n_phi"] == 20
+        assert diag["n_coeffs"] == 10
+        assert diag["reduction_ratio"] < 1.0
+
+    def test_fourier_fallback_too_few_angles(self) -> None:
+        """Fourier mode falls back to independent when n_phi < min required."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        phi = np.array([0.0, 1.0, 2.0])  # 3 angles < 5 (min for order=2)
+        config = FourierReparamConfig(mode="fourier", fourier_order=2)
+        fourier = FourierReparameterizer(phi, config)
+        assert not fourier.use_fourier  # Falls back
+
+    def test_to_from_fourier_single_group(self) -> None:
+        """to_fourier/from_fourier roundtrip for single parameter group."""
+        from heterodyne.optimization.nlsq.fourier_reparam import (
+            FourierReparamConfig,
+            FourierReparameterizer,
+        )
+        phi = np.linspace(0, 2 * np.pi, 15, endpoint=False)
+        config = FourierReparamConfig(mode="fourier", fourier_order=2)
+        fourier = FourierReparameterizer(phi, config)
+
+        values = 0.5 + 0.1 * np.cos(phi) + 0.05 * np.sin(2 * phi)
+        coeffs = fourier.to_fourier(values)
+        reconstructed = fourier.from_fourier(coeffs)
+        np.testing.assert_allclose(reconstructed, values, atol=1e-10)
+
+    def test_from_dict_config(self) -> None:
+        """FourierReparamConfig.from_dict creates correct config."""
+        from heterodyne.optimization.nlsq.fourier_reparam import FourierReparamConfig
+
+        config = FourierReparamConfig.from_dict({
+            "per_angle_mode": "fourier",
+            "fourier_order": 3,
+            "fourier_auto_threshold": 10,
+        })
+        assert config.mode == "fourier"
+        assert config.fourier_order == 3
+        assert config.auto_threshold == 10

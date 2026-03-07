@@ -45,10 +45,10 @@ class TestHeterodyneModel:
         # Correlation should be positive
         assert np.all(c2 >= 0)
 
-        # Diagonal should be close to offset + contrast = 2.0
-        # (offset=1.0, contrast=1.0, normalized self-correlation=1.0)
+        # Diagonal should be close to offset + contrast = 1.5
+        # (offset=1.0, contrast=0.5 from PerAngleScaling default)
         diag = np.diag(np.asarray(c2))
-        assert np.allclose(diag[0], 2.0, rtol=0.1)
+        assert np.allclose(diag[0], 1.5, rtol=0.1)
 
 
 class TestJaxBackend:
@@ -106,9 +106,9 @@ class TestParameterManager:
 
         assert len(ALL_PARAM_NAMES) == 14
 
-        # Check all groups sum to 14
+        # Check all groups sum to 16 (14 physics + 2 scaling)
         total = sum(len(names) for names in PARAM_GROUPS.values())
-        assert total == 14
+        assert total == 16
 
     def test_parameter_space(self) -> None:
         """Test ParameterSpace defaults."""
@@ -116,9 +116,9 @@ class TestParameterManager:
 
         space = ParameterSpace()
 
-        assert space.n_total == 14
-        assert len(space.values) == 14
-        assert len(space.bounds) == 14
+        assert space.n_total == 14  # Physics params only
+        assert len(space.values) == 16  # 14 physics + 2 scaling
+        assert len(space.bounds) == 16
 
         # Check defaults are within bounds
         for name in space.values:

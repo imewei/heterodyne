@@ -13,8 +13,10 @@ from numpy.testing import assert_allclose
 
 from heterodyne.optimization.nlsq.config import NLSQConfig
 from heterodyne.optimization.nlsq.multistart import (
+    MultiStartConfig,
     MultiStartOptimizer,
     MultiStartResult,
+    SingleStartResult,
 )
 from heterodyne.optimization.nlsq.results import NLSQResult
 
@@ -69,14 +71,14 @@ class TestMultiStartOptimizerInit:
     def test_init_with_defaults(self, mock_adapter: MagicMock) -> None:
         """Initialize with default values."""
         optimizer = MultiStartOptimizer(mock_adapter)
-        assert optimizer._n_starts == 10
+        assert optimizer._config.n_starts == 10
         assert optimizer._adapter is mock_adapter
 
     @pytest.mark.unit
     def test_init_with_custom_n_starts(self, mock_adapter: MagicMock) -> None:
         """Initialize with custom number of starts."""
         optimizer = MultiStartOptimizer(mock_adapter, n_starts=20)
-        assert optimizer._n_starts == 20
+        assert optimizer._config.n_starts == 20
 
     @pytest.mark.unit
     def test_init_with_seed_reproducible(self, mock_adapter: MagicMock) -> None:
@@ -463,11 +465,18 @@ class TestMultiStartResult:
             success=True,
             message="OK",
         )
+        single = SingleStartResult(
+            result=best_result,
+            start_index=0,
+            initial_params=np.array([0.5]),
+            wall_time=0.1,
+        )
         result = MultiStartResult(
             best_result=best_result,
-            all_results=[best_result],
+            all_starts=[single],
             n_successful=1,
             n_total=1,
+            config=MultiStartConfig(n_starts=1),
         )
 
         assert result.best_result is best_result

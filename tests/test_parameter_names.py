@@ -33,15 +33,17 @@ class TestModuleConstants:
             assert PARAM_INDICES[name] == i
 
     def test_param_groups_coverage(self) -> None:
-        """All parameters belong to exactly one group."""
+        """All physics parameters belong to at least one group."""
         all_in_groups = []
         for group_names in PARAM_GROUPS.values():
             all_in_groups.extend(group_names)
-        assert sorted(all_in_groups) == sorted(ALL_PARAM_NAMES)
+        # All physics params must appear; scaling params also appear in groups
+        for name in ALL_PARAM_NAMES:
+            assert name in all_in_groups, f"{name} not in any group"
 
     def test_param_groups_keys(self) -> None:
         """PARAM_GROUPS has expected keys."""
-        expected_groups = {"reference", "sample", "velocity", "fraction", "angle"}
+        expected_groups = {"reference", "sample", "velocity", "fraction", "angle", "scaling"}
         assert set(PARAM_GROUPS.keys()) == expected_groups
 
 

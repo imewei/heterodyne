@@ -209,7 +209,7 @@ class TestComputeBFMI:
         energy = np.array([1.0, 2.0, 4.0, 3.0, 5.0, 4.0])
 
         computed = compute_bfmi(energy)
-        expected = float(az.bfmi(energy)[0])
+        expected = float(az.bfmi(energy[np.newaxis, :])[0])
 
         assert_allclose(computed, expected, rtol=1e-12)
 

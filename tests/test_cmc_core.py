@@ -323,7 +323,7 @@ class TestCMCResult:
 
     @pytest.mark.unit
     def test_cmc_config_validation(self) -> None:
-        """Test CMCConfig validates chain count."""
+        """Test CMCConfig.validate() catches invalid chain count."""
         from heterodyne import CMCConfig
 
         # Valid configurations
@@ -331,9 +331,10 @@ class TestCMCResult:
         CMCConfig(num_chains=2)
         CMCConfig(num_chains=4)
 
-        # Invalid: 0 chains
-        with pytest.raises(ValueError):
-            CMCConfig(num_chains=0)
+        # Invalid: 0 chains — caught by validate()
+        config = CMCConfig(num_chains=0)
+        errors = config.validate()
+        assert any("num_chains" in e for e in errors)
 
 
 class TestBugPrevention_MultiChainInit:
@@ -482,7 +483,7 @@ class TestReparamBackwardCompat:
 
         config = CMCConfig()
         assert config.use_reparam is True
-        assert config.prior_width_factor == 2.0
+        assert config.nlsq_prior_width_factor == 2.0
 
     @pytest.mark.unit
     def test_config_from_dict_new_fields(self) -> None:
@@ -496,7 +497,7 @@ class TestReparamBackwardCompat:
             "prior_width_factor": 3.0,
         })
         assert config.use_reparam is False
-        assert config.prior_width_factor == 3.0
+        assert config.nlsq_prior_width_factor == 3.0
 
     @pytest.mark.unit
     def test_config_to_dict_new_fields(self) -> None:
@@ -505,8 +506,8 @@ class TestReparamBackwardCompat:
 
         config = CMCConfig()
         d = config.to_dict()
-        assert "use_reparam" in d
-        assert "prior_width_factor" in d
+        assert "use_reparam" in d["reparameterization"]
+        assert "nlsq_prior_width_factor" in d["nlsq"]
 
     @pytest.mark.unit
     @pytest.mark.slow

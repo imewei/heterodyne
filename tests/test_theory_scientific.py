@@ -234,7 +234,8 @@ class TestComputeTransportIntegralMatrix:
         t = jnp.arange(10.0)
         M = compute_transport_integral_matrix(t, D0=1.0, alpha=1.0, offset=0.0, dt=1.0)
 
-        assert_allclose(jnp.diag(M), 0.0, atol=1e-12)
+        # Smooth abs sqrt(x² + ε) with ε=1e-12 gives sqrt(ε) ≈ 1e-6 on diagonal
+        assert_allclose(jnp.diag(M), 0.0, atol=2e-6)
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
@@ -261,7 +262,7 @@ class TestComputeTransportIntegralMatrix:
     @pytest.mark.unit
     @pytest.mark.requires_jax
     def test_constant_rate_analytical(self) -> None:
-        """Constant rate: integral = rate * |j-i| * dt."""
+        """Constant rate: integral ≈ smooth_abs(rate * (j-i) * dt)."""
         from heterodyne.core.theory import compute_transport_integral_matrix
 
         N = 10
@@ -270,8 +271,10 @@ class TestComputeTransportIntegralMatrix:
         dt = 1.0
         M = compute_transport_integral_matrix(t, D0=0.0, alpha=1.0, offset=rate, dt=dt)
 
+        # Expected: smooth_abs(rate * (j - i) * dt) = sqrt((rate*(j-i)*dt)² + ε)
         indices = jnp.arange(N, dtype=jnp.float64)
-        expected = rate * dt * jnp.abs(indices[None, :] - indices[:, None])
+        diff = rate * dt * (indices[None, :] - indices[:, None])
+        expected = jnp.sqrt(diff ** 2 + 1e-12)
         assert_allclose(M, expected, rtol=1e-10)
 
     @pytest.mark.unit

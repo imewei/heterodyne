@@ -171,11 +171,13 @@ class TestHeterodyneModelParameters:
 
     @pytest.mark.unit
     def test_get_params_dict(self, model: HeterodyneModel) -> None:
-        """get_params_dict returns parameter dictionary."""
+        """get_params_dict returns parameter dictionary (14 physics + 2 scaling)."""
         params_dict = model.get_params_dict()
-        assert len(params_dict) == 14
+        assert len(params_dict) == 16
         assert "D0_ref" in params_dict
         assert "f0" in params_dict
+        assert "contrast" in params_dict
+        assert "offset" in params_dict
 
     @pytest.mark.unit
     def test_set_params_array(self, model: HeterodyneModel) -> None:
