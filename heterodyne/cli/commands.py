@@ -38,7 +38,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
     Returns:
         Exit code
     """
-    logger.info(f"Loading configuration from {args.config}")
+    logger.info("Loading configuration from %s", args.config)
     config_manager = ConfigManager.from_yaml(args.config)
 
     # Override output directory if specified
@@ -46,20 +46,20 @@ def dispatch_command(args: argparse.Namespace) -> int:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Output directory: {output_dir}")
+    logger.info("Output directory: %s", output_dir)
 
     # Load data
-    logger.info(f"Loading data from {config_manager.data_file_path}")
+    logger.info("Loading data from %s", config_manager.data_file_path)
     data = load_xpcs_data(config_manager.data_file_path)
 
     # Validate data
     validation = validate_xpcs_data(data)
     if not validation.is_valid:
         for err in validation.errors:
-            logger.error(f"Data validation error: {err}")
+            logger.error("Data validation error: %s", err)
         return 1
     for warn in validation.warnings:
-        logger.warning(f"Data validation warning: {warn}")
+        logger.warning("Data validation warning: %s", warn)
 
     # Create model
     model = HeterodyneModel.from_config(config_manager.raw_config)
@@ -71,7 +71,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
     if phi_angles is None:
         phi_angles = [0.0]  # Default single angle
 
-    logger.info(f"Analyzing phi angles: {phi_angles}")
+    logger.info("Analyzing phi angles: %s", phi_angles)
 
     # Initialize result containers to avoid UnboundLocalError
     nlsq_results: list[NLSQResult] = []
@@ -147,7 +147,7 @@ def run_nlsq_analysis(
     results: list[NLSQResult] = []
 
     for i, phi in enumerate(phi_angles):
-        logger.info(f"Fitting phi={phi}° ({i+1}/{len(phi_angles)})")
+        logger.info("Fitting phi=%s° (%d/%d)", phi, i+1, len(phi_angles))
 
         # Get c2 for this angle (assumes c2_data is 2D or 3D)
         if c2_data.ndim == 3:
@@ -216,7 +216,7 @@ def run_cmc_analysis(
     results: list[CMCResult] = []
 
     for i, phi in enumerate(phi_angles):
-        logger.info(f"CMC for phi={phi}° ({i+1}/{len(phi_angles)})")
+        logger.info("CMC for phi=%s° (%d/%d)", phi, i+1, len(phi_angles))
 
         if c2_data.ndim == 3:
             c2_phi = c2_data[i]
@@ -274,7 +274,7 @@ def generate_plots(
     plots_dir = output_dir / "plots"
     plots_dir.mkdir(exist_ok=True)
 
-    logger.info(f"Generating plots in {plots_dir}")
+    logger.info("Generating plots in %s", plots_dir)
 
     # Raw data plot
     c2_2d = c2_data[0] if c2_data.ndim == 3 else c2_data

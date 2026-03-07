@@ -3,16 +3,33 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import numpy as np
 
-from heterodyne.config.parameter_names import ALL_PARAM_NAMES, PARAM_GROUPS
+from heterodyne.config.parameter_names import (
+    ALL_PARAM_NAMES,
+    ALL_PARAM_NAMES_WITH_SCALING,
+    PARAM_GROUPS,
+    SCALING_PARAMS,
+)
 from heterodyne.config.parameter_space import ParameterSpace
-from heterodyne.config.physics_validators import validate_time_integral_safety
+from heterodyne.config.physics_validators import ValidationResult, validate_parameters
+from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
     import jax.numpy as jnp
+
+logger = get_logger(__name__)
+
+
+class BoundDict(TypedDict):
+    """Bound specification for a single parameter."""
+
+    name: str
+    min: float
+    max: float
+    type: str
 
 
 @dataclass
@@ -24,40 +41,78 @@ class ParameterManager:
     - Handling parameter transformations (e.g., bounded -> unbounded)
     - Constructing full parameter arrays from varying subsets
     - Validating parameter values against physics constraints
+
+    Performance caching is enabled by default for repeated bound and
+    active-parameter queries.
     """
 
     space: ParameterSpace = field(default_factory=ParameterSpace)
 
+    # Performance caching — populated lazily via __post_init__
+    _bounds_cache: dict[str, list[BoundDict]] = field(
+        default_factory=dict, init=False, repr=False
+    )
+    _active_params_cache: list[str] | None = field(
+        default=None, init=False, repr=False
+    )
+    _cache_enabled: bool = field(default=True, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        """Build default bounds lookup from the registry."""
+        from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
+
+        self._default_bounds: dict[str, BoundDict] = {}
+        for name in ALL_PARAM_NAMES_WITH_SCALING:
+            info = DEFAULT_REGISTRY[name]
+            self._default_bounds[name] = BoundDict(
+                name=name,
+                min=info.min_bound,
+                max=info.max_bound,
+                type="TruncatedNormal",
+            )
+
+    # ------------------------------------------------------------------
+    # Core existing API
+    # ------------------------------------------------------------------
+
     @property
     def n_params(self) -> int:
-        """Total number of model parameters (14)."""
+        """Total number of physics model parameters (14)."""
         return len(ALL_PARAM_NAMES)
 
     @property
     def n_varying(self) -> int:
-        """Number of parameters that vary in optimization."""
-        return self.space.n_varying
+        """Number of physics parameters that vary in optimization."""
+        return len(self.varying_names)
 
     @property
     def varying_names(self) -> list[str]:
-        """Names of varying parameters."""
-        return self.space.varying_names
+        """Names of varying physics parameters (excludes scaling)."""
+        return self.space.varying_physics_names
 
     @property
     def varying_indices(self) -> list[int]:
-        """Indices of varying parameters in full array."""
-        return [i for i, name in enumerate(ALL_PARAM_NAMES) if self.space.vary[name]]
+        """Indices of varying parameters in the 14-element physics array."""
+        return [
+            i
+            for i, name in enumerate(ALL_PARAM_NAMES)
+            if self.space.vary.get(name, False)
+        ]
 
     @property
     def fixed_indices(self) -> list[int]:
-        """Indices of fixed parameters in full array."""
-        return [i for i, name in enumerate(ALL_PARAM_NAMES) if not self.space.vary[name]]
+        """Indices of fixed parameters in the 14-element physics array."""
+        return [
+            i
+            for i, name in enumerate(ALL_PARAM_NAMES)
+            if not self.space.vary.get(name, False)
+        ]
 
     def get_initial_values(self) -> np.ndarray:
         """Get initial parameter values for optimization.
 
         Returns:
-            Array of shape (n_varying,) with initial values for varying params
+            Array of shape (n_varying,) with initial values for varying params.
         """
         full = self.space.get_initial_array()
         return full[self.varying_indices]
@@ -66,15 +121,15 @@ class ParameterManager:
         """Get all 14 parameter values.
 
         Returns:
-            Array of shape (14,)
+            Array of shape (14,).
         """
         return self.space.get_initial_array()
 
     def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:
-        """Get bounds for varying parameters.
+        """Get bounds for varying physics parameters.
 
         Returns:
-            (lower, upper) each of shape (n_varying,)
+            (lower, upper) each of shape (n_varying,).
         """
         lower_full, upper_full = self.space.get_bounds_arrays()
         idx = self.varying_indices
@@ -89,10 +144,10 @@ class ParameterManager:
         Fixed parameters are filled from stored values.
 
         Args:
-            varying_params: Array of shape (n_varying,)
+            varying_params: Array of shape (n_varying,).
 
         Returns:
-            Array of shape (14,)
+            Array of shape (14,).
         """
         full = self.space.get_initial_array().copy()
         for i, idx in enumerate(self.varying_indices):
@@ -103,10 +158,10 @@ class ParameterManager:
         """Extract varying parameters from full array.
 
         Args:
-            full_params: Array of shape (14,)
+            full_params: Array of shape (14,).
 
         Returns:
-            Array of shape (n_varying,)
+            Array of shape (n_varying,).
         """
         return np.array([full_params[i] for i in self.varying_indices])
 
@@ -114,7 +169,7 @@ class ParameterManager:
         """Update stored parameter values.
 
         Args:
-            params: Either array of shape (14,) or dict with param names
+            params: Either array of shape (14,) or dict with param names.
         """
         if isinstance(params, dict):
             self.space.update_from_dict(params)
@@ -129,80 +184,62 @@ class ParameterManager:
     def set_vary(self, name: str, vary: bool) -> None:
         """Set whether a parameter varies in optimization.
 
+        Invalidates relevant caches.
+
         Args:
-            name: Parameter name
-            vary: Whether to vary this parameter
+            name: Parameter name (physics or scaling).
+            vary: Whether to vary this parameter.
         """
-        if name not in ALL_PARAM_NAMES:
+        if name not in ALL_PARAM_NAMES_WITH_SCALING:
             raise ValueError(f"Unknown parameter: {name}")
         self.space.vary[name] = vary
+        # Varying status change affects active/fixed caches
+        self._active_params_cache = None
 
     def set_bounds(self, name: str, lower: float, upper: float) -> None:
         """Set bounds for a parameter.
 
+        Invalidates the bounds cache for any query that includes this parameter.
+
         Args:
-            name: Parameter name
-            lower: Lower bound
-            upper: Upper bound
+            name: Parameter name (physics or scaling).
+            lower: Lower bound.
+            upper: Upper bound.
         """
-        if name not in ALL_PARAM_NAMES:
+        if name not in ALL_PARAM_NAMES_WITH_SCALING:
             raise ValueError(f"Unknown parameter: {name}")
         self.space.bounds[name] = (lower, upper)
+        # Update the local default_bounds mirror and flush cache
+        if name in self._default_bounds:
+            self._default_bounds[name]["min"] = lower
+            self._default_bounds[name]["max"] = upper
+        self._bounds_cache.clear()
 
     def validate_physics(self, params: np.ndarray | None = None) -> list[str]:
         """Validate parameters against physics constraints.
 
         Args:
-            params: Full parameter array, or None to use stored values
+            params: Full parameter array of shape (14,), or None to use stored
+                values.
 
         Returns:
-            List of violation messages (empty if valid)
+            List of violation messages (empty if valid).
         """
         if params is None:
             params = self.get_full_values()
 
-        violations = []
-        param_dict = self.space.array_to_dict(params)
-
-        # Diffusion coefficients must be non-negative
-        for prefix in ("D0_ref", "D0_sample"):
-            if param_dict[prefix] < 0:
-                violations.append(f"{prefix} must be non-negative")
-
-        # Fraction parameters f0, f3 should be in [0, 1]
-        for name in ("f0", "f3"):
-            val = param_dict[name]
-            if not (0 <= val <= 1):
-                violations.append(f"{name}={val:.3f} should be in [0, 1]")
-
-        # Alpha exponents typically in [-2, 2]
-        for name in ("alpha_ref", "alpha_sample", "beta"):
-            val = param_dict[name]
-            if abs(val) > 2:
-                violations.append(f"{name}={val:.3f} has unusual magnitude (>2)")
-
-        # Time integral safety for alpha exponents
-        # Use small positive t_min to avoid t^alpha divergence at t=0
-        for alpha_name in ("alpha_ref", "alpha_sample"):
-            result = validate_time_integral_safety(
-                alpha=param_dict[alpha_name],
-                t_min=1e-10,
-                t_max=1e6,
-            )
-            violations.extend(result.errors)
-            violations.extend(result.warnings)
-
-        return violations
+        result = validate_parameters(params)
+        return result.errors + result.warnings
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> ParameterManager:
         """Create ParameterManager from configuration dictionary.
 
         Args:
-            config: Full configuration dict
+            config: Full configuration dict.
 
         Returns:
-            Configured ParameterManager
+            Configured ParameterManager.
         """
         space = ParameterSpace.from_config(config)
         return cls(space=space)
@@ -211,11 +248,278 @@ class ParameterManager:
         """Get parameter values for a specific group.
 
         Args:
-            group: Group name ('reference', 'sample', 'velocity', 'fraction', 'angle')
+            group: Group name ('reference', 'sample', 'velocity',
+                'fraction', 'angle', 'scaling').
 
         Returns:
-            Dict mapping parameter names to values
+            Dict mapping parameter names to values.
         """
         if group not in PARAM_GROUPS:
             raise ValueError(f"Unknown group: {group}")
         return {name: self.space.values[name] for name in PARAM_GROUPS[group]}
+
+    # ------------------------------------------------------------------
+    # New API: bounds queries
+    # ------------------------------------------------------------------
+
+    def get_parameter_bounds(
+        self,
+        parameter_names: list[str] | None = None,
+    ) -> list[BoundDict]:
+        """Get parameter bounds configuration with caching.
+
+        Args:
+            parameter_names: Names of parameters to retrieve bounds for. If
+                None, returns bounds for all 16 parameters
+                (14 physics + 2 scaling) in canonical order.
+
+        Returns:
+            List of BoundDict entries with keys 'name', 'min', 'max', 'type'.
+
+        Notes:
+            Results are cached per unique (sorted) parameter set. Cache is
+            invalidated automatically by set_bounds().
+        """
+        if parameter_names is None:
+            parameter_names = list(ALL_PARAM_NAMES_WITH_SCALING)
+
+        cache_key = str(sorted(parameter_names))
+
+        if self._cache_enabled and cache_key in self._bounds_cache:
+            logger.debug(
+                "Returning cached bounds for %d parameters", len(parameter_names)
+            )
+            return [b.copy() for b in self._bounds_cache[cache_key]]  # type: ignore[return-value]
+
+        bounds_list: list[BoundDict] = []
+        for name in parameter_names:
+            if name in self._default_bounds:
+                # Always reflect live space.bounds (may differ from registry defaults
+                # if set_bounds() was called)
+                lo, hi = self.space.bounds.get(name, (
+                    self._default_bounds[name]["min"],
+                    self._default_bounds[name]["max"],
+                ))
+                bounds_list.append(
+                    BoundDict(name=name, min=lo, max=hi, type="TruncatedNormal")
+                )
+            else:
+                logger.warning(
+                    "Unknown parameter '%s', using default bounds [0.0, 1.0]", name
+                )
+                bounds_list.append(
+                    BoundDict(name=name, min=0.0, max=1.0, type="TruncatedNormal")
+                )
+
+        if self._cache_enabled:
+            self._bounds_cache[cache_key] = [b.copy() for b in bounds_list]  # type: ignore[misc]
+
+        return bounds_list
+
+    def get_bounds_as_tuples(
+        self,
+        parameter_names: list[str] | None = None,
+    ) -> list[tuple[float, float]]:
+        """Get parameter bounds as a list of (min, max) tuples.
+
+        Convenience method for compatibility with optimization code that
+        expects the scipy-style bounds format.
+
+        Args:
+            parameter_names: Parameter names. If None, uses all 16 parameters.
+
+        Returns:
+            List of (min, max) tuples, one per parameter.
+        """
+        return [(b["min"], b["max"]) for b in self.get_parameter_bounds(parameter_names)]
+
+    def get_bounds_as_arrays(
+        self,
+        parameter_names: list[str] | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Get parameter bounds as separate lower and upper numpy arrays.
+
+        Convenience method for NLSQ and JAX optimizers that consume separate
+        lower/upper bound arrays.
+
+        Args:
+            parameter_names: Parameter names. If None, uses all 16 parameters.
+
+        Returns:
+            (lower_bounds, upper_bounds) as numpy arrays of shape (n_params,).
+        """
+        bd = self.get_parameter_bounds(parameter_names)
+        lower = np.array([b["min"] for b in bd])
+        upper = np.array([b["max"] for b in bd])
+        return lower, upper
+
+    # ------------------------------------------------------------------
+    # New API: active / fixed / optimizable parameter queries
+    # ------------------------------------------------------------------
+
+    def get_active_parameters(self) -> list[str]:
+        """Get physics parameter names that are marked as varying.
+
+        Returns the 14-element physics parameters (excludes scaling) whose
+        ``vary`` flag is True in the current ParameterSpace. Falls back to all
+        14 physics parameters if the space has no explicit vary flags set.
+
+        Results are cached; call set_vary() to invalidate automatically.
+
+        Returns:
+            List of varying physics parameter names in canonical order.
+        """
+        if self._cache_enabled and self._active_params_cache is not None:
+            logger.debug("Returning cached active parameters")
+            return list(self._active_params_cache)
+
+        active = self.space.varying_physics_names
+        # Fall back to all physics params when none are flagged as varying
+        # (e.g. a freshly constructed manager with all vary=False defaults)
+        if not active:
+            active = list(ALL_PARAM_NAMES)
+
+        if self._cache_enabled:
+            self._active_params_cache = list(active)
+
+        return active
+
+    def get_all_parameter_names(self) -> list[str]:
+        """Get all parameter names: scaling parameters first, then physics.
+
+        Returns:
+            List of 16 names (contrast, offset, then the 14 physics params) in
+            canonical order.
+        """
+        return list(SCALING_PARAMS) + list(ALL_PARAM_NAMES)
+
+    def get_effective_parameter_count(self) -> int:
+        """Number of active (varying) physics parameters, excluding scaling.
+
+        Returns:
+            Count of physics parameters whose vary flag is True.
+        """
+        return len(self.get_active_parameters())
+
+    def get_total_parameter_count(self) -> int:
+        """Total parameter count including both scaling and physics parameters.
+
+        Returns:
+            Always 16 for the heterodyne model (14 physics + 2 scaling).
+        """
+        return len(ALL_PARAM_NAMES_WITH_SCALING)
+
+    def get_fixed_parameters(self) -> dict[str, float]:
+        """Return physics parameters that are held fixed during optimization.
+
+        A parameter is considered fixed when its ``vary`` flag is False in the
+        ParameterSpace.  Scaling parameters (contrast, offset) are excluded
+        from this result — use get_parameter_dict() to access their values.
+
+        Returns:
+            Dict mapping fixed physics parameter name to its current value.
+        """
+        return {
+            name: self.space.values[name]
+            for name in ALL_PARAM_NAMES
+            if not self.space.vary.get(name, False)
+        }
+
+    def is_parameter_active(self, param_name: str) -> bool:
+        """Check whether a physics parameter is active (vary=True).
+
+        Args:
+            param_name: Physics parameter name to check. Must be one of the 14
+                physics parameters; scaling names always return False.
+
+        Returns:
+            True if the parameter's vary flag is True, False otherwise.
+        """
+        if param_name not in ALL_PARAM_NAMES:
+            return False
+        return bool(self.space.vary.get(param_name, False))
+
+    def get_optimizable_parameters(self) -> list[str]:
+        """Return physics parameters that should be optimized.
+
+        Equivalent to active parameters (vary=True). Scaling parameters are
+        handled separately and are not included.
+
+        Returns:
+            List of physics parameter names with vary=True, in canonical order.
+        """
+        return self.get_active_parameters()
+
+    # ------------------------------------------------------------------
+    # New API: physics constraint validation with severity
+    # ------------------------------------------------------------------
+
+    def validate_physical_constraints(
+        self,
+        params: dict[str, float] | np.ndarray | None = None,
+        severity_level: str = "warning",
+    ) -> ValidationResult:
+        """Validate physics-based constraints beyond simple bound checking.
+
+        Checks for physically impossible or unusual parameter combinations
+        based on the heterodyne two-component scattering model.
+
+        Args:
+            params: Parameter dict, array of shape (14,), or None to use stored
+                values. Dict keys must be physics parameter names.
+            severity_level: Minimum severity to include in the result. One of:
+                - ``"error"``   — physically impossible values only.
+                - ``"warning"`` — unusual but possible values (default).
+                - ``"info"``    — all noteworthy observations.
+                Currently the heterodyne validator does not distinguish severity
+                internally; this argument is accepted for API parity with
+                homodyne and is reserved for future use.
+
+        Returns:
+            ValidationResult with ``is_valid``, ``errors``, and ``warnings``.
+        """
+        if params is None:
+            arr = self.get_full_values()
+        elif isinstance(params, dict):
+            arr = self.get_full_values().copy()
+            param_dict_full = self.space.array_to_dict(arr)
+            param_dict_full.update(
+                {k: v for k, v in params.items() if k in param_dict_full}
+            )
+            arr = np.array(
+                [param_dict_full[name] for name in ALL_PARAM_NAMES]
+            )
+        else:
+            arr = np.asarray(params, dtype=float)
+
+        result = validate_parameters(arr)
+
+        if severity_level == "error":
+            # Suppress warnings, keep only errors
+            return ValidationResult(
+                is_valid=len(result.errors) == 0,
+                errors=result.errors,
+                warnings=[],
+            )
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Dunder
+    # ------------------------------------------------------------------
+
+    def __repr__(self) -> str:
+        """Concise string representation of manager state."""
+        n_active = len(self.get_active_parameters())
+        n_fixed = len(self.get_fixed_parameters())
+        n_varying_scaling = sum(
+            1 for name in SCALING_PARAMS if self.space.vary.get(name, False)
+        )
+        return (
+            f"ParameterManager("
+            f"n_physics={self.n_params}, "
+            f"active={n_active}, "
+            f"fixed={n_fixed}, "
+            f"scaling_varying={n_varying_scaling}, "
+            f"total={self.get_total_parameter_count()})"
+        )

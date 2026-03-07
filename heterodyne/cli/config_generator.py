@@ -82,7 +82,7 @@ def generate_config(
 
     for placeholder, replacement in substitutions:
         if placeholder not in content:
-            logger.warning(f"Placeholder '{placeholder}' not found in template")
+            logger.warning("Placeholder '%s' not found in template", placeholder)
         content = content.replace(placeholder, replacement)
 
     # Write output
@@ -90,7 +90,7 @@ def generate_config(
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(content)
 
-    logger.info(f"Generated configuration: {output_path}")
+    logger.info("Generated configuration: %s", output_path)
 
     return output_path
 

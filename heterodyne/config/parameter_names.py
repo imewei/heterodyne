@@ -25,6 +25,12 @@ FRACTION_PARAMS: tuple[str, ...] = ("f0", "f1", "f2", "f3")
 # Angle parameter: flow angle relative to scattering vector
 ANGLE_PARAMS: tuple[str, ...] = ("phi0",)
 
+# Scaling parameters: speckle contrast and baseline offset
+# These follow the homodyne convention (c2 = offset + contrast × [...])
+# and are tracked in the parameter space but NOT in the 14-element
+# physics parameter array passed to the JIT backend.
+SCALING_PARAMS: tuple[str, ...] = ("contrast", "offset")
+
 # All 14 parameter names in canonical order
 ALL_PARAM_NAMES: tuple[str, ...] = (
     # Reference transport (3)
@@ -55,7 +61,11 @@ PARAM_GROUPS: dict[str, tuple[str, ...]] = {
     "velocity": VELOCITY_PARAMS,
     "fraction": FRACTION_PARAMS,
     "angle": ANGLE_PARAMS,
+    "scaling": SCALING_PARAMS,
 }
+
+# All parameter names including scaling (16 total)
+ALL_PARAM_NAMES_WITH_SCALING: tuple[str, ...] = ALL_PARAM_NAMES + SCALING_PARAMS
 
 # Parameter indices in flattened array
 PARAM_INDICES: dict[str, int] = {name: i for i, name in enumerate(ALL_PARAM_NAMES)}

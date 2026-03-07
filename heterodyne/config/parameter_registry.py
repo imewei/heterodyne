@@ -1,4 +1,7 @@
-"""Parameter registry with metadata and bounds for heterodyne model."""
+"""Parameter registry with metadata and bounds for heterodyne model.
+
+All length units use Å (angstroms) for consistency with practical XPCS convention.
+"""
 
 from __future__ import annotations
 
@@ -17,7 +20,24 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class ParameterInfo:
-    """Metadata for a single model parameter."""
+    """Metadata for a single model parameter.
+
+    Attributes:
+        name: Parameter name matching canonical order in parameter_names.py.
+        default: Default value (must be within [min_bound, max_bound]).
+        min_bound: Lower bound for optimization.
+        max_bound: Upper bound for optimization.
+        description: Human-readable description.
+        unit: Physical unit string (e.g. "Å²/s^α").
+        group: Parameter group name.
+        vary_default: Whether this parameter varies by default in optimization.
+        log_space: If True, MCMC samplers should reparameterize in log-space.
+        prior_mean: Center of the default Bayesian prior (None = midpoint of bounds).
+        prior_std: Width of the default Bayesian prior (None = half-range of bounds).
+        is_scaling: If True, this parameter participates in per-angle expansion.
+        is_physical: If True, this is a physical model parameter (not scaling).
+        is_flow: If True, this parameter is related to flow/velocity.
+    """
 
     name: str
     default: float
@@ -27,6 +47,12 @@ class ParameterInfo:
     unit: str = ""
     group: str = ""
     vary_default: bool = True
+    log_space: bool = False
+    prior_mean: float | None = None
+    prior_std: float | None = None
+    is_scaling: bool = False
+    is_physical: bool = True
+    is_flow: bool = False
 
     def validate_value(self, value: float) -> bool:
         """Check if value is within bounds."""
@@ -91,105 +117,158 @@ class ParameterRegistry:
                 indices.append(i)
         return indices
 
+    def get_log_space_names(self) -> list[str]:
+        """Get names of parameters that should be sampled in log-space."""
+        return [
+            name
+            for name in self
+            if self._parameters[name].log_space
+        ]
+
+    def get_scaling_names(self) -> list[str]:
+        """Get names of per-angle scaling parameters."""
+        return [
+            name
+            for name in self._parameters
+            if self._parameters[name].is_scaling
+        ]
+
 
 def _create_default_registry() -> dict[str, ParameterInfo]:
-    """Create default parameter registry for heterodyne model."""
+    """Create default parameter registry for heterodyne model.
+
+    Physical bounds are authoritative values from XPCS convention.
+    All length units in Å (angstroms).
+    """
     params: dict[str, ParameterInfo] = {}
 
     # Reference transport: J_r(t) = D0_ref * t^alpha_ref + D_offset_ref
     params["D0_ref"] = ParameterInfo(
         name="D0_ref",
-        default=1.0,
-        min_bound=1e-12,
-        max_bound=1e6,
+        default=1000.0,
+        min_bound=100.0,
+        max_bound=1e5,
         description="Reference diffusion coefficient prefactor",
-        unit="nm²/s^α",
+        unit="Å²/s^α",
         group="reference",
         vary_default=True,
+        log_space=True,
+        prior_mean=50050.0,
+        prior_std=24975.0,
+        is_physical=True,
     )
     params["alpha_ref"] = ParameterInfo(
         name="alpha_ref",
         default=1.0,
         min_bound=-2.0,
         max_bound=2.0,
-        description="Reference transport rate exponent (0=normal diffusion, <0=subdiffusive)",
+        description="Reference transport exponent (1=diffusive, <1=subdiffusive)",
         unit="",
         group="reference",
         vary_default=True,
+        prior_mean=0.0,
+        prior_std=1.0,
+        is_physical=True,
     )
     params["D_offset_ref"] = ParameterInfo(
         name="D_offset_ref",
         default=0.0,
         min_bound=-1e5,
         max_bound=1e5,
-        description="Reference transport rate offset",
-        unit="nm²",
+        description="Reference transport rate offset (intentionally wide; clamped at runtime)",
+        unit="Å²",
         group="reference",
         vary_default=False,
+        prior_mean=0.0,
+        prior_std=50000.0,
+        is_physical=True,
     )
 
     # Sample transport: J_s(t) = D0_sample * t^alpha_sample + D_offset_sample
     params["D0_sample"] = ParameterInfo(
         name="D0_sample",
-        default=1.0,
-        min_bound=1e-12,
-        max_bound=1e6,
+        default=1000.0,
+        min_bound=100.0,
+        max_bound=1e5,
         description="Sample diffusion coefficient prefactor",
-        unit="nm²/s^α",
+        unit="Å²/s^α",
         group="sample",
         vary_default=True,
+        log_space=True,
+        prior_mean=50050.0,
+        prior_std=24975.0,
+        is_physical=True,
     )
     params["alpha_sample"] = ParameterInfo(
         name="alpha_sample",
         default=1.0,
         min_bound=-2.0,
         max_bound=2.0,
-        description="Sample transport rate exponent (0=normal diffusion, <0=subdiffusive)",
+        description="Sample transport exponent (1=diffusive, <1=subdiffusive)",
         unit="",
         group="sample",
         vary_default=True,
+        prior_mean=0.0,
+        prior_std=1.0,
+        is_physical=True,
     )
     params["D_offset_sample"] = ParameterInfo(
         name="D_offset_sample",
         default=0.0,
         min_bound=-1e5,
         max_bound=1e5,
-        description="Sample transport rate offset",
-        unit="nm²",
+        description="Sample transport rate offset (intentionally wide; clamped at runtime)",
+        unit="Å²",
         group="sample",
         vary_default=False,
+        prior_mean=0.0,
+        prior_std=50000.0,
+        is_physical=True,
     )
 
     # Velocity: v(t) = v0 * t^beta + v_offset
     params["v0"] = ParameterInfo(
         name="v0",
-        default=0.0,
-        min_bound=-1e4,
+        default=1.0,
+        min_bound=1e-6,
         max_bound=1e4,
-        description="Velocity prefactor",
-        unit="nm/s^β",
+        description="Velocity prefactor (non-negative magnitude)",
+        unit="Å/s^β",
         group="velocity",
         vary_default=True,
+        log_space=True,
+        prior_mean=5000.0,
+        prior_std=2500.0,
+        is_physical=True,
+        is_flow=True,
     )
     params["beta"] = ParameterInfo(
         name="beta",
         default=0.0,
         min_bound=-2.0,
         max_bound=2.0,
-        description="Velocity exponent",
+        description="Velocity exponent (0=constant, <0=deceleration)",
         unit="",
         group="velocity",
         vary_default=False,
+        prior_mean=0.0,
+        prior_std=1.0,
+        is_physical=True,
+        is_flow=True,
     )
     params["v_offset"] = ParameterInfo(
         name="v_offset",
-        default=0.0,
-        min_bound=-1e4,
-        max_bound=1e4,
-        description="Velocity offset",
-        unit="nm/s",
+        default=1.0,
+        min_bound=0.01,
+        max_bound=100.0,
+        description="Velocity offset (tightened from homodyne for heterodyne stability)",
+        unit="Å/s",
         group="velocity",
         vary_default=False,
+        prior_mean=50.005,
+        prior_std=24.99,
+        is_physical=True,
+        is_flow=True,
     )
 
     # Fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3
@@ -198,10 +277,13 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         default=0.5,
         min_bound=0.0,
         max_bound=1.0,
-        description="Fraction amplitude",
+        description="Sample fraction amplitude (field amplitude, not intensity fraction)",
         unit="",
         group="fraction",
         vary_default=True,
+        prior_mean=0.5,
+        prior_std=0.25,
+        is_physical=True,
     )
     params["f1"] = ParameterInfo(
         name="f1",
@@ -212,6 +294,9 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         unit="1/s",
         group="fraction",
         vary_default=False,
+        prior_mean=0.0,
+        prior_std=5.0,
+        is_physical=True,
     )
     params["f2"] = ParameterInfo(
         name="f2",
@@ -222,6 +307,9 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         unit="s",
         group="fraction",
         vary_default=False,
+        prior_mean=0.0,
+        prior_std=5000.0,
+        is_physical=True,
     )
     params["f3"] = ParameterInfo(
         name="f3",
@@ -232,18 +320,25 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         unit="",
         group="fraction",
         vary_default=False,
+        prior_mean=0.0,
+        prior_std=0.5,
+        is_physical=True,
     )
 
     # Flow angle
     params["phi0"] = ParameterInfo(
         name="phi0",
         default=0.0,
-        min_bound=0.0,
-        max_bound=180.0,
-        description="Flow angle relative to q-vector",
+        min_bound=-10.0,
+        max_bound=10.0,
+        description="Flow angle relative to q-vector (tightened per XPCS convention)",
         unit="degrees",
         group="angle",
         vary_default=True,
+        prior_mean=0.0,
+        prior_std=5.0,
+        is_physical=True,
+        is_flow=True,
     )
 
     return params
@@ -251,3 +346,36 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
 
 # Module-level default registry instance
 DEFAULT_REGISTRY = ParameterRegistry()
+
+# Scaling parameter definitions (not part of the 14-parameter model array,
+# but registrable for per-angle expansion)
+SCALING_PARAMS: Mapping[str, ParameterInfo] = MappingProxyType({
+    "contrast": ParameterInfo(
+        name="contrast",
+        default=0.5,
+        min_bound=0.0,
+        max_bound=1.0,
+        description="Optical contrast (per-angle scaling factor)",
+        unit="",
+        group="scaling",
+        vary_default=True,
+        prior_mean=0.5,
+        prior_std=0.25,
+        is_scaling=True,
+        is_physical=False,
+    ),
+    "offset": ParameterInfo(
+        name="offset",
+        default=1.0,
+        min_bound=0.5,
+        max_bound=1.5,
+        description="Baseline offset (per-angle)",
+        unit="",
+        group="scaling",
+        vary_default=True,
+        prior_mean=1.0,
+        prior_std=0.25,
+        is_scaling=True,
+        is_physical=False,
+    ),
+})
