@@ -1,0 +1,198 @@
+"""Angle-specific filtering utilities for multi-phi XPCS data."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+
+from heterodyne.data.types import AngleRange
+from heterodyne.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+def filter_by_angle_range(
+    c2_3d: np.ndarray,
+    phi_angles: np.ndarray,
+    angle_range: AngleRange,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Filter 3D correlation data to angles within a range.
+
+    Args:
+        c2_3d: Correlation data, shape (n_phi, n_t, n_t).
+        phi_angles: 1D array of phi angles in degrees, length n_phi.
+        angle_range: AngleRange specifying (phi_min, phi_max) inclusive.
+
+    Returns:
+        Tuple of (filtered_c2, filtered_phi_angles). filtered_c2 has
+        shape (n_selected, n_t, n_t).
+
+    Raises:
+        ValueError: If c2_3d is not 3D, lengths mismatch, or no angles
+            fall within the range.
+    """
+    if c2_3d.ndim != 3:
+        raise ValueError(f"c2_3d must be 3D, got {c2_3d.ndim}D with shape {c2_3d.shape}")
+
+    if len(phi_angles) != c2_3d.shape[0]:
+        raise ValueError(
+            f"phi_angles length ({len(phi_angles)}) must match "
+            f"c2_3d first axis ({c2_3d.shape[0]})"
+        )
+
+    if angle_range.phi_min > angle_range.phi_max:
+        raise ValueError(
+            f"phi_min ({angle_range.phi_min}) must be <= phi_max ({angle_range.phi_max})"
+        )
+
+    mask = (phi_angles >= angle_range.phi_min) & (phi_angles <= angle_range.phi_max)
+    n_selected = int(np.sum(mask))
+
+    if n_selected == 0:
+        raise ValueError(
+            f"No angles in [{angle_range.phi_min}, {angle_range.phi_max}]. "
+            f"Available: {phi_angles.tolist()}"
+        )
+
+    logger.debug(
+        "Angle range [%.1f, %.1f]: selected %d/%d angles",
+        angle_range.phi_min,
+        angle_range.phi_max,
+        n_selected,
+        len(phi_angles),
+    )
+
+    return c2_3d[mask], phi_angles[mask]
+
+
+def select_angles(
+    phi_angles: np.ndarray,
+    indices: np.ndarray | list[int],
+) -> np.ndarray:
+    """Select a subset of phi angles by index.
+
+    Args:
+        phi_angles: 1D array of phi angles.
+        indices: Integer indices into phi_angles.
+
+    Returns:
+        Subset of phi_angles at the given indices.
+
+    Raises:
+        IndexError: If any index is out of bounds.
+    """
+    indices_arr = np.asarray(indices, dtype=int)
+
+    if indices_arr.size > 0:
+        if np.any(indices_arr < 0) or np.any(indices_arr >= len(phi_angles)):
+            out_of_bounds = indices_arr[
+                (indices_arr < 0) | (indices_arr >= len(phi_angles))
+            ]
+            raise IndexError(
+                f"Indices {out_of_bounds.tolist()} out of bounds "
+                f"for phi_angles of length {len(phi_angles)}"
+            )
+
+    return phi_angles[indices_arr]  # type: ignore[no-any-return]
+
+
+def find_nearest_angle(
+    phi_angles: np.ndarray,
+    target: float,
+) -> int:
+    """Find the index of the angle nearest to a target value.
+
+    Args:
+        phi_angles: 1D array of available phi angles in degrees.
+        target: Target angle in degrees.
+
+    Returns:
+        Index of the nearest angle in phi_angles.
+
+    Raises:
+        ValueError: If phi_angles is empty.
+    """
+    if phi_angles.size == 0:
+        raise ValueError("phi_angles is empty")
+
+    diffs = np.abs(phi_angles - target)
+    idx = int(np.argmin(diffs))
+
+    logger.debug(
+        "Nearest angle to %.2f: index %d (%.2f, delta=%.2f)",
+        target,
+        idx,
+        float(phi_angles[idx]),
+        float(diffs[idx]),
+    )
+
+    return idx
+
+
+def compute_angle_quality(
+    c2_3d: np.ndarray,
+    phi_angles: np.ndarray,
+) -> dict[str, Any]:
+    """Compute per-angle quality metrics for multi-phi data.
+
+    For each angle slice, computes signal-to-noise ratio (SNR),
+    mean, and standard deviation from finite off-diagonal elements.
+
+    Args:
+        c2_3d: Correlation data, shape (n_phi, n_t, n_t).
+        phi_angles: 1D array of phi angles, length n_phi.
+
+    Returns:
+        Dictionary with keys:
+            - ``phi_angles``: Input angles (for reference).
+            - ``snr``: Per-angle SNR (mean / std of off-diagonal finite values).
+            - ``mean``: Per-angle mean of off-diagonal finite values.
+            - ``std``: Per-angle std of off-diagonal finite values.
+
+    Raises:
+        ValueError: If shapes are inconsistent.
+    """
+    if c2_3d.ndim != 3:
+        raise ValueError(f"c2_3d must be 3D, got {c2_3d.ndim}D")
+
+    if len(phi_angles) != c2_3d.shape[0]:
+        raise ValueError(
+            f"phi_angles length ({len(phi_angles)}) must match "
+            f"c2_3d first axis ({c2_3d.shape[0]})"
+        )
+
+    n_phi = c2_3d.shape[0]
+    n_t = c2_3d.shape[1]
+
+    # Off-diagonal mask (shared across all slices)
+    off_diag = ~np.eye(n_t, dtype=bool)
+
+    snr_arr = np.zeros(n_phi)
+    mean_arr = np.zeros(n_phi)
+    std_arr = np.zeros(n_phi)
+
+    for i in range(n_phi):
+        slice_data = c2_3d[i]
+        off_diag_vals = slice_data[off_diag]
+        finite_vals = off_diag_vals[np.isfinite(off_diag_vals)]
+
+        if finite_vals.size == 0:
+            snr_arr[i] = 0.0
+            mean_arr[i] = np.nan
+            std_arr[i] = np.nan
+            continue
+
+        m = float(np.mean(finite_vals))
+        s = float(np.std(finite_vals))
+
+        mean_arr[i] = m
+        std_arr[i] = s
+        snr_arr[i] = abs(m) / s if s > 0 else 0.0
+
+    return {
+        "phi_angles": phi_angles.copy(),
+        "snr": snr_arr,
+        "mean": mean_arr,
+        "std": std_arr,
+    }

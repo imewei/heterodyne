@@ -168,13 +168,13 @@ class PreprocessingPipeline:
                     total_outliers += np.sum(before != after)
                     result[i] = after
                 if total_outliers > 0:
-                    logger.info(f"Removed {total_outliers} outliers ({100*total_outliers/c2.size:.2f}%)")
+                    logger.info("Removed %d outliers (%.2f%%)", total_outliers, 100*total_outliers/c2.size)
                 return result
 
             result = _remove_outliers_2d(c2, n_sigma, replace_with)
             n_outliers = np.sum(c2 != result)
             if n_outliers > 0:
-                logger.info(f"Removed {n_outliers} outliers ({100*n_outliers/c2.size:.2f}%)")
+                logger.info("Removed %d outliers (%.2f%%)", n_outliers, 100*n_outliers/c2.size)
             return result
 
         return self.add_step(f"remove_outliers({n_sigma}σ)", _remove_outliers)
@@ -236,7 +236,7 @@ class PreprocessingPipeline:
         applied = []
 
         for name, func in self._steps:
-            logger.debug(f"Applying: {name}")
+            logger.debug("Applying: %s", name)
             result = func(result)
             applied.append(name)
 
