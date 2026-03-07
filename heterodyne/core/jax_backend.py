@@ -27,6 +27,14 @@ from typing import TYPE_CHECKING
 import jax
 import jax.numpy as jnp
 
+from heterodyne.core.physics_utils import (
+    compute_transport_rate,
+    compute_velocity_rate,
+    create_time_integral_matrix,
+    smooth_abs,
+    trapezoid_cumsum,
+)
+
 if TYPE_CHECKING:
     pass
 
@@ -125,12 +133,15 @@ def compute_velocity_integral_matrix(
     v_offset: float,
     dt: float,
 ) -> jnp.ndarray:
-    """JIT-compiled velocity integral matrix.
+    """JIT-compiled velocity integral matrix (NLSQ meshgrid path).
 
     Computes M[i,j] = ∫_{t_i}^{t_j} v(t') dt'
     where v(t) = v0 * t^beta + v_offset
 
-    Uses cumsum for O(N) efficiency instead of O(N²) nested loops.
+    Uses shared ``trapezoid_cumsum`` → ``create_time_integral_matrix``
+    pipeline for O(N) efficiency and O(dt²) accuracy.
+    The velocity integral is *signed* (not absolute-valued) because it
+    feeds into the phase factor ``cos(q cos(φ) ∫v dt)``.
 
     Args:
         t: Time array, shape (N,)
@@ -140,20 +151,11 @@ def compute_velocity_integral_matrix(
         dt: Time step
 
     Returns:
-        Integral matrix, shape (N, N)
+        Signed integral matrix, shape (N, N)
     """
-    # Compute velocity at each time point
-    t_safe = jnp.maximum(t, 1e-10)
-    t_power = jnp.where(t > 0, jnp.power(t_safe, beta), 0.0)
-    velocity = v0 * t_power + v_offset
-
-    # Cumulative integral from t=0
-    cumsum = jnp.cumsum(velocity) * dt
-
-    # M[i,j] = cumsum[j] - cumsum[i] = integral from t_i to t_j
-    # v_integral[i,i] = 0 by construction (outer-subtraction pattern)
-    v_integral = cumsum[None, :] - cumsum[:, None]
-    return v_integral
+    velocity = compute_velocity_rate(t, v0, beta, v_offset)
+    cumsum = trapezoid_cumsum(velocity, dt)
+    return create_time_integral_matrix(cumsum)
 
 
 @jax.jit
@@ -164,13 +166,13 @@ def compute_transport_integral_matrix(
     offset: float,
     dt: float,
 ) -> jnp.ndarray:
-    """JIT-compiled transport integral matrix.
+    """JIT-compiled transport integral matrix (NLSQ meshgrid path).
 
     Computes M[i,j] = |∫_{t_i}^{t_j} J_rate(t') dt'|
     where J_rate(t) = D0 * t^alpha + offset
 
-    Uses cumsum for O(N) efficiency instead of O(N²) nested loops.
-    The absolute value ensures symmetric decay (direction-independent).
+    Uses shared ``compute_transport_rate`` → ``trapezoid_cumsum`` →
+    ``create_time_integral_matrix`` → ``smooth_abs`` pipeline.
 
     Args:
         t: Time array, shape (N,)
@@ -182,17 +184,10 @@ def compute_transport_integral_matrix(
     Returns:
         Transport integral matrix, shape (N, N)
     """
-    # Compute transport rate at each time point
-    t_safe = jnp.maximum(t, 1e-10)
-    t_power = jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0)
-    J_rate = D0 * t_power + offset
-    J_rate = jnp.maximum(J_rate, 0.0)
-
-    # Cumulative integral from t=0
-    cumsum = jnp.cumsum(J_rate) * dt
-
-    # M[i,j] = |cumsum[j] - cumsum[i]| = |integral from t_i to t_j|
-    return jnp.abs(cumsum[None, :] - cumsum[:, None])
+    J_rate = compute_transport_rate(t, D0, alpha, offset)
+    cumsum = trapezoid_cumsum(J_rate, dt)
+    diff = create_time_integral_matrix(cumsum)
+    return smooth_abs(diff)
 
 
 @jax.jit
@@ -239,30 +234,32 @@ def compute_c2_heterodyne(
     f0, f1, f2, f3 = params[9], params[10], params[11], params[12]
     phi0 = params[13]
 
-    # Transport integral matrices via cumsum
+    # Transport integral matrices via shared cumsum → meshgrid pipeline
     # J_integral[i,j] = |∫_{t_i}^{t_j} J_rate(t') dt'|
-    J_ref_integral = compute_transport_integral_matrix(
-        t, D0_ref, alpha_ref, D_offset_ref, dt
-    )
-    J_sample_integral = compute_transport_integral_matrix(
-        t, D0_sample, alpha_sample, D_offset_sample, dt
-    )
+    J_ref_rate = compute_transport_rate(t, D0_ref, alpha_ref, D_offset_ref)
+    J_sample_rate = compute_transport_rate(t, D0_sample, alpha_sample, D_offset_sample)
+    ref_cumsum = trapezoid_cumsum(J_ref_rate, dt)
+    sample_cumsum = trapezoid_cumsum(J_sample_rate, dt)
+    J_ref_integral = smooth_abs(create_time_integral_matrix(ref_cumsum))
+    J_sample_integral = smooth_abs(create_time_integral_matrix(sample_cumsum))
 
-    # Half-transport matrices: exp(-½q²∫J)
+    # Half-transport matrices: exp(-½q²∫J) with log-space clipping for
+    # numerical safety — prevents underflow for extreme D0 values
     q2 = q * q
-    half_tr_ref = jnp.exp(-0.5 * q2 * J_ref_integral)
-    half_tr_sample = jnp.exp(-0.5 * q2 * J_sample_integral)
+    log_half_tr_ref = jnp.clip(-0.5 * q2 * J_ref_integral, -700.0, 0.0)
+    log_half_tr_sample = jnp.clip(-0.5 * q2 * J_sample_integral, -700.0, 0.0)
+    half_tr_ref = jnp.exp(log_half_tr_ref)
+    half_tr_sample = jnp.exp(log_half_tr_sample)
 
     # Sample fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3
-    t_safe = jnp.maximum(t, 1e-10)
     exponent = jnp.clip(f1 * (t - f2), -100, 100)
     f_sample = jnp.clip(f0 * jnp.exp(exponent) + f3, 0.0, 1.0)
     f_ref = 1.0 - f_sample
 
-    # Velocity integral matrix
-    velocity = v0 * jnp.where(t > 0, jnp.power(t_safe, beta), 0.0) + v_offset
-    cumsum = jnp.cumsum(velocity) * dt
-    v_integral = cumsum[None, :] - cumsum[:, None]
+    # Velocity integral matrix via shared cumsum → meshgrid pipeline
+    velocity = compute_velocity_rate(t, v0, beta, v_offset)
+    v_cumsum = trapezoid_cumsum(velocity, dt)
+    v_integral = create_time_integral_matrix(v_cumsum)
 
     # Combined phi angle: phi_angle from detector + phi0 from fit
     total_phi = phi_angle + phi0
@@ -356,6 +353,129 @@ def _compute_residuals_jit(
 _compute_residuals_jacobian_jit = jax.jit(
     jax.jacobian(_compute_residuals_jit, argnums=0)
 )
+
+
+@jax.jit
+def compute_chi_squared(
+    params: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_angle: float,
+    c2_data: jnp.ndarray,
+    weights: jnp.ndarray,
+    contrast: float,
+    offset: float,
+) -> jnp.ndarray:
+    """JIT-compiled chi-squared computation.
+
+    chi² = sum((c2_model - c2_data)² × weights)
+
+    Args:
+        params: Parameter array, shape (14,)
+        t: Time array
+        q: Scattering wavevector
+        dt: Time step
+        phi_angle: Detector phi angle
+        c2_data: Experimental correlation data
+        weights: Weights (1/uncertainty²)
+        contrast: Speckle contrast
+        offset: Baseline offset
+
+    Returns:
+        Chi-squared scalar
+    """
+    c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
+    return jnp.sum((c2_model - c2_data) ** 2 * weights)  # type: ignore[no-any-return]
+
+
+def batch_chi_squared(
+    params_batch: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_angle: float,
+    c2_data: jnp.ndarray,
+    weights: jnp.ndarray,
+    contrast: float = 1.0,
+    offset: float = 1.0,
+) -> jnp.ndarray:
+    """Vectorized chi-squared over a batch of parameter sets.
+
+    Uses jax.vmap for efficient parallel evaluation.
+
+    Args:
+        params_batch: Parameter sets, shape (n_sets, 14)
+        t: Time array
+        q: Scattering wavevector
+        dt: Time step
+        phi_angle: Detector phi angle
+        c2_data: Experimental data
+        weights: Weights
+        contrast: Speckle contrast
+        offset: Baseline offset
+
+    Returns:
+        Chi-squared values, shape (n_sets,)
+    """
+    def single_chi2(params: jnp.ndarray) -> jnp.ndarray:
+        return compute_chi_squared(
+            params, t, q, dt, phi_angle, c2_data, weights, contrast, offset
+        )
+
+    return jax.vmap(single_chi2)(params_batch)  # type: ignore[no-any-return]
+
+
+@jax.jit
+def compute_multi_angle_residuals(
+    params: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_angles: jnp.ndarray,
+    c2_data_batch: jnp.ndarray,
+    weights_batch: jnp.ndarray,
+    contrasts: jnp.ndarray,
+    offsets: jnp.ndarray,
+) -> jnp.ndarray:
+    """JIT-compiled residuals for multiple phi angles simultaneously.
+
+    Args:
+        params: Parameter array, shape (14,)
+        t: Time array, shape (N,)
+        q: Scattering wavevector
+        dt: Time step
+        phi_angles: Phi angles, shape (n_phi,)
+        c2_data_batch: Experimental data, shape (n_phi, N, N)
+        weights_batch: Weights, shape (n_phi, N, N)
+        contrasts: Per-angle contrasts, shape (n_phi,)
+        offsets: Per-angle offsets, shape (n_phi,)
+
+    Returns:
+        Stacked flattened residuals, shape (n_phi × N × N,)
+    """
+    def single_angle_residual(
+        phi: jnp.ndarray,
+        c2_exp: jnp.ndarray,
+        w: jnp.ndarray,
+        c: jnp.ndarray,
+        o: jnp.ndarray,
+    ) -> jnp.ndarray:
+        c2_model = compute_c2_heterodyne(params, t, q, dt, phi, c, o)
+        return ((c2_model - c2_exp) * jnp.sqrt(w)).ravel()
+
+    compute_all = jax.vmap(single_angle_residual, in_axes=(0, 0, 0, 0, 0))
+    residuals_batch = compute_all(
+        phi_angles, c2_data_batch, weights_batch, contrasts, offsets
+    )
+    return residuals_batch.ravel()  # type: ignore[no-any-return]
+
+
+# Gradient of chi-squared with respect to parameters
+compute_chi_squared_grad = jax.jit(jax.grad(compute_chi_squared, argnums=0))
+
+# Hessian of chi-squared (for uncertainty estimation)
+compute_chi_squared_hessian = jax.jit(jax.hessian(compute_chi_squared, argnums=0))
 
 
 def compute_residuals_jacobian(

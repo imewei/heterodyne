@@ -82,13 +82,13 @@ class TwoComponentModel(HeterodyneModelBase):
         """Set default parameter values."""
         if not self._defaults:
             self._defaults = {
-                "D0_ref": 1.0,
-                "alpha_ref": 1.0,
+                "D0_ref": 1e4,
+                "alpha_ref": 0.0,
                 "D_offset_ref": 0.0,
-                "D0_sample": 1.0,
-                "alpha_sample": 1.0,
+                "D0_sample": 1e4,
+                "alpha_sample": 0.0,
                 "D_offset_sample": 0.0,
-                "v0": 0.0,
+                "v0": 1e3,
                 "beta": 0.0,
                 "v_offset": 0.0,
                 "f0": 0.5,
@@ -231,6 +231,157 @@ class TwoComponentModel(HeterodyneModelBase):
         f0, f1, f2, f3 = params[9], params[10], params[11], params[12]
         exponent = jnp.clip(f1 * (t - f2), -100, 100)
         return jnp.clip(f0 * jnp.exp(exponent) + f3, 0.0, 1.0)
+
+
+@dataclass
+class ReducedModel(HeterodyneModelBase):
+    """Reduced heterodyne model with a subset of active parameters.
+
+    Inactive parameters are held fixed at their canonical default values.
+    Useful for simplified analysis modes (e.g., reference-only diffusion).
+
+    Args:
+        _active_params: Ordered tuple of parameter names that are free to vary.
+    """
+
+    _active_params: tuple[str, ...]
+
+    # Full default values for all 14 parameters (canonical defaults)
+    _FULL_DEFAULTS: dict[str, float] = field(
+        default_factory=lambda: {
+            "D0_ref": 1e4,
+            "alpha_ref": 0.0,
+            "D_offset_ref": 0.0,
+            "D0_sample": 1e4,
+            "alpha_sample": 0.0,
+            "D_offset_sample": 0.0,
+            "v0": 1e3,
+            "beta": 0.0,
+            "v_offset": 0.0,
+            "f0": 0.5,
+            "f1": 0.0,
+            "f2": 0.0,
+            "f3": 0.0,
+            "phi0": 0.0,
+        }
+    )
+
+    def __post_init__(self) -> None:
+        """Validate active params and precompute expansion constants."""
+        invalid = [n for n in self._active_params if n not in ALL_PARAM_NAMES]
+        if invalid:
+            raise ValueError(
+                f"Unknown parameter names: {invalid}. "
+                f"Valid names: {list(ALL_PARAM_NAMES)}"
+            )
+        # Precompute template and index mapping for _expand_to_full
+        object.__setattr__(
+            self, "_template",
+            jnp.array([self._FULL_DEFAULTS[name] for name in ALL_PARAM_NAMES]),
+        )
+        object.__setattr__(
+            self, "_active_indices",
+            tuple(ALL_PARAM_NAMES.index(name) for name in self._active_params),
+        )
+
+    @property
+    def n_params(self) -> int:
+        """Number of active (free) parameters."""
+        return len(self._active_params)
+
+    @property
+    def param_names(self) -> tuple[str, ...]:
+        """Active parameter names in order."""
+        return self._active_params
+
+    def get_default_params(self) -> np.ndarray:
+        """Get default values for active parameters only."""
+        return np.array([self._FULL_DEFAULTS[name] for name in self._active_params])
+
+    def _expand_to_full(self, params: jnp.ndarray) -> jnp.ndarray:
+        """Expand active-parameter array to full 14-element array.
+
+        Uses precomputed template and index mapping for efficiency.
+        Inactive parameters retain their canonical defaults.
+
+        Args:
+            params: Active-parameter array, shape (n_params,)
+
+        Returns:
+            Full parameter array, shape (14,)
+        """
+        template: jnp.ndarray = self._template  # type: ignore[attr-defined]
+        for i, idx in enumerate(self._active_indices):  # type: ignore[attr-defined]
+            template = template.at[idx].set(params[i])
+        return template
+
+    def compute_correlation(
+        self,
+        params: jnp.ndarray,
+        t: jnp.ndarray,
+        q: float,
+        dt: float,
+        phi_angle: float,
+        contrast: float = 1.0,
+        offset: float = 1.0,
+    ) -> jnp.ndarray:
+        """Compute model correlation from reduced parameter set.
+
+        Inactive parameters are held at canonical defaults.
+
+        Args:
+            params: Active-parameter array, shape (n_params,)
+            t: Time array
+            q: Scattering wavevector
+            dt: Time step
+            phi_angle: Detector phi angle (degrees)
+            contrast: Speckle contrast (beta), default 1.0
+            offset: Baseline offset, default 1.0
+
+        Returns:
+            Correlation matrix c2(t1, t2), shape (N, N)
+        """
+        full_params = self._expand_to_full(params)
+        return compute_c2_heterodyne(full_params, t, q, dt, phi_angle, contrast, offset)  # type: ignore[no-any-return]
+
+
+# ---------------------------------------------------------------------------
+# Analysis mode registry
+# ---------------------------------------------------------------------------
+
+ANALYSIS_MODES: dict[str, tuple[str, ...]] = {
+    "static_ref": ("D0_ref", "alpha_ref", "D_offset_ref"),
+    "static_both": (
+        "D0_ref",
+        "alpha_ref",
+        "D_offset_ref",
+        "D0_sample",
+        "alpha_sample",
+        "D_offset_sample",
+    ),
+    "two_component": ALL_PARAM_NAMES,
+}
+
+
+def create_model(mode: str) -> HeterodyneModelBase:
+    """Factory function that returns a model for the requested analysis mode.
+
+    Args:
+        mode: One of ``"static_ref"``, ``"static_both"``, ``"two_component"``.
+
+    Returns:
+        ``TwoComponentModel`` for ``"two_component"``;
+        ``ReducedModel`` for all other recognised modes.
+
+    Raises:
+        ValueError: If *mode* is not a recognised analysis mode.
+    """
+    if mode not in ANALYSIS_MODES:
+        valid = ", ".join(sorted(ANALYSIS_MODES))
+        raise ValueError(f"Unknown analysis mode '{mode}'. Valid modes: {valid}")
+    if mode == "two_component":
+        return TwoComponentModel()
+    return ReducedModel(_active_params=ANALYSIS_MODES[mode])
 
 
 # Default model instance

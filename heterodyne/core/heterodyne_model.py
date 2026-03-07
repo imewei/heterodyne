@@ -14,6 +14,7 @@ from heterodyne.config.parameter_names import ALL_PARAM_NAMES
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 from heterodyne.core.models import TwoComponentModel
 from heterodyne.core.physics_factors import PhysicsFactors, create_physics_factors
+from heterodyne.core.scaling_utils import PerAngleScaling, ScalingConfig
 
 if TYPE_CHECKING:
     pass
@@ -44,6 +45,9 @@ class HeterodyneModel:
     # Physics factors (pre-computed from config)
     _factors: PhysicsFactors | None = field(default=None)
 
+    # Per-angle scaling (contrast/offset as fitted parameters)
+    scaling: PerAngleScaling = field(default_factory=PerAngleScaling)
+
     # Cached time array
     _t: jnp.ndarray | None = field(default=None)
 
@@ -70,10 +74,22 @@ class HeterodyneModel:
             t_start=float(temporal.get("t_start", 0.0)),
         )
 
+        # Per-angle scaling config
+        scaling_cfg = config.get("scaling", {})
+        scaling = PerAngleScaling.from_config(
+            ScalingConfig(
+                n_angles=int(scaling_cfg.get("n_angles", 1)),
+                mode=str(scaling_cfg.get("mode", "constant")),
+                initial_contrast=float(scaling_cfg.get("initial_contrast", 0.5)),
+                initial_offset=float(scaling_cfg.get("initial_offset", 1.0)),
+            )
+        )
+
         return cls(
             _model=TwoComponentModel(),
             param_manager=param_manager,
             _factors=factors,
+            scaling=scaling,
             _t=factors.t,
         )
 
@@ -149,22 +165,32 @@ class HeterodyneModel:
         self,
         phi_angle: float = 0.0,
         params: np.ndarray | None = None,
-        contrast: float = 1.0,
-        offset: float = 1.0,
+        contrast: float | None = None,
+        offset: float | None = None,
+        angle_idx: int = 0,
     ) -> jnp.ndarray:
         """Compute two-time correlation matrix.
 
         Args:
             phi_angle: Detector phi angle (degrees)
             params: Optional parameter array (uses stored values if None)
-            contrast: Speckle contrast (beta), default 1.0
-            offset: Baseline offset, default 1.0
+            contrast: Speckle contrast override. If None, uses per-angle scaling.
+            offset: Baseline offset override. If None, uses per-angle scaling.
+            angle_idx: Angle index for per-angle scaling lookup (0-based).
 
         Returns:
             Correlation matrix c2(t1, t2), shape (N, N)
         """
         if params is None:
             params = self.get_params()
+
+        # Use per-angle scaling unless explicitly overridden
+        if contrast is None or offset is None:
+            sc_contrast, sc_offset = self.scaling.get_for_angle(angle_idx)
+            if contrast is None:
+                contrast = sc_contrast
+            if offset is None:
+                offset = sc_offset
 
         return compute_c2_heterodyne(  # type: ignore[no-any-return]
             jnp.asarray(params),
@@ -182,8 +208,9 @@ class HeterodyneModel:
         phi_angle: float = 0.0,
         params: np.ndarray | None = None,
         weights: np.ndarray | jnp.ndarray | None = None,
-        contrast: float = 1.0,
-        offset: float = 1.0,
+        contrast: float | None = None,
+        offset: float | None = None,
+        angle_idx: int = 0,
     ) -> jnp.ndarray:
         """Compute residuals between model and data.
 
@@ -192,14 +219,22 @@ class HeterodyneModel:
             phi_angle: Detector phi angle
             params: Optional parameter array
             weights: Optional weights (1/sigma²)
-            contrast: Speckle contrast (beta), default 1.0
-            offset: Baseline offset, default 1.0
+            contrast: Speckle contrast override. If None, uses per-angle scaling.
+            offset: Baseline offset override. If None, uses per-angle scaling.
+            angle_idx: Angle index for per-angle scaling lookup (0-based).
 
         Returns:
             Flattened residual array
         """
         if params is None:
             params = self.get_params()
+
+        if contrast is None or offset is None:
+            sc_contrast, sc_offset = self.scaling.get_for_angle(angle_idx)
+            if contrast is None:
+                contrast = sc_contrast
+            if offset is None:
+                offset = sc_offset
 
         return compute_residuals(
             jnp.asarray(params),

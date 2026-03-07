@@ -22,6 +22,12 @@ from __future__ import annotations
 import jax.numpy as jnp
 import numpy as np
 
+from heterodyne.core.physics_utils import (
+    create_time_integral_matrix,
+    smooth_abs,
+    trapezoid_cumsum,
+)
+
 
 def compute_transport_coefficient(
     t: jnp.ndarray | np.ndarray,
@@ -110,7 +116,8 @@ def compute_time_integral_matrix(
 
     Returns matrix M where M[i,j] = ∫_{t_i}^{t_j} values(t) dt
 
-    Uses cumsum broadcasting for O(N) computation instead of O(N²) nested loops.
+    Delegates to shared ``trapezoid_cumsum`` → ``create_time_integral_matrix``
+    pipeline for O(N) computation and O(dt²) accuracy.
 
     Args:
         values: Time-dependent values to integrate, shape (N,)
@@ -119,14 +126,8 @@ def compute_time_integral_matrix(
     Returns:
         Integral matrix, shape (N, N)
     """
-    # Cumulative sum from t=0
-    cumsum = jnp.cumsum(values) * dt
-
-    # M[i,j] = cumsum[j] - cumsum[i] = integral from t_i to t_j
-    # v_integral[i,i] = 0 by construction (outer-subtraction pattern)
-    integral_matrix = cumsum[None, :] - cumsum[:, None]
-
-    return integral_matrix
+    cumsum = trapezoid_cumsum(values, dt)
+    return create_time_integral_matrix(cumsum)
 
 
 def compute_transport_integral_matrix(
@@ -158,7 +159,7 @@ def compute_transport_integral_matrix(
     J_rate = compute_transport_coefficient(t, D0, alpha, offset)
     J_rate = jnp.maximum(J_rate, 0.0)
     integral_matrix = compute_time_integral_matrix(J_rate, dt)
-    return jnp.abs(integral_matrix)
+    return smooth_abs(integral_matrix)
 
 
 def compute_velocity_field(
@@ -231,3 +232,273 @@ def compute_normalization_factor(
 
     # Outer product for matrix
     return norm_1[:, None] * norm_2[None, :]
+
+
+class TheoryEngine:
+    """High-level validated API for heterodyne correlation computation.
+
+    Wraps compute_c2_heterodyne with input validation, error handling,
+    and fallback logic. Use this instead of calling jax_backend directly
+    for production code.
+    """
+
+    def __init__(
+        self,
+        t: jnp.ndarray,
+        q: float,
+        dt: float,
+        n_params: int = 14,
+    ) -> None:
+        if q <= 0:
+            raise ValueError(f"q must be positive, got {q}")
+        if dt <= 0:
+            raise ValueError(f"dt must be positive, got {dt}")
+        self.t = jnp.asarray(t)
+        self.q = float(q)
+        self.dt = float(dt)
+        self.n_params = n_params
+
+    def compute_correlation(
+        self,
+        params: jnp.ndarray,
+        phi_angle: float = 0.0,
+        contrast: float = 1.0,
+        offset: float = 1.0,
+    ) -> jnp.ndarray:
+        """Compute c2 with validation."""
+        params = jnp.asarray(params)
+        if params.shape != (self.n_params,):
+            raise ValueError(
+                f"Expected {self.n_params} params, got shape {params.shape}"
+            )
+
+        from heterodyne.core.jax_backend import compute_c2_heterodyne
+
+        c2 = compute_c2_heterodyne(
+            params, self.t, self.q, self.dt, phi_angle, contrast, offset
+        )
+
+        if not jnp.isfinite(c2).all():
+            raise ValueError("Non-finite values in computed c2 — check parameters")
+        return c2  # type: ignore[no-any-return]
+
+    def compute_residuals(
+        self,
+        params: jnp.ndarray,
+        c2_data: jnp.ndarray,
+        phi_angle: float = 0.0,
+        weights: jnp.ndarray | None = None,
+        contrast: float = 1.0,
+        offset: float = 1.0,
+    ) -> jnp.ndarray:
+        """Compute weighted residuals with validation."""
+        from heterodyne.core.jax_backend import compute_residuals
+
+        return compute_residuals(
+            jnp.asarray(params),
+            self.t,
+            self.q,
+            self.dt,
+            phi_angle,
+            jnp.asarray(c2_data),
+            weights,
+            contrast,
+            offset,
+        )
+
+    def compute_chi_squared(
+        self,
+        params: jnp.ndarray,
+        c2_data: jnp.ndarray,
+        phi_angle: float = 0.0,
+        weights: jnp.ndarray | None = None,
+        contrast: float = 1.0,
+        offset: float = 1.0,
+    ) -> float:
+        """Compute chi-squared goodness-of-fit statistic.
+
+        chi² = sum(residuals²) where residuals are weighted.
+
+        Args:
+            params: Parameter array, shape (14,)
+            c2_data: Experimental correlation data, shape (N, N)
+            phi_angle: Detector phi angle (degrees)
+            weights: Optional weights (1/uncertainty²)
+            contrast: Speckle contrast
+            offset: Baseline offset
+
+        Returns:
+            Chi-squared value (scalar)
+        """
+        residuals = self.compute_residuals(
+            params, c2_data, phi_angle, weights, contrast, offset
+        )
+        return float(jnp.sum(residuals ** 2))
+
+    def compute_batch_chi_squared(
+        self,
+        params_batch: jnp.ndarray | np.ndarray,
+        c2_data: jnp.ndarray,
+        phi_angle: float = 0.0,
+        weights: jnp.ndarray | None = None,
+        contrast: float = 1.0,
+        offset: float = 1.0,
+    ) -> np.ndarray:
+        """Compute chi-squared for multiple parameter sets.
+
+        Args:
+            params_batch: Array of parameter sets, shape (n_sets, 14)
+            c2_data: Experimental correlation data, shape (N, N)
+            phi_angle: Detector phi angle (degrees)
+            weights: Optional weights
+            contrast: Speckle contrast
+            offset: Baseline offset
+
+        Returns:
+            Chi-squared values, shape (n_sets,)
+        """
+        params_batch = np.asarray(params_batch)
+        if params_batch.ndim != 2:
+            raise ValueError("params_batch must be 2D (n_sets, n_params)")
+        if params_batch.shape[1] != self.n_params:
+            raise ValueError(
+                f"Expected {self.n_params} params per set, "
+                f"got {params_batch.shape[1]}"
+            )
+
+        results = np.empty(params_batch.shape[0])
+        for i, params in enumerate(params_batch):
+            results[i] = self.compute_chi_squared(
+                jnp.array(params), c2_data, phi_angle, weights, contrast, offset
+            )
+        return results
+
+    def estimate_computation_cost(
+        self,
+        n_phi: int = 1,
+    ) -> dict[str, object]:
+        """Estimate computational cost for current data dimensions.
+
+        Args:
+            n_phi: Number of phi angles
+
+        Returns:
+            Dict with cost estimates
+        """
+        n_times = len(self.t)
+        n_matrix_elements = n_times * n_times
+        n_total = n_matrix_elements * n_phi
+
+        # Heterodyne model: ~50 ops/element (transport integrals, fractions, cross term)
+        ops_per_element = 50
+        total_ops = n_total * ops_per_element
+
+        # Memory: 8 bytes × ~6 intermediate matrices per angle
+        memory_mb = (n_matrix_elements * 8 * 6 * n_phi) / (1024 ** 2)
+
+        tier = "light" if total_ops < 1e6 else ("medium" if total_ops < 1e8 else "heavy")
+
+        return {
+            "n_times": n_times,
+            "n_phi": n_phi,
+            "n_matrix_elements": n_matrix_elements,
+            "n_total_points": n_total,
+            "estimated_operations": total_ops,
+            "estimated_memory_mb": memory_mb,
+            "performance_tier": tier,
+            "n_params": self.n_params,
+        }
+
+    def __repr__(self) -> str:
+        return (
+            f"TheoryEngine(n_times={len(self.t)}, q={self.q:.4e}, "
+            f"dt={self.dt:.4e}, n_params={self.n_params})"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Convenience module-level functions
+# ---------------------------------------------------------------------------
+
+
+def compute_c2_theory(
+    params: np.ndarray,
+    t: np.ndarray,
+    q: float,
+    dt: float,
+    phi_angle: float = 0.0,
+    contrast: float = 1.0,
+    offset: float = 1.0,
+) -> np.ndarray:
+    """Convenience: compute c2 from parameters in one call.
+
+    Creates a TheoryEngine, computes, returns numpy array.
+    For repeated calls, create a TheoryEngine directly.
+
+    Args:
+        params: 14-parameter array
+        t: Time array
+        q: Scattering wavevector
+        dt: Time step
+        phi_angle: Detector phi angle (degrees)
+        contrast: Speckle contrast
+        offset: Baseline offset
+
+    Returns:
+        Correlation matrix c2, shape (N, N)
+    """
+    engine = TheoryEngine(t=jnp.asarray(t), q=q, dt=dt)
+    c2 = engine.compute_correlation(
+        jnp.asarray(params), phi_angle, contrast, offset
+    )
+    return np.asarray(c2)
+
+
+def compute_chi2_theory(
+    params: np.ndarray,
+    t: np.ndarray,
+    q: float,
+    dt: float,
+    c2_data: np.ndarray,
+    phi_angle: float = 0.0,
+    weights: np.ndarray | None = None,
+    contrast: float = 1.0,
+    offset: float = 1.0,
+) -> float:
+    """Convenience: compute chi-squared in one call.
+
+    Args:
+        params: 14-parameter array
+        t: Time array
+        q: Scattering wavevector
+        dt: Time step
+        c2_data: Experimental data, shape (N, N)
+        phi_angle: Detector phi angle (degrees)
+        weights: Optional weights
+        contrast: Speckle contrast
+        offset: Baseline offset
+
+    Returns:
+        Chi-squared value
+    """
+    engine = TheoryEngine(t=jnp.asarray(t), q=q, dt=dt)
+    w = jnp.asarray(weights) if weights is not None else None
+    return engine.compute_chi_squared(
+        jnp.asarray(params), jnp.asarray(c2_data),
+        phi_angle, w, contrast, offset,
+    )
+
+
+__all__ = [
+    "compute_transport_coefficient",
+    "compute_fraction",
+    "compute_g1_decay",
+    "compute_time_integral_matrix",
+    "compute_transport_integral_matrix",
+    "compute_velocity_field",
+    "compute_cross_term_phase",
+    "compute_normalization_factor",
+    "TheoryEngine",
+    "compute_c2_theory",
+    "compute_chi2_theory",
+]
