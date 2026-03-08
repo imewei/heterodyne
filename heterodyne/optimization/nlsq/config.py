@@ -254,7 +254,7 @@ class NLSQConfig:
     # Existing / core solver fields
     # ------------------------------------------------------------------
 
-    max_iterations: int = 100
+    max_iterations: int = 1000
     tolerance: float = 1e-8
     method: Literal["trf", "lm", "dogbox"] = "trf"
     multistart: bool = False
@@ -265,7 +265,7 @@ class NLSQConfig:
     ftol: float = 1e-8
     xtol: float = 1e-8
     gtol: float = 1e-8
-    loss: Literal["linear", "soft_l1", "huber", "cauchy"] = "linear"
+    loss: Literal["linear", "soft_l1", "huber", "cauchy", "arctan"] = "soft_l1"
 
     # Advanced solver options
     diff_step: float | None = None
@@ -324,6 +324,69 @@ class NLSQConfig:
     fourier_auto_threshold: int = 6
 
     # ------------------------------------------------------------------
+    # Hierarchical optimization
+    # ------------------------------------------------------------------
+
+    enable_hierarchical: bool = False
+    hierarchical_max_outer_iterations: int = 20
+    hierarchical_inner_tolerance: float = 1e-6
+    hierarchical_outer_tolerance: float = 1e-4
+
+    # ------------------------------------------------------------------
+    # Adaptive regularization
+    # ------------------------------------------------------------------
+
+    regularization_mode: Literal["none", "tikhonov", "adaptive"] = "none"
+    group_variance_lambda: float = 0.01
+    regularization_target_cv: float = 0.5
+
+    # ------------------------------------------------------------------
+    # Gradient collapse detection
+    # ------------------------------------------------------------------
+
+    enable_gradient_monitoring: bool = False
+    gradient_ratio_threshold: float = 100.0
+    gradient_consecutive_triggers: int = 3
+
+    # ------------------------------------------------------------------
+    # CMA-ES global search
+    # ------------------------------------------------------------------
+
+    enable_cmaes: bool = False
+    cmaes_sigma0: float = 0.3
+    cmaes_max_iterations: int = 1000
+    cmaes_population_size: int | None = None
+    cmaes_tolx: float = 1e-6
+    cmaes_tolfun: float = 1e-8
+
+    # ------------------------------------------------------------------
+    # Hybrid streaming optimizer
+    # ------------------------------------------------------------------
+
+    hybrid_enable: bool = False
+    hybrid_warmup_fraction: float = 0.1
+    hybrid_normalization: bool = True
+    hybrid_method: Literal["lbfgs", "gauss_newton"] = "gauss_newton"
+    hybrid_lbfgs_memory: int = 10
+    hybrid_convergence_window: int = 5
+    hybrid_convergence_threshold: float = 1e-6
+    hybrid_max_phases: int = 4
+
+    # ------------------------------------------------------------------
+    # Multi-start extensions
+    # ------------------------------------------------------------------
+
+    sampling_strategy: Literal["lhs", "sobol", "random"] = "lhs"
+    screen_keep_fraction: float = 0.5
+    refine_top_k: int = 3
+
+    # ------------------------------------------------------------------
+    # Scaling threshold
+    # ------------------------------------------------------------------
+
+    constant_scaling_threshold: float = 0.05
+
+    # ------------------------------------------------------------------
     # Backend and model identity
     # ------------------------------------------------------------------
 
@@ -357,6 +420,18 @@ class NLSQConfig:
             raise ValueError("max_recovery_attempts must be >= 0")
         if self.loss_scale <= 0:
             raise ValueError("loss_scale must be positive")
+        if self.hierarchical_max_outer_iterations < 1:
+            raise ValueError("hierarchical_max_outer_iterations must be >= 1")
+        if self.gradient_consecutive_triggers < 1:
+            raise ValueError("gradient_consecutive_triggers must be >= 1")
+        if self.cmaes_sigma0 <= 0:
+            raise ValueError("cmaes_sigma0 must be > 0")
+        if not (0 < self.hybrid_warmup_fraction < 1):
+            raise ValueError("hybrid_warmup_fraction must be in (0, 1)")
+        if not (0 < self.screen_keep_fraction <= 1):
+            raise ValueError("screen_keep_fraction must be in (0, 1]")
+        if self.refine_top_k < 1:
+            raise ValueError("refine_top_k must be >= 1")
 
     # ------------------------------------------------------------------
     # Validation
@@ -414,6 +489,27 @@ class NLSQConfig:
                 f"fourier_auto_threshold={self.fourier_auto_threshold} must be >= 1"
             )
 
+        valid_regularization_modes = ("none", "tikhonov", "adaptive")
+        if self.regularization_mode not in valid_regularization_modes:
+            errors.append(
+                f"regularization_mode={self.regularization_mode!r} is not valid; "
+                f"must be one of {valid_regularization_modes}"
+            )
+
+        valid_hybrid_methods = ("lbfgs", "gauss_newton")
+        if self.hybrid_method not in valid_hybrid_methods:
+            errors.append(
+                f"hybrid_method={self.hybrid_method!r} is not valid; "
+                f"must be one of {valid_hybrid_methods}"
+            )
+
+        valid_sampling_strategies = ("lhs", "sobol", "random")
+        if self.sampling_strategy not in valid_sampling_strategies:
+            errors.append(
+                f"sampling_strategy={self.sampling_strategy!r} is not valid; "
+                f"must be one of {valid_sampling_strategies}"
+            )
+
         return errors
 
     # ------------------------------------------------------------------
@@ -435,7 +531,7 @@ class NLSQConfig:
         Returns:
             Fully populated ``NLSQConfig`` instance.
         """
-        known_scalar_fields: dict[str, type] = {
+        known_scalar_fields: dict[str, str] = {
             # Core solver
             "max_iterations": "int",
             "tolerance": "float",
@@ -475,6 +571,41 @@ class NLSQConfig:
             "per_angle_mode": "str",
             "fourier_order": "int",
             "fourier_auto_threshold": "int",
+            # Hierarchical optimization
+            "enable_hierarchical": "bool",
+            "hierarchical_max_outer_iterations": "int",
+            "hierarchical_inner_tolerance": "float",
+            "hierarchical_outer_tolerance": "float",
+            # Adaptive regularization
+            "regularization_mode": "str",
+            "group_variance_lambda": "float",
+            "regularization_target_cv": "float",
+            # Gradient collapse detection
+            "enable_gradient_monitoring": "bool",
+            "gradient_ratio_threshold": "float",
+            "gradient_consecutive_triggers": "int",
+            # CMA-ES global search
+            "enable_cmaes": "bool",
+            "cmaes_sigma0": "float",
+            "cmaes_max_iterations": "int",
+            "cmaes_population_size": "int_or_none",
+            "cmaes_tolx": "float",
+            "cmaes_tolfun": "float",
+            # Hybrid streaming optimizer
+            "hybrid_enable": "bool",
+            "hybrid_warmup_fraction": "float",
+            "hybrid_normalization": "bool",
+            "hybrid_method": "str",
+            "hybrid_lbfgs_memory": "int",
+            "hybrid_convergence_window": "int",
+            "hybrid_convergence_threshold": "float",
+            "hybrid_max_phases": "int",
+            # Multi-start extensions
+            "sampling_strategy": "str",
+            "screen_keep_fraction": "float",
+            "refine_top_k": "int",
+            # Scaling threshold
+            "constant_scaling_threshold": "float",
             # Backend / model
             "use_nlsq_library": "bool",
             "n_params": "int",
@@ -645,6 +776,41 @@ class NLSQConfig:
             "per_angle_mode": self.per_angle_mode,
             "fourier_order": self.fourier_order,
             "fourier_auto_threshold": self.fourier_auto_threshold,
+            # Hierarchical optimization
+            "enable_hierarchical": self.enable_hierarchical,
+            "hierarchical_max_outer_iterations": self.hierarchical_max_outer_iterations,
+            "hierarchical_inner_tolerance": self.hierarchical_inner_tolerance,
+            "hierarchical_outer_tolerance": self.hierarchical_outer_tolerance,
+            # Adaptive regularization
+            "regularization_mode": self.regularization_mode,
+            "group_variance_lambda": self.group_variance_lambda,
+            "regularization_target_cv": self.regularization_target_cv,
+            # Gradient collapse detection
+            "enable_gradient_monitoring": self.enable_gradient_monitoring,
+            "gradient_ratio_threshold": self.gradient_ratio_threshold,
+            "gradient_consecutive_triggers": self.gradient_consecutive_triggers,
+            # CMA-ES global search
+            "enable_cmaes": self.enable_cmaes,
+            "cmaes_sigma0": self.cmaes_sigma0,
+            "cmaes_max_iterations": self.cmaes_max_iterations,
+            "cmaes_population_size": self.cmaes_population_size,
+            "cmaes_tolx": self.cmaes_tolx,
+            "cmaes_tolfun": self.cmaes_tolfun,
+            # Hybrid streaming optimizer
+            "hybrid_enable": self.hybrid_enable,
+            "hybrid_warmup_fraction": self.hybrid_warmup_fraction,
+            "hybrid_normalization": self.hybrid_normalization,
+            "hybrid_method": self.hybrid_method,
+            "hybrid_lbfgs_memory": self.hybrid_lbfgs_memory,
+            "hybrid_convergence_window": self.hybrid_convergence_window,
+            "hybrid_convergence_threshold": self.hybrid_convergence_threshold,
+            "hybrid_max_phases": self.hybrid_max_phases,
+            # Multi-start extensions
+            "sampling_strategy": self.sampling_strategy,
+            "screen_keep_fraction": self.screen_keep_fraction,
+            "refine_top_k": self.refine_top_k,
+            # Scaling threshold
+            "constant_scaling_threshold": self.constant_scaling_threshold,
             # Backend / model
             "use_nlsq_library": self.use_nlsq_library,
             "n_params": self.n_params,

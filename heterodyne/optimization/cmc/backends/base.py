@@ -166,21 +166,32 @@ class CMCBackend(ABC):
 def select_backend(config: CMCConfig) -> MCMCBackend:
     """Select the appropriate MCMC backend based on available devices.
 
-    Inspects ``jax.devices()`` to determine whether a GPU is available.
-    Falls back to the CPU backend when no GPU is detected.
+    Selection logic:
+    - Multiple devices (any type) -> PjitBackend (multi-device parallel)
+    - Single GPU -> GPUBackend (parallel chains on one GPU)
+    - Single CPU -> CPUBackend (sequential chains)
 
     Args:
-        config: CMC configuration (unused currently, reserved for future
-            backend-selection heuristics such as ``config.num_chains``).
+        config: CMC configuration (reserved for future backend-selection
+            heuristics such as ``config.num_chains``).
 
     Returns:
         An instantiated backend ready for ``run()``.
     """
     from heterodyne.optimization.cmc.backends.cpu_backend import CPUBackend
     from heterodyne.optimization.cmc.backends.gpu_backend import GPUBackend
+    from heterodyne.optimization.cmc.backends.pjit_backend import PjitBackend
 
     devices = jax.devices()
     has_gpu = any(d.platform == "gpu" for d in devices)
+
+    if len(devices) > 1:
+        logger.info(
+            "Multiple devices detected (%d), selecting PjitBackend for "
+            "multi-device parallel execution",
+            len(devices),
+        )
+        return PjitBackend()
 
     if has_gpu:
         logger.info("GPU detected, selecting GPUBackend for parallel chain execution")

@@ -28,6 +28,7 @@ class PriorType(Enum):
     LOGNORMAL = "lognormal"
     HALFNORMAL = "halfnormal"
     EXPONENTIAL = "exponential"
+    BETA_SCALED = "beta_scaled"
 
 
 @dataclass
@@ -67,6 +68,30 @@ class PriorDistribution:
             {"loc": loc, "scale": scale, "low": low, "high": high},
         )
 
+    @classmethod
+    def beta_scaled(
+        cls, low: float, high: float, concentration1: float, concentration2: float,
+    ) -> PriorDistribution:
+        """Create a Beta prior scaled to [low, high].
+
+        The distribution is Beta(concentration1, concentration2) affine-transformed
+        to the interval [low, high]. This is useful for bounded parameters where
+        you want to express a prior belief about the shape within the bounds.
+
+        Args:
+            low: Lower bound of the support.
+            high: Upper bound of the support.
+            concentration1: First concentration parameter (alpha > 0).
+            concentration2: Second concentration parameter (beta > 0).
+
+        Returns:
+            PriorDistribution with BETA_SCALED type.
+        """
+        return cls(
+            PriorType.BETA_SCALED,
+            {"low": low, "high": high, "concentration1": concentration1, "concentration2": concentration2},
+        )
+
     def to_numpyro(self, name: str) -> Any:
         """Convert to NumPyro distribution.
 
@@ -95,6 +120,17 @@ class PriorDistribution:
             return dist.HalfNormal(self.params["scale"])
         elif self.prior_type == PriorType.EXPONENTIAL:
             return dist.Exponential(self.params.get("rate", 1.0))
+        elif self.prior_type == PriorType.BETA_SCALED:
+            low = self.params["low"]
+            high = self.params["high"]
+            conc1 = self.params["concentration1"]
+            conc2 = self.params["concentration2"]
+            # Affine-transformed Beta: X = low + (high - low) * Beta(conc1, conc2)
+            base = dist.Beta(conc1, conc2)
+            return dist.TransformedDistribution(
+                base,
+                dist.transforms.AffineTransform(loc=low, scale=high - low),
+            )
         else:
             raise ValueError(f"Unknown prior type: {self.prior_type}")
 
@@ -317,6 +353,71 @@ _DEFAULT_PRIOR_SPECS: dict[str, tuple[float, float]] = {
 }
 
 
+def _compute_beta_concentrations(
+    mean: float, std: float, low: float, high: float,
+) -> tuple[float, float]:
+    """Compute Beta concentration parameters from desired mean and std on [low, high].
+
+    Uses the method of moments to find (alpha, beta) such that a
+    Beta(alpha, beta) distribution scaled to [low, high] has the
+    specified mean and standard deviation.
+
+    The standard Beta(alpha, beta) on [0, 1] has:
+        mu_01 = alpha / (alpha + beta)
+        var_01 = alpha * beta / ((alpha + beta)^2 * (alpha + beta + 1))
+
+    We map the desired mean/std from [low, high] to [0, 1]:
+        mu_01 = (mean - low) / (high - low)
+        var_01 = (std / (high - low))^2
+
+    Then solve for alpha, beta via method of moments:
+        alpha = mu_01 * ((mu_01 * (1 - mu_01)) / var_01 - 1)
+        beta = (1 - mu_01) * ((mu_01 * (1 - mu_01)) / var_01 - 1)
+
+    Args:
+        mean: Desired mean on [low, high].
+        std: Desired standard deviation on [low, high].
+        low: Lower bound.
+        high: Upper bound.
+
+    Returns:
+        Tuple (concentration1, concentration2) both > 0.
+
+    Raises:
+        ValueError: If the mean is outside [low, high] or std is too large
+            for a valid Beta distribution.
+    """
+    if high <= low:
+        raise ValueError(f"high ({high}) must be > low ({low})")
+    if not (low <= mean <= high):
+        raise ValueError(
+            f"mean ({mean}) must be in [{low}, {high}]"
+        )
+
+    range_width = high - low
+    mu_01 = (mean - low) / range_width
+    var_01 = (std / range_width) ** 2
+
+    # Variance of Beta on [0,1] must be < mu*(1-mu)
+    max_var = mu_01 * (1.0 - mu_01)
+    if var_01 >= max_var:
+        raise ValueError(
+            f"std={std} is too large for Beta on [{low}, {high}] with mean={mean}. "
+            f"Max std ~ {(max_var ** 0.5) * range_width:.4e}"
+        )
+
+    # Method of moments
+    common = mu_01 * (1.0 - mu_01) / var_01 - 1.0
+    alpha = mu_01 * common
+    beta_param = (1.0 - mu_01) * common
+
+    # Floor to avoid degenerate distributions
+    alpha = max(alpha, 0.01)
+    beta_param = max(beta_param, 0.01)
+
+    return alpha, beta_param
+
+
 def _default_prior(
     name: str,
     info: Any,
@@ -391,5 +492,11 @@ def _build_prior(
         return PriorDistribution.halfnormal(scale)
     elif prior_type == PriorType.EXPONENTIAL:
         return PriorDistribution(PriorType.EXPONENTIAL, prior_params)
+    elif prior_type == PriorType.BETA_SCALED:
+        low = prior_params.get("low", bounds[0])
+        high = prior_params.get("high", bounds[1])
+        conc1 = prior_params.get("concentration1", 2.0)
+        conc2 = prior_params.get("concentration2", 2.0)
+        return PriorDistribution.beta_scaled(low, high, conc1, conc2)
     else:
         raise ValueError(f"Unhandled prior type: {prior_type}")

@@ -29,7 +29,7 @@ optimization/cmc/
     ├── base.py           # MCMCBackend protocol + select_backend()
     ├── cpu_backend.py    # CPUBackend: sequential NUTS chains
     ├── gpu_backend.py    # GPUBackend: pmap parallel chains
-    └── worker_pool.py    # WorkerPoolBackend: multi-process (>= 3 chains)
+    └── worker_pool.py    # WorkerPoolBackend (importable, not auto-selected)
 ```
 
 ---
@@ -43,8 +43,7 @@ fit_cmc_jax(model, c2_data, phi_angle, config, nlsq_result)
         │
         ├─ select_backend(config)
         │     ├── GPUBackend           if GPU detected
-        │     ├── WorkerPoolBackend    if CPU and num_chains >= 3
-        │     └── CPUBackend           otherwise
+        │     └── CPUBackend           otherwise (default)
         │
         ├─ ReparamConfig + compute_t_ref(dt, t_max)
         │     reference time = geometric mean of dt and t_max
@@ -128,16 +127,15 @@ runtime:
 ```
 jax.devices()
     │
-    ├── any GPU present?      → GPUBackend
-    ├── CPU, num_chains >= 3? → WorkerPoolBackend
-    └── CPU, num_chains < 3?  → CPUBackend
+    ├── any GPU present? → GPUBackend
+    └── CPU?             → CPUBackend
 ```
 
 | Backend | Strategy | When to use |
 |---|---|---|
-| `CPUBackend` | Sequential NUTS per chain | CPU, < 3 chains |
-| `WorkerPoolBackend` | Multi-process, one process per chain | CPU, >= 3 chains |
+| `CPUBackend` | Sequential NUTS per chain | CPU (default) |
 | `GPUBackend` | `pmap` across GPU devices | GPU available |
+| `WorkerPoolBackend` | Multi-process, one process per chain | Manual selection only |
 
 All backends implement the `MCMCBackend` protocol, which exposes a single
 `run(model, config, rng_key, init_params)` method returning a dict of sample

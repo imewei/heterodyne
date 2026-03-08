@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -13,6 +15,22 @@ if TYPE_CHECKING:
     pass
 
 
+class ConstraintSeverity(Enum):
+    """Severity level for physics constraint violations."""
+    ERROR = "error"
+    WARNING = "warning"
+    INFO = "info"
+
+
+@dataclass(frozen=True)
+class PhysicsViolation:
+    """A single physics constraint violation."""
+    parameter: str
+    value: float | None
+    message: str
+    severity: ConstraintSeverity
+
+
 @dataclass
 class ValidationResult:
     """Result of parameter validation."""
@@ -20,9 +38,204 @@ class ValidationResult:
     is_valid: bool
     errors: list[str]
     warnings: list[str]
+    info: list[str] = field(default_factory=list)
 
     def __bool__(self) -> bool:
         return self.is_valid
+
+
+@dataclass(frozen=True)
+class ConstraintRule:
+    """A single constraint rule for a parameter."""
+    check: Callable[[float], bool]
+    message: str
+    severity: ConstraintSeverity
+
+
+PHYSICS_CONSTRAINTS: dict[str, list[ConstraintRule]] = {
+    "D0_ref": [
+        ConstraintRule(lambda v: v < 0, "must be non-negative", ConstraintSeverity.ERROR),
+        ConstraintRule(lambda v: v < 1e-12 and v >= 0, "near zero; may cause degenerate diffusion", ConstraintSeverity.WARNING),
+        ConstraintRule(lambda v: v > 1e5, "unusually large diffusion coefficient", ConstraintSeverity.WARNING),
+    ],
+    "D0_sample": [
+        ConstraintRule(lambda v: v < 0, "must be non-negative", ConstraintSeverity.ERROR),
+        ConstraintRule(lambda v: v < 1e-12 and v >= 0, "near zero; may cause degenerate diffusion", ConstraintSeverity.WARNING),
+        ConstraintRule(lambda v: v > 1e5, "unusually large diffusion coefficient", ConstraintSeverity.WARNING),
+    ],
+    "alpha_ref": [
+        ConstraintRule(lambda v: v < -1.5, "strongly subdiffusive (alpha < -1.5)", ConstraintSeverity.WARNING),
+        ConstraintRule(lambda v: v > 1.0, "superdiffusive regime", ConstraintSeverity.INFO),
+        ConstraintRule(lambda v: abs(v) > 2, "unusual magnitude (|alpha| > 2)", ConstraintSeverity.WARNING),
+    ],
+    "alpha_sample": [
+        ConstraintRule(lambda v: v < -1.5, "strongly subdiffusive (alpha < -1.5)", ConstraintSeverity.WARNING),
+        ConstraintRule(lambda v: v > 1.0, "superdiffusive regime", ConstraintSeverity.INFO),
+        ConstraintRule(lambda v: abs(v) > 2, "unusual magnitude (|alpha| > 2)", ConstraintSeverity.WARNING),
+    ],
+    "v0": [
+        ConstraintRule(lambda v: v < 0, "negative velocity", ConstraintSeverity.WARNING),
+        ConstraintRule(lambda v: v > 1e3, "large velocity (> 1e3 Å/s)", ConstraintSeverity.WARNING),
+    ],
+    "f0": [
+        ConstraintRule(lambda v: not (0 <= v <= 1), "must be in [0, 1]", ConstraintSeverity.ERROR),
+    ],
+    "f3": [
+        ConstraintRule(lambda v: not (0 <= v <= 1), "must be in [0, 1]", ConstraintSeverity.ERROR),
+    ],
+    "f1": [
+        ConstraintRule(lambda v: abs(v) > 5, "large magnitude; fraction may change rapidly", ConstraintSeverity.WARNING),
+    ],
+    "beta": [
+        ConstraintRule(lambda v: abs(v) > 2, "unusual magnitude (|beta| > 2)", ConstraintSeverity.WARNING),
+    ],
+}
+
+
+def validate_single_parameter(
+    param: str,
+    value: float,
+    min_severity: ConstraintSeverity = ConstraintSeverity.INFO,
+) -> list[PhysicsViolation]:
+    """Validate a single parameter against physics constraints.
+
+    Args:
+        param: Parameter name.
+        value: Parameter value.
+        min_severity: Minimum severity to include in results.
+            INFO includes all, WARNING includes warnings and errors,
+            ERROR includes only errors.
+
+    Returns:
+        List of PhysicsViolation objects for triggered constraints.
+    """
+    severity_order = {
+        ConstraintSeverity.INFO: 0,
+        ConstraintSeverity.WARNING: 1,
+        ConstraintSeverity.ERROR: 2,
+    }
+    min_level = severity_order[min_severity]
+
+    violations: list[PhysicsViolation] = []
+    rules = PHYSICS_CONSTRAINTS.get(param, [])
+
+    for rule in rules:
+        if severity_order[rule.severity] < min_level:
+            continue
+        if rule.check(value):
+            violations.append(PhysicsViolation(
+                parameter=param,
+                value=value,
+                message=f"{param}={value:.3e}: {rule.message}",
+                severity=rule.severity,
+            ))
+
+    return violations
+
+
+def validate_cross_parameter_constraints(
+    params: dict[str, float],
+    min_severity: ConstraintSeverity = ConstraintSeverity.INFO,
+) -> list[PhysicsViolation]:
+    """Validate constraints that span multiple parameters.
+
+    Cross-parameter checks:
+    - f0 + f3 > 1 (ERROR): total fraction exceeds unity
+    - D_offset_ref / D0_ref > 0.5 (WARNING): offset dominates diffusion
+    - D_offset_sample / D0_sample > 0.5 (WARNING): offset dominates diffusion
+    - v0 > 0 check for two_component mode (INFO)
+
+    Args:
+        params: Dictionary of parameter name -> value.
+        min_severity: Minimum severity to include.
+
+    Returns:
+        List of PhysicsViolation objects.
+    """
+    severity_order = {
+        ConstraintSeverity.INFO: 0,
+        ConstraintSeverity.WARNING: 1,
+        ConstraintSeverity.ERROR: 2,
+    }
+    min_level = severity_order[min_severity]
+    violations: list[PhysicsViolation] = []
+
+    # f0 + f3 > 1
+    if "f0" in params and "f3" in params:
+        total = params["f0"] + params["f3"]
+        if total > 1.0 and severity_order[ConstraintSeverity.ERROR] >= min_level:
+            violations.append(PhysicsViolation(
+                parameter="f0+f3",
+                value=total,
+                message=f"f0 + f3 = {total:.3f} > 1; total fraction exceeds unity",
+                severity=ConstraintSeverity.ERROR,
+            ))
+
+    # D_offset_ref / D0_ref ratio
+    if "D_offset_ref" in params and "D0_ref" in params and params["D0_ref"] > 0:
+        ratio = params["D_offset_ref"] / params["D0_ref"]
+        if ratio > 0.5 and severity_order[ConstraintSeverity.WARNING] >= min_level:
+            violations.append(PhysicsViolation(
+                parameter="D_offset_ref/D0_ref",
+                value=ratio,
+                message=f"D_offset_ref/D0_ref = {ratio:.3f} > 0.5; offset dominates diffusion",
+                severity=ConstraintSeverity.WARNING,
+            ))
+
+    # D_offset_sample / D0_sample ratio
+    if "D_offset_sample" in params and "D0_sample" in params and params["D0_sample"] > 0:
+        ratio = params["D_offset_sample"] / params["D0_sample"]
+        if ratio > 0.5 and severity_order[ConstraintSeverity.WARNING] >= min_level:
+            violations.append(PhysicsViolation(
+                parameter="D_offset_sample/D0_sample",
+                value=ratio,
+                message=f"D_offset_sample/D0_sample = {ratio:.3f} > 0.5; offset dominates diffusion",
+                severity=ConstraintSeverity.WARNING,
+            ))
+
+    # v0 positive check (informational for two_component context)
+    if "v0" in params and params["v0"] <= 0 and severity_order[ConstraintSeverity.INFO] >= min_level:
+        violations.append(PhysicsViolation(
+            parameter="v0",
+            value=params["v0"],
+            message=f"v0={params['v0']:.3e} is non-positive; two-component model requires positive velocity",
+            severity=ConstraintSeverity.INFO,
+        ))
+
+    return violations
+
+
+def validate_all_parameters(
+    params: dict[str, float],
+    min_severity: ConstraintSeverity = ConstraintSeverity.INFO,
+) -> list[PhysicsViolation]:
+    """Validate all parameters against single and cross-parameter constraints.
+
+    Args:
+        params: Dictionary of parameter name -> value.
+        min_severity: Minimum severity to include.
+
+    Returns:
+        List of all PhysicsViolation objects, sorted by severity (errors first).
+    """
+    violations: list[PhysicsViolation] = []
+
+    # Single-parameter constraints
+    for param, value in params.items():
+        violations.extend(validate_single_parameter(param, value, min_severity))
+
+    # Cross-parameter constraints
+    violations.extend(validate_cross_parameter_constraints(params, min_severity))
+
+    # Sort: errors first, then warnings, then info
+    severity_order = {
+        ConstraintSeverity.ERROR: 0,
+        ConstraintSeverity.WARNING: 1,
+        ConstraintSeverity.INFO: 2,
+    }
+    violations.sort(key=lambda v: severity_order[v.severity])
+
+    return violations
 
 
 def validate_parameters(params: np.ndarray | dict[str, float]) -> ValidationResult:
@@ -32,7 +245,7 @@ def validate_parameters(params: np.ndarray | dict[str, float]) -> ValidationResu
         params: Either array of 14 values or dict with parameter names
 
     Returns:
-        ValidationResult with errors and warnings
+        ValidationResult with errors, warnings, and info
     """
     if isinstance(params, np.ndarray):
         if len(params) != 14:
@@ -45,70 +258,18 @@ def validate_parameters(params: np.ndarray | dict[str, float]) -> ValidationResu
     else:
         param_dict = dict(params)
 
-    errors: list[str] = []
-    warnings: list[str] = []
+    # Use the new severity-stratified system
+    violations = validate_all_parameters(param_dict)
 
-    # === Hard constraints (errors) ===
-
-    # Diffusion coefficients must be non-negative
-    for name in ("D0_ref", "D0_sample"):
-        if name in param_dict:
-            if param_dict[name] < 0:
-                errors.append(f"{name}={param_dict[name]:.3e} must be non-negative")
-            elif param_dict[name] < 1e-12:
-                warnings.append(
-                    f"{name}={param_dict[name]:.3e} is near zero; "
-                    "this may cause degenerate diffusion behaviour"
-                )
-
-    # Fraction amplitude f0 must be in [0, 1]
-    if "f0" in param_dict:
-        f0 = param_dict["f0"]
-        if not (0 <= f0 <= 1):
-            errors.append(f"f0={f0:.3f} must be in [0, 1]")
-
-    # Fraction baseline f3 must be in [0, 1]
-    if "f3" in param_dict:
-        f3 = param_dict["f3"]
-        if not (0 <= f3 <= 1):
-            errors.append(f"f3={f3:.3f} must be in [0, 1]")
-
-    # Combined fraction must not exceed 1 (physical impossibility)
-    if "f0" in param_dict and "f3" in param_dict:
-        if param_dict["f0"] + param_dict["f3"] > 1.0:
-            errors.append(
-                f"f0 + f3 = {param_dict['f0'] + param_dict['f3']:.3f} > 1; "
-                "total fraction exceeds unity, which is physically impossible"
-            )
-
-    # === Soft constraints (warnings) ===
-
-    # Unusual exponent values
-    for name in ("alpha_ref", "alpha_sample", "beta"):
-        if name in param_dict:
-            val = param_dict[name]
-            if abs(val) > 2:
-                warnings.append(f"{name}={val:.3f} has unusual magnitude (|α| > 2)")
-
-    # Very large diffusion coefficients
-    for name in ("D0_ref", "D0_sample"):
-        if name in param_dict and param_dict[name] > 1e5:
-            warnings.append(f"{name}={param_dict[name]:.3e} is unusually large")
-
-    # Very large velocities
-    if "v0" in param_dict and abs(param_dict["v0"]) > 1e3:
-        warnings.append(f"v0={param_dict['v0']:.3e} is unusually large")
-
-    # Exponential rate magnitude check
-    if "f1" in param_dict and abs(param_dict["f1"]) > 5:
-        warnings.append(
-            f"f1={param_dict['f1']:.3f} is large, fraction may change rapidly"
-        )
+    errors = [v.message for v in violations if v.severity == ConstraintSeverity.ERROR]
+    warnings = [v.message for v in violations if v.severity == ConstraintSeverity.WARNING]
+    info = [v.message for v in violations if v.severity == ConstraintSeverity.INFO]
 
     return ValidationResult(
         is_valid=len(errors) == 0,
         errors=errors,
         warnings=warnings,
+        info=info,
     )
 
 

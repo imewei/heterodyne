@@ -117,6 +117,49 @@ def save_nlsq_npz_file(
     return output_path
 
 
+def load_nlsq_npz_file(path: Path | str) -> NLSQResult:
+    """Load NLSQResult from an NPZ file saved by ``save_nlsq_npz_file``.
+
+    Args:
+        path: Path to the ``.npz`` file.
+
+    Returns:
+        Reconstructed NLSQResult with available fields.
+
+    Raises:
+        FileNotFoundError: If *path* does not exist.
+    """
+    from heterodyne.optimization.nlsq.results import NLSQResult
+
+    path = Path(path)
+    data = np.load(path, allow_pickle=False)  # noqa: S301 — pickle disabled
+
+    parameters = data["parameters"]
+    parameter_names = list(data["parameter_names"])
+    success = bool(data["success"])
+    final_cost_val = float(data["final_cost"])
+    final_cost: float | None = None if np.isnan(final_cost_val) else final_cost_val
+
+    uncertainties = data["uncertainties"] if "uncertainties" in data else None
+    covariance = data["covariance"] if "covariance" in data else None
+    residuals = data["residuals"] if "residuals" in data else None
+    jacobian = data["jacobian"] if "jacobian" in data else None
+    fitted_correlation = data["fitted_correlation"] if "fitted_correlation" in data else None
+
+    return NLSQResult(
+        parameters=parameters,
+        parameter_names=parameter_names,
+        success=success,
+        message="loaded from NPZ",
+        uncertainties=uncertainties,
+        covariance=covariance,
+        final_cost=final_cost,
+        residuals=residuals,
+        jacobian=jacobian,
+        fitted_correlation=fitted_correlation,
+    )
+
+
 def format_nlsq_summary(result: NLSQResult) -> str:
     """Format NLSQ result as human-readable summary.
 

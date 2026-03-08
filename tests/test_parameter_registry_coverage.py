@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import pytest
 
-from heterodyne.config.parameter_names import ALL_PARAM_NAMES, ALL_PARAM_NAMES_WITH_SCALING
+from heterodyne.config.parameter_names import (
+    ALL_PARAM_NAMES,
+    ALL_PARAM_NAMES_WITH_SCALING,
+)
 from heterodyne.config.parameter_registry import (
     DEFAULT_REGISTRY,
     SCALING_PARAMS,
@@ -95,8 +98,8 @@ class TestParameterInfo:
     def test_default_metadata_fields(self, param_info: ParameterInfo) -> None:
         """New metadata fields have sensible defaults."""
         assert param_info.log_space is False
-        assert param_info.prior_mean == 0.0
-        assert param_info.prior_std == 1.0
+        assert param_info.prior_mean is None
+        assert param_info.prior_std is None
         assert param_info.is_scaling is False
 
 

@@ -136,7 +136,7 @@ class TestNLSQConfig:
 
         config = NLSQConfig()
 
-        assert config.max_iterations == 100
+        assert config.max_iterations == 1000
         assert config.tolerance == 1e-8
         assert config.method == "trf"
 

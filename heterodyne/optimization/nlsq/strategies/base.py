@@ -108,7 +108,7 @@ def select_strategy(
     jacobian_mb = jacobian_bytes / (1024 * 1024)
 
     if n_data < _SMALL_DATASET:
-        logger.info(f"Using residual strategy (small dataset: {n_data} points)")
+        logger.info("Using residual strategy (small dataset: %d points)", n_data)
         return ResidualStrategy()
 
     if n_data < _MEDIUM_DATASET:

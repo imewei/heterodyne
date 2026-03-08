@@ -12,7 +12,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from heterodyne.config.parameter_names import ALL_PARAM_NAMES, PARAM_GROUPS
+from heterodyne.config.parameter_names import (
+    ALL_PARAM_NAMES_WITH_SCALING,
+    PARAM_GROUPS,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -85,8 +88,8 @@ class ParameterRegistry:
         return self._parameters[name]
 
     def __iter__(self) -> Iterator[str]:
-        """Iterate over parameter names in canonical order."""
-        for name in ALL_PARAM_NAMES:
+        """Iterate over parameter names in canonical order (14 physics + 2 scaling)."""
+        for name in ALL_PARAM_NAMES_WITH_SCALING:
             if name in self._parameters:
                 yield name
 
@@ -145,21 +148,21 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
     # Reference transport: J_r(t) = D0_ref * t^alpha_ref + D_offset_ref
     params["D0_ref"] = ParameterInfo(
         name="D0_ref",
-        default=1000.0,
+        default=1e4,
         min_bound=100.0,
-        max_bound=1e5,
+        max_bound=1e6,
         description="Reference diffusion coefficient prefactor",
         unit="Å²/s^α",
         group="reference",
         vary_default=True,
         log_space=True,
-        prior_mean=50050.0,
-        prior_std=24975.0,
+        prior_mean=1e4,
+        prior_std=5e3,
         is_physical=True,
     )
     params["alpha_ref"] = ParameterInfo(
         name="alpha_ref",
-        default=1.0,
+        default=0.0,
         min_bound=-2.0,
         max_bound=2.0,
         description="Reference transport exponent (1=diffusive, <1=subdiffusive)",
@@ -178,30 +181,30 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         description="Reference transport rate offset (intentionally wide; clamped at runtime)",
         unit="Å²",
         group="reference",
-        vary_default=False,
+        vary_default=True,
         prior_mean=0.0,
-        prior_std=50000.0,
+        prior_std=1e3,
         is_physical=True,
     )
 
     # Sample transport: J_s(t) = D0_sample * t^alpha_sample + D_offset_sample
     params["D0_sample"] = ParameterInfo(
         name="D0_sample",
-        default=1000.0,
+        default=1e4,
         min_bound=100.0,
-        max_bound=1e5,
+        max_bound=1e6,
         description="Sample diffusion coefficient prefactor",
         unit="Å²/s^α",
         group="sample",
         vary_default=True,
         log_space=True,
-        prior_mean=50050.0,
-        prior_std=24975.0,
+        prior_mean=1e4,
+        prior_std=5e3,
         is_physical=True,
     )
     params["alpha_sample"] = ParameterInfo(
         name="alpha_sample",
-        default=1.0,
+        default=0.0,
         min_bound=-2.0,
         max_bound=2.0,
         description="Sample transport exponent (1=diffusive, <1=subdiffusive)",
@@ -220,16 +223,16 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         description="Sample transport rate offset (intentionally wide; clamped at runtime)",
         unit="Å²",
         group="sample",
-        vary_default=False,
+        vary_default=True,
         prior_mean=0.0,
-        prior_std=50000.0,
+        prior_std=1e3,
         is_physical=True,
     )
 
     # Velocity: v(t) = v0 * t^beta + v_offset
     params["v0"] = ParameterInfo(
         name="v0",
-        default=1.0,
+        default=1e3,
         min_bound=1e-6,
         max_bound=1e4,
         description="Velocity prefactor (non-negative magnitude)",
@@ -237,8 +240,8 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="velocity",
         vary_default=True,
         log_space=True,
-        prior_mean=5000.0,
-        prior_std=2500.0,
+        prior_mean=1e3,
+        prior_std=500.0,
         is_physical=True,
         is_flow=True,
     )
@@ -250,7 +253,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         description="Velocity exponent (0=constant, <0=deceleration)",
         unit="",
         group="velocity",
-        vary_default=False,
+        vary_default=True,
         prior_mean=0.0,
         prior_std=1.0,
         is_physical=True,
@@ -258,15 +261,15 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
     )
     params["v_offset"] = ParameterInfo(
         name="v_offset",
-        default=1.0,
-        min_bound=0.01,
+        default=0.0,
+        min_bound=-100.0,
         max_bound=100.0,
-        description="Velocity offset (tightened from homodyne for heterodyne stability)",
+        description="Velocity offset (allows negative for direction reversal)",
         unit="Å/s",
         group="velocity",
-        vary_default=False,
-        prior_mean=50.005,
-        prior_std=24.99,
+        vary_default=True,
+        prior_mean=0.0,
+        prior_std=25.0,
         is_physical=True,
         is_flow=True,
     )
@@ -293,7 +296,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         description="Fraction exponential rate",
         unit="1/s",
         group="fraction",
-        vary_default=False,
+        vary_default=True,
         prior_mean=0.0,
         prior_std=5.0,
         is_physical=True,
@@ -306,9 +309,9 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         description="Fraction time shift",
         unit="s",
         group="fraction",
-        vary_default=False,
+        vary_default=True,
         prior_mean=0.0,
-        prior_std=5000.0,
+        prior_std=1e3,
         is_physical=True,
     )
     params["f3"] = ParameterInfo(
@@ -319,7 +322,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         description="Fraction baseline offset",
         unit="",
         group="fraction",
-        vary_default=False,
+        vary_default=True,
         prior_mean=0.0,
         prior_std=0.5,
         is_physical=True,
@@ -341,16 +344,10 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         is_flow=True,
     )
 
-    return params
-
-
-# Module-level default registry instance
-DEFAULT_REGISTRY = ParameterRegistry()
-
-# Scaling parameter definitions (not part of the 14-parameter model array,
-# but registrable for per-angle expansion)
-SCALING_PARAMS: Mapping[str, ParameterInfo] = MappingProxyType({
-    "contrast": ParameterInfo(
+    # Scaling parameters: not part of the 14-element physics array passed to
+    # JIT kernels, but stored in the unified registry for consistent lookup
+    # via DEFAULT_REGISTRY["contrast"] / DEFAULT_REGISTRY["offset"].
+    params["contrast"] = ParameterInfo(
         name="contrast",
         default=0.5,
         min_bound=0.0,
@@ -363,8 +360,8 @@ SCALING_PARAMS: Mapping[str, ParameterInfo] = MappingProxyType({
         prior_std=0.25,
         is_scaling=True,
         is_physical=False,
-    ),
-    "offset": ParameterInfo(
+    )
+    params["offset"] = ParameterInfo(
         name="offset",
         default=1.0,
         min_bound=0.5,
@@ -377,5 +374,17 @@ SCALING_PARAMS: Mapping[str, ParameterInfo] = MappingProxyType({
         prior_std=0.25,
         is_scaling=True,
         is_physical=False,
-    ),
+    )
+
+    return params
+
+
+# Module-level default registry instance
+DEFAULT_REGISTRY = ParameterRegistry()
+
+# Convenience alias: scaling-only view of the registry for code that needs
+# to distinguish scaling from physics parameters.
+SCALING_PARAMS: Mapping[str, ParameterInfo] = MappingProxyType({
+    name: DEFAULT_REGISTRY[name]
+    for name in ("contrast", "offset")
 })

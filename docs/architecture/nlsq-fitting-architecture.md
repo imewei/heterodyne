@@ -23,7 +23,7 @@ optimization/nlsq/
 └── validation/
     ├── input_validator.py  # InputValidator (pre-fit)
     ├── result.py           # ResultValidator (post-fit), ValidationReport
-    └── fit_quality.py      # FitQualityValidator (chi2, bounds proximity)
+    └── fit_quality.py      # Fit quality checks (chi2, bounds proximity)
 ```
 
 ---
@@ -49,11 +49,8 @@ NLSQWrapper.fit(residual_fn, initial_params, bounds, config)
                 ▼
         ResultValidator.validate(result)
                 │  checks: convergence flag, chi2 thresholds,
-                │          relative uncertainty, parameter correlations, NaN/Inf
-                ▼
-        FitQualityValidator.validate(result)
-                │  checks: reduced chi2 (warn >= 10, fail >= 100)
-                │          bounds proximity (< 0.5% of span = WARNING)
+                │          relative uncertainty, parameter correlations,
+                │          NaN/Inf, reduced chi2, bounds proximity
                 ▼
         NLSQResult
 ```

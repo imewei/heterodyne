@@ -11,6 +11,7 @@ import math
 from typing import TYPE_CHECKING
 
 import numpyro.distributions as dist
+from numpyro.distributions.truncated import TwoSidedTruncatedDistribution
 
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY, ParameterRegistry
 from heterodyne.utils.logging import get_logger
@@ -100,8 +101,10 @@ def build_default_priors(
 
     Uses ``prior_mean`` and ``prior_std`` from each parameter's
     :class:`~heterodyne.config.parameter_registry.ParameterInfo`.
-    When those fields are ``None``, falls back to a Uniform prior
-    spanning the parameter bounds.
+    For bounded fraction/contrast parameters (f0, f3, contrast),
+    auto-selects BetaScaled priors when prior_mean and prior_std are
+    available and bounds are finite. Otherwise falls back to
+    TruncatedNormal or Uniform.
 
     Args:
         param_space: Parameter space defining which parameters vary
@@ -116,11 +119,48 @@ def build_default_priors(
     if registry is None:
         registry = DEFAULT_REGISTRY
 
+    # Parameters that benefit from BetaScaled priors (bounded [0, 1] or similar)
+    _BETA_SCALED_CANDIDATES = {"f0", "f3", "contrast"}
+
     priors: dict[str, dist.Distribution] = {}
 
     for name in param_space.varying_names:
         info = registry[name]
         low, high = param_space.bounds[name]
+
+        # Try BetaScaled for candidate parameters with finite bounds
+        if (
+            name in _BETA_SCALED_CANDIDATES
+            and info.prior_mean is not None
+            and info.prior_std is not None
+            and info.prior_std > 0
+            and math.isfinite(low)
+            and math.isfinite(high)
+            and low < high
+        ):
+            try:
+                from heterodyne.config.parameter_space import (
+                    _compute_beta_concentrations,
+                )
+                conc1, conc2 = _compute_beta_concentrations(
+                    info.prior_mean, info.prior_std, low, high,
+                )
+                base = dist.Beta(conc1, conc2)
+                priors[name] = dist.TransformedDistribution(
+                    base,
+                    dist.transforms.AffineTransform(loc=low, scale=high - low),
+                )
+                logger.debug(
+                    "BetaScaled prior for %s: Beta(%.4f, %.4f) on [%.4e, %.4e]",
+                    name, conc1, conc2, low, high,
+                )
+                continue
+            except ValueError:
+                logger.debug(
+                    "BetaScaled not feasible for %s (std too large); "
+                    "falling back to TruncatedNormal",
+                    name,
+                )
 
         if info.prior_mean is not None and info.prior_std is not None and info.prior_std > 0:
             # Truncated normal centered on registry prior
@@ -264,16 +304,17 @@ def temper_priors(
     tempered: dict[str, dist.Distribution] = {}
 
     for name, prior in priors.items():
-        if isinstance(prior, dist.TruncatedNormal):
-            # TruncatedNormal stores loc/scale as tensors; extract as floats
-            loc = float(prior.loc)
-            scale = float(prior.scale) * factor
+        if isinstance(prior, TwoSidedTruncatedDistribution):
+            # TwoSidedTruncatedDistribution wraps a Normal base_dist
+            loc = float(prior.base_dist.loc)
+            old_scale = float(prior.base_dist.scale)
+            scale = old_scale * factor
             low = float(prior.low)
             high = float(prior.high)
             tempered[name] = dist.TruncatedNormal(loc=loc, scale=scale, low=low, high=high)
             logger.debug(
                 "temper_priors: %s TruncatedNormal scale %.4e -> %.4e (x%.2f)",
-                name, float(prior.scale), scale, factor,
+                name, old_scale, scale, factor,
             )
 
         elif isinstance(prior, dist.LogNormal):
@@ -289,6 +330,15 @@ def temper_priors(
             # Uninformative; keep unchanged
             tempered[name] = prior
             logger.debug("temper_priors: %s Uniform — left unchanged.", name)
+
+        elif isinstance(prior, dist.TransformedDistribution):
+            # BetaScaled: cannot easily temper — leave unchanged with warning
+            logger.warning(
+                "temper_priors: %s has TransformedDistribution (e.g. BetaScaled) — "
+                "left unchanged. Consider using TruncatedNormal for tempered CMC.",
+                name,
+            )
+            tempered[name] = prior
 
         else:
             # Unsupported type; keep unchanged and warn
@@ -348,7 +398,7 @@ def validate_priors(
 
         # Check 2: support overlap with bounds
         # For distributions with explicit support attributes
-        if isinstance(prior, dist.TruncatedNormal):
+        if isinstance(prior, TwoSidedTruncatedDistribution):
             prior_low = float(prior.low)
             prior_high = float(prior.high)
             if prior_high <= low_bound or prior_low >= high_bound:
@@ -374,12 +424,23 @@ def validate_priors(
                     f"upper bound is {high_bound:.4e} <= 0."
                 )
 
+        elif isinstance(prior, dist.TransformedDistribution):
+            # TransformedDistribution (e.g. BetaScaled) — trust the bounds
+            # are correct since they're set during construction
+            pass
+
         # Check 3: degenerate prior (near-zero scale)
         _scale: float | None = None
-        if isinstance(prior, dist.TruncatedNormal):
-            _scale = float(prior.scale)
+        if isinstance(prior, TwoSidedTruncatedDistribution):
+            _scale = float(prior.base_dist.scale)
         elif isinstance(prior, dist.LogNormal):
             _scale = float(prior.scale)
+        elif isinstance(prior, dist.TransformedDistribution):
+            # Check base distribution for degeneracy
+            base = prior.base_dist
+            if isinstance(base, dist.Beta):
+                # Beta is never degenerate if both concentrations > 0
+                pass
         # Uniform is never degenerate by construction
 
         if _scale is not None and _scale < 1e-12:
@@ -433,9 +494,9 @@ def summarize_priors(priors: dict[str, dist.Distribution]) -> str:
     for name, prior in priors.items():
         label = f"  {name:<{name_width}}"
 
-        if isinstance(prior, dist.TruncatedNormal):
-            loc = float(prior.loc)
-            scale = float(prior.scale)
+        if isinstance(prior, TwoSidedTruncatedDistribution):
+            loc = float(prior.base_dist.loc)
+            scale = float(prior.base_dist.scale)
             low = float(prior.low)
             high = float(prior.high)
             lines.append(
@@ -468,6 +529,29 @@ def summarize_priors(priors: dict[str, dist.Distribution]) -> str:
                 f"support=[{low:.4e}, {high:.4e}]  "
                 f"mean={mean:.4e}  std={std:.4e}"
             )
+
+        elif isinstance(prior, dist.TransformedDistribution):
+            base = prior.base_dist
+            if isinstance(base, dist.Beta):
+                conc1 = float(base.concentration1)
+                conc2 = float(base.concentration0)
+                # Extract affine transform parameters
+                transforms = prior.transforms
+                if transforms:
+                    t = transforms[0]  # AffineTransform
+                    loc = float(t.loc)
+                    scale = float(t.scale)
+                    mean = loc + scale * conc1 / (conc1 + conc2)
+                    lines.append(
+                        f"{label}BetaScaled       "
+                        f"alpha={conc1:.4f}  beta={conc2:.4f}  "
+                        f"support=[{loc:.4e}, {loc + scale:.4e}]  "
+                        f"mean={mean:.4e}"
+                    )
+                else:
+                    lines.append(f"{label}TransformedBeta  alpha={conc1:.4f}  beta={conc2:.4f}")
+            else:
+                lines.append(f"{label}Transformed({type(base).__name__})")
 
         else:
             lines.append(f"{label}{type(prior).__name__}")

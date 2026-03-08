@@ -36,13 +36,13 @@ heterodyne/
 │   ├── nlsq/           # Non-linear least squares
 │   │   ├── wrapper.py         # NLSQWrapper: retry with perturbation
 │   │   ├── adapter.py         # ScipyNLSQAdapter / NLSQAdapter (JAX)
-│   │   └── validation/        # InputValidator, ResultValidator, FitQualityValidator
+│   │   └── validation/        # InputValidator, ResultValidator
 │   │
 │   └── cmc/            # Consensus/MCMC Bayesian sampling
 │       ├── core.py            # fit_cmc_jax() entry point
 │       ├── model.py           # NumPyro model definition
 │       ├── reparameterization.py  # Z-space transforms for power-law pairs
-│       ├── backends/          # CPUBackend, GPUBackend, WorkerPoolBackend
+│       ├── backends/          # CPUBackend, GPUBackend
 │       ├── diagnostics.py     # ArviZ R-hat, ESS convergence checks
 │       └── sampler.py         # NUTS configuration wrappers
 │
@@ -76,7 +76,7 @@ Raw file (HDF5/NPZ/MAT)
   NLSQWrapper.fit()          ← ScipyNLSQAdapter (default) or NLSQAdapter (JAX)
         │  retry-with-perturbation up to max_retries
         ▼
-  ResultValidator + FitQualityValidator
+  ResultValidator
         │  chi2, uncertainty, bounds-proximity checks
         ▼
   fit_cmc_jax()              ← NumPyro NUTS via backend selection
@@ -110,9 +110,8 @@ inactive parameters at canonical defaults. Registered modes: `"static_ref"`,
 
 **Backend selection at runtime.**
 `select_backend(config)` in `optimization/cmc/backends/base.py` inspects
-`jax.devices()` and returns a `CPUBackend` (sequential), `WorkerPoolBackend`
-(multi-process, CPU with >= 3 chains), or `GPUBackend` (parallel) without
-requiring caller changes.
+`jax.devices()` and returns a `CPUBackend` (sequential) or `GPUBackend`
+(parallel) without requiring caller changes.
 
 **Units.**
 All quantities use Angstroms: q in Å⁻¹, D0 in Å²/s^α, velocities in Å/s.

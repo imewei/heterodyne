@@ -15,7 +15,7 @@ from heterodyne.optimization.cmc.reparameterization import (
     ReparamConfig,
     reparam_to_physics_jax,
 )
-from heterodyne.optimization.cmc.scaling import ParameterScaling
+from heterodyne.optimization.cmc.scaling import ParameterScaling, smooth_bound
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -441,10 +441,10 @@ def get_heterodyne_model_individual(
     c2_data: jnp.ndarray,
     sigma: jnp.ndarray | float,
     space: ParameterSpace,
-    contrast_prior_loc: jnp.ndarray | float = 1.0,
-    contrast_prior_scale: float = 0.2,
+    contrast_prior_loc: jnp.ndarray | float = 0.5,
+    contrast_prior_scale: float = 0.25,
     offset_prior_loc: jnp.ndarray | float = 1.0,
-    offset_prior_scale: float = 0.1,
+    offset_prior_scale: float = 0.25,
 ):
     """Create NumPyro model with per-angle sampled contrast and offset.
 
@@ -464,11 +464,11 @@ def get_heterodyne_model_individual(
         sigma: Measurement uncertainty — scalar or shape ``(n_phi, n_t)``.
         space: Parameter space carrying priors and fixed values.
         contrast_prior_loc: Prior centre(s) for contrast.  Scalar or
-            ``(n_phi,)`` array.  Default ``1.0``.
-        contrast_prior_scale: Prior width for contrast.  Default ``0.2``.
+            ``(n_phi,)`` array.  Default ``0.5``.
+        contrast_prior_scale: Prior width for contrast.  Default ``0.25``.
         offset_prior_loc: Prior centre(s) for offset.  Scalar or
             ``(n_phi,)`` array.  Default ``1.0``.
-        offset_prior_scale: Prior width for offset.  Default ``0.1``.
+        offset_prior_scale: Prior width for offset.  Default ``0.25``.
 
     Returns:
         NumPyro model callable (no required arguments).
@@ -493,21 +493,25 @@ def get_heterodyne_model_individual(
                 param = numpyro.sample(name, prior.to_numpyro(name))
                 params = params.at[i].set(param)
 
-        # --- Per-angle scaling sampled in a plate ---
+        # --- Per-angle scaling sampled in z-space + smooth_bound ---
+        # Homodyne parity: sample in unconstrained z-space, then
+        # transform via smooth_bound (tanh) for NUTS-safe gradients.
         with numpyro.plate("angles", n_phi):
-            contrast_i = numpyro.sample(
-                "contrast",
-                dist.TruncatedNormal(
-                    loc=contrast_loc,
-                    scale=contrast_prior_scale,
-                    low=0.0,
-                    high=2.0,
-                ),
+            contrast_z = numpyro.sample(
+                "contrast_z", dist.Normal(0.0, 1.0),
             )
-            offset_i = numpyro.sample(
-                "offset",
-                dist.Normal(offset_loc, offset_prior_scale),
+            offset_z = numpyro.sample(
+                "offset_z", dist.Normal(0.0, 1.0),
             )
+
+        # Transform: raw = loc + scale * z, then smooth bound to physics range
+        contrast_raw = contrast_loc + contrast_prior_scale * contrast_z
+        contrast_i = smooth_bound(contrast_raw, 0.0, 1.0)
+        numpyro.deterministic("contrast", contrast_i)
+
+        offset_raw = offset_loc + offset_prior_scale * offset_z
+        offset_i = smooth_bound(offset_raw, 0.5, 1.5)
+        numpyro.deterministic("offset", offset_i)
 
         # --- Likelihood over all angles ---
         # contrast_i / offset_i have shape (n_phi,); iterate to build

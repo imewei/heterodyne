@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    pass
 
 
 class NLSQOptimizationError(Exception):
@@ -90,31 +90,6 @@ class NLSQNumericalError(NLSQOptimizationError):
         ctx.setdefault("detection_point", detection_point)
         super().__init__(message, error_context=ctx)
 
-
-class NLSQCheckpointError(NLSQOptimizationError):
-    """Raised when checkpoint save/load operations fail.
-
-    Attributes:
-        checkpoint_path: Path to the checkpoint file involved.
-        operation: The operation that failed (``"save"`` or ``"load"``).
-        io_error: The underlying I/O exception, if any.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        checkpoint_path: Path | str | None = None,
-        operation: str = "unknown",
-        io_error: Exception | None = None,
-        error_context: dict[str, Any] | None = None,
-    ) -> None:
-        self.checkpoint_path = checkpoint_path
-        self.operation = operation
-        self.io_error = io_error
-        ctx = error_context or {}
-        ctx.setdefault("checkpoint_path", str(checkpoint_path))
-        ctx.setdefault("operation", operation)
-        super().__init__(message, error_context=ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -364,7 +339,6 @@ __all__ = [
     "NLSQOptimizationError",
     "NLSQConvergenceError",
     "NLSQNumericalError",
-    "NLSQCheckpointError",
     # Generic (NLSQ + CMC)
     "OptimizationError",
     "ConvergenceError",
