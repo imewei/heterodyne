@@ -41,13 +41,14 @@ class ConfigManager:
         from heterodyne.config.types import PARAMETER_NAME_MAPPING
 
         # Normalize parameter names in all parameter groups
-        params = self._config.get("parameters", {})
-        for group_name, group_config in params.items():
+        params: dict[str, Any] = self._config.get("parameters", {})
+        for group_name in list(params.keys()):
+            group_config = params[group_name]
             if not isinstance(group_config, dict):
                 continue
             normalized: dict[str, Any] = {}
             for key, value in group_config.items():
-                canonical = PARAMETER_NAME_MAPPING.get(key, key)
+                canonical: str = PARAMETER_NAME_MAPPING.get(str(key), str(key))
                 if canonical != key:
                     logger.debug("Normalized parameter key '%s' -> '%s'", key, canonical)
                 normalized[canonical] = value
@@ -58,12 +59,13 @@ class ConfigManager:
         if isinstance(cmc, dict):
             normalized_cmc: dict[str, Any] = {}
             for key, value in cmc.items():
-                canonical = PARAMETER_NAME_MAPPING.get(key, key)
-                if canonical != key:
-                    logger.debug("Normalized CMC key '%s' -> '%s'", key, canonical)
-                normalized_cmc[canonical] = value
-            if "optimization" in self._config and "cmc" in self._config["optimization"]:
-                self._config["optimization"]["cmc"] = normalized_cmc
+                cmc_canonical: str = PARAMETER_NAME_MAPPING.get(str(key), str(key))
+                if cmc_canonical != key:
+                    logger.debug("Normalized CMC key '%s' -> '%s'", key, cmc_canonical)
+                normalized_cmc[cmc_canonical] = value
+            opt = self._config.get("optimization")
+            if isinstance(opt, dict) and "cmc" in opt:
+                opt["cmc"] = normalized_cmc
 
     def _validate(self) -> None:
         """Validate configuration structure."""

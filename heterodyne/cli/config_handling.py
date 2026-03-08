@@ -234,7 +234,7 @@ def _get_package_version() -> str:
     3. ``"unknown"`` as last resort.
     """
     try:
-        from heterodyne._version import __version__  # type: ignore[import-untyped]
+        from heterodyne._version import __version__
 
         return str(__version__)
     except (ImportError, AttributeError):

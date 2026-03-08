@@ -116,8 +116,12 @@ def dispatch_plots(
     logger.info("Generating plots in %s (mode=%s)", plots_dir, mode)
 
     # Filter results by phi_angles if specified
-    filtered_nlsq = _filter_by_phi(nlsq_results, phi_angles)
-    filtered_cmc = _filter_by_phi(cmc_results, phi_angles)
+    filtered_nlsq: list[NLSQResult] | None = (
+        _filter_by_phi(nlsq_results, phi_angles)  # type: ignore[assignment]
+    )
+    filtered_cmc: list[CMCResult] | None = (
+        _filter_by_phi(cmc_results, phi_angles)  # type: ignore[assignment]
+    )
 
     # Dispatch based on mode
     if mode in ("experimental", "both"):
@@ -153,7 +157,7 @@ def _filter_by_phi(
         r for r in results
         if r.metadata.get("phi_angle", 0) in phi_angles
     ]
-    return filtered if filtered else results
+    return filtered if filtered else results  # type: ignore[return-value]
 
 
 def _dispatch_cmc_plots(

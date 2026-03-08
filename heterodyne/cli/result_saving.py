@@ -434,15 +434,15 @@ def save_results(
     # Per-angle CMC summaries
     if cmc_results:
         cmc_summaries: list[dict[str, Any]] = []
-        for i, res in enumerate(cmc_results):
+        for i, cmc_res in enumerate(cmc_results):
             angle = angles[i] if i < len(angles) else None
             entry = {"phi": angle}
-            entry["parameters"] = _create_mcmc_parameters_dict(res)
-            entry["analysis"] = _create_mcmc_analysis_dict(res)
-            entry["diagnostics"] = _create_mcmc_diagnostics_dict(res)
+            entry["parameters"] = _create_mcmc_parameters_dict(cmc_res)
+            entry["analysis"] = _create_mcmc_analysis_dict(cmc_res)
+            entry["diagnostics"] = _create_mcmc_diagnostics_dict(cmc_res)
 
             # Theoretical g1 (best-effort)
-            g1 = _compute_theoretical_g1_from_mcmc(res, model)
+            g1 = _compute_theoretical_g1_from_mcmc(cmc_res, model)
             if g1 is not None:
                 entry["theoretical_g1_shape"] = list(np.shape(g1))
 

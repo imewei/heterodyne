@@ -40,7 +40,7 @@ def _default_step_sizes(params: np.ndarray) -> np.ndarray:
     Returns:
         Step size array, shape (n_params,)
     """
-    return np.maximum(1e-8, 1e-4 * np.abs(params))
+    return np.maximum(1e-8, 1e-4 * np.abs(params))  # type: ignore[no-any-return]
 
 
 def compute_gradient_finite_diff(
@@ -620,8 +620,8 @@ def compute_adaptive_gradient(
             prev_est = cur_est
 
         if not converged:
-            gradient[i] = cur_est  # type: ignore[possibly-undefined]
-            max_err = max(max_err, abs(cur_est - prev_est))  # type: ignore[possibly-undefined]
+            gradient[i] = cur_est
+            max_err = max(max_err, abs(cur_est - prev_est))
             logger.debug(
                 "Adaptive gradient did not converge for param %d after %d "
                 "halvings",
@@ -693,12 +693,12 @@ def compute_gradient_parallel(
         n_workers = min(8, os.cpu_count() or 1)
 
     def _central_diff_i(i: int) -> float:
-        h = step_sizes[i]  # type: ignore[index]
+        h = step_sizes[i]
         p_plus = params.copy()
         p_minus = params.copy()
         p_plus[i] += h
         p_minus[i] -= h
-        return (fn(p_plus) - fn(p_minus)) / (2.0 * h)
+        return float((fn(p_plus) - fn(p_minus)) / (2.0 * h))
 
     gradient = np.empty(n_params, dtype=np.float64)
     with ThreadPoolExecutor(max_workers=n_workers) as executor:

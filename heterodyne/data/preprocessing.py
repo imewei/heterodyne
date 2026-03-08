@@ -554,10 +554,11 @@ def apply_baseline_correction(
         return np.asarray(c2 - baseline)
 
     # method == "divide"
+    safe_baseline: np.ndarray | float
     if isinstance(baseline, np.ndarray):
         safe_baseline = np.where(np.abs(baseline) > 1e-15, baseline, 1.0)
     else:
-        safe_baseline = baseline if abs(float(baseline)) > 1e-15 else 1.0
+        safe_baseline = float(baseline) if abs(float(baseline)) > 1e-15 else 1.0
     return np.asarray(c2 / safe_baseline)
 
 
@@ -681,8 +682,8 @@ def apply_noise_reduction(
         )
         return c2.copy()
 
-    # Should not reach here, but guard anyway
-    return c2.copy()
+    msg = f"Unsupported noise reduction method: {method}"  # type: ignore[unreachable]
+    raise ValueError(msg)
 
 
 def _noise_median_filter(c2: np.ndarray, kernel_size: int = 3) -> np.ndarray:
@@ -862,7 +863,7 @@ def preprocess_xpcs_data(
         }
         pipeline.add_step(
             f"noise_reduction({nr_method.value})",
-            lambda arr, _m=nr_method, _kw=nr_kwargs: apply_noise_reduction(
+            lambda arr, _m=nr_method, _kw=nr_kwargs: apply_noise_reduction(  # type: ignore[misc]
                 arr, method=_m, **_kw
             ),
         )
