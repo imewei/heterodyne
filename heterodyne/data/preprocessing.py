@@ -410,17 +410,24 @@ class PreprocessingProvenance:
         Returns:
             Reconstructed PreprocessingProvenance instance.
         """
-        records = [
-            TransformationRecord(
-                stage=PreprocessingStage(rec["stage"]),
-                method=rec["method"],
-                parameters=rec["parameters"],
-                timestamp=rec["timestamp"],
-                input_hash=rec["input_hash"],
-                output_hash=rec["output_hash"],
+        records = []
+        for rec in d.get("records", []):
+            try:
+                stage = PreprocessingStage(rec["stage"])
+            except (ValueError, KeyError) as exc:
+                raise ValueError(
+                    f"Invalid preprocessing stage: {rec.get('stage')!r}"
+                ) from exc
+            records.append(
+                TransformationRecord(
+                    stage=stage,
+                    method=rec["method"],
+                    parameters=rec["parameters"],
+                    timestamp=rec["timestamp"],
+                    input_hash=rec["input_hash"],
+                    output_hash=rec["output_hash"],
+                )
             )
-            for rec in d.get("records", [])
-        ]
         return cls(
             records=records,
             source_file=d.get("source_file"),
@@ -434,7 +441,13 @@ class PreprocessingProvenance:
 
 
 def _compute_array_hash(arr: np.ndarray) -> str:
-    """Compute SHA-256 hash of array bytes for provenance tracking.
+    """Compute lightweight SHA-256 fingerprint for provenance tracking.
+
+    Uses shape, dtype, and corner samples instead of full array bytes
+    for O(1) cost on large arrays.
+
+    This utility is available for use with :class:`TransformationRecord`
+    provenance tracking (``input_hash`` / ``output_hash`` fields).
 
     Args:
         arr: NumPy array to hash.
@@ -442,7 +455,14 @@ def _compute_array_hash(arr: np.ndarray) -> str:
     Returns:
         Hex-encoded SHA-256 digest.
     """
-    return hashlib.sha256(np.ascontiguousarray(arr).tobytes()).hexdigest()
+    h = hashlib.sha256()
+    h.update(str(arr.shape).encode())
+    h.update(str(arr.dtype).encode())
+    flat = arr.ravel()
+    n = min(512, flat.size)
+    sample = np.concatenate([flat[:n], flat[-n:]]) if flat.size > 2 * n else flat
+    h.update(np.ascontiguousarray(sample).tobytes())
+    return h.hexdigest()
 
 
 # ---------------------------------------------------------------------------
@@ -618,11 +638,19 @@ def _baseline_polynomial(c2: np.ndarray, degree: int = 2) -> np.ndarray:
     if n < degree + 1:
         return c2.copy()
 
-    # Compute mean along each anti-diagonal offset
+    # Compute mean along each diagonal offset (vectorized, no per-lag allocations)
     offsets = np.arange(n)
-    diag_means = np.array(
-        [float(np.nanmean(np.diag(c2, k))) for k in range(n)]
-    )
+    rows, cols = np.indices((n, n))
+    lags = np.abs(cols - rows)
+    flat_lags = lags.ravel()
+    flat_vals = c2.ravel()
+    # Handle NaN: mask them out
+    valid_vals = ~np.isnan(flat_vals)
+    lag_sums = np.bincount(flat_lags[valid_vals], weights=flat_vals[valid_vals], minlength=n)
+    lag_counts = np.bincount(flat_lags[valid_vals], minlength=n)
+    # Avoid division by zero
+    lag_counts = np.maximum(lag_counts, 1)
+    diag_means = lag_sums[:n] / lag_counts[:n]
 
     # Fit polynomial to anti-diagonal means
     valid = ~np.isnan(diag_means)
@@ -638,8 +666,7 @@ def _baseline_polynomial(c2: np.ndarray, degree: int = 2) -> np.ndarray:
     baseline_1d = np.polynomial.polynomial.polyval(offsets, coeffs)
 
     # Build baseline matrix by indexing: baseline[i,j] = baseline_1d[|i-j|]
-    rows, cols = np.indices(c2.shape)
-    baseline_matrix = baseline_1d[np.abs(rows - cols)]
+    baseline_matrix = baseline_1d[lags]
 
     return np.asarray(c2 - baseline_matrix)
 

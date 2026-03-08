@@ -176,6 +176,13 @@ def compute_hessian_finite_diff(
     params = np.asarray(params, dtype=np.float64)
     n_params = params.shape[0]
 
+    if n_params > 50:
+        logger.warning(
+            "compute_hessian_finite_diff called with n_params=%d; "
+            "cost scales as O(n²) function evaluations (%d evals).",
+            n_params, 1 + 2 * n_params + 2 * n_params * (n_params - 1),
+        )
+
     if step_sizes is None:
         step_sizes = _default_step_sizes(params)
     else:

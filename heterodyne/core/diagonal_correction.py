@@ -15,8 +15,10 @@ This module provides utilities for:
 
 from __future__ import annotations
 
+import functools
 from typing import Any
 
+import jax
 import jax.numpy as jnp
 
 from heterodyne.utils.logging import get_logger
@@ -46,7 +48,7 @@ def compute_diagonal_mask(n_times: int, width: int = 1) -> jnp.ndarray:
     if width < 1:
         msg = f"width must be >= 1, got {width}"
         raise ValueError(msg)
-    idx = jnp.arange(n_times)
+    idx = jnp.arange(n_times, dtype=jnp.int16)
     return jnp.abs(idx[:, None] - idx[None, :]) < width
 
 
@@ -131,7 +133,9 @@ def _apply_interpolation(c2: jnp.ndarray, width: int) -> jnp.ndarray:
         return jnp.where(diag_mask, replacement, c2)
 
     # General case: width > 1
-    idx_i, idx_j = jnp.meshgrid(jnp.arange(n), jnp.arange(n), indexing="ij")
+    idx_i, idx_j = jnp.meshgrid(
+        jnp.arange(n, dtype=jnp.int16), jnp.arange(n, dtype=jnp.int16), indexing="ij"
+    )
     diff = idx_i - idx_j
     mask = jnp.abs(diff) < width
 
@@ -253,8 +257,8 @@ def compute_weights_excluding_diagonal(
         msg = f"width must be >= 1, got {width}"
         raise ValueError(msg)
     n_rows, n_cols = shape
-    idx_i = jnp.arange(n_rows)
-    idx_j = jnp.arange(n_cols)
+    idx_i = jnp.arange(n_rows, dtype=jnp.int16)
+    idx_j = jnp.arange(n_cols, dtype=jnp.int16)
     dist = jnp.abs(idx_i[:, None] - idx_j[None, :])
     return jnp.where(dist < width, 0.0, 1.0)
 
@@ -323,7 +327,7 @@ def _apply_statistical_correction_numpy(
     import numpy as np
 
     n = c2.shape[0]
-    col_idx = np.arange(n)
+    col_idx = np.arange(n, dtype=np.int16)
     # dist[i, j] = |i - j| — distance of column j from row i's diagonal
     dist = np.abs(col_idx[None, :] - col_idx[:, None])  # (N, N)
 
@@ -385,6 +389,7 @@ def _apply_statistical_correction_numpy(
     return np.where(band_mask, replacement, c2)
 
 
+@functools.partial(jax.jit, static_argnums=(1, 2))
 def _apply_statistical_correction_jax(
     c2: jnp.ndarray,
     width: int,
@@ -404,7 +409,7 @@ def _apply_statistical_correction_jax(
         Corrected JAX matrix of the same shape as *c2*.
     """
     n = c2.shape[0]
-    col_idx = jnp.arange(n)
+    col_idx = jnp.arange(n, dtype=jnp.int16)
     dist = jnp.abs(col_idx[None, :] - col_idx[:, None])  # (N, N)
 
     band_mask = dist < width
@@ -546,19 +551,17 @@ def apply_diagonal_correction_batch(
 
     # Batch dimension present
     if backend == "jax":
-        import jax
-
         if method == "statistical":
 
             def _correct_one(c2: jnp.ndarray) -> jnp.ndarray:
-                return _apply_statistical_correction_jax(c2, width)
+                return _apply_statistical_correction_jax(c2, width)  # type: ignore[no-any-return]
 
-            return jax.vmap(_correct_one)(c2_batch)
+            return jax.jit(jax.vmap(_correct_one))(c2_batch)
 
         def _correct_one_standard(c2: jnp.ndarray) -> jnp.ndarray:
             return apply_diagonal_correction(c2, width, method)
 
-        return jax.vmap(_correct_one_standard)(c2_batch)
+        return jax.jit(jax.vmap(_correct_one_standard))(c2_batch)
 
     # NumPy path: loop over batch dimension
     import numpy as np

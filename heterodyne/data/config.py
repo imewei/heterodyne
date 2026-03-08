@@ -242,7 +242,7 @@ def load_yaml_config(path: Path | str) -> dict[str, Any]:
             "Install it with: pip install pyyaml"
         ) from None
 
-    path = Path(path)
+    path = Path(path).resolve()
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
 
@@ -280,7 +280,7 @@ def load_json_config(path: Path | str) -> dict[str, Any]:
         FileNotFoundError: If the file does not exist.
         XPCSConfigurationError: If the file cannot be parsed.
     """
-    path = Path(path)
+    path = Path(path).resolve()
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
 

@@ -265,11 +265,27 @@ class IncrementalValidationCache:
         self._misses: int = 0
 
     def _compute_hash(self, data: XPCSData) -> str:
-        """Compute SHA-256 hash from c2 bytes, shape, and dtype."""
+        """Compute lightweight fingerprint from corner samples, shape, and dtype."""
         h = hashlib.sha256()
-        h.update(np.ascontiguousarray(data.c2).tobytes())
+        # Shape and dtype metadata
         h.update(str(data.c2.shape).encode())
         h.update(str(data.c2.dtype).encode())
+        # Corner samples for collision resistance (O(1) cost)
+        flat = data.c2.ravel()
+        n = min(512, flat.size)
+        sample = np.concatenate([flat[:n], flat[-n:]]) if flat.size > 2 * n else flat
+        h.update(np.ascontiguousarray(sample).tobytes())
+        # Include time arrays
+        if data.t1 is not None:
+            h.update(str(data.t1.shape).encode())
+            t1_flat = data.t1.ravel()
+            n_t = min(64, t1_flat.size)
+            h.update(np.ascontiguousarray(t1_flat[:n_t]).tobytes())
+        if data.t2 is not None:
+            h.update(str(data.t2.shape).encode())
+            t2_flat = data.t2.ravel()
+            n_t = min(64, t2_flat.size)
+            h.update(np.ascontiguousarray(t2_flat[:n_t]).tobytes())
         return h.hexdigest()
 
     def _check_validation_cache(self, data_hash: str) -> DataQualityReport | None:
