@@ -301,10 +301,170 @@ def _resolve_backend(array: Any) -> str:
     return backend
 
 
+def _apply_statistical_correction_numpy(
+    c2: Any,
+    width: int,
+    estimator: str = "mean",
+) -> Any:
+    """Vectorized NumPy path for statistical diagonal correction.
+
+    Replaces the diagonal band (|i - j| < *width*) with per-row statistics
+    computed from a window of off-diagonal elements at distances
+    [*width*, *width* + 3) from the diagonal.
+
+    Args:
+        c2: Two-time correlation matrix, shape (N, N). Must be a NumPy array.
+        width: Half-width of the diagonal band to correct.
+        estimator: One of ``"mean"``, ``"median"``, or ``"trimmed_mean"``.
+
+    Returns:
+        Corrected NumPy matrix of the same shape as *c2*.
+    """
+    import numpy as np
+
+    n = c2.shape[0]
+    col_idx = np.arange(n)
+    # dist[i, j] = |i - j| — distance of column j from row i's diagonal
+    dist = np.abs(col_idx[None, :] - col_idx[:, None])  # (N, N)
+
+    band_mask = dist < width
+    window_lo = width
+    window_hi = width + 3
+
+    # Primary window: [width, width+3)
+    window_mask = (dist >= window_lo) & (dist < window_hi)  # (N, N)
+    # Fallback window (for boundary rows): everything at distance >= width
+    fallback_mask = dist >= window_lo  # (N, N)
+
+    # Determine which rows have no primary window elements
+    has_primary = np.any(window_mask, axis=1)  # (N,)
+    # Use fallback where primary is empty
+    effective_mask = np.where(has_primary[:, None], window_mask, fallback_mask)  # (N, N)
+
+    # Determine which rows have *any* window elements
+    has_any = np.any(effective_mask, axis=1)  # (N,)
+
+    # Replace non-window elements with NaN for masked reduction
+    c2_masked = np.where(effective_mask, c2, np.nan)  # (N, N)
+
+    if estimator == "mean":
+        with np.errstate(all="ignore"):
+            row_stats = np.nanmean(c2_masked, axis=1)  # (N,)
+    elif estimator == "median":
+        with np.errstate(all="ignore"):
+            row_stats = np.nanmedian(c2_masked, axis=1)  # (N,)
+    else:
+        # trimmed_mean: sort each row, trim top/bottom 10% of window elements
+        # Count valid elements per row
+        counts = np.sum(effective_mask, axis=1)  # (N,)
+        k = np.maximum(1, np.round(0.1 * counts).astype(int))  # (N,)
+
+        # Sort along axis=1 — NaN sorts to end
+        sorted_vals = np.sort(c2_masked, axis=1)  # (N, N)
+
+        # Build a column index array and mask out the trimmed tails
+        col_range = np.arange(n)[None, :]  # (1, N)
+        trim_mask = (col_range >= k[:, None]) & (col_range < (counts - k)[:, None])
+        # If trimming leaves nothing, fall back to the full window
+        has_trimmed = np.any(trim_mask, axis=1)
+        trim_mask = np.where(
+            has_trimmed[:, None],
+            trim_mask,
+            col_range < counts[:, None],
+        )
+
+        trimmed_vals = np.where(trim_mask, sorted_vals, np.nan)
+        with np.errstate(all="ignore"):
+            row_stats = np.nanmean(trimmed_vals, axis=1)
+
+    # Rows with no window elements at all: keep original diagonal value
+    row_stats = np.where(has_any, row_stats, np.diag(c2))
+
+    # Broadcast row statistics and apply
+    replacement = np.broadcast_to(row_stats[:, None], (n, n))
+    return np.where(band_mask, replacement, c2)
+
+
+def _apply_statistical_correction_jax(
+    c2: jnp.ndarray,
+    width: int,
+    estimator: str = "mean",
+) -> jnp.ndarray:
+    """Vectorized JAX path for statistical diagonal correction.
+
+    Fully compatible with ``jit`` and ``vmap`` — no Python loops or
+    boolean indexing. Uses ``jnp.where``-based masked reductions.
+
+    Args:
+        c2: Two-time correlation matrix, shape (N, N). Must be a JAX array.
+        width: Half-width of the diagonal band to correct.
+        estimator: One of ``"mean"``, ``"median"``, or ``"trimmed_mean"``.
+
+    Returns:
+        Corrected JAX matrix of the same shape as *c2*.
+    """
+    n = c2.shape[0]
+    col_idx = jnp.arange(n)
+    dist = jnp.abs(col_idx[None, :] - col_idx[:, None])  # (N, N)
+
+    band_mask = dist < width
+    window_lo = width
+    window_hi = width + 3
+
+    # Primary window mask and fallback (everything at distance >= width)
+    window_mask = (dist >= window_lo) & (dist < window_hi)  # (N, N)
+    fallback_mask = dist >= window_lo  # (N, N)
+
+    # Use fallback where primary window is empty for a row
+    has_primary = jnp.any(window_mask, axis=1)  # (N,)
+    effective_mask = jnp.where(has_primary[:, None], window_mask, fallback_mask)
+
+    # Whether each row has any window elements at all
+    has_any = jnp.any(effective_mask, axis=1)  # (N,)
+
+    # Masked c2: set non-window positions to NaN
+    c2_masked = jnp.where(effective_mask, c2, jnp.nan)  # (N, N)
+
+    if estimator == "mean":
+        row_stats = jnp.nanmean(c2_masked, axis=1)  # (N,)
+    elif estimator == "median":
+        row_stats = jnp.nanmedian(c2_masked, axis=1)  # (N,)
+    else:
+        # trimmed_mean: sort each row, trim top/bottom 10% of valid elements
+        counts = jnp.sum(effective_mask, axis=1)  # (N,)
+        k = jnp.maximum(1, jnp.round(0.1 * counts).astype(jnp.int32))  # (N,)
+
+        # Sort along axis=1 — NaN sorts to end
+        sorted_vals = jnp.sort(c2_masked, axis=1)  # (N, N)
+
+        # Build column index and mask out trimmed tails
+        col_range = jnp.arange(n)[None, :]  # (1, N)
+        trim_mask = (col_range >= k[:, None]) & (col_range < (counts - k)[:, None])
+        # If trimming leaves nothing, fall back to full window
+        has_trimmed = jnp.any(trim_mask, axis=1)
+        trim_mask = jnp.where(
+            has_trimmed[:, None],
+            trim_mask,
+            col_range < counts[:, None],
+        )
+
+        trimmed_vals = jnp.where(trim_mask, sorted_vals, jnp.nan)
+        row_stats = jnp.nanmean(trimmed_vals, axis=1)
+
+    # Rows with no window elements: keep original diagonal value
+    row_stats = jnp.where(has_any, row_stats, jnp.diag(c2))
+
+    # Broadcast row statistics and apply
+    replacement = jnp.broadcast_to(row_stats[:, None], (n, n))
+    return jnp.where(band_mask, replacement, c2)
+
+
 def _apply_statistical_correction(
     c2: Any,
     width: int,
     estimator: str = "mean",
+    *,
+    backend: str | None = None,
 ) -> Any:
     """Replace diagonal band with statistical estimates from nearby off-diagonal elements.
 
@@ -319,6 +479,8 @@ def _apply_statistical_correction(
         estimator: One of ``"mean"``, ``"median"``, or ``"trimmed_mean"``.
             For ``"trimmed_mean"`` the top and bottom 10 % of values in the
             window are removed before averaging.
+        backend: Pre-resolved backend string (``"jax"`` or ``"numpy"``).
+            If ``None``, detected from *c2*.
 
     Returns:
         Corrected matrix of the same type and shape as *c2*.
@@ -334,75 +496,12 @@ def _apply_statistical_correction(
         msg = f"width must be >= 1, got {width}"
         raise ValueError(msg)
 
-    backend = _resolve_backend(c2)
+    if backend is None:
+        backend = _resolve_backend(c2)
 
     if backend == "jax":
-        xp = jnp
-    else:
-        import numpy as np
-
-        xp = np  # type: ignore[assignment]
-
-    n = c2.shape[0]
-    idx_i, idx_j = xp.meshgrid(xp.arange(n), xp.arange(n), indexing="ij")
-    diff = idx_i - idx_j
-    abs_diff = xp.abs(diff)
-    band_mask = abs_diff < width
-
-    # Window: elements at distance [width, width+3) from the diagonal
-    window_lo = width
-    window_hi = width + 3
-
-    # For each (i, j) on the band, collect window elements along the row.
-    # We gather elements at offsets that place them in the window band.
-    # Strategy: for each row i, the window elements are those columns j'
-    # where window_lo <= |i - j'| < window_hi.  We compute the row-wise
-    # statistic for the window, then broadcast back to all band elements
-    # in that row.
-
-    # Build per-row statistics from the window band
-    row_stats = xp.zeros(n, dtype=c2.dtype)
-    col_idx = xp.arange(n)
-
-    for i in range(n):
-        dists = xp.abs(col_idx - i)
-        window_mask = (dists >= window_lo) & (dists < window_hi)
-        window_vals = c2[i][window_mask]
-
-        if window_vals.size == 0:
-            # Fallback: widen the window if nothing available at boundary
-            window_mask = dists >= window_lo
-            window_vals = c2[i][window_mask]
-
-        if window_vals.size == 0:
-            # Edge case: matrix too small — keep original value
-            row_stats = row_stats.at[i].set(c2[i, i]) if backend == "jax" else row_stats
-            if backend == "numpy":
-                row_stats[i] = c2[i, i]
-            continue
-
-        if estimator == "mean":
-            stat = xp.mean(window_vals)
-        elif estimator == "median":
-            stat = xp.median(window_vals)
-        else:
-            # trimmed_mean: remove top/bottom 10%
-            k = max(1, int(round(0.1 * window_vals.size)))
-            sorted_vals = xp.sort(window_vals)
-            trimmed = sorted_vals[k : window_vals.size - k]
-            if trimmed.size == 0:
-                trimmed = sorted_vals
-            stat = xp.mean(trimmed)
-
-        if backend == "jax":
-            row_stats = row_stats.at[i].set(stat)
-        else:
-            row_stats[i] = stat
-
-    # Broadcast row statistics into a full matrix and apply where band_mask is True
-    replacement = xp.broadcast_to(row_stats[:, None], (n, n))
-    result = xp.where(band_mask, replacement, c2)
-    return result
+        return _apply_statistical_correction_jax(c2, width, estimator)
+    return _apply_statistical_correction_numpy(c2, width, estimator)
 
 
 def apply_diagonal_correction_batch(
@@ -436,22 +535,23 @@ def apply_diagonal_correction_batch(
         msg = f"method must be one of {valid_methods}, got {method!r}"
         raise ValueError(msg)
 
+    # Resolve backend once for the entire batch
+    backend = _resolve_backend(c2_batch)
+
     # Single matrix — delegate directly
     if ndim == 2:
         if method == "statistical":
-            return _apply_statistical_correction(c2_batch, width)
+            return _apply_statistical_correction(c2_batch, width, backend=backend)
         return apply_diagonal_correction(c2_batch, width, method)
 
     # Batch dimension present
-    backend = _resolve_backend(c2_batch)
-
     if backend == "jax":
         import jax
 
         if method == "statistical":
 
             def _correct_one(c2: jnp.ndarray) -> jnp.ndarray:
-                return _apply_statistical_correction(c2, width)
+                return _apply_statistical_correction_jax(c2, width)
 
             return jax.vmap(_correct_one)(c2_batch)
 
@@ -466,7 +566,7 @@ def apply_diagonal_correction_batch(
     results = np.empty_like(c2_batch)
     for k in range(c2_batch.shape[0]):
         if method == "statistical":
-            results[k] = _apply_statistical_correction(c2_batch[k], width)
+            results[k] = _apply_statistical_correction_numpy(c2_batch[k], width)
         else:
             results[k] = apply_diagonal_correction(c2_batch[k], width, method)
     return results

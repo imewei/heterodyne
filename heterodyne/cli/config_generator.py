@@ -412,6 +412,7 @@ def validate_config(path: Path | str) -> bool:
 
             ConfigManager(config)
         except Exception as exc:
+            logger.error("Structural validation failed: %s", exc)
             print(f"\nStructural validation failed: {exc}")
             return False
 

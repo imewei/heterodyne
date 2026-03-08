@@ -248,7 +248,7 @@ def load_yaml_config(path: Path | str) -> dict[str, Any]:
 
     logger.debug("Loading YAML config from %s", path)
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
     except yaml.YAMLError as exc:
         raise XPCSConfigurationError(
@@ -286,7 +286,7 @@ def load_json_config(path: Path | str) -> dict[str, Any]:
 
     logger.debug("Loading JSON config from %s", path)
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as exc:
         raise XPCSConfigurationError(
@@ -444,7 +444,7 @@ def save_yaml_config(config: dict[str, Any], path: Path | str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     logger.debug("Saving YAML config to %s", path)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         yaml.safe_dump(config, f, default_flow_style=False)
 
 
@@ -541,7 +541,7 @@ mcmc:
 """
 
     logger.debug("Writing example YAML config to %s", path)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(example)
 
 

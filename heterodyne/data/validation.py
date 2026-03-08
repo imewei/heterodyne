@@ -267,7 +267,7 @@ class IncrementalValidationCache:
     def _compute_hash(self, data: XPCSData) -> str:
         """Compute SHA-256 hash from c2 bytes, shape, and dtype."""
         h = hashlib.sha256()
-        h.update(data.c2.tobytes())
+        h.update(np.ascontiguousarray(data.c2).tobytes())
         h.update(str(data.c2.shape).encode())
         h.update(str(data.c2.dtype).encode())
         return h.hexdigest()

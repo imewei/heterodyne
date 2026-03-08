@@ -16,6 +16,7 @@ from matplotlib.figure import Figure
 
 from heterodyne.utils.logging import get_logger
 from heterodyne.utils.path_validation import PathValidationError, validate_output_path
+from heterodyne.viz.mcmc_diagnostics import ESS_THRESHOLD, RHAT_THRESHOLD
 
 if TYPE_CHECKING:
     from heterodyne.optimization.cmc.results import CMCResult
@@ -29,7 +30,6 @@ _MAX_PANEL_PARAMS = 2
 def plot_cmc_summary_dashboard(
     result: CMCResult,
     figsize: tuple[float, float] = (16, 12),
-    show: bool = False,
     save_path: str | Path | None = None,
     dpi: int = 150,
 ) -> Figure:
@@ -47,8 +47,6 @@ def plot_cmc_summary_dashboard(
         CMC result object with posterior samples and diagnostics.
     figsize : tuple, default=(16, 12)
         Figure size (width, height).
-    show : bool, default=False
-        If True, display the figure interactively.
     save_path : str or Path, optional
         If provided, save figure to this path.
     dpi : int, default=150
@@ -98,7 +96,15 @@ def plot_cmc_summary_dashboard(
         fontweight="bold",
     )
 
-    _save_and_show(fig, save_path, show, dpi)
+    if save_path is not None:
+        try:
+            validated_path = validate_output_path(save_path)
+            fig.savefig(validated_path, dpi=dpi, bbox_inches="tight")
+            logger.info("CMC summary dashboard saved to %s", validated_path.name)
+        except (PathValidationError, ValueError) as e:
+            logger.warning("Could not save CMC summary dashboard: %s", e)
+        plt.close(fig)
+
     return fig
 
 
@@ -112,20 +118,19 @@ def _plot_rhat_panel(
     try:
         if result.r_hat is not None:
             r_hat = np.asarray(result.r_hat)
-            threshold = 1.1
             positions = np.arange(n_params)
 
             colors = [
-                "forestgreen" if v <= threshold else "firebrick"
+                "forestgreen" if v <= RHAT_THRESHOLD else "firebrick"
                 for v in r_hat
             ]
             ax.bar(positions, r_hat, color=colors, alpha=0.8, edgecolor="gray")
             ax.axhline(
-                y=threshold,
+                y=RHAT_THRESHOLD,
                 color="red",
                 linestyle="--",
                 linewidth=2,
-                label=f"Threshold ({threshold})",
+                label=f"Threshold ({RHAT_THRESHOLD})",
             )
 
             ax.set_xticks(positions)
@@ -150,20 +155,19 @@ def _plot_ess_panel(
     try:
         if result.ess_bulk is not None:
             ess = np.asarray(result.ess_bulk)
-            threshold = 400
             positions = np.arange(n_params)
 
             colors = [
-                "steelblue" if v >= threshold else "orange"
+                "steelblue" if v >= ESS_THRESHOLD else "orange"
                 for v in ess
             ]
             ax.bar(positions, ess, color=colors, alpha=0.8, edgecolor="gray")
             ax.axhline(
-                y=threshold,
+                y=ESS_THRESHOLD,
                 color="red",
                 linestyle="--",
                 linewidth=2,
-                label=f"Threshold ({threshold})",
+                label=f"Threshold ({ESS_THRESHOLD})",
             )
 
             ax.set_xticks(positions)
@@ -238,7 +242,8 @@ def _plot_posterior_panel(
             )
 
             # Vertical line at posterior mean
-            mean_val = float(result.posterior_mean[param_idx])
+            idx = result.parameter_names.index(name)
+            mean_val = float(result.posterior_mean[idx])
             ax.axvline(
                 mean_val,
                 color="red",
@@ -270,22 +275,3 @@ def _placeholder(ax: Any, message: str) -> None:
     )
 
 
-def _save_and_show(
-    fig: Figure,
-    save_path: str | Path | None,
-    show: bool,
-    dpi: int,
-) -> None:
-    """Handle save/show/close logic."""
-    if save_path is not None:
-        try:
-            validated_path = validate_output_path(save_path)
-            fig.savefig(validated_path, dpi=dpi, bbox_inches="tight")
-            logger.info("CMC summary dashboard saved to %s", validated_path.name)
-        except (PathValidationError, ValueError) as e:
-            logger.warning("Could not save CMC summary dashboard: %s", e)
-
-    if show:
-        plt.show()
-    elif save_path is not None:
-        plt.close(fig)

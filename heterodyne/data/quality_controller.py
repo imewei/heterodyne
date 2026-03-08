@@ -912,7 +912,7 @@ def run_4_stage_pipeline(
     ]
 
     history: list[QualityControlResult] = []
-    current_c2 = c2.copy()
+    current_c2 = c2
 
     for stage in stages:
         result = assess_stage(controller, current_c2, t, stage, adapted_config)

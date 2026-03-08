@@ -21,6 +21,11 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Diagnostic threshold constants
+ESS_THRESHOLD = 400
+RHAT_THRESHOLD = 1.1
+BFMI_THRESHOLD = 0.3
+
 
 def plot_ess_evolution(
     result: CMCResult,
@@ -49,7 +54,7 @@ def plot_ess_evolution(
     if result.ess_tail is not None:
         ax.bar(x + width / 2, result.ess_tail, width, label="ESS tail", color="C1", alpha=0.8)
 
-    ax.axhline(y=400, color="red", linestyle="--", alpha=0.5, label="Min recommended (400)")
+    ax.axhline(y=ESS_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Min recommended ({ESS_THRESHOLD})")
     ax.set_xticks(x)
     ax.set_xticklabels(result.parameter_names, rotation=45, ha="right", fontsize=8)
     ax.set_ylabel("Effective Sample Size")
@@ -87,9 +92,9 @@ def plot_adaptation_summary(
     ax_rhat = axes[0]
     if result.r_hat is not None:
         x = np.arange(len(result.parameter_names))
-        colors = ["red" if rh > 1.1 else "C0" for rh in result.r_hat]
+        colors = ["red" if rh > RHAT_THRESHOLD else "C0" for rh in result.r_hat]
         ax_rhat.bar(x, result.r_hat, color=colors, alpha=0.8)
-        ax_rhat.axhline(y=1.1, color="red", linestyle="--", alpha=0.5, label="Threshold (1.1)")
+        ax_rhat.axhline(y=RHAT_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Threshold ({RHAT_THRESHOLD})")
         ax_rhat.set_xticks(x)
         ax_rhat.set_xticklabels(result.parameter_names, rotation=45, ha="right", fontsize=8)
         ax_rhat.set_ylabel("R-hat")
@@ -103,9 +108,9 @@ def plot_adaptation_summary(
     ax_bfmi = axes[1]
     if result.bfmi is not None:
         chain_idx = np.arange(len(result.bfmi))
-        colors = ["red" if b < 0.3 else "C0" for b in result.bfmi]
+        colors = ["red" if b < BFMI_THRESHOLD else "C0" for b in result.bfmi]
         ax_bfmi.bar(chain_idx, result.bfmi, color=colors, alpha=0.8)
-        ax_bfmi.axhline(y=0.3, color="red", linestyle="--", alpha=0.5, label="Min threshold (0.3)")
+        ax_bfmi.axhline(y=BFMI_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Min threshold ({BFMI_THRESHOLD})")
         ax_bfmi.set_xlabel("Chain")
         ax_bfmi.set_ylabel("BFMI")
         ax_bfmi.set_title("Bayesian Fraction of Missing Information")
@@ -290,7 +295,7 @@ def plot_convergence_diagnostics(
     ax_ess = axes[0, 0]
     if result.ess_bulk is not None:
         ax_ess.bar(x, result.ess_bulk, color="C0", alpha=0.8)
-        ax_ess.axhline(y=400, color="red", linestyle="--", alpha=0.5, label="Min recommended (400)")
+        ax_ess.axhline(y=ESS_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Min recommended ({ESS_THRESHOLD})")
         ax_ess.set_xticks(x)
         ax_ess.set_xticklabels(names, rotation=45, ha="right", fontsize=7)
         ax_ess.set_ylabel("ESS (bulk)")
@@ -304,9 +309,9 @@ def plot_convergence_diagnostics(
     # Panel (0,1): R-hat
     ax_rhat = axes[0, 1]
     if result.r_hat is not None:
-        colors = ["red" if rh > 1.1 else "C0" for rh in result.r_hat]
+        colors = ["red" if rh > RHAT_THRESHOLD else "C0" for rh in result.r_hat]
         ax_rhat.bar(x, result.r_hat, color=colors, alpha=0.8)
-        ax_rhat.axhline(y=1.1, color="red", linestyle="--", alpha=0.5, label="Threshold (1.1)")
+        ax_rhat.axhline(y=RHAT_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Threshold ({RHAT_THRESHOLD})")
         ax_rhat.set_xticks(x)
         ax_rhat.set_xticklabels(names, rotation=45, ha="right", fontsize=7)
         ax_rhat.set_ylabel("R-hat")
@@ -347,7 +352,7 @@ def plot_convergence_diagnostics(
 
     # Convergence assessment
     if max_rhat is not None and min_ess is not None:
-        converged = max_rhat < 1.1 and min_ess > 400
+        converged = max_rhat < RHAT_THRESHOLD and min_ess > ESS_THRESHOLD
         assessment = "Converged" if converged else "Not converged"
         assess_color = "green" if converged else "red"
     else:

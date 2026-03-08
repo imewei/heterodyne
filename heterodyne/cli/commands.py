@@ -82,6 +82,7 @@ def _run_optimization(
     cmc_results: list[CMCResult] = []
 
     if method in ("nlsq", "both"):
+        summary.start_phase("nlsq_optimization")
         with log_phase("nlsq_optimization", logger=logger, track_memory=True) as phase:
             nlsq_results = run_nlsq(
                 model=model,
@@ -92,10 +93,10 @@ def _run_optimization(
                 output_dir=output_dir,
                 summary=summary,
             )
-        summary.start_phase("nlsq_optimization")
         summary.end_phase("nlsq_optimization", memory_peak_gb=phase.memory_peak_gb)
 
     if method in ("cmc", "both"):
+        summary.start_phase("cmc_optimization")
         with log_phase("cmc_optimization", logger=logger, track_memory=True) as phase:
             cmc_results = run_cmc(
                 model=model,
@@ -107,7 +108,6 @@ def _run_optimization(
                 nlsq_results=nlsq_results if method == "both" else None,
                 summary=summary,
             )
-        summary.start_phase("cmc_optimization")
         summary.end_phase("cmc_optimization", memory_peak_gb=phase.memory_peak_gb)
 
     return {"nlsq_results": nlsq_results, "cmc_results": cmc_results}
@@ -147,24 +147,18 @@ def _generate_cmc_diagnostic_plots(
         tag = f"angle_{idx}"
         # Convergence diagnostics (ESS, R-hat, BFMI)
         try:
-            fig = plot_convergence_diagnostics(
+            plot_convergence_diagnostics(
                 result, save_path=diag_dir / f"convergence_{tag}.png"
             )
-            import matplotlib.pyplot as plt
-
-            plt.close(fig)
             logger.debug("Saved convergence diagnostics for %s", tag)
         except Exception:
             logger.exception("Failed to generate convergence plot for %s", tag)
 
         # KL divergence matrix
         try:
-            fig = plot_kl_divergence_matrix(
+            plot_kl_divergence_matrix(
                 result, save_path=diag_dir / f"kl_divergence_{tag}.png"
             )
-            import matplotlib.pyplot as plt
-
-            plt.close(fig)
             logger.debug("Saved KL divergence matrix for %s", tag)
         except Exception:
             logger.exception("Failed to generate KL divergence plot for %s", tag)

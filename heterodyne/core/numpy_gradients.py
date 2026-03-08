@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -383,7 +383,7 @@ def _forward_difference(
     Returns:
         Gradient array, shape ``(n_params,)``.
     """
-    params = np.asarray(params, dtype=np.float64)
+    params = np.asarray(params, dtype=np.float64).copy()
     step_sizes = np.asarray(step_sizes, dtype=np.float64)
     n_params = params.shape[0]
 
@@ -392,9 +392,12 @@ def _forward_difference(
 
     for i in range(n_params):
         h = step_sizes[i]
-        params_plus = params.copy()
-        params_plus[i] += h
-        gradient[i] = (fn(params_plus) - f0) / h
+        orig = params[i]
+        params[i] = orig + h
+        try:
+            gradient[i] = (fn(params) - f0) / h
+        finally:
+            params[i] = orig
 
     return gradient
 
@@ -418,7 +421,7 @@ def _backward_difference(
     Returns:
         Gradient array, shape ``(n_params,)``.
     """
-    params = np.asarray(params, dtype=np.float64)
+    params = np.asarray(params, dtype=np.float64).copy()
     step_sizes = np.asarray(step_sizes, dtype=np.float64)
     n_params = params.shape[0]
 
@@ -427,9 +430,12 @@ def _backward_difference(
 
     for i in range(n_params):
         h = step_sizes[i]
-        params_minus = params.copy()
-        params_minus[i] -= h
-        gradient[i] = (f0 - fn(params_minus)) / h
+        orig = params[i]
+        params[i] = orig - h
+        try:
+            gradient[i] = (f0 - fn(params)) / h
+        finally:
+            params[i] = orig
 
     return gradient
 
@@ -529,10 +535,13 @@ def _complex_step_derivative(
     n_params = params.shape[0]
     gradient = np.empty(n_params, dtype=np.float64)
 
+    params_complex = params.astype(np.complex128)
     for i in range(n_params):
-        params_complex = params.astype(np.complex128)
         params_complex[i] += 1j * step_size
-        gradient[i] = np.imag(fn(params_complex)) / step_size
+        try:
+            gradient[i] = np.imag(fn(params_complex)) / step_size
+        finally:
+            params_complex[i] -= 1j * step_size
 
     return gradient
 
@@ -565,7 +574,7 @@ def compute_adaptive_gradient(
         parameters.
     """
     t0 = time.monotonic()
-    params = np.asarray(params, dtype=np.float64)
+    params = np.asarray(params, dtype=np.float64).copy()
     n_params = params.shape[0]
 
     if initial_step is not None:
@@ -580,22 +589,26 @@ def compute_adaptive_gradient(
 
     for i in range(n_params):
         h = steps[i]
+        orig = params[i]
+
         # Initial central difference at h
-        p_plus = params.copy()
-        p_minus = params.copy()
-        p_plus[i] += h
-        p_minus[i] -= h
-        prev_est = (fn(p_plus) - fn(p_minus)) / (2.0 * h)
+        params[i] = orig + h
+        f_plus = fn(params)
+        params[i] = orig - h
+        f_minus = fn(params)
+        params[i] = orig
+        prev_est = (f_plus - f_minus) / (2.0 * h)
         total_evals += 2
 
         converged = False
         for _ in range(max_iters):
             h /= 2.0
-            p_plus = params.copy()
-            p_minus = params.copy()
-            p_plus[i] += h
-            p_minus[i] -= h
-            cur_est = (fn(p_plus) - fn(p_minus)) / (2.0 * h)
+            params[i] = orig + h
+            f_plus = fn(params)
+            params[i] = orig - h
+            f_minus = fn(params)
+            params[i] = orig
+            cur_est = (f_plus - f_minus) / (2.0 * h)
             total_evals += 2
 
             denom = max(abs(cur_est), abs(prev_est), 1e-15)
@@ -650,6 +663,13 @@ def compute_gradient_parallel(
     thread, which can speed up wall-clock time when ``fn`` releases the GIL
     (e.g., calls into compiled C/Fortran code).
 
+    .. note::
+       Threading only provides a wall-clock speedup when ``fn`` releases the
+       GIL.  This is the case for many C/Fortran extensions (NumPy ufuncs,
+       SciPy routines, etc.) and I/O-bound workloads.  For pure-Python ``fn``
+       the GIL prevents true parallelism and the thread-pool overhead may
+       actually *increase* total runtime.
+
     Args:
         fn: Scalar-valued function ``f(params) -> float``.
         params: Parameter array, shape ``(n_params,)``.
@@ -683,7 +703,7 @@ def compute_gradient_parallel(
     gradient = np.empty(n_params, dtype=np.float64)
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
         futures = {executor.submit(_central_diff_i, i): i for i in range(n_params)}
-        for future in futures:
+        for future in as_completed(futures):
             i = futures[future]
             gradient[i] = future.result()
 
@@ -843,7 +863,6 @@ def compute_gradient(
     if config is None:
         config = DifferentiationConfig()
 
-    t0 = time.monotonic()
     params = np.asarray(params, dtype=np.float64)
     n_params = params.shape[0]
     method = config.method
@@ -856,6 +875,7 @@ def compute_gradient(
 
     error_estimate: float | None = None
     n_evals = 0
+    t0 = time.monotonic()
 
     if method is DifferentiationMethod.FORWARD:
         grad = _forward_difference(fn, params, step_sizes)
@@ -869,11 +889,9 @@ def compute_gradient(
 
     elif method is DifferentiationMethod.CENTRAL:
         if config.use_parallel:
-            result = compute_gradient_parallel(
+            return compute_gradient_parallel(
                 fn, params, step_sizes=step_sizes, n_workers=config.n_workers
             )
-            result.elapsed_seconds = time.monotonic() - t0
-            return result
         grad = compute_gradient_finite_diff(fn, params, step_sizes=step_sizes)
         n_evals = 2 * n_params
         method_label = "central"
@@ -905,11 +923,9 @@ def compute_gradient(
 
     elif method is DifferentiationMethod.ADAPTIVE:
         initial = config.step_size
-        result = compute_adaptive_gradient(
+        return compute_adaptive_gradient(
             fn, params, initial_step=initial, rtol=config.error_tolerance
         )
-        result.elapsed_seconds = time.monotonic() - t0
-        return result
 
     else:  # pragma: no cover
         raise ValueError(f"Unknown differentiation method: {method}")

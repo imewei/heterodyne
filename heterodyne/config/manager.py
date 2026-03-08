@@ -32,7 +32,7 @@ class ConfigManager:
         Args:
             config: Configuration dictionary
         """
-        self._config = config
+        self._config = copy.deepcopy(config)
         self._normalize_schema()
         self._validate()
 
@@ -319,7 +319,7 @@ class ConfigManager:
         Returns:
             Configuration dictionary (not copied)
         """
-        return self._config
+        return copy.deepcopy(self._config)
 
     def get_cmc_config(self) -> dict[str, Any]:
         """Return merged CMC config with defaults applied.

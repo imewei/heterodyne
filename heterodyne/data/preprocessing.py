@@ -628,12 +628,17 @@ def _baseline_polynomial(c2: np.ndarray, degree: int = 2) -> np.ndarray:
     if np.sum(valid) < degree + 1:
         return c2.copy()
 
-    coeffs = np.polyfit(offsets[valid], diag_means[valid], degree)
-    poly_fn = np.poly1d(coeffs)
+    # Fit using numpy.polynomial (lowest-degree-first coefficients)
+    coeffs = np.polynomial.polynomial.polyfit(
+        offsets[valid], diag_means[valid], degree,
+    )
 
-    # Build baseline matrix from the fitted polynomial
+    # Evaluate polynomial on unique lag values (1D), then index into result
+    baseline_1d = np.polynomial.polynomial.polyval(offsets, coeffs)
+
+    # Build baseline matrix by indexing: baseline[i,j] = baseline_1d[|i-j|]
     rows, cols = np.indices(c2.shape)
-    baseline_matrix = poly_fn(np.abs(rows - cols))
+    baseline_matrix = baseline_1d[np.abs(rows - cols)]
 
     return np.asarray(c2 - baseline_matrix)
 
@@ -683,9 +688,6 @@ def apply_noise_reduction(
 def _noise_median_filter(c2: np.ndarray, kernel_size: int = 3) -> np.ndarray:
     """Apply median filter for noise reduction.
 
-    Uses ``scipy.ndimage.median_filter`` when available, otherwise falls back
-    to a manual sliding-window implementation.
-
     Args:
         c2: Input array.
         kernel_size: Size of the median filter kernel.
@@ -693,50 +695,13 @@ def _noise_median_filter(c2: np.ndarray, kernel_size: int = 3) -> np.ndarray:
     Returns:
         Filtered array.
     """
-    try:
-        from scipy.ndimage import median_filter
+    from scipy.ndimage import median_filter
 
-        return np.asarray(median_filter(c2, size=kernel_size))
-    except ImportError:
-        logger.info(
-            "scipy not available; using manual median filter (slower)."
-        )
-        return _manual_median_filter(c2, kernel_size)
-
-
-def _manual_median_filter(c2: np.ndarray, kernel_size: int = 3) -> np.ndarray:
-    """Manual sliding-window median filter fallback.
-
-    Operates on the last two dimensions; handles 2D and 3D arrays.
-
-    Args:
-        c2: Input array.
-        kernel_size: Size of the square kernel.
-
-    Returns:
-        Filtered array.
-    """
-    if c2.ndim == 3:
-        result = np.empty_like(c2)
-        for i in range(c2.shape[0]):
-            result[i] = _manual_median_filter(c2[i], kernel_size)
-        return result
-
-    pad = kernel_size // 2
-    padded = np.pad(c2, pad, mode="reflect")
-    result = np.empty_like(c2)
-    for i in range(c2.shape[0]):
-        for j in range(c2.shape[1]):
-            window = padded[i : i + kernel_size, j : j + kernel_size]
-            result[i, j] = np.nanmedian(window)
-    return result
+    return np.asarray(median_filter(c2, size=kernel_size))
 
 
 def _noise_gaussian_smooth(c2: np.ndarray, sigma: float = 1.0) -> np.ndarray:
     """Apply Gaussian smoothing for noise reduction.
-
-    Uses ``scipy.ndimage.gaussian_filter`` when available, otherwise falls
-    back to a simple uniform-kernel convolution approximation.
 
     Args:
         c2: Input array.
@@ -745,18 +710,9 @@ def _noise_gaussian_smooth(c2: np.ndarray, sigma: float = 1.0) -> np.ndarray:
     Returns:
         Smoothed array.
     """
-    try:
-        from scipy.ndimage import gaussian_filter
+    from scipy.ndimage import gaussian_filter
 
-        return np.asarray(gaussian_filter(c2, sigma=sigma))
-    except ImportError:
-        logger.info(
-            "scipy not available; using uniform-kernel approximation "
-            "for Gaussian smoothing."
-        )
-        # Approximate with a simple uniform convolution
-        kernel_size = max(3, int(2 * round(sigma) + 1))
-        return _manual_median_filter(c2, kernel_size)
+    return np.asarray(gaussian_filter(c2, sigma=sigma))
 
 
 # ---------------------------------------------------------------------------
