@@ -8,9 +8,12 @@ are human-readable and safe to load from untrusted sources.
 
 from __future__ import annotations
 
+import datetime
+import hashlib
 import json
+import os
+import struct
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +22,16 @@ import numpy as np
 from heterodyne.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _get_version() -> str:
+    """Return the heterodyne package version, or fallback."""
+    try:
+        from heterodyne import __version__
+
+        return str(__version__)
+    except ImportError:
+        return "unknown"
 
 
 @dataclass
@@ -31,6 +44,8 @@ class CheckpointData:
         iteration: Iteration number (0-based).
         metadata: Arbitrary key-value metadata (solver name, config hash, ...).
         timestamp: ISO-8601 UTC timestamp of when the checkpoint was created.
+        version: Package version that created this checkpoint.
+        checksum: SHA-256 hex digest for integrity verification.
     """
 
     parameters: np.ndarray
@@ -38,8 +53,42 @@ class CheckpointData:
     iteration: int
     metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(
-        default_factory=lambda: datetime.now(tz=datetime.UTC).isoformat()
+        default_factory=lambda: datetime.datetime.now(tz=datetime.UTC).isoformat()
     )
+    version: str = field(default_factory=_get_version)
+    checksum: str = ""
+
+    def __post_init__(self) -> None:
+        """Compute checksum if not already set."""
+        if not self.checksum:
+            self.checksum = self.compute_checksum(self.parameters, self.cost)
+
+    # -- integrity helpers ----------------------------------------------------
+
+    @staticmethod
+    def compute_checksum(parameters: np.ndarray, cost: float) -> str:
+        """Compute SHA-256 checksum from parameters and cost.
+
+        Args:
+            parameters: Parameter array.
+            cost: Cost value.
+
+        Returns:
+            Hex digest string.
+        """
+        h = hashlib.sha256()
+        h.update(np.asarray(parameters, dtype=np.float64).tobytes())
+        h.update(struct.pack("<d", float(cost)))
+        return h.hexdigest()
+
+    def verify_integrity(self) -> bool:
+        """Recompute checksum and compare to stored value.
+
+        Returns:
+            ``True`` if checksum matches, ``False`` otherwise.
+        """
+        expected = self.compute_checksum(self.parameters, self.cost)
+        return self.checksum == expected
 
     # -- serialisation helpers ------------------------------------------------
 
@@ -63,13 +112,20 @@ class CheckpointData:
         Returns:
             Restored :class:`CheckpointData` instance.
         """
-        return cls(
-            parameters=np.asarray(d["parameters"], dtype=np.float64),
-            cost=float(d["cost"]),
+        params = np.asarray(d["parameters"], dtype=np.float64)
+        cost = float(d["cost"])
+        stored_checksum = d.get("checksum", "")
+
+        instance = cls(
+            parameters=params,
+            cost=cost,
             iteration=int(d["iteration"]),
             metadata=dict(d.get("metadata", {})),
             timestamp=str(d["timestamp"]),
+            version=d.get("version", "unknown"),
+            checksum=stored_checksum if stored_checksum else cls.compute_checksum(params, cost),
         )
+        return instance
 
 
 class CheckpointManager:
@@ -93,8 +149,8 @@ class CheckpointManager:
     def save(self, data: CheckpointData) -> Path:
         """Persist *data* as a JSON file and enforce the retention limit.
 
-        The filename encodes the iteration number and a UTC timestamp so
-        that checkpoints sort lexicographically by creation time.
+        Uses atomic write (write to temp file, then ``os.replace``) to
+        prevent half-written files on crash.
 
         Args:
             data: Checkpoint payload to save.
@@ -104,11 +160,15 @@ class CheckpointManager:
         """
         self._dir.mkdir(parents=True, exist_ok=True)
 
-        ts = datetime.now(tz=datetime.UTC).strftime("%Y%m%dT%H%M%S")
+        ts = datetime.datetime.now(tz=datetime.UTC).strftime("%Y%m%dT%H%M%S")
         filename = f"checkpoint_iter{data.iteration:06d}_{ts}.json"
         path = self._dir / filename
+        tmp_path = path.with_suffix(".tmp")
 
-        path.write_text(json.dumps(data.to_dict(), indent=2), encoding="utf-8")
+        content = json.dumps(data.to_dict(), indent=2)
+        tmp_path.write_text(content, encoding="utf-8")
+        os.replace(tmp_path, path)
+
         logger.debug("Saved checkpoint: %s", path)
 
         self.cleanup(keep=self._max)
@@ -127,7 +187,7 @@ class CheckpointManager:
         return self.load(checkpoints[-1])
 
     def load(self, path: Path) -> CheckpointData:
-        """Load a specific checkpoint file.
+        """Load a specific checkpoint file and verify integrity.
 
         Args:
             path: Path to the JSON checkpoint.
@@ -140,8 +200,38 @@ class CheckpointManager:
             json.JSONDecodeError: If the file is not valid JSON.
         """
         raw = json.loads(path.read_text(encoding="utf-8"))
-        logger.debug("Loaded checkpoint: %s", path)
-        return CheckpointData.from_dict(raw)
+        data = CheckpointData.from_dict(raw)
+
+        if not data.verify_integrity():
+            logger.warning(
+                "Checkpoint integrity check failed for %s — "
+                "stored checksum does not match recomputed value",
+                path,
+            )
+
+        logger.debug("Loaded checkpoint: %s (version=%s)", path, data.version)
+        return data
+
+    def find_latest_valid(self) -> CheckpointData | None:
+        """Find the most recent checkpoint that passes integrity verification.
+
+        Iterates from newest to oldest, skipping corrupted checkpoints.
+
+        Returns:
+            Latest valid :class:`CheckpointData`, or ``None`` if all are
+            corrupted or no checkpoints exist.
+        """
+        for path in reversed(self.list_checkpoints()):
+            try:
+                raw = json.loads(path.read_text(encoding="utf-8"))
+                data = CheckpointData.from_dict(raw)
+                if data.verify_integrity():
+                    logger.debug("Found valid checkpoint: %s", path)
+                    return data
+                logger.warning("Skipping corrupted checkpoint: %s", path)
+            except (json.JSONDecodeError, KeyError, ValueError) as exc:
+                logger.warning("Skipping unreadable checkpoint %s: %s", path, exc)
+        return None
 
     def list_checkpoints(self) -> list[Path]:
         """Return all checkpoint paths, sorted oldest-first by filename.

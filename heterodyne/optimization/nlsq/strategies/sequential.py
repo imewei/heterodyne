@@ -639,13 +639,23 @@ class SequentialStrategy:
             :class:`StrategyResult`; on exception returns a failed result.
         """
         try:
-            return inner.fit(
+            sr = inner.fit(
                 model,
                 subset.c2_data,
                 subset.phi_angle,
                 config,
                 subset.weights,
             )
+            if sr.result.jacobian is not None:
+                jac_norm = float(np.linalg.norm(sr.result.jacobian))
+                sr.metadata["jacobian_norm"] = jac_norm
+                logger.debug(
+                    "Jacobian norm for angle_index=%d (φ=%.2f°): %.6g",
+                    subset.angle_index,
+                    subset.phi_angle,
+                    jac_norm,
+                )
+            return sr
         except Exception as exc:  # noqa: BLE001
             logger.error(
                 "SequentialStrategy: inner strategy raised for "

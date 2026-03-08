@@ -19,7 +19,7 @@ from heterodyne.io.nlsq_writers import (
 )
 from heterodyne.optimization.cmc import CMCConfig, fit_cmc_jax
 from heterodyne.optimization.nlsq import NLSQConfig, fit_nlsq_jax
-from heterodyne.utils.logging import get_logger
+from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_phase
 
 if TYPE_CHECKING:
     from heterodyne.config.manager import ConfigManager
@@ -37,6 +37,7 @@ def run_nlsq(
     config_manager: ConfigManager,
     args: argparse.Namespace,
     output_dir: Path,
+    summary: AnalysisSummaryLogger | None = None,
 ) -> list[NLSQResult]:
     """Run NLSQ analysis for all phi angles.
 
@@ -47,6 +48,7 @@ def run_nlsq(
         config_manager: Configuration manager.
         args: CLI arguments.
         output_dir: Output directory for results.
+        summary: Optional summary logger for phase tracking.
 
     Returns:
         List of NLSQResult objects, one per phi angle.
@@ -64,22 +66,34 @@ def run_nlsq(
     results: list[NLSQResult] = []
 
     for i, phi in enumerate(phi_angles):
-        logger.info("Fitting phi=%s\u00b0 (%d/%d)", phi, i + 1, len(phi_angles))
+        logger.info("Fitting phi=%s° (%d/%d)", phi, i + 1, len(phi_angles))
 
         c2_phi = c2_data[i] if c2_data.ndim == 3 else c2_data
 
-        result = fit_nlsq_jax(
-            model=model,
-            c2_data=c2_phi,
-            phi_angle=phi,
-            config=nlsq_config,
-        )
+        with log_phase(f"nlsq_phi_{i}", logger=logger, track_memory=True) as phase:
+            result = fit_nlsq_jax(
+                model=model,
+                c2_data=c2_phi,
+                phi_angle=phi,
+                config=nlsq_config,
+            )
 
         result.metadata["phi_angle"] = phi
         results.append(result)
 
+        logger.info(
+            "NLSQ phi=%s° completed in %.2fs",
+            phi,
+            phase.duration,
+        )
+
+        if summary and result.reduced_chi_squared is not None:
+            summary.record_metric(
+                f"nlsq_chi2_phi{int(phi)}", result.reduced_chi_squared
+            )
+
         print(f"\n{'=' * 50}")
-        print(f"NLSQ Results for phi={phi}\u00b0")
+        print(f"NLSQ Results for phi={phi}°")
         print(format_nlsq_summary(result))
 
         prefix = f"nlsq_phi{int(phi)}" if len(phi_angles) > 1 else "nlsq"
@@ -98,6 +112,7 @@ def run_cmc(
     args: argparse.Namespace,
     output_dir: Path,
     nlsq_results: list[NLSQResult] | None = None,
+    summary: AnalysisSummaryLogger | None = None,
 ) -> list[CMCResult]:
     """Run CMC Bayesian analysis for all phi angles.
 
@@ -109,6 +124,7 @@ def run_cmc(
         args: CLI arguments.
         output_dir: Output directory.
         nlsq_results: Optional NLSQ results for warm-starting.
+        summary: Optional summary logger for phase tracking.
 
     Returns:
         List of CMCResult objects, one per phi angle.
@@ -126,24 +142,35 @@ def run_cmc(
     results: list[CMCResult] = []
 
     for i, phi in enumerate(phi_angles):
-        logger.info("CMC for phi=%s\u00b0 (%d/%d)", phi, i + 1, len(phi_angles))
+        logger.info("CMC for phi=%s° (%d/%d)", phi, i + 1, len(phi_angles))
 
         c2_phi = c2_data[i] if c2_data.ndim == 3 else c2_data
 
         nlsq_result_i = nlsq_results[i] if nlsq_results and i < len(nlsq_results) else None
-        result = fit_cmc_jax(
-            model=model,
-            c2_data=c2_phi,
-            phi_angle=phi,
-            config=cmc_config,
-            nlsq_result=nlsq_result_i,
-        )
+
+        with log_phase(f"cmc_phi_{i}", logger=logger, track_memory=True) as phase:
+            result = fit_cmc_jax(
+                model=model,
+                c2_data=c2_phi,
+                phi_angle=phi,
+                config=cmc_config,
+                nlsq_result=nlsq_result_i,
+            )
 
         result.metadata["phi_angle"] = phi
         results.append(result)
 
+        logger.info(
+            "CMC phi=%s° completed in %.2fs",
+            phi,
+            phase.duration,
+        )
+
+        if summary is not None:
+            summary.record_metric(f"cmc_n_samples_phi{int(phi)}", float(cmc_config.num_samples))
+
         print(f"\n{'=' * 50}")
-        print(f"CMC Results for phi={phi}\u00b0")
+        print(f"CMC Results for phi={phi}°")
         print(format_mcmc_summary(result))
 
         prefix = f"cmc_phi{int(phi)}" if len(phi_angles) > 1 else "cmc"
