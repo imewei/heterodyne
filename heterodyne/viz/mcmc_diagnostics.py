@@ -196,3 +196,186 @@ def plot_divergence_scatter(
         plt.close(fig)
 
     return fig
+
+
+def plot_kl_divergence_matrix(
+    result: CMCResult,
+    save_path: Path | str | None = None,
+) -> Figure:
+    """Plot pairwise KL divergence heatmap between parameter posteriors.
+
+    Computes histogram-based KL divergence for each pair of parameters
+    using 50-bin histograms with epsilon smoothing.
+
+    Args:
+        result: CMC result with posterior samples.
+        save_path: Path to save the figure.
+
+    Returns:
+        Matplotlib Figure.
+    """
+    names = result.parameter_names
+    n_params = len(names)
+    kl_matrix = np.zeros((n_params, n_params))
+    eps = 1e-10
+    n_bins = 50
+
+    if result.samples is not None:
+        for i in range(n_params):
+            samples_i = np.asarray(result.samples[names[i]]).ravel()
+            for j in range(n_params):
+                if i == j:
+                    continue
+                samples_j = np.asarray(result.samples[names[j]]).ravel()
+                # Shared range for both histograms
+                lo = min(float(np.min(samples_i)), float(np.min(samples_j)))
+                hi = max(float(np.max(samples_i)), float(np.max(samples_j)))
+                if lo == hi:
+                    continue
+                bins = np.linspace(lo, hi, n_bins + 1)
+                p, _ = np.histogram(samples_i, bins=bins, density=True)
+                q, _ = np.histogram(samples_j, bins=bins, density=True)
+                # Normalize to probability distributions
+                p = p / (np.sum(p) + eps)
+                q = q / (np.sum(q) + eps)
+                # KL(p || q)
+                p_safe = p + eps
+                q_safe = q + eps
+                kl_matrix[i, j] = float(np.sum(p_safe * np.log(p_safe / q_safe)))
+
+    fig, ax = plt.subplots(figsize=(max(6, n_params * 0.6), max(5, n_params * 0.5)))
+    im = ax.imshow(kl_matrix, cmap="viridis", aspect="auto")
+    ax.set_xticks(np.arange(n_params))
+    ax.set_yticks(np.arange(n_params))
+    ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8)
+    ax.set_yticklabels(names, fontsize=8)
+    ax.set_title("Pairwise KL Divergence")
+    fig.colorbar(im, ax=ax)
+    fig.tight_layout()
+
+    if save_path is not None:
+        fig.savefig(str(save_path), dpi=150, bbox_inches="tight")
+        logger.info("Saved KL divergence matrix to %s", save_path)
+        plt.close(fig)
+
+    return fig
+
+
+def plot_convergence_diagnostics(
+    result: CMCResult,
+    save_path: Path | str | None = None,
+) -> Figure:
+    """Plot a 2x2 MCMC convergence summary figure.
+
+    Panels:
+        (0,0) ESS bulk bar chart
+        (0,1) R-hat bar chart with threshold
+        (1,0) BFMI bar chart per chain with threshold
+        (1,1) Text summary of key convergence statistics
+
+    Args:
+        result: CMC result with convergence diagnostics.
+        save_path: Path to save the figure.
+
+    Returns:
+        Matplotlib Figure.
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+    fig.suptitle("MCMC Convergence Summary", fontsize=14)
+
+    names = result.parameter_names
+    x = np.arange(len(names))
+
+    # Panel (0,0): ESS bulk
+    ax_ess = axes[0, 0]
+    if result.ess_bulk is not None:
+        ax_ess.bar(x, result.ess_bulk, color="C0", alpha=0.8)
+        ax_ess.axhline(y=400, color="red", linestyle="--", alpha=0.5, label="Min recommended (400)")
+        ax_ess.set_xticks(x)
+        ax_ess.set_xticklabels(names, rotation=45, ha="right", fontsize=7)
+        ax_ess.set_ylabel("ESS (bulk)")
+        ax_ess.set_title("Effective Sample Size (bulk)")
+        ax_ess.legend(fontsize=7)
+    else:
+        ax_ess.text(0.5, 0.5, "ESS not available", ha="center", va="center",
+                    transform=ax_ess.transAxes)
+        ax_ess.set_title("Effective Sample Size (bulk)")
+
+    # Panel (0,1): R-hat
+    ax_rhat = axes[0, 1]
+    if result.r_hat is not None:
+        colors = ["red" if rh > 1.1 else "C0" for rh in result.r_hat]
+        ax_rhat.bar(x, result.r_hat, color=colors, alpha=0.8)
+        ax_rhat.axhline(y=1.1, color="red", linestyle="--", alpha=0.5, label="Threshold (1.1)")
+        ax_rhat.set_xticks(x)
+        ax_rhat.set_xticklabels(names, rotation=45, ha="right", fontsize=7)
+        ax_rhat.set_ylabel("R-hat")
+        ax_rhat.set_title("R-hat by Parameter")
+        ax_rhat.legend(fontsize=7)
+    else:
+        ax_rhat.text(0.5, 0.5, "R-hat not available", ha="center", va="center",
+                     transform=ax_rhat.transAxes)
+        ax_rhat.set_title("R-hat by Parameter")
+
+    # Panel (1,0): BFMI
+    ax_bfmi = axes[1, 0]
+    if result.bfmi is not None:
+        chain_idx = np.arange(len(result.bfmi))
+        colors_bfmi = ["red" if b < 0.3 else "C0" for b in result.bfmi]
+        ax_bfmi.bar(chain_idx, result.bfmi, color=colors_bfmi, alpha=0.8)
+        ax_bfmi.axhline(y=0.3, color="red", linestyle="--", alpha=0.5, label="Min threshold (0.3)")
+        ax_bfmi.set_xlabel("Chain")
+        ax_bfmi.set_ylabel("BFMI")
+        ax_bfmi.set_title("Bayesian Fraction of Missing Information")
+        ax_bfmi.legend(fontsize=7)
+    else:
+        ax_bfmi.text(0.5, 0.5, "BFMI not available", ha="center", va="center",
+                     transform=ax_bfmi.transAxes)
+        ax_bfmi.set_title("Bayesian Fraction of Missing Information")
+
+    # Panel (1,1): Text summary
+    ax_text = axes[1, 1]
+    ax_text.axis("off")
+    ax_text.set_title("Convergence Summary")
+
+    divergences = result.metadata.get("divergent_transitions")
+    total_div = int(np.sum(divergences)) if divergences is not None else None
+
+    min_ess = float(np.min(result.ess_bulk)) if result.ess_bulk is not None else None
+    max_rhat = float(np.max(result.r_hat)) if result.r_hat is not None else None
+    min_bfmi = float(np.min(result.bfmi)) if result.bfmi is not None else None
+
+    # Convergence assessment
+    if max_rhat is not None and min_ess is not None:
+        converged = max_rhat < 1.1 and min_ess > 400
+        assessment = "Converged" if converged else "Not converged"
+        assess_color = "green" if converged else "red"
+    else:
+        assessment = "N/A"
+        assess_color = "gray"
+
+    summary_lines = [
+        f"Total divergences:  {total_div if total_div is not None else 'N/A'}",
+        f"Min ESS (bulk):     {min_ess:.1f}" if min_ess is not None else "Min ESS (bulk):     N/A",
+        f"Max R-hat:          {max_rhat:.4f}" if max_rhat is not None else "Max R-hat:          N/A",
+        f"Min BFMI:           {min_bfmi:.4f}" if min_bfmi is not None else "Min BFMI:           N/A",
+    ]
+
+    y_pos = 0.75
+    for line in summary_lines:
+        ax_text.text(0.1, y_pos, line, transform=ax_text.transAxes,
+                     fontsize=11, fontfamily="monospace", verticalalignment="top")
+        y_pos -= 0.12
+
+    ax_text.text(0.1, y_pos, f"Assessment:         {assessment}",
+                 transform=ax_text.transAxes, fontsize=11, fontfamily="monospace",
+                 verticalalignment="top", color=assess_color, fontweight="bold")
+
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+
+    if save_path is not None:
+        fig.savefig(str(save_path), dpi=150, bbox_inches="tight")
+        logger.info("Saved convergence diagnostics to %s", save_path)
+        plt.close(fig)
+
+    return fig

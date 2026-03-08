@@ -33,7 +33,37 @@ class ConfigManager:
             config: Configuration dictionary
         """
         self._config = config
+        self._normalize_schema()
         self._validate()
+
+    def _normalize_schema(self) -> None:
+        """Normalize deprecated configuration keys to canonical names."""
+        from heterodyne.config.types import PARAMETER_NAME_MAPPING
+
+        # Normalize parameter names in all parameter groups
+        params = self._config.get("parameters", {})
+        for group_name, group_config in params.items():
+            if not isinstance(group_config, dict):
+                continue
+            normalized: dict[str, Any] = {}
+            for key, value in group_config.items():
+                canonical = PARAMETER_NAME_MAPPING.get(key, key)
+                if canonical != key:
+                    logger.debug("Normalized parameter key '%s' -> '%s'", key, canonical)
+                normalized[canonical] = value
+            params[group_name] = normalized
+
+        # Normalize CMC config keys
+        cmc = self._config.get("optimization", {}).get("cmc", {})
+        if isinstance(cmc, dict):
+            normalized_cmc: dict[str, Any] = {}
+            for key, value in cmc.items():
+                canonical = PARAMETER_NAME_MAPPING.get(key, key)
+                if canonical != key:
+                    logger.debug("Normalized CMC key '%s' -> '%s'", key, canonical)
+                normalized_cmc[canonical] = value
+            if "optimization" in self._config and "cmc" in self._config["optimization"]:
+                self._config["optimization"]["cmc"] = normalized_cmc
 
     def _validate(self) -> None:
         """Validate configuration structure."""
@@ -81,6 +111,23 @@ class ConfigManager:
         Returns:
             ConfigManager instance
         """
+        return cls(config)
+
+    @classmethod
+    def from_json(cls, path: Path | str) -> ConfigManager:
+        """Load configuration from JSON file.
+
+        Args:
+            path: Path to JSON file
+
+        Returns:
+            ConfigManager instance
+        """
+        import json
+
+        path = validate_file_exists(path, "Configuration file")
+        with open(path, encoding="utf-8") as f:
+            config = json.load(f)
         return cls(config)
 
     @property
@@ -200,6 +247,87 @@ class ConfigManager:
         return copy.deepcopy(
             cast(dict[str, Any], self._config.get("optimization", {}).get("cmc", {}))
         )
+
+    def _merge_cmc_config(self) -> dict[str, Any]:
+        """Merge CMC config with sensible defaults.
+
+        Config values override defaults.
+
+        Returns:
+            Merged CMC configuration dictionary
+        """
+        defaults: dict[str, Any] = {
+            "num_warmup": 500,
+            "num_samples": 1000,
+            "num_chains": 4,
+            "target_accept_prob": 0.8,
+            "max_tree_depth": 10,
+        }
+        cmc = self._config.get("optimization", {}).get("cmc", {})
+        if isinstance(cmc, dict):
+            defaults.update(cmc)
+        return defaults
+
+    def _validate_cmc_config(self, cmc_config: dict[str, Any]) -> list[str]:
+        """Validate CMC config values.
+
+        Args:
+            cmc_config: CMC configuration dictionary to validate
+
+        Returns:
+            List of error messages (empty if valid)
+        """
+        errors: list[str] = []
+
+        num_warmup = cmc_config.get("num_warmup")
+        if num_warmup is not None and (not isinstance(num_warmup, int) or num_warmup <= 0):
+            errors.append(f"num_warmup must be > 0, got {num_warmup}")
+
+        num_samples = cmc_config.get("num_samples")
+        if num_samples is not None and (not isinstance(num_samples, int) or num_samples <= 0):
+            errors.append(f"num_samples must be > 0, got {num_samples}")
+
+        num_chains = cmc_config.get("num_chains")
+        if num_chains is not None and (not isinstance(num_chains, int) or num_chains <= 0):
+            errors.append(f"num_chains must be > 0, got {num_chains}")
+
+        target_accept_prob = cmc_config.get("target_accept_prob")
+        if target_accept_prob is not None and (
+            not isinstance(target_accept_prob, (int, float))
+            or target_accept_prob <= 0
+            or target_accept_prob >= 1
+        ):
+            errors.append(
+                f"target_accept_prob must be in (0, 1), got {target_accept_prob}"
+            )
+
+        max_tree_depth = cmc_config.get("max_tree_depth")
+        if max_tree_depth is not None and (
+            not isinstance(max_tree_depth, int)
+            or max_tree_depth < 1
+            or max_tree_depth > 20
+        ):
+            errors.append(
+                f"max_tree_depth must be in [1, 20], got {max_tree_depth}"
+            )
+
+        return errors
+
+    def get_config(self) -> dict[str, Any]:
+        """Return raw config dict without deep copy (for internal use).
+
+        Returns:
+            Configuration dictionary (not copied)
+        """
+        return self._config
+
+    def get_cmc_config(self) -> dict[str, Any]:
+        """Return merged CMC config with defaults applied.
+
+        Returns:
+            CMC configuration with defaults merged in
+        """
+        return self._merge_cmc_config()
 
     # === Output Settings ===
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -14,9 +15,12 @@ from heterodyne.config.parameter_names import (
     SCALING_PARAMS,
 )
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
+from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
     import jax.numpy as jnp
+
+logger = get_logger(__name__)
 
 
 class PriorType(Enum):
@@ -272,6 +276,76 @@ class ParameterSpace:
 
         return errors
 
+    def convert_to_beta_priors(self) -> None:
+        """Convert all TruncatedNormal priors to BetaScaled priors.
+
+        For each parameter whose prior is TRUNCATED_NORMAL, this method
+        computes equivalent Beta concentration parameters via the method
+        of moments and replaces the prior in-place with a BETA_SCALED
+        distribution over the same bounds.
+
+        Parameters with other prior types are left unchanged.
+        """
+        for name, prior in self.priors.items():
+            if prior.prior_type != PriorType.TRUNCATED_NORMAL:
+                continue
+
+            loc = prior.params["loc"]
+            scale = prior.params["scale"]
+            low, high = self.bounds[name]
+
+            conc1, conc2 = _compute_beta_concentrations(loc, scale, low, high)
+            self.priors[name] = PriorDistribution.beta_scaled(
+                low, high, conc1, conc2,
+            )
+            logger.debug(
+                "Converted %s prior: TruncatedNormal(loc=%.4g, scale=%.4g) "
+                "-> BetaScaled(conc1=%.4g, conc2=%.4g) on [%.4g, %.4g]",
+                name, loc, scale, conc1, conc2, low, high,
+            )
+
+    def with_single_angle_stabilization(self) -> ParameterSpace:
+        """Return a new ParameterSpace with tightened bounds for single-angle analysis.
+
+        Narrows contrast bounds to [value-0.2, value+0.2] and offset bounds
+        to [value-0.1, value+0.1], clamped to the original bounds.
+
+        Returns:
+            A new ParameterSpace with tightened scaling bounds.
+        """
+        new = ParameterSpace(
+            values=deepcopy(self.values),
+            vary=deepcopy(self.vary),
+            bounds=deepcopy(self.bounds),
+            priors=deepcopy(self.priors),
+        )
+
+        # Tighten contrast bounds
+        if "contrast" in new.bounds:
+            low, high = new.bounds["contrast"]
+            val = new.values["contrast"]
+            new_low = max(low, val - 0.2)
+            new_high = min(high, val + 0.2)
+            new.bounds["contrast"] = (new_low, new_high)
+            logger.debug(
+                "Single-angle stabilization: contrast bounds [%.4g, %.4g] -> [%.4g, %.4g]",
+                low, high, new_low, new_high,
+            )
+
+        # Tighten offset bounds
+        if "offset" in new.bounds:
+            low, high = new.bounds["offset"]
+            val = new.values["offset"]
+            new_low = max(low, val - 0.1)
+            new_high = min(high, val + 0.1)
+            new.bounds["offset"] = (new_low, new_high)
+            logger.debug(
+                "Single-angle stabilization: offset bounds [%.4g, %.4g] -> [%.4g, %.4g]",
+                low, high, new_low, new_high,
+            )
+
+        return new
+
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> ParameterSpace:
         """Create ParameterSpace from configuration dictionary.
@@ -500,3 +574,23 @@ def _build_prior(
         return PriorDistribution.beta_scaled(low, high, conc1, conc2)
     else:
         raise ValueError(f"Unhandled prior type: {prior_type}")
+
+
+def clamp_to_open_interval(
+    value: float, low: float, high: float, epsilon: float = 1e-6,
+) -> float:
+    """Clamp value to the open interval (low+epsilon, high-epsilon).
+
+    Useful for Beta distribution parameters that must be strictly
+    within their support bounds.
+
+    Args:
+        value: Value to clamp.
+        low: Lower bound of the closed interval.
+        high: Upper bound of the closed interval.
+        epsilon: Margin to inset from the bounds.
+
+    Returns:
+        Clamped value in (low+epsilon, high-epsilon).
+    """
+    return max(low + epsilon, min(value, high - epsilon))

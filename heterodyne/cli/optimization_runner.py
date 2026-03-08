@@ -148,6 +148,12 @@ def run_cmc(
 
         nlsq_result_i = nlsq_results[i] if nlsq_results and i < len(nlsq_results) else None
 
+        if nlsq_result_i is not None:
+            if _validate_warmstart_quality(nlsq_result_i):
+                _log_warmstart_physical_params(nlsq_result_i)
+            else:
+                logger.warning("Warm-start quality below threshold for phi=%s°; using anyway", phi)
+
         with log_phase(f"cmc_phi_{i}", logger=logger, track_memory=True) as phase:
             result = fit_cmc_jax(
                 model=model,
@@ -210,3 +216,106 @@ def resolve_nlsq_warmstart(
     except Exception as exc:  # noqa: BLE001
         logger.warning("Could not load NLSQ warm-start from %s: %s", warmstart_path, exc)
         return None
+
+
+def _get_warmstart_reduced_chi2(result: NLSQResult) -> float | None:
+    """Extract reduced chi-squared from NLSQ result.
+
+    Tries ``result.reduced_chi_squared`` first, then falls back to
+    ``result.metadata["reduced_chi_squared"]``.
+
+    Args:
+        result: NLSQ result to inspect.
+
+    Returns:
+        Reduced chi-squared value, or ``None`` if unavailable.
+    """
+    chi2 = getattr(result, "reduced_chi_squared", None)
+    if chi2 is not None:
+        return float(chi2)
+    return result.metadata.get("reduced_chi_squared") if result.metadata else None
+
+
+def _validate_warmstart_quality(
+    result: NLSQResult,
+    chi2_threshold: float = 10.0,
+) -> bool:
+    """Check whether an NLSQ result is suitable for warm-starting CMC.
+
+    Validates convergence success, reduced chi-squared, and (when the
+    parameter registry is available) whether fitted values lie within
+    their declared bounds.
+
+    Args:
+        result: NLSQ result to validate.
+        chi2_threshold: Maximum acceptable reduced chi-squared.
+
+    Returns:
+        ``True`` if quality is acceptable, ``False`` otherwise.
+    """
+    ok = True
+
+    # --- convergence flag ---
+    if hasattr(result, "success") and not result.success:
+        logger.warning("Warm-start NLSQ did not converge: %s", getattr(result, "message", ""))
+        ok = False
+
+    # --- reduced chi-squared ---
+    chi2 = _get_warmstart_reduced_chi2(result)
+    if chi2 is not None:
+        if chi2 >= chi2_threshold:
+            logger.warning(
+                "Warm-start reduced chi² = %.3f exceeds threshold %.1f",
+                chi2,
+                chi2_threshold,
+            )
+            ok = False
+        else:
+            logger.debug("Warm-start reduced chi² = %.3f (threshold %.1f)", chi2, chi2_threshold)
+
+    # --- parameter bounds check via registry ---
+    try:
+        from heterodyne.config.parameter_registry import ParameterRegistry
+
+        registry = ParameterRegistry()
+        params = result.params_dict
+        for name, value in params.items():
+            try:
+                info = registry[name]
+            except KeyError:
+                continue
+            if not (info.min_bound <= value <= info.max_bound):
+                logger.warning(
+                    "Warm-start param %s = %.4e outside bounds [%.4e, %.4e]",
+                    name,
+                    value,
+                    info.min_bound,
+                    info.max_bound,
+                )
+                ok = False
+    except Exception:  # noqa: BLE001
+        # Registry unavailable — skip bounds check
+        pass
+
+    return ok
+
+
+_WARMSTART_LOG_PARAMS = ("D0_ref", "D0_sample", "v0", "alpha_ref", "alpha_sample")
+
+
+def _log_warmstart_physical_params(result: NLSQResult) -> None:
+    """Log key physical parameter values from an NLSQ warm-start result.
+
+    Logs at INFO level using scientific notation for easy inspection.
+    Missing parameters are silently skipped.
+
+    Args:
+        result: NLSQ result whose parameters are logged.
+    """
+    params = result.params_dict
+    parts: list[str] = []
+    for name in _WARMSTART_LOG_PARAMS:
+        if name in params:
+            parts.append(f"{name}={params[name]:.2e}")
+    if parts:
+        logger.info("Warm-start params: %s", ", ".join(parts))

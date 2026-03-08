@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -425,3 +425,518 @@ class QualityController:
             level=level,
             message=msg,
         )
+
+
+# ---------------------------------------------------------------------------
+# 4-Stage Quality Control Pipeline (Task 1.3)
+# ---------------------------------------------------------------------------
+
+
+class QualityControlStage(Enum):
+    """Processing stage at which quality assessment is performed."""
+
+    RAW = "raw"
+    FILTERED = "filtered"
+    PREPROCESSED = "preprocessed"
+    FINAL = "final"
+
+
+@dataclass
+class QualityControlConfig:
+    """Configuration for the 4-stage quality control pipeline.
+
+    Attributes:
+        nan_threshold: Maximum acceptable NaN fraction (0-1).
+        snr_threshold: Minimum acceptable signal-to-noise ratio.
+        symmetry_threshold: Maximum acceptable relative asymmetry.
+        value_range_max: Maximum acceptable absolute value.
+        min_time_points: Minimum required number of time points.
+        auto_repair_nans: Whether to automatically interpolate NaN values.
+        auto_repair_outliers: Whether to automatically clip outlier values.
+        outlier_sigma: Number of standard deviations beyond which values
+            are considered outliers (used when ``auto_repair_outliers`` is True).
+        report_format: Output format for reports, ``"text"`` or ``"json"``.
+    """
+
+    nan_threshold: float = 0.05
+    snr_threshold: float = 5.0
+    symmetry_threshold: float = 0.01
+    value_range_max: float = 100.0
+    min_time_points: int = 10
+    auto_repair_nans: bool = False
+    auto_repair_outliers: bool = False
+    outlier_sigma: float = 5.0
+    report_format: str = "text"
+
+
+@dataclass
+class QualityControlResult:
+    """Result of a single-stage quality assessment.
+
+    Attributes:
+        stage: The pipeline stage this result corresponds to.
+        report: The underlying :class:`QualityReport` produced by the controller.
+        auto_corrections: Descriptions of any automatic corrections applied.
+        recommendations: Actionable suggestions derived from the assessment.
+        quality_score: Aggregate quality score in [0, 1] (1 = perfect).
+        metadata: Arbitrary key-value metadata for downstream consumers.
+    """
+
+    stage: QualityControlStage
+    report: QualityReport
+    auto_corrections: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
+    quality_score: float = 1.0
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline functions
+# ---------------------------------------------------------------------------
+
+
+def assess_stage(
+    controller: QualityController,
+    c2: np.ndarray,
+    t: np.ndarray,
+    stage: QualityControlStage,
+    config: QualityControlConfig | None = None,
+) -> QualityControlResult:
+    """Run a quality assessment for a specific pipeline stage.
+
+    Args:
+        controller: An existing :class:`QualityController` instance.
+        c2: Correlation data array.
+        t: 1-D time array.
+        stage: Pipeline stage being assessed.
+        config: Optional configuration; defaults are used when *None*.
+
+    Returns:
+        A :class:`QualityControlResult` with score and recommendations.
+    """
+    if config is None:
+        config = QualityControlConfig()
+
+    report = controller.assess(c2, t)
+
+    # Compute aggregate quality score
+    quality_score = 1.0
+    for m in report.metrics:
+        if m.level == QualityLevel.CRITICAL:
+            quality_score -= 0.3
+        elif m.level == QualityLevel.WARNING:
+            quality_score -= 0.1
+    quality_score = max(quality_score, 0.0)
+
+    # Stage-specific recommendations
+    recommendations: list[str] = list(report.recommendations)
+    if stage == QualityControlStage.RAW:
+        if quality_score < 0.5:
+            recommendations.append(
+                "Raw data quality is poor; consider re-acquisition or "
+                "aggressive filtering before proceeding."
+            )
+    elif stage == QualityControlStage.FILTERED:
+        if quality_score < 0.7:
+            recommendations.append(
+                "Filtered data still has quality issues; review filter "
+                "parameters or apply additional preprocessing."
+            )
+    elif stage == QualityControlStage.PREPROCESSED:
+        if quality_score < 0.8:
+            recommendations.append(
+                "Preprocessed data does not meet target quality; "
+                "verify normalization and symmetrization steps."
+            )
+    elif stage == QualityControlStage.FINAL:
+        if quality_score < 0.9:
+            recommendations.append(
+                "Final data quality is below recommended threshold; "
+                "fitting results should be interpreted with caution."
+            )
+
+    logger.info(
+        "Stage %s quality score: %.2f (%d metrics)",
+        stage.value,
+        quality_score,
+        len(report.metrics),
+    )
+
+    return QualityControlResult(
+        stage=stage,
+        report=report,
+        recommendations=recommendations,
+        quality_score=quality_score,
+        metadata={"config": config, "n_metrics": len(report.metrics)},
+    )
+
+
+def suggest_fixes(report: QualityReport) -> list[dict[str, Any]]:
+    """Analyse a :class:`QualityReport` and suggest concrete corrective actions.
+
+    Args:
+        report: Quality report to analyse.
+
+    Returns:
+        List of fix suggestion dicts, each with ``action``, ``description``,
+        and ``priority`` keys.
+    """
+    fixes: list[dict[str, Any]] = []
+
+    for m in report.metrics:
+        if m.name == "nan_fraction" and m.level == QualityLevel.CRITICAL:
+            fixes.append(
+                {
+                    "action": "interpolate_nans",
+                    "description": (
+                        f"Interpolate {100 * m.value:.2f}% NaN values using "
+                        "nearest-neighbor or linear interpolation."
+                    ),
+                    "priority": "high",
+                }
+            )
+        elif m.name == "snr" and m.level in (
+            QualityLevel.WARNING,
+            QualityLevel.CRITICAL,
+        ):
+            fixes.append(
+                {
+                    "action": "smooth_data",
+                    "description": (
+                        f"SNR is {m.value:.1f}; apply smoothing or "
+                        "averaging to improve signal-to-noise ratio."
+                    ),
+                    "priority": "medium",
+                }
+            )
+        elif m.name == "symmetry" and m.level in (
+            QualityLevel.WARNING,
+            QualityLevel.CRITICAL,
+        ):
+            fixes.append(
+                {
+                    "action": "symmetrize",
+                    "description": (
+                        f"Relative asymmetry is {100 * m.value:.2f}%; "
+                        "symmetrize the correlation matrix via "
+                        "(C2 + C2^T) / 2."
+                    ),
+                    "priority": "medium",
+                }
+            )
+        elif m.name == "value_range" and m.level == QualityLevel.CRITICAL:
+            fixes.append(
+                {
+                    "action": "normalize",
+                    "description": (
+                        f"Maximum |value| is {m.value:.4g}; normalize data "
+                        "to bring values into a physically plausible range."
+                    ),
+                    "priority": "high",
+                }
+            )
+        elif m.name == "time_coverage" and m.level in (
+            QualityLevel.WARNING,
+            QualityLevel.CRITICAL,
+        ):
+            fixes.append(
+                {
+                    "action": "extend_measurement",
+                    "description": (
+                        f"Only {int(m.value)} time points; extend "
+                        "measurement duration or increase sampling rate."
+                    ),
+                    "priority": "low",
+                }
+            )
+
+    return fixes
+
+
+def apply_auto_corrections(
+    c2: np.ndarray,
+    t: np.ndarray,
+    report: QualityReport,
+    config: QualityControlConfig,
+) -> tuple[np.ndarray, list[str]]:
+    """Apply automatic corrections to data based on quality report.
+
+    The input arrays are not mutated; a corrected copy of *c2* is returned.
+
+    Args:
+        c2: Correlation data array.
+        t: 1-D time array.
+        report: Quality report from a prior assessment.
+        config: Configuration controlling which corrections are enabled.
+
+    Returns:
+        Tuple of (corrected_c2, list_of_correction_descriptions).
+    """
+    corrections: list[str] = []
+    c2_corrected = c2.copy()
+
+    # --- NaN interpolation (nearest-neighbour fill) ---
+    if config.auto_repair_nans:
+        nan_mask = np.isnan(c2_corrected)
+        nan_count = int(np.sum(nan_mask))
+        if nan_count > 0:
+            # Nearest-neighbour: replace each NaN with mean of finite neighbours
+            finite_mean = float(np.nanmean(c2_corrected))
+            c2_corrected = np.where(nan_mask, finite_mean, c2_corrected)
+            corrections.append(
+                f"Interpolated {nan_count} NaN values using finite-mean "
+                f"fill ({finite_mean:.4g})."
+            )
+            logger.info("Auto-repair: interpolated %d NaN values", nan_count)
+
+    # --- Outlier clipping ---
+    if config.auto_repair_outliers:
+        finite = c2_corrected[np.isfinite(c2_corrected)]
+        if finite.size > 0:
+            mean = float(np.mean(finite))
+            std = float(np.std(finite))
+            if std > 0:
+                lo = mean - config.outlier_sigma * std
+                hi = mean + config.outlier_sigma * std
+                outlier_mask = (c2_corrected < lo) | (c2_corrected > hi)
+                # Only count finite outliers (NaNs are not outliers)
+                outlier_mask = outlier_mask & np.isfinite(c2_corrected)
+                outlier_count = int(np.sum(outlier_mask))
+                if outlier_count > 0:
+                    c2_corrected = np.clip(c2_corrected, lo, hi)
+                    corrections.append(
+                        f"Clipped {outlier_count} outlier values beyond "
+                        f"{config.outlier_sigma:.1f} sigma "
+                        f"(range [{lo:.4g}, {hi:.4g}])."
+                    )
+                    logger.info(
+                        "Auto-repair: clipped %d outliers (%.1f sigma)",
+                        outlier_count,
+                        config.outlier_sigma,
+                    )
+
+    return c2_corrected, corrections
+
+
+def _compute_adaptive_thresholds(
+    c2: np.ndarray,
+    config: QualityControlConfig,
+) -> QualityControlConfig:
+    """Adjust quality thresholds based on empirical data characteristics.
+
+    Returns a *new* :class:`QualityControlConfig` — the input is never mutated.
+
+    Args:
+        c2: Correlation data used to characterise noise level.
+        config: Baseline configuration.
+
+    Returns:
+        A new config with potentially relaxed thresholds.
+    """
+    finite = c2[np.isfinite(c2)]
+    if finite.size == 0:
+        return config
+
+    mean = float(np.mean(finite))
+    std = float(np.std(finite))
+    nan_frac = float(np.sum(np.isnan(c2))) / c2.size if c2.size > 0 else 0.0
+
+    new_snr_threshold = config.snr_threshold
+    new_nan_threshold = config.nan_threshold
+
+    # Relax SNR threshold for very noisy data
+    if mean != 0.0 and abs(std / mean) > 1.0:
+        new_snr_threshold = config.snr_threshold * 0.5
+        logger.debug(
+            "Adaptive thresholds: relaxed snr_threshold from %.1f to %.1f "
+            "(high noise: std/mean=%.2f)",
+            config.snr_threshold,
+            new_snr_threshold,
+            abs(std / mean),
+        )
+
+    # Relax NaN threshold slightly when NaN fraction already above 1%
+    if nan_frac > 0.01:
+        new_nan_threshold = config.nan_threshold * 1.5
+        logger.debug(
+            "Adaptive thresholds: relaxed nan_threshold from %.3f to %.3f "
+            "(%.2f%% NaNs detected)",
+            config.nan_threshold,
+            new_nan_threshold,
+            100 * nan_frac,
+        )
+
+    return QualityControlConfig(
+        nan_threshold=new_nan_threshold,
+        snr_threshold=new_snr_threshold,
+        symmetry_threshold=config.symmetry_threshold,
+        value_range_max=config.value_range_max,
+        min_time_points=config.min_time_points,
+        auto_repair_nans=config.auto_repair_nans,
+        auto_repair_outliers=config.auto_repair_outliers,
+        outlier_sigma=config.outlier_sigma,
+        report_format=config.report_format,
+    )
+
+
+def export_report(
+    result: QualityControlResult,
+    format: str = "text",
+) -> str | dict[str, Any]:
+    """Export a :class:`QualityControlResult` in the requested format.
+
+    Args:
+        result: Quality control result to export.
+        format: ``"text"`` for a human-readable string, ``"json"`` for a
+            JSON-safe dictionary.
+
+    Returns:
+        Formatted report as a string or dict.
+
+    Raises:
+        ValueError: If *format* is not ``"text"`` or ``"json"``.
+    """
+    if format == "text":
+        lines = [result.report.summary()]
+        if result.auto_corrections:
+            lines.append("")
+            lines.append("Auto-corrections applied:")
+            for corr in result.auto_corrections:
+                lines.append(f"  * {corr}")
+        if result.recommendations:
+            lines.append("")
+            lines.append("Recommendations:")
+            for rec in result.recommendations:
+                lines.append(f"  - {rec}")
+        lines.append("")
+        lines.append(f"Quality score: {result.quality_score:.2f}")
+        return "\n".join(lines)
+
+    if format == "json":
+        return {
+            "stage": result.stage.value,
+            "quality_score": result.quality_score,
+            "overall_level": result.report.overall_level.value,
+            "metrics": [
+                {
+                    "name": m.name,
+                    "value": m.value,
+                    "threshold": m.threshold,
+                    "level": m.level.value,
+                    "message": m.message,
+                }
+                for m in result.report.metrics
+            ],
+            "auto_corrections": result.auto_corrections,
+            "recommendations": result.recommendations,
+            "metadata": {
+                k: v
+                for k, v in result.metadata.items()
+                if not isinstance(v, QualityControlConfig)
+            },
+        }
+
+    msg = f"Unsupported report format: {format!r} (use 'text' or 'json')"
+    raise ValueError(msg)
+
+
+def track_quality_history(
+    history: list[QualityControlResult],
+    new_result: QualityControlResult,
+) -> list[QualityControlResult]:
+    """Append a new result to the quality history and log the trend.
+
+    Args:
+        history: Existing list of results (may be empty).
+        new_result: The latest quality control result.
+
+    Returns:
+        The updated history list (same object, mutated in place).
+    """
+    if history:
+        prev = history[-1]
+        delta = new_result.quality_score - prev.quality_score
+        direction = "improved" if delta > 0 else "degraded" if delta < 0 else "unchanged"
+        logger.info(
+            "Quality trend: %s -> %s (%.2f -> %.2f, %+.2f %s)",
+            prev.stage.value,
+            new_result.stage.value,
+            prev.quality_score,
+            new_result.quality_score,
+            delta,
+            direction,
+        )
+    else:
+        logger.info(
+            "Quality history started at stage %s (score=%.2f)",
+            new_result.stage.value,
+            new_result.quality_score,
+        )
+
+    history.append(new_result)
+    return history
+
+
+def run_4_stage_pipeline(
+    controller: QualityController,
+    c2: np.ndarray,
+    t: np.ndarray,
+    config: QualityControlConfig | None = None,
+) -> list[QualityControlResult]:
+    """Execute the full 4-stage quality control pipeline.
+
+    Stages are run in order: RAW -> FILTERED -> PREPROCESSED -> FINAL.
+    Between stages, automatic corrections are applied when enabled in
+    *config*. Adaptive thresholds are computed once from the raw data.
+
+    Args:
+        controller: A :class:`QualityController` instance.
+        c2: Correlation data array.
+        t: 1-D time array.
+        config: Pipeline configuration; defaults are used when *None*.
+
+    Returns:
+        List of four :class:`QualityControlResult` objects, one per stage.
+    """
+    if config is None:
+        config = QualityControlConfig()
+
+    # Compute adaptive thresholds from the raw data
+    adapted_config = _compute_adaptive_thresholds(c2, config)
+
+    stages = [
+        QualityControlStage.RAW,
+        QualityControlStage.FILTERED,
+        QualityControlStage.PREPROCESSED,
+        QualityControlStage.FINAL,
+    ]
+
+    history: list[QualityControlResult] = []
+    current_c2 = c2.copy()
+
+    for stage in stages:
+        result = assess_stage(controller, current_c2, t, stage, adapted_config)
+
+        # Apply auto-corrections between stages (not after FINAL)
+        if stage != QualityControlStage.FINAL and (
+            adapted_config.auto_repair_nans or adapted_config.auto_repair_outliers
+        ):
+            current_c2, corrections = apply_auto_corrections(
+                current_c2, t, result.report, adapted_config
+            )
+            result.auto_corrections.extend(corrections)
+
+        history = track_quality_history(history, result)
+
+    # Log summary
+    first_score = history[0].quality_score
+    final_score = history[-1].quality_score
+    logger.info(
+        "4-stage pipeline complete: quality %.2f -> %.2f "
+        "(%d total corrections applied)",
+        first_score,
+        final_score,
+        sum(len(r.auto_corrections) for r in history),
+    )
+
+    return history

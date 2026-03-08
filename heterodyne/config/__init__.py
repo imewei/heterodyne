@@ -14,11 +14,33 @@ from heterodyne.config.parameter_names import (
 from heterodyne.config.parameter_registry import ParameterInfo, ParameterRegistry
 from heterodyne.config.parameter_space import ParameterSpace, PriorDistribution
 from heterodyne.config.types import (
+    PARAMETER_NAME_MAPPING,
+    AnalysisConfig,
+    AnalyzerParametersConfig,
+    CMCBackendConfig,
+    CMCCombinationConfig,
+    CMCInitializationConfig,
+    CMCOptimizationConfig,
+    CMCPerShardMCMCConfig,
+    CMCShardingConfig,
+    CMCValidationConfig,
     ExperimentalDataConfig,
+    HardwareConfig,
     HeterodyneConfig,
+    HmcConfig,
+    LoggingConfig,
+    MetadataConfig,
+    NLSQOptimizationConfig,
     OptimizationConfig,
+    OutputConfig,
     ParameterConfig,
     ParameterGroupConfig,
+    PhiFilteringConfig,
+    ScatteringConfig,
+    SequentialConfig,
+    StratificationConfig,
+    StreamingConfig,
+    TemporalConfig,
 )
 
 __all__ = [
@@ -39,10 +61,36 @@ __all__ = [
     "ANGLE_PARAMS",
     "ALL_PARAM_NAMES",
     "PARAM_GROUPS",
-    # Types
+    # Types — existing
     "ParameterConfig",
     "ParameterGroupConfig",
+    "NLSQOptimizationConfig",
+    "CMCOptimizationConfig",
     "OptimizationConfig",
     "ExperimentalDataConfig",
+    "TemporalConfig",
+    "ScatteringConfig",
+    "OutputConfig",
     "HeterodyneConfig",
+    # Types — CMC
+    "CMCShardingConfig",
+    "CMCInitializationConfig",
+    "CMCBackendConfig",
+    "CMCValidationConfig",
+    "CMCCombinationConfig",
+    "CMCPerShardMCMCConfig",
+    # Types — infrastructure
+    "StreamingConfig",
+    "StratificationConfig",
+    "SequentialConfig",
+    "HardwareConfig",
+    "LoggingConfig",
+    "MetadataConfig",
+    # Types — analysis
+    "AnalysisConfig",
+    "AnalyzerParametersConfig",
+    "HmcConfig",
+    "PhiFilteringConfig",
+    # Name mapping
+    "PARAMETER_NAME_MAPPING",
 ]
