@@ -148,6 +148,163 @@ def build_result_from_arrays(
     )
 
 
+def build_result_from_nlsq(
+    nlsq_result: Any,
+    parameter_names: list[str],
+    n_data: int,
+    wall_time: float = 0.0,
+    metadata: dict[str, Any] | None = None,
+) -> NLSQResult:
+    """Normalize any NLSQ package return format to NLSQResult.
+
+    Handles 4 return formats:
+    - dict with 'x'/'popt', 'pcov' keys (AdaptiveHybridStreamingOptimizer)
+    - (popt, pcov) tuple (curve_fit)
+    - (popt, pcov, info) tuple (curve_fit with full_output)
+    - object with .x/.popt, .pcov attributes (CurveFit result)
+
+    Args:
+        nlsq_result: Raw return value from an NLSQ optimization call
+        parameter_names: Names for each fitted parameter
+        n_data: Number of data points (for reduced chi-squared)
+        wall_time: Wall-clock time in seconds
+        metadata: Additional metadata to attach
+
+    Returns:
+        Populated NLSQResult
+
+    Raises:
+        TypeError: If result format is unrecognized
+    """
+    merged_meta: dict[str, Any] = dict(metadata) if metadata else {}
+    popt: np.ndarray
+    pcov: np.ndarray | None
+    residuals: np.ndarray | None = None
+
+    # Case 1: Dict (from StreamingOptimizer)
+    if isinstance(nlsq_result, dict):
+        popt_raw = nlsq_result.get("x", nlsq_result.get("popt"))
+        if popt_raw is None:
+            raise TypeError(
+                "Dict result has neither 'x' nor 'popt' key. "
+                f"Available keys: {list(nlsq_result.keys())}"
+            )
+        popt = np.asarray(popt_raw, dtype=np.float64)
+        pcov_raw = nlsq_result.get("pcov")
+        pcov = np.asarray(pcov_raw, dtype=np.float64) if pcov_raw is not None else None
+
+        # Extract residuals if present
+        fun_raw = nlsq_result.get("fun")
+        if fun_raw is not None:
+            residuals = np.asarray(fun_raw, dtype=np.float64)
+
+        # Merge dict info into metadata
+        for key in (
+            "streaming_diagnostics", "success", "message",
+            "best_loss", "final_epoch",
+        ):
+            val = nlsq_result.get(key)
+            if val is not None:
+                merged_meta[key] = val
+
+        logger.debug("Normalized StreamingOptimizer dict result")
+
+    # Case 2: Tuple with 2 or 3 elements
+    elif isinstance(nlsq_result, tuple):
+        if len(nlsq_result) == 2:
+            popt_raw, pcov_raw = nlsq_result
+            logger.debug("Normalized (popt, pcov) tuple")
+        elif len(nlsq_result) == 3:
+            popt_raw, pcov_raw, info = nlsq_result
+            if isinstance(info, dict):
+                merged_meta.update(info)
+            else:
+                logger.warning(
+                    "Info object is not a dict: %s. Wrapping as raw_info.",
+                    type(info),
+                )
+                merged_meta["raw_info"] = info
+            logger.debug("Normalized (popt, pcov, info) tuple")
+        else:
+            raise TypeError(
+                f"Unexpected tuple length: {len(nlsq_result)}. "
+                "Expected 2 (popt, pcov) or 3 (popt, pcov, info)."
+            )
+        popt = np.asarray(popt_raw, dtype=np.float64)
+        pcov = np.asarray(pcov_raw, dtype=np.float64) if pcov_raw is not None else None
+
+    # Case 3: Object with attributes (CurveFitResult, OptimizeResult, etc.)
+    elif hasattr(nlsq_result, "x") or hasattr(nlsq_result, "popt"):
+        popt_raw = getattr(nlsq_result, "x", getattr(nlsq_result, "popt", None))
+        if popt_raw is None:
+            raise TypeError(
+                "Result object has neither 'x' nor 'popt' attribute. "
+                f"Available attributes: {dir(nlsq_result)}"
+            )
+        popt = np.asarray(popt_raw, dtype=np.float64)
+
+        pcov_raw = getattr(nlsq_result, "pcov", None)
+        pcov = np.asarray(pcov_raw, dtype=np.float64) if pcov_raw is not None else None
+        if pcov_raw is None:
+            logger.warning("No pcov attribute in result object")
+
+        # Extract residuals if present
+        fun_raw = getattr(nlsq_result, "fun", None)
+        if fun_raw is not None:
+            residuals = np.asarray(fun_raw, dtype=np.float64)
+
+        # Extract common attributes into metadata
+        for attr in ("message", "success", "nfev", "njev", "optimality"):
+            if hasattr(nlsq_result, attr):
+                merged_meta[attr] = getattr(nlsq_result, attr)
+
+        if hasattr(nlsq_result, "info") and isinstance(nlsq_result.info, dict):
+            merged_meta.update(nlsq_result.info)
+
+        logger.debug(
+            "Normalized object result (type: %s)", type(nlsq_result).__name__
+        )
+
+    # Case 4: Unrecognized format
+    else:
+        raise TypeError(
+            f"Unrecognized NLSQ result format: {type(nlsq_result)}. "
+            "Expected tuple, dict, or object with 'x'/'popt' attributes."
+        )
+
+    # --- Build NLSQResult ---
+    n_params = len(popt)
+
+    # Uncertainties from covariance diagonal
+    uncertainties: np.ndarray | None = None
+    if pcov is not None:
+        uncertainties = np.sqrt(np.diag(np.abs(pcov)))
+
+    # Cost and reduced chi-squared from residuals (if available)
+    final_cost: float | None = None
+    reduced_chi2: float | None = None
+    if residuals is not None:
+        final_cost = float(np.sum(residuals**2))
+        dof = compute_degrees_of_freedom(n_data, n_params)
+        reduced_chi2 = final_cost / dof
+
+    return NLSQResult(
+        parameters=popt,
+        parameter_names=parameter_names,
+        success=True,
+        message=str(merged_meta.get("message", "")),
+        uncertainties=uncertainties,
+        covariance=pcov,
+        final_cost=final_cost,
+        reduced_chi_squared=reduced_chi2,
+        n_function_evals=int(merged_meta.get("nfev", 0)),
+        convergence_reason=str(merged_meta.get("message", "")),
+        residuals=residuals,
+        wall_time_seconds=wall_time,
+        metadata=merged_meta,
+    )
+
+
 def build_failed_result(
     parameter_names: list[str],
     message: str,
