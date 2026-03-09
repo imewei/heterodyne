@@ -6,7 +6,16 @@ from heterodyne.core.diagonal_correction import (
     compute_weights_excluding_diagonal,
     estimate_diagonal_excess,
 )
-from heterodyne.core.fitting import ScaledFittingEngine
+from heterodyne.core.fitting import (
+    DatasetSize,
+    FitResult,
+    ParameterSpace,
+    ScaledFittingEngine,
+    UnifiedHeterodyneEngine,
+    solve_least_squares_chunked_jax,
+    solve_least_squares_general_jax,
+    solve_least_squares_jax,
+)
 from heterodyne.core.heterodyne_model import HeterodyneModel
 from heterodyne.core.jax_backend import (
     compute_c2_heterodyne,
@@ -65,7 +74,14 @@ __all__ = [
     "HeterodyneModelBase",
     "TwoComponentModel",
     # Fitting engine
+    "UnifiedHeterodyneEngine",
     "ScaledFittingEngine",
+    "ParameterSpace",
+    "DatasetSize",
+    "FitResult",
+    "solve_least_squares_jax",
+    "solve_least_squares_general_jax",
+    "solve_least_squares_chunked_jax",
     # JAX functions
     "compute_c2_heterodyne",
     "compute_g1_transport",
