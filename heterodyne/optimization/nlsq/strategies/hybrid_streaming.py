@@ -2,14 +2,19 @@
 
 Implements a 4-phase fitting pipeline:
 1. Normalization — compute data statistics for parameter scaling
-2. L-BFGS warmup — fast rough convergence via scipy L-BFGS-B
-3. Gauss-Newton refinement — precise convergence via least_squares
+2. L-BFGS warmup + Gauss-Newton refinement — combined via
+   ``nlsq.AdaptiveHybridStreamingOptimizer`` (single call)
+3. (internal to optimizer)
 4. Denormalization — restore original parameter scaling
 
 This strategy is effective for large datasets where the initial
-parameter guess may be far from the optimum. The L-BFGS phase
-provides fast global convergence, while the Gauss-Newton phase
-provides precise local convergence.
+parameter guess may be far from the optimum.  The L-BFGS warmup phase
+provides fast global convergence while the Gauss-Newton phase provides
+precise local convergence.  Both phases are managed natively by
+``AdaptiveHybridStreamingOptimizer``.
+
+When the ``nlsq`` streaming optimizer is unavailable the strategy falls
+back to ``nlsq.curve_fit_large``, which still avoids any scipy dependency.
 """
 
 from __future__ import annotations
@@ -19,10 +24,25 @@ from typing import TYPE_CHECKING, Any
 
 import jax.numpy as jnp
 import numpy as np
-from scipy.optimize import least_squares, minimize
+
+# ---------------------------------------------------------------------------
+# nlsq imports — MUST precede any JAX import so nlsq can set x64 mode.
+# The top-level curve_fit_large is always available; the streaming
+# optimizer is optional and guarded by STREAMING_AVAILABLE.
+# ---------------------------------------------------------------------------
+from nlsq import curve_fit_large
+
+try:
+    from nlsq import AdaptiveHybridStreamingOptimizer, HybridStreamingConfig
+
+    STREAMING_AVAILABLE = True
+except ImportError:
+    STREAMING_AVAILABLE = False
+    AdaptiveHybridStreamingOptimizer = None  # type: ignore[assignment,misc]
+    HybridStreamingConfig = None  # type: ignore[assignment,misc]
 
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
-from heterodyne.optimization.nlsq.results import NLSQResult
+from heterodyne.optimization.nlsq.result_builder import build_result_from_nlsq
 from heterodyne.optimization.nlsq.strategies.base import StrategyResult
 from heterodyne.utils.logging import get_logger
 
@@ -34,25 +54,22 @@ logger = get_logger(__name__)
 
 
 class HybridStreamingStrategy:
-    """4-phase hybrid optimization: normalize -> L-BFGS -> Gauss-Newton -> denormalize.
+    """4-phase hybrid optimization: normalize -> streaming-optimizer -> denormalize.
 
     Phase 1 (Normalization):
-        Computes per-parameter scale factors from parameter ranges and data
-        statistics. Transforms parameters to a normalized space where all
-        have comparable magnitudes, improving optimizer conditioning.
+        Computes per-parameter scale factors from parameter ranges.  Transforms
+        parameters to a normalized space where all have comparable magnitudes,
+        improving optimizer conditioning.
 
-    Phase 2 (L-BFGS Warmup):
-        Uses scipy's L-BFGS-B minimizer on the sum-of-squares cost function
-        for fast rough convergence. L-BFGS is a quasi-Newton method that
-        approximates the Hessian using limited-memory BFGS updates.
-
-    Phase 3 (Gauss-Newton Refinement):
-        Switches to scipy's least_squares (trust-region reflective) for
-        precise convergence near the optimum. This exploits the least-squares
-        structure for faster local convergence.
+    Phase 2+3 (L-BFGS Warmup + Gauss-Newton Refinement):
+        Delegates to ``nlsq.AdaptiveHybridStreamingOptimizer``, which combines
+        the L-BFGS warmup and Gauss-Newton refinement into a single call.
+        Falls back to ``nlsq.curve_fit_large`` when the streaming optimizer is
+        unavailable.
 
     Phase 4 (Denormalization):
-        Transforms the converged parameters back to the original scale.
+        Transforms the converged parameters back to the original scale
+        (handled internally — parameters are always kept in original space).
 
     Consumes ``NLSQConfig.hybrid_*`` fields.
     """
@@ -94,14 +111,16 @@ class HybridStreamingStrategy:
         n_data = c2_data.size
 
         c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
-        weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+        weights_jax = (
+            jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+        )
         t = model.t
         q = model.q
         dt = model.dt
         fixed_values = jnp.asarray(pm.get_full_values(), dtype=jnp.float64)
         varying_idx = jnp.array(pm.varying_indices)
 
-        # Phase 1: Normalization
+        # Phase 1: Normalization — build per-parameter scale factors.
         if config.hybrid_normalization:
             _param_scales = np.where(upper - lower > 0, upper - lower, 1.0)
         else:
@@ -112,117 +131,98 @@ class HybridStreamingStrategy:
                 jnp.asarray(varying, dtype=jnp.float64)
             )
 
-        def cost_fn(varying: np.ndarray) -> float:
-            r = compute_residuals(
-                _full_params(varying), t, q, dt, phi_angle, c2_jax, weights_jax
-            )
-            return float(0.5 * jnp.sum(r ** 2))
+        def residual_fn(xdata: np.ndarray, *params: float) -> np.ndarray:
+            """Wrapped residual for the streaming optimizer signature.
 
-        def residual_fn(varying: np.ndarray) -> np.ndarray:
+            The streaming optimizer expects f(xdata, *params) -> predictions.
+            Here xdata carries the flattened c2_data; we return residuals as
+            predictions so the optimizer minimises their norm.
+            """
+            varying = np.asarray(params, dtype=np.float64)
             r = compute_residuals(
                 _full_params(varying), t, q, dt, phi_angle, c2_jax, weights_jax
             )
             return np.asarray(r, dtype=np.float64)
 
-        # Phase 2: L-BFGS warmup
-        phase_info: dict[str, Any] = {}
-        current_params = initial.copy()
+        # Flat index array used as xdata placeholder (shape = [n_data]).
+        xdata = np.arange(n_data, dtype=np.float64)
+        # Target is zero residual (we treat residuals as "predictions").
+        ydata = np.zeros(n_data, dtype=np.float64)
 
-        if config.hybrid_method == "lbfgs" or config.hybrid_warmup_fraction > 0:
-            warmup_maxiter = max(1, int(config.max_iterations * config.hybrid_warmup_fraction))
-
-            logger.info(
-                "HybridStreaming Phase 2: L-BFGS warmup (%d iterations)",
-                warmup_maxiter,
-            )
-
-            lbfgs_result = minimize(
-                cost_fn,
-                current_params,
-                method="L-BFGS-B",
-                bounds=list(zip(lower, upper, strict=True)),
-                options={
-                    "maxiter": warmup_maxiter,
-                    "maxcor": config.hybrid_lbfgs_memory,
-                },
-            )
-
-            current_params = lbfgs_result.x
-            phase_info["lbfgs_cost"] = float(lbfgs_result.fun)
-            phase_info["lbfgs_nfev"] = lbfgs_result.nfev
-            phase_info["lbfgs_success"] = lbfgs_result.success
-
-            logger.info(
-                "HybridStreaming Phase 2 complete: cost=%.4e, nfev=%d",
-                lbfgs_result.fun, lbfgs_result.nfev,
-            )
-
-        # Phase 3: Gauss-Newton refinement
-        logger.info("HybridStreaming Phase 3: Gauss-Newton refinement")
-
-        gn_maxiter = config.max_iterations - int(config.max_iterations * config.hybrid_warmup_fraction)
-        gn_maxiter = max(gn_maxiter, 100)
-
-        method = config.method if config.method != "lm" else "trf"
-
-        scipy_result = least_squares(
-            residual_fn,
-            current_params,
-            bounds=(lower, upper),
-            method=method,
-            ftol=config.ftol,
-            xtol=config.xtol,
-            gtol=config.gtol,
-            max_nfev=gn_maxiter * (n_params + 1),
-            loss=config.loss,
-            verbose=max(0, config.verbose - 1),
+        warmup_maxiter = max(1, int(config.max_iterations * config.hybrid_warmup_fraction))
+        gn_maxiter = max(
+            100,
+            config.max_iterations - int(config.max_iterations * config.hybrid_warmup_fraction),
         )
-
-        wall_time = time.perf_counter() - start_time
-
-        # Phase 4: Denormalization (params already in original space)
-        # Covariance estimation
-        covariance = None
-        uncertainties = None
-        if scipy_result.jac is not None and scipy_result.jac.size > 0:
-            n_dof = max(n_data - n_params, 1)
-            s2 = float(np.dot(scipy_result.fun, scipy_result.fun)) / n_dof
-            JtJ = scipy_result.jac.T @ scipy_result.jac
-            try:
-                covariance = np.linalg.inv(JtJ) * s2
-                uncertainties = np.sqrt(np.maximum(np.diag(covariance), 0))
-            except np.linalg.LinAlgError:
-                logger.warning("HybridStreaming: singular J^T J for covariance")
-
-        n_dof = max(n_data - n_params, 1)
-        reduced_chi2 = 2.0 * float(scipy_result.cost) / n_dof
+        chunk_size: int = getattr(config, "streaming_chunk_size", 50_000)
 
         metadata: dict[str, Any] = {
             "strategy": "hybrid_streaming",
-            "phases": phase_info,
             "hybrid_method": config.hybrid_method,
             "warmup_fraction": config.hybrid_warmup_fraction,
+            "phases": {},
         }
 
-        result = NLSQResult(
-            parameters=scipy_result.x,
+        # Phase 2+3: Optimization — streaming optimizer or fallback.
+        if STREAMING_AVAILABLE:
+            logger.info(
+                "HybridStreaming: using AdaptiveHybridStreamingOptimizer "
+                "(warmup=%d iters, gn_max=%d iters)",
+                warmup_maxiter,
+                gn_maxiter,
+            )
+
+            streaming_config = HybridStreamingConfig(
+                normalize=config.hybrid_normalization,
+                warmup_iterations=warmup_maxiter,
+                gauss_newton_max_iterations=gn_maxiter,
+                chunk_size=chunk_size,
+                validate_numerics=True,
+            )
+            optimizer = AdaptiveHybridStreamingOptimizer(streaming_config)
+
+            raw_result = optimizer.fit(
+                data_source=(xdata, ydata),
+                func=residual_fn,
+                p0=initial,
+                bounds=(lower, upper),
+            )
+
+            logger.info(
+                "HybridStreaming: optimizer complete (success=%s)",
+                raw_result.get("success", "?"),
+            )
+            metadata["phases"]["streaming"] = raw_result.get(
+                "streaming_diagnostics", {}
+            )
+
+        else:
+            logger.warning(
+                "HybridStreaming: AdaptiveHybridStreamingOptimizer unavailable; "
+                "falling back to nlsq.curve_fit_large"
+            )
+
+            raw_result = curve_fit_large(
+                residual_fn,
+                xdata,
+                ydata,
+                p0=initial,
+                bounds=(lower, upper),
+            )
+            metadata["phases"]["fallback"] = "curve_fit_large"
+
+        wall_time = time.perf_counter() - start_time
+
+        # Phase 4: Denormalization — build normalized NLSQResult.
+        result = build_result_from_nlsq(
+            raw_result,
             parameter_names=pm.varying_names,
-            success=scipy_result.success,
-            message=scipy_result.message,
-            uncertainties=uncertainties,
-            covariance=covariance,
-            final_cost=float(scipy_result.cost),
-            reduced_chi_squared=reduced_chi2,
-            n_iterations=0,
-            n_function_evals=scipy_result.nfev + phase_info.get("lbfgs_nfev", 0),
-            convergence_reason=scipy_result.message,
-            residuals=scipy_result.fun,
-            jacobian=scipy_result.jac,
-            wall_time_seconds=wall_time,
+            n_data=n_data,
+            wall_time=wall_time,
             metadata=metadata,
         )
 
-        if scipy_result.success:
+        if result.success:
             full_fitted = pm.expand_varying_to_full(result.parameters)
             fitted_c2 = compute_c2_heterodyne(
                 jnp.asarray(full_fitted), t, q, dt, phi_angle
