@@ -252,7 +252,7 @@ class TestNLSQAdapter:
             patch(
                 "heterodyne.optimization.nlsq.adapter.build_result_from_nlsq",
                 return_value=NLSQResult(
-                    parameters=np.ones(N_PARAMS),
+                    parameters=np.array([1.1, 1.2, 1.3]),
                     parameter_names=PARAM_NAMES,
                     success=True,
                     message="ok",
@@ -424,7 +424,7 @@ class TestNLSQWrapper:
             patch(
                 "heterodyne.optimization.nlsq.adapter.build_result_from_nlsq",
                 return_value=NLSQResult(
-                    parameters=np.ones(N_PARAMS),
+                    parameters=np.array([1.1, 1.2, 1.3]),
                     parameter_names=PARAM_NAMES,
                     success=True,
                     message="ok",
@@ -469,7 +469,7 @@ class TestNLSQWrapper:
             patch(
                 "heterodyne.optimization.nlsq.adapter.build_result_from_nlsq",
                 return_value=NLSQResult(
-                    parameters=np.ones(N_PARAMS),
+                    parameters=np.array([1.1, 1.2, 1.3]),
                     parameter_names=PARAM_NAMES,
                     success=True,
                     message="ok",
@@ -524,7 +524,7 @@ class TestNLSQWrapper:
             patch(
                 "heterodyne.optimization.nlsq.adapter.build_result_from_nlsq",
                 return_value=NLSQResult(
-                    parameters=np.ones(N_PARAMS),
+                    parameters=np.array([1.1, 1.2, 1.3]),
                     parameter_names=PARAM_NAMES,
                     success=True,
                     message="recovered via STANDARD",

@@ -164,7 +164,7 @@ def _assess_convergence(
             "poor_fit",
         )
 
-    if np.allclose(fitted_params, initial_params, rtol=1e-12, atol=0):
+    if np.allclose(fitted_params, initial_params, rtol=1e-12, atol=1e-12):
         return False, "Optimizer made no progress from initial values", "no_progress"
 
     return True, "Optimization converged", "tolerance"
@@ -381,35 +381,24 @@ class NLSQAdapter(NLSQAdapterBase):
                 method=method,
             )
 
-            # Compute final residuals for the result builder
-            fitted_params: np.ndarray
-            if isinstance(nlsq_result, tuple) and len(nlsq_result) >= 1:
-                fitted_params = np.asarray(nlsq_result[0], dtype=np.float64)
-            elif hasattr(nlsq_result, "x"):
-                fitted_params = np.asarray(nlsq_result.x, dtype=np.float64)
-            elif hasattr(nlsq_result, "popt"):
-                fitted_params = np.asarray(nlsq_result.popt, dtype=np.float64)
-            else:
-                fitted_params = initial_params
-
-            final_residuals_jax = jax_residual_fn(jnp.arange(n_data), *fitted_params)
-            final_residuals = np.asarray(final_residuals_jax)
-
-            # Compute cost / reduced chi-squared for convergence assessment
-            final_cost = 0.5 * float(np.sum(final_residuals**2))
-            n_dof = n_data - n_params
-            reduced_chi2: float | None = (
-                2.0 * final_cost / n_dof if n_dof > 0 else None
-            )
-
             wall_time = time.perf_counter() - start_time
 
-            # Normalise result then apply convergence heuristics
+            # Normalise result via build_result_from_nlsq (single source of truth)
             base = build_result_from_nlsq(
                 nlsq_result=nlsq_result,
                 parameter_names=self._parameter_names,
                 n_data=n_data,
                 wall_time=wall_time,
+            )
+
+            # Recompute residuals via JAX for the result (more accurate than
+            # what build_result_from_nlsq extracts from raw result)
+            final_residuals_jax = jax_residual_fn(jnp.arange(n_data), *base.parameters)
+            final_residuals = np.asarray(final_residuals_jax)
+            final_cost = 0.5 * float(np.sum(final_residuals**2))
+            n_dof = n_data - n_params
+            reduced_chi2: float | None = (
+                2.0 * final_cost / n_dof if n_dof > 0 else None
             )
 
             success, message, reason = _assess_convergence(
@@ -472,7 +461,7 @@ class NLSQWrapper(NLSQAdapterBase):
         parameter_names: list[str],
         enable_large_dataset: bool = True,
         enable_recovery: bool = True,
-        max_retries: int = 2,
+        max_retries: int = 3,
     ) -> None:
         """Initialise the wrapper.
 
@@ -653,6 +642,37 @@ class NLSQWrapper(NLSQAdapterBase):
                     wall_time=wall_time,
                     metadata={"strategy": tier.value, "attempt": attempt},
                 )
+
+                # Apply convergence heuristics (same as NLSQAdapter)
+                success, message, reason = _assess_convergence(
+                    fitted_params=result.parameters,
+                    initial_params=initial_params,
+                    reduced_chi2=result.reduced_chi_squared,
+                )
+                if not success:
+                    logger.warning(
+                        "NLSQWrapper: tier %s convergence check failed: %s",
+                        tier.value,
+                        message,
+                    )
+                    result = NLSQResult(
+                        parameters=result.parameters,
+                        parameter_names=self._parameter_names,
+                        success=False,
+                        message=message,
+                        uncertainties=result.uncertainties,
+                        covariance=result.covariance,
+                        final_cost=result.final_cost,
+                        reduced_chi_squared=result.reduced_chi_squared,
+                        n_iterations=result.n_iterations,
+                        n_function_evals=result.n_function_evals,
+                        convergence_reason=reason,
+                        residuals=result.residuals,
+                        jacobian=result.jacobian,
+                        wall_time_seconds=wall_time,
+                        metadata=result.metadata,
+                    )
+
                 logger.info(
                     "NLSQWrapper: tier %s succeeded on attempt %d/%d",
                     tier.value,
@@ -725,10 +745,8 @@ __all__ = [
     "ModelCacheKey",
     "NLSQAdapter",
     "NLSQWrapper",
-    "_MODEL_CACHE_MAX_SIZE",
-    "_model_cache",
+    "STREAMING_AVAILABLE",
     "clear_model_cache",
     "get_cache_stats",
     "get_or_create_fitter",
-    "STREAMING_AVAILABLE",
 ]
