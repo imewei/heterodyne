@@ -291,7 +291,7 @@ def build_result_from_nlsq(
     return NLSQResult(
         parameters=popt,
         parameter_names=parameter_names,
-        success=True,
+        success=bool(merged_meta.get("success", True)),
         message=str(merged_meta.get("message", "")),
         uncertainties=uncertainties,
         covariance=pcov,

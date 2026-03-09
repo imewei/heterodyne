@@ -303,7 +303,7 @@ if JAX_AVAILABLE:
 
         # Fallback for singular cases
         contrast = jnp.where(valid_det, contrast, 1.0)
-        offset = jnp.where(valid_det, offset, 1.0)
+        offset = jnp.where(valid_det, offset, 0.0)
 
         # Ensure contrast > 1e-6 (physical constraint)
         # Use jnp.where for gradient safety (jnp.maximum zeros gradient below floor)
@@ -433,7 +433,7 @@ if JAX_AVAILABLE:
         ) / safe_det
 
         contrast = jnp.where(valid_det, contrast, 1.0)
-        offset = jnp.where(valid_det, offset, 1.0)
+        offset = jnp.where(valid_det, offset, 0.0)
         contrast = jnp.where(contrast > 1e-6, contrast, 1e-6)
 
         return contrast, offset

@@ -10,9 +10,11 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
+# nlsq import MUST precede JAX — enables x64 mode
+from nlsq import curve_fit_large
+
 import jax.numpy as jnp
 import numpy as np
-from nlsq import curve_fit_large
 
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 from heterodyne.optimization.nlsq.results import NLSQResult

@@ -283,23 +283,53 @@ def _run_strategy(
     Returns:
         Normalized ``(popt, pcov, info)`` tuple.
     """
-    from heterodyne.optimization.nlsq.adapter import NLSQAdapter
+    from heterodyne.optimization.nlsq.adapter import NLSQAdapter, NLSQWrapper
 
-    adapter = NLSQAdapter(config=config)
+    parameter_names = list(model.param_manager.varying_names)
+
+    # Build residual function from model
+    def residual_fn(params: np.ndarray) -> np.ndarray:
+        model.param_manager.update_values(
+            model.param_manager.expand_varying_to_full(params)
+        )
+        c2_theory = model.compute_correlation(phi_angle=phi_angle)
+        residuals = np.asarray(c2_theory).ravel() - c2_data.ravel()
+        if weights is not None:
+            residuals = residuals * np.sqrt(weights.ravel())
+        return residuals
+
+    initial_params = np.array(
+        model.param_manager.get_initial_values(), dtype=np.float64
+    )
+    lower, upper = model.param_manager.get_bounds()
+    lower = np.asarray(lower, dtype=np.float64)
+    upper = np.asarray(upper, dtype=np.float64)
+    bounds = (lower, upper)
 
     if strategy == OptimizationStrategy.STANDARD:
-        logger.debug("_run_strategy: routing to curve_fit (STANDARD)")
-        raw = adapter.fit(model, c2_data, phi_angle=phi_angle, weights=weights)
-    elif strategy == OptimizationStrategy.LARGE:
-        logger.debug("_run_strategy: routing to curve_fit_large (LARGE)")
-        raw = adapter.fit_large(model, c2_data, phi_angle=phi_angle, weights=weights)
-    elif strategy == OptimizationStrategy.STREAMING:
-        logger.debug("_run_strategy: routing to streaming (STREAMING)")
-        raw = adapter.fit_streaming(model, c2_data, phi_angle=phi_angle, weights=weights)
+        logger.debug("_run_strategy: routing to NLSQAdapter (STANDARD)")
+        adapter = NLSQAdapter(parameter_names=parameter_names)
+        result = adapter.fit(residual_fn, initial_params, bounds, config)
+    elif strategy in (OptimizationStrategy.LARGE, OptimizationStrategy.STREAMING):
+        logger.debug("_run_strategy: routing to NLSQWrapper (%s)", strategy.name)
+        wrapper = NLSQWrapper(parameter_names=parameter_names)
+        result = wrapper.fit(residual_fn, initial_params, bounds, config)
     else:
         raise ValueError(f"Unknown strategy: {strategy}")  # pragma: no cover
 
-    return handle_nlsq_result(raw)
+    # Extract raw arrays from NLSQResult for handle_nlsq_result compatibility
+    popt = result.parameters
+    pcov = result.covariance
+    info: dict[str, Any] = {
+        "success": result.success,
+        "message": result.message,
+    }
+    if result.final_cost is not None:
+        info["fun"] = result.final_cost
+    if result.metadata:
+        info.update(result.metadata)
+
+    return popt, pcov, info
 
 
 # ---------------------------------------------------------------------------
@@ -342,7 +372,7 @@ def execute_optimization_with_fallback(
         RuntimeError: If all strategies fail.
     """
     if start_strategy is None:
-        n_params = model.parameter_manager.n_varying
+        n_params = model.param_manager.n_varying
         decision = select_nlsq_strategy(c2_data.size, n_params)
         start_strategy = _NLSQ_TO_OPT[decision.strategy]
         logger.info(
@@ -351,9 +381,7 @@ def execute_optimization_with_fallback(
             decision.reason,
         )
 
-    parameter_names: list[str] = list(
-        model.parameter_manager.get_parameter_names()
-    )
+    parameter_names: list[str] = list(model.param_manager.varying_names)
     n_data = int(c2_data.size)
 
     current: OptimizationStrategy | None = start_strategy

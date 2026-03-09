@@ -186,8 +186,9 @@ class NLSQConfig:
     Attributes:
         max_iterations: Maximum number of optimiser iterations per fit.
         tolerance: Convergence tolerance for the cost function.
-        method: Trust-region algorithm variant passed to
-            ``scipy.optimize.least_squares``.
+        method: Trust-region algorithm variant passed to the
+            ``nlsq CurveFit optimizer``.  Note that ``dogbox`` is coerced
+            to ``trf`` by the strategy layer.
         multistart: Whether to run multi-start optimisation to avoid local
             minima.
         multistart_n: Number of random starting points when *multistart* is

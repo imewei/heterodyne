@@ -22,14 +22,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
-import jax.numpy as jnp
-import numpy as np
-
-# ---------------------------------------------------------------------------
-# nlsq imports — MUST precede any JAX import so nlsq can set x64 mode.
-# The top-level curve_fit_large is always available; the streaming
-# optimizer is optional and guarded by STREAMING_AVAILABLE.
-# ---------------------------------------------------------------------------
+# nlsq import MUST precede JAX — enables x64 mode
 from nlsq import curve_fit_large
 
 try:
@@ -40,6 +33,9 @@ except ImportError:
     STREAMING_AVAILABLE = False
     AdaptiveHybridStreamingOptimizer = None  # type: ignore[assignment,misc]
     HybridStreamingConfig = None  # type: ignore[assignment,misc]
+
+import jax.numpy as jnp
+import numpy as np
 
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 from heterodyne.optimization.nlsq.result_builder import build_result_from_nlsq

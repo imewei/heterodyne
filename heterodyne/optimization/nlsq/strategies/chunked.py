@@ -34,9 +34,11 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
+# nlsq import MUST precede JAX — enables x64 mode
+from nlsq import curve_fit_large
+
 import jax.numpy as jnp
 import numpy as np
-from nlsq import curve_fit_large
 
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 from heterodyne.optimization.nlsq.results import NLSQResult
@@ -554,15 +556,10 @@ class ChunkedStrategy:
             chunk = all_residuals[sl]
             if not np.all(np.isfinite(chunk)):
                 n_nan = int(np.sum(~np.isfinite(chunk)))
-                logger.warning(
-                    "ChunkedStrategy: chunk %d has %d non-finite residuals; "
-                    "zeroing affected elements.",
-                    chunk_idx,
-                    n_nan,
+                raise ValueError(
+                    f"ChunkedStrategy: chunk {chunk_idx} has {n_nan} non-finite residuals. "
+                    "This indicates numerical instability in the model evaluation."
                 )
-                if chunk_idx not in partial_failures:
-                    partial_failures.append(chunk_idx)
-                chunk = np.where(np.isfinite(chunk), chunk, 0.0)
             output_parts.append(chunk)
 
         return np.concatenate(output_parts)
