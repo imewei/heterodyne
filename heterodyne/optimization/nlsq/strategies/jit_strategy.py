@@ -1,7 +1,7 @@
 """JIT-compiled fitting strategy for medium datasets.
 
 Uses JAX's ``jax.jit`` to pre-compile the residual and Jacobian callables
-before handing them to ``scipy.optimize.least_squares``.  Pre-compilation
+before handing them to ``nlsq.CurveFit``.  Pre-compilation
 (triggered by a warmup evaluation at the initial parameter point) eliminates
 per-iteration trace overhead and yields substantially lower wall-clock time
 relative to :class:`ResidualStrategy` for datasets in the 10 k – 250 k
@@ -42,7 +42,7 @@ from typing import TYPE_CHECKING, Any
 import jax
 import jax.numpy as jnp
 import numpy as np
-from scipy.optimize import least_squares
+from nlsq import CurveFit
 
 from heterodyne.core.jax_backend import (
     compute_c2_heterodyne,
@@ -155,7 +155,7 @@ class JITStrategy:
 
     Pre-compiles the residual (and optionally Jacobian) callables via
     ``jax.jit`` during a warmup step before passing them to
-    ``scipy.optimize.least_squares``.  Compiled executables are cached by
+    ``nlsq.CurveFit``.  Compiled executables are cached by
     the instance so that repeated calls with the same array shapes incur
     compilation cost only once.
 
@@ -301,7 +301,7 @@ class JITStrategy:
             )
 
         # ------------------------------------------------------------------
-        # Build numpy-returning wrappers for scipy
+        # Build JIT-backed residual callable (used for post-fit residuals)
         # ------------------------------------------------------------------
 
         def residual_fn(varying: np.ndarray) -> np.ndarray:
@@ -310,52 +310,70 @@ class JITStrategy:
                 dtype=np.float64,
             )
 
-        def jacobian_fn(varying: np.ndarray) -> np.ndarray:
-            if jit_jac_fn is None:
-                raise RuntimeError("Jacobian function not compiled")
-            J_full = np.asarray(
-                jit_jac_fn(jnp.asarray(varying, dtype=jnp.float64)),
-                dtype=np.float64,
-            )
-            # Select columns corresponding to varying parameters
-            return J_full[:, varying_idx_np]
-
         # ------------------------------------------------------------------
-        # Run scipy
+        # Run nlsq CurveFit
         # ------------------------------------------------------------------
 
         method = config.method if config.method != "lm" else "trf"
+        if method == "dogbox":
+            logger.warning(
+                "JITStrategy: 'dogbox' is not supported by CurveFit; "
+                "coercing to 'trf'."
+            )
+            method = "trf"
         max_nfev = config.max_nfev or config.max_iterations * (n_params + 1) * 10
+        use_jac_final = use_jac and jit_jac_fn is not None
 
         logger.debug(
             "JITStrategy: method=%s, use_analytic_jac=%s, max_nfev=%d",
             method,
-            use_jac and jit_jac_fn is not None,
+            use_jac_final,
             max_nfev,
         )
 
+        # CurveFit API: f(xdata, *params) -> prediction; residuals = ydata - f.
+        # Set ydata=zeros so residuals = -residual_fn(params).
+        # params arrive as JAX-traced scalars; jnp.stack reassembles.
+        def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
+            varying_jax = jnp.stack(list(params))  # type: ignore[arg-type]
+            return -jit_res_fn(varying_jax)
+
+        _xdata = np.arange(n_data, dtype=np.float64)
+        _ydata = np.zeros(n_data, dtype=np.float64)
+
+        jac_callable: Any = None
+        if use_jac_final and jit_jac_fn is not None:
+            # Provide analytic Jacobian: CurveFit jac must return (n_data, n_params).
+            # jit_jac_fn returns full Jacobian over all 14 params; select varying cols.
+            _jac_fn = jit_jac_fn
+            _vidx = varying_idx_np
+
+            def _jac_wrapped(xdata: np.ndarray, *params: object) -> np.ndarray:
+                varying_jax = jnp.stack(list(params))  # type: ignore[arg-type]
+                J_full = np.asarray(_jac_fn(varying_jax), dtype=np.float64)
+                return J_full[:, _vidx]
+
+            jac_callable = _jac_wrapped
+
         exec_start = time.perf_counter()
-        scipy_result = least_squares(
-            residual_fn,
-            initial,
-            jac=jacobian_fn if (use_jac and jit_jac_fn is not None) else "2-point",
+        fitter = CurveFit(flength=n_data)
+        nlsq_result = fitter.curve_fit(
+            f=_wrapped,
+            xdata=_xdata,
+            ydata=_ydata,
+            p0=initial,
             bounds=(lower, upper),
             method=method,
-            ftol=config.ftol,
-            xtol=config.xtol,
-            gtol=config.gtol,
-            max_nfev=max_nfev,
-            loss=config.loss,
-            verbose=max(0, config.verbose - 1),
+            jac=jac_callable,
         )
         execution_time_s = time.perf_counter() - exec_start
         wall_time = time.perf_counter() - wall_start
 
         logger.info(
             "JITStrategy: %s | cost=%.4e | nfev=%d | compile=%.2f s | exec=%.2f s",
-            "converged" if scipy_result.success else "did not converge",
-            scipy_result.cost,
-            scipy_result.nfev,
+            "converged" if nlsq_result.success else "did not converge",
+            nlsq_result.cost,
+            nlsq_result.nfev,
             compile_time_s,
             execution_time_s,
         )
@@ -364,14 +382,19 @@ class JITStrategy:
         # Post-fit covariance
         # ------------------------------------------------------------------
 
+        # Recompute residuals via the JIT residual function at the solution.
+        final_residuals = residual_fn(np.asarray(nlsq_result.x, dtype=np.float64))
+        final_jac = np.asarray(nlsq_result.jac, dtype=np.float64) if nlsq_result.jac is not None else None
+
         covariance, uncertainties = _estimate_covariance_from_jac(
-            scipy_result.jac,
-            scipy_result.fun,
+            final_jac,
+            final_residuals,
             n_params,
         )
 
         n_dof = max(n_data - n_params, 1)
-        reduced_chi2 = 2.0 * float(scipy_result.cost) / n_dof
+        final_cost = 0.5 * float(np.sum(final_residuals**2))
+        reduced_chi2 = 2.0 * final_cost / n_dof
 
         # ------------------------------------------------------------------
         # Pack result
@@ -379,7 +402,7 @@ class JITStrategy:
 
         metadata: dict[str, Any] = {
             "strategy": "jit",
-            "use_analytic_jac": use_jac and jit_jac_fn is not None,
+            "use_analytic_jac": use_jac_final,
             "used_jit": used_jit,
             "compile_time_s": compile_time_s,
             "execution_time_s": execution_time_s,
@@ -388,25 +411,25 @@ class JITStrategy:
         }
 
         result = NLSQResult(
-            parameters=scipy_result.x,
+            parameters=np.asarray(nlsq_result.x, dtype=np.float64),
             parameter_names=pm.varying_names,
-            success=scipy_result.success,
-            message=scipy_result.message,
+            success=bool(nlsq_result.success),
+            message=str(nlsq_result.message),
             uncertainties=uncertainties,
             covariance=covariance,
-            final_cost=float(scipy_result.cost),
+            final_cost=final_cost,
             reduced_chi_squared=reduced_chi2,
             n_iterations=0,
-            n_function_evals=scipy_result.nfev,
-            convergence_reason=scipy_result.message,
-            residuals=scipy_result.fun,
-            jacobian=scipy_result.jac,
+            n_function_evals=int(nlsq_result.nfev),
+            convergence_reason=str(nlsq_result.message),
+            residuals=final_residuals,
+            jacobian=final_jac,
             wall_time_seconds=wall_time,
             metadata=metadata,
         )
 
         # Compute fitted correlation and update model on success
-        if scipy_result.success:
+        if nlsq_result.success:
             full_fitted = pm.expand_varying_to_full(result.parameters)
             fitted_c2 = compute_c2_heterodyne(
                 jnp.asarray(full_fitted), t, q, dt, phi_angle

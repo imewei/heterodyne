@@ -2,8 +2,8 @@
 
 This strategy directly calls ``compute_residuals`` and
 ``compute_residuals_jacobian`` from the JAX backend and hands the results to
-``scipy.optimize.least_squares``.  It is the simplest and most transparent
-strategy: no chunking, no JIT warm-up, no padding.
+``nlsq.CurveFit``.  It is the simplest and most transparent strategy: no
+chunking, no JIT warm-up, no padding.
 
 When to use
 -----------
@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any
 
 import jax.numpy as jnp
 import numpy as np
-from scipy.optimize import least_squares
+from nlsq import CurveFit
 
 from heterodyne.core.jax_backend import (
     compute_c2_heterodyne,
@@ -163,7 +163,7 @@ class ResidualStrategy:
         """Fit using direct residual (and optionally Jacobian) evaluation.
 
         Builds pure-JAX residual and Jacobian callables, then delegates
-        the minimisation to ``scipy.optimize.least_squares``.
+        the minimisation to ``nlsq.CurveFit``.
 
         Args:
             model: Configured heterodyne model.
@@ -240,6 +240,12 @@ class ResidualStrategy:
         )
 
         method = config.method if config.method != "lm" else "trf"
+        if method == "dogbox":
+            logger.warning(
+                "ResidualStrategy: 'dogbox' is not supported by CurveFit; "
+                "coercing to 'trf'."
+            )
+            method = "trf"
         max_nfev = config.max_nfev or config.max_iterations * (n_params + 1) * 10
 
         logger.debug(
@@ -250,30 +256,47 @@ class ResidualStrategy:
         )
 
         # ------------------------------------------------------------------
-        # Run scipy
+        # Run nlsq CurveFit
         # ------------------------------------------------------------------
 
-        scipy_result = least_squares(
-            residual_fn,
-            initial,
-            jac=jacobian_fn if use_jac else "2-point",
+        # CurveFit expects f(xdata, *params) -> prediction, with
+        # residuals computed as ydata - f(xdata, *params).
+        # We set ydata=zeros so that: residuals = 0 - f(xdata, *params)
+        # Therefore f must return the *negative* of residual_fn.
+        # params arrive as individual JAX-traced scalars; jnp.stack reassembles.
+
+        def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
+            return -residual_fn(np.asarray(jnp.stack(list(params))))  # type: ignore[arg-type]
+
+        _xdata = np.arange(n_data, dtype=np.float64)
+        _ydata = np.zeros(n_data, dtype=np.float64)
+
+        jac_callable = None
+        if use_jac:
+            # CurveFit jac must share the same (xdata, *params) signature as f.
+            # Negate Jacobian to match the negated residual convention.
+            def _jac_wrapped(xdata: np.ndarray, *params: object) -> np.ndarray:
+                return -jacobian_fn(np.asarray(jnp.stack(list(params))))  # type: ignore[arg-type]
+            jac_callable = _jac_wrapped
+
+        fitter = CurveFit(flength=n_data)
+        nlsq_result = fitter.curve_fit(
+            f=_wrapped,
+            xdata=_xdata,
+            ydata=_ydata,
+            p0=initial,
             bounds=(lower, upper),
             method=method,
-            ftol=config.ftol,
-            xtol=config.xtol,
-            gtol=config.gtol,
-            max_nfev=max_nfev,
-            loss=config.loss,
-            verbose=max(0, config.verbose - 1),
+            jac=jac_callable,
         )
 
         wall_time = time.perf_counter() - start_time
 
         logger.info(
             "ResidualStrategy: %s | cost=%.4e | nfev=%d | %.2f s",
-            "converged" if scipy_result.success else "did not converge",
-            scipy_result.cost,
-            scipy_result.nfev,
+            "converged" if nlsq_result.success else "did not converge",
+            nlsq_result.cost,
+            nlsq_result.nfev,
             wall_time,
         )
 
@@ -281,14 +304,21 @@ class ResidualStrategy:
         # Post-fit covariance
         # ------------------------------------------------------------------
 
+        # Recompute residuals at the fitted point for covariance estimation.
+        # nlsq returns residuals as (ydata - f(xdata, *popt)); negate back to
+        # match the residual_fn convention (model - data).
+        final_residuals = residual_fn(np.asarray(nlsq_result.x, dtype=np.float64))
+        final_jac = np.asarray(nlsq_result.jac, dtype=np.float64) if nlsq_result.jac is not None else None
+
         covariance, uncertainties = _estimate_covariance_from_jac(
-            scipy_result.jac,
-            scipy_result.fun,
+            final_jac,
+            final_residuals,
             n_params,
         )
 
         n_dof = max(n_data - n_params, 1)
-        reduced_chi2 = 2.0 * float(scipy_result.cost) / n_dof
+        final_cost = 0.5 * float(np.sum(final_residuals**2))
+        reduced_chi2 = 2.0 * final_cost / n_dof
 
         # ------------------------------------------------------------------
         # Pack NLSQResult
@@ -301,25 +331,25 @@ class ResidualStrategy:
         }
 
         result = NLSQResult(
-            parameters=scipy_result.x,
+            parameters=np.asarray(nlsq_result.x, dtype=np.float64),
             parameter_names=pm.varying_names,
-            success=scipy_result.success,
-            message=scipy_result.message,
+            success=bool(nlsq_result.success),
+            message=str(nlsq_result.message),
             uncertainties=uncertainties,
             covariance=covariance,
-            final_cost=float(scipy_result.cost),
+            final_cost=final_cost,
             reduced_chi_squared=reduced_chi2,
             n_iterations=0,
-            n_function_evals=scipy_result.nfev,
-            convergence_reason=scipy_result.message,
-            residuals=scipy_result.fun,
-            jacobian=scipy_result.jac,
+            n_function_evals=int(nlsq_result.nfev),
+            convergence_reason=str(nlsq_result.message),
+            residuals=final_residuals,
+            jacobian=final_jac,
             wall_time_seconds=wall_time,
             metadata=metadata,
         )
 
         # Compute fitted correlation and update model on success
-        if scipy_result.success:
+        if nlsq_result.success:
             full_fitted = pm.expand_varying_to_full(result.parameters)
             fitted_c2 = compute_c2_heterodyne(
                 jnp.asarray(full_fitted), t, q, dt, phi_angle

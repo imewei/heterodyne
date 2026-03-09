@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import jax.numpy as jnp
 import numpy as np
-from scipy.optimize import least_squares
+from nlsq import curve_fit_large
 
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 from heterodyne.optimization.nlsq.results import NLSQResult
@@ -91,29 +91,46 @@ class StratifiedLSStrategy:
             return np.asarray(r, dtype=np.float64)
 
         method = config.method if config.method != "lm" else "trf"
-        max_nfev = config.max_nfev or config.max_iterations * (n_params + 1) * 10
+        if method == "dogbox":
+            logger.warning(
+                "StratifiedLSStrategy: 'dogbox' is not supported by curve_fit_large; "
+                "coercing to 'trf'."
+            )
+            method = "trf"
 
-        scipy_result = least_squares(
-            residual_fn,
-            initial,
+        # curve_fit_large expects f(xdata, *params) -> prediction;
+        # residuals = ydata - f(xdata, *params).
+        # Set ydata=zeros so residuals = -residual_fn(params).
+        # params arrive as JAX-traced scalars; jnp.stack reassembles.
+        def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
+            return -jnp.asarray(  # type: ignore[return-value]
+                residual_fn(np.asarray(jnp.stack(list(params))))  # type: ignore[arg-type]
+            )
+
+        _xdata = np.arange(n_data, dtype=np.float64)
+        _ydata = np.zeros(n_data, dtype=np.float64)
+
+        nlsq_result = curve_fit_large(
+            f=_wrapped,
+            xdata=_xdata,
+            ydata=_ydata,
+            p0=initial,
             bounds=(lower, upper),
             method=method,
-            ftol=config.ftol,
-            xtol=config.xtol,
-            gtol=config.gtol,
-            max_nfev=max_nfev,
-            loss=config.loss,
-            verbose=max(0, config.verbose - 1),
         )
 
         wall_time = time.perf_counter() - start_time
 
+        # Recompute residuals at the solution via residual_fn.
+        final_residuals = residual_fn(np.asarray(nlsq_result.x, dtype=np.float64))
+        final_jac = np.asarray(nlsq_result.jac, dtype=np.float64) if nlsq_result.jac is not None else None
+
         covariance = None
         uncertainties = None
-        if scipy_result.jac is not None:
+        if final_jac is not None:
             n_dof = max(n_data - n_params, 1)
-            s2 = float(np.dot(scipy_result.fun, scipy_result.fun)) / n_dof
-            JtJ = scipy_result.jac.T @ scipy_result.jac
+            s2 = float(np.dot(final_residuals, final_residuals)) / n_dof
+            JtJ = final_jac.T @ final_jac
             try:
                 covariance = np.linalg.inv(JtJ) * s2
                 uncertainties = np.sqrt(np.maximum(np.diag(covariance), 0))
@@ -121,7 +138,8 @@ class StratifiedLSStrategy:
                 logger.warning("StratifiedLS: singular J^T J")
 
         n_dof = max(n_data - n_params, 1)
-        reduced_chi2 = 2.0 * float(scipy_result.cost) / n_dof
+        final_cost = 0.5 * float(np.sum(final_residuals**2))
+        reduced_chi2 = 2.0 * final_cost / n_dof
 
         metadata: dict[str, Any] = {
             "strategy": "stratified_ls",
@@ -129,24 +147,24 @@ class StratifiedLSStrategy:
         }
 
         result = NLSQResult(
-            parameters=scipy_result.x,
+            parameters=np.asarray(nlsq_result.x, dtype=np.float64),
             parameter_names=pm.varying_names,
-            success=scipy_result.success,
-            message=scipy_result.message,
+            success=bool(nlsq_result.success),
+            message=str(nlsq_result.message),
             uncertainties=uncertainties,
             covariance=covariance,
-            final_cost=float(scipy_result.cost),
+            final_cost=final_cost,
             reduced_chi_squared=reduced_chi2,
             n_iterations=0,
-            n_function_evals=scipy_result.nfev,
-            convergence_reason=scipy_result.message,
-            residuals=scipy_result.fun,
-            jacobian=scipy_result.jac,
+            n_function_evals=int(nlsq_result.nfev),
+            convergence_reason=str(nlsq_result.message),
+            residuals=final_residuals,
+            jacobian=final_jac,
             wall_time_seconds=wall_time,
             metadata=metadata,
         )
 
-        if scipy_result.success:
+        if nlsq_result.success:
             full_fitted = pm.expand_varying_to_full(result.parameters)
             fitted_c2 = compute_c2_heterodyne(
                 jnp.asarray(full_fitted), t, q, dt, phi_angle
