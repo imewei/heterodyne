@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+import numpy as np
+
 from heterodyne.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -77,6 +79,7 @@ def safe_int(value: Any, default: int) -> int:
 _VALID_WORKFLOWS: frozenset[str] = frozenset({"auto", "auto_global", "hpc"})
 _VALID_GOALS: frozenset[str] = frozenset({"fast", "robust", "quality", "memory_efficient"})
 _VALID_ANALYSIS_MODES: frozenset[str] = frozenset({"static_ref", "static_both", "two_component"})
+_VALID_NLSQ_STABILITY: frozenset[str] = frozenset({"auto", "check", "off"})
 
 
 @dataclass
@@ -395,6 +398,16 @@ class NLSQConfig:
     analysis_mode: str = "two_component"
 
     # ------------------------------------------------------------------
+    # NLSQ package integration (mirrors homodyne wrapper.py)
+    # ------------------------------------------------------------------
+
+    nlsq_stability: str = "auto"  # 'auto', 'check', or 'off'
+    nlsq_rescale_data: bool = False  # xdata is indices, not physical
+    nlsq_x_scale: str | np.ndarray = "jac"  # trust-region scaling
+    nlsq_memory_fraction: float = 0.75  # fraction of RAM for NLSQ
+    nlsq_memory_fallback_gb: float = 16.0  # fallback if detection fails
+
+    # ------------------------------------------------------------------
     # Post-fit validation
     # ------------------------------------------------------------------
 
@@ -510,6 +523,22 @@ class NLSQConfig:
                 f"must be one of {valid_sampling_strategies}"
             )
 
+        if self.nlsq_stability not in _VALID_NLSQ_STABILITY:
+            errors.append(
+                f"nlsq_stability={self.nlsq_stability!r} is not valid; "
+                f"must be one of {sorted(_VALID_NLSQ_STABILITY)}"
+            )
+
+        if not (0 < self.nlsq_memory_fraction <= 1):
+            errors.append(
+                f"nlsq_memory_fraction={self.nlsq_memory_fraction} must be in (0, 1]"
+            )
+
+        if self.nlsq_memory_fallback_gb <= 0:
+            errors.append(
+                f"nlsq_memory_fallback_gb={self.nlsq_memory_fallback_gb} must be > 0"
+            )
+
         return errors
 
     # ------------------------------------------------------------------
@@ -610,6 +639,12 @@ class NLSQConfig:
             "use_nlsq_library": "bool",
             "n_params": "int",
             "analysis_mode": "str",
+            # NLSQ package integration
+            "nlsq_stability": "str",
+            "nlsq_rescale_data": "bool",
+            "nlsq_x_scale": "passthrough",  # str or np.ndarray
+            "nlsq_memory_fraction": "float",
+            "nlsq_memory_fallback_gb": "float",
         }
 
         nested_keys = {"recovery", "validation", "x_scale_map"}
@@ -815,6 +850,12 @@ class NLSQConfig:
             "use_nlsq_library": self.use_nlsq_library,
             "n_params": self.n_params,
             "analysis_mode": self.analysis_mode,
+            # NLSQ package integration
+            "nlsq_stability": self.nlsq_stability,
+            "nlsq_rescale_data": self.nlsq_rescale_data,
+            "nlsq_x_scale": self.nlsq_x_scale,
+            "nlsq_memory_fraction": self.nlsq_memory_fraction,
+            "nlsq_memory_fallback_gb": self.nlsq_memory_fallback_gb,
             # Validation
             "validation": {
                 "chi2_warn_low": self.validation.chi2_warn_low,
