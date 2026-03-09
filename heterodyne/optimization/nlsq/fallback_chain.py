@@ -2,24 +2,29 @@
 
 Provides automatic strategy degradation when the primary fitting strategy
 fails due to memory constraints, numerical errors, or convergence issues.
-The chain tries strategies in order of decreasing performance until one
-succeeds or all options are exhausted.
+The chain tries strategies in descending order (most robust first) until
+one succeeds or all options are exhausted.
 
-Strategy order:
-1. STANDARD (ResidualStrategy) — direct evaluation, fastest for small data
-2. LARGE (JITStrategy) — JIT-compiled, good for medium datasets
-3. CHUNKED (ChunkedStrategy) — memory-bounded, handles large datasets
-4. STREAMING (SequentialStrategy) — per-angle sequential, most robust
+Strategy order (descending — most robust to least):
+1. STREAMING — per-epoch streaming optimizer, most robust
+2. LARGE     — chunked J^T J accumulation, handles large datasets
+3. STANDARD  — full in-memory Jacobian, fastest for small data
+
+Routing delegates to NLSQWrapper-style functions rather than instantiating
+FittingStrategy objects directly.  The initial strategy is selected by
+``select_nlsq_strategy()`` from memory.py unless overridden.
 """
 
 from __future__ import annotations
 
-from enum import Enum, auto
-from typing import TYPE_CHECKING
+from enum import Enum
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from heterodyne.optimization.nlsq.strategies.base import FittingStrategy, StrategyResult
+from heterodyne.optimization.nlsq.memory import NLSQStrategy, select_nlsq_strategy
+from heterodyne.optimization.nlsq.result_builder import build_result_from_nlsq
+from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -29,47 +34,172 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Strategy enum
+# ---------------------------------------------------------------------------
+
+
 class OptimizationStrategy(Enum):
-    """Available optimization strategies in fallback order."""
+    """Available optimization strategies in descending fallback order.
 
-    STANDARD = auto()
-    LARGE = auto()
-    CHUNKED = auto()
-    STREAMING = auto()
+    Values match :class:`~heterodyne.optimization.nlsq.memory.NLSQStrategy`
+    string values for cross-module consistency.
+    """
+
+    STANDARD = "standard"
+    LARGE = "large"
+    STREAMING = "streaming"
 
 
-# Strategy fallback ordering
+# Descending fallback order: most-robust first, fastest last.
 _FALLBACK_ORDER: list[OptimizationStrategy] = [
-    OptimizationStrategy.STANDARD,
-    OptimizationStrategy.LARGE,
-    OptimizationStrategy.CHUNKED,
     OptimizationStrategy.STREAMING,
+    OptimizationStrategy.LARGE,
+    OptimizationStrategy.STANDARD,
 ]
 
+# Mapping from NLSQStrategy → OptimizationStrategy
+_NLSQ_TO_OPT: dict[NLSQStrategy, OptimizationStrategy] = {
+    NLSQStrategy.STANDARD: OptimizationStrategy.STANDARD,
+    NLSQStrategy.LARGE: OptimizationStrategy.LARGE,
+    NLSQStrategy.STREAMING: OptimizationStrategy.STREAMING,
+}
 
-def _create_strategy(strategy: OptimizationStrategy) -> FittingStrategy:
-    """Instantiate a fitting strategy by enum value.
+
+# ---------------------------------------------------------------------------
+# Result normalization
+# ---------------------------------------------------------------------------
+
+
+def handle_nlsq_result(
+    raw_result: Any,
+) -> tuple[np.ndarray, np.ndarray | None, dict[str, Any]]:
+    """Normalize a raw NLSQ return value to ``(popt, pcov, info)``.
+
+    Handles four return formats emitted by the nlsq library:
+
+    - **dict** (``AdaptiveHybridStreamingOptimizer``): keys ``'x'``/``'popt'``
+      and optional ``'pcov'``, ``'fun'``, streaming diagnostics.
+    - **2-tuple** (``curve_fit``): ``(popt, pcov)``.
+    - **3-tuple** (``curve_fit`` with ``full_output=True``): ``(popt, pcov, info)``.
+    - **object** with ``.x``/``.popt`` and optional ``.pcov`` attributes.
+
+    This function returns raw arrays. Downstream callers use
+    :func:`~heterodyne.optimization.nlsq.result_builder.build_result_from_nlsq`
+    to produce a fully populated :class:`~heterodyne.optimization.nlsq.results.NLSQResult`.
 
     Args:
-        strategy: Strategy to instantiate.
+        raw_result: Raw return value from an nlsq optimization call.
 
     Returns:
-        FittingStrategy instance.
+        Tuple ``(popt, pcov, info)`` where *pcov* may be ``None`` and
+        *info* is a ``dict`` of supplementary data (possibly empty).
+
+    Raises:
+        TypeError: If the result format is unrecognized or required keys
+            are absent.
     """
-    from heterodyne.optimization.nlsq.strategies.chunked import ChunkedStrategy
-    from heterodyne.optimization.nlsq.strategies.jit_strategy import JITStrategy
-    from heterodyne.optimization.nlsq.strategies.residual import ResidualStrategy
-    from heterodyne.optimization.nlsq.strategies.sequential import SequentialStrategy
+    popt: np.ndarray
+    pcov: np.ndarray | None = None
+    info: dict[str, Any] = {}
 
-    strategy_map = {
-        OptimizationStrategy.STANDARD: ResidualStrategy,
-        OptimizationStrategy.LARGE: JITStrategy,
-        OptimizationStrategy.CHUNKED: ChunkedStrategy,
-        OptimizationStrategy.STREAMING: SequentialStrategy,
-    }
+    # ------------------------------------------------------------------
+    # Case 1: dict (StreamingOptimizer)
+    # ------------------------------------------------------------------
+    if isinstance(raw_result, dict):
+        popt_raw = raw_result.get("x", raw_result.get("popt"))
+        if popt_raw is None:
+            raise TypeError(
+                "Dict result has neither 'x' nor 'popt' key. "
+                f"Available keys: {list(raw_result.keys())}"
+            )
+        popt = np.asarray(popt_raw, dtype=np.float64)
 
-    cls = strategy_map[strategy]
-    return cls()  # type: ignore[no-any-return]
+        pcov_raw = raw_result.get("pcov")
+        pcov = np.asarray(pcov_raw, dtype=np.float64) if pcov_raw is not None else None
+
+        for key in (
+            "streaming_diagnostics",
+            "success",
+            "message",
+            "best_loss",
+            "final_epoch",
+            "fun",
+        ):
+            val = raw_result.get(key)
+            if val is not None:
+                info[key] = val
+
+        logger.debug("Normalized StreamingOptimizer dict result")
+
+    # ------------------------------------------------------------------
+    # Case 2: tuple (curve_fit / curve_fit with full_output)
+    # ------------------------------------------------------------------
+    elif isinstance(raw_result, tuple):
+        if len(raw_result) == 2:
+            popt_raw, pcov_raw = raw_result
+            logger.debug("Normalized (popt, pcov) tuple")
+        elif len(raw_result) == 3:
+            popt_raw, pcov_raw, extra = raw_result
+            if isinstance(extra, dict):
+                info = dict(extra)
+            else:
+                logger.warning(
+                    "Info object is not a dict (type=%s); wrapping as 'raw_info'",
+                    type(extra).__name__,
+                )
+                info = {"raw_info": extra}
+            logger.debug("Normalized (popt, pcov, info) tuple")
+        else:
+            raise TypeError(
+                f"Unexpected tuple length: {len(raw_result)}. "
+                "Expected 2 (popt, pcov) or 3 (popt, pcov, info)."
+            )
+        popt = np.asarray(popt_raw, dtype=np.float64)
+        pcov = np.asarray(pcov_raw, dtype=np.float64) if pcov_raw is not None else None
+
+    # ------------------------------------------------------------------
+    # Case 3: object with .x / .popt attributes
+    # ------------------------------------------------------------------
+    elif hasattr(raw_result, "x") or hasattr(raw_result, "popt"):
+        popt_raw = getattr(raw_result, "x", getattr(raw_result, "popt", None))
+        if popt_raw is None:
+            raise TypeError(
+                "Result object has neither 'x' nor 'popt' attribute. "
+                f"Available attributes: {dir(raw_result)}"
+            )
+        popt = np.asarray(popt_raw, dtype=np.float64)
+
+        pcov_raw = getattr(raw_result, "pcov", None)
+        pcov = np.asarray(pcov_raw, dtype=np.float64) if pcov_raw is not None else None
+        if pcov_raw is None:
+            logger.debug("No pcov attribute in result object (type=%s)", type(raw_result).__name__)
+
+        for attr in ("message", "success", "nfev", "njev", "optimality", "fun"):
+            val = getattr(raw_result, attr, None)
+            if val is not None:
+                info[attr] = val
+
+        if hasattr(raw_result, "info") and isinstance(raw_result.info, dict):
+            info.update(raw_result.info)
+
+        logger.debug("Normalized object result (type=%s)", type(raw_result).__name__)
+
+    # ------------------------------------------------------------------
+    # Case 4: unrecognized
+    # ------------------------------------------------------------------
+    else:
+        raise TypeError(
+            f"Unrecognized NLSQ result format: {type(raw_result)}. "
+            "Expected tuple, dict, or object with 'x'/'popt' attributes."
+        )
+
+    return popt, pcov, info
+
+
+# ---------------------------------------------------------------------------
+# Fallback logic
+# ---------------------------------------------------------------------------
 
 
 def get_fallback_strategy(
@@ -78,28 +208,33 @@ def get_fallback_strategy(
 ) -> OptimizationStrategy | None:
     """Determine the next fallback strategy after a failure.
 
+    For memory errors the chain skips ahead to STREAMING (the most
+    memory-efficient option).  For all other errors the chain steps one
+    position toward STANDARD.
+
     Args:
         current: The strategy that just failed.
-        error: The exception that caused the failure (used for
-            heuristic selection).
+        error: The exception that triggered the fallback; used for
+            heuristic selection.
 
     Returns:
-        Next strategy to try, or None if all options exhausted.
+        The next :class:`OptimizationStrategy` to try, or ``None`` when
+        the chain is exhausted.
     """
     current_idx = _FALLBACK_ORDER.index(current)
 
-    # Memory errors skip directly to CHUNKED
+    # Memory errors: skip to STREAMING (most memory-efficient strategy) only
+    # when the failure originates from LARGE.  LARGE is the primary candidate
+    # for OOM because it accumulates the full Jacobian; STREAMING processes
+    # data epoch-by-epoch and avoids that peak.  If current is already
+    # STREAMING or STANDARD, there is no memory-safe escalation path.
     if error is not None and _is_memory_error(error):
-        for candidate in _FALLBACK_ORDER[current_idx + 1:]:
-            if candidate in (OptimizationStrategy.CHUNKED, OptimizationStrategy.STREAMING):
-                logger.info(
-                    "Memory error detected; skipping to %s strategy",
-                    candidate.name,
-                )
-                return candidate
+        if current == OptimizationStrategy.LARGE:
+            logger.info("Memory error detected; skipping to STREAMING strategy")
+            return OptimizationStrategy.STREAMING
+        # STREAMING or STANDARD — chain exhausted
         return None
 
-    # Default: try the next strategy in order
     next_idx = current_idx + 1
     if next_idx < len(_FALLBACK_ORDER):
         return _FALLBACK_ORDER[next_idx]
@@ -108,13 +243,68 @@ def get_fallback_strategy(
 
 
 def _is_memory_error(error: Exception) -> bool:
-    """Check if an error is memory-related."""
+    """Return ``True`` if *error* looks memory-related."""
+    if isinstance(error, MemoryError):
+        return True
     error_str = str(error).lower()
     memory_keywords = ["memory", "oom", "out of memory", "allocate", "mmap"]
-    return (
-        isinstance(error, MemoryError)
-        or any(kw in error_str for kw in memory_keywords)
-    )
+    return any(kw in error_str for kw in memory_keywords)
+
+
+# ---------------------------------------------------------------------------
+# Strategy routing
+# ---------------------------------------------------------------------------
+
+
+def _run_strategy(
+    strategy: OptimizationStrategy,
+    model: HeterodyneModel,
+    c2_data: np.ndarray,
+    phi_angle: float,
+    config: NLSQConfig,
+    weights: np.ndarray | None,
+) -> tuple[np.ndarray, np.ndarray | None, dict[str, Any]]:
+    """Dispatch a single strategy attempt and return ``(popt, pcov, info)``.
+
+    Routes to the appropriate nlsq function based on *strategy*:
+
+    - STANDARD  → ``nlsq.curve_fit``
+    - LARGE     → ``nlsq.curve_fit_large``
+    - STREAMING → ``nlsq.curve_fit_large`` with streaming flag (or fallback)
+
+    Args:
+        strategy: The strategy to execute.
+        model: Configured HeterodyneModel.
+        c2_data: Correlation data, shape ``(N, N)``.
+        phi_angle: Detector phi angle in degrees.
+        config: NLSQ configuration.
+        weights: Optional per-point weights.
+
+    Returns:
+        Normalized ``(popt, pcov, info)`` tuple.
+    """
+    from heterodyne.optimization.nlsq.adapter import NLSQAdapter
+
+    adapter = NLSQAdapter(config=config)
+
+    if strategy == OptimizationStrategy.STANDARD:
+        logger.debug("_run_strategy: routing to curve_fit (STANDARD)")
+        raw = adapter.fit(model, c2_data, phi_angle=phi_angle, weights=weights)
+    elif strategy == OptimizationStrategy.LARGE:
+        logger.debug("_run_strategy: routing to curve_fit_large (LARGE)")
+        raw = adapter.fit_large(model, c2_data, phi_angle=phi_angle, weights=weights)
+    elif strategy == OptimizationStrategy.STREAMING:
+        logger.debug("_run_strategy: routing to streaming (STREAMING)")
+        raw = adapter.fit_streaming(model, c2_data, phi_angle=phi_angle, weights=weights)
+    else:
+        raise ValueError(f"Unknown strategy: {strategy}")  # pragma: no cover
+
+    return handle_nlsq_result(raw)
+
+
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
 
 
 def execute_optimization_with_fallback(
@@ -125,79 +315,85 @@ def execute_optimization_with_fallback(
     *,
     start_strategy: OptimizationStrategy | None = None,
     weights: np.ndarray | None = None,
-) -> StrategyResult:
+) -> NLSQResult:
     """Execute optimization with automatic fallback on failure.
 
-    Tries strategies in order, catching failures and degrading gracefully
-    to the next available strategy.
+    Tries strategies in descending robustness order, catching failures and
+    degrading gracefully to the next available option.
+
+    If *start_strategy* is ``None``, :func:`select_nlsq_strategy` is called
+    with the data size and parameter count to pick the initial strategy
+    (replaces the former hardcoded size thresholds).
 
     Args:
         model: Configured HeterodyneModel.
-        c2_data: Correlation data, shape (N, N).
+        c2_data: Correlation data, shape ``(N, N)``.
         phi_angle: Detector phi angle in degrees.
         config: NLSQ configuration.
-        start_strategy: Initial strategy to try. If None, auto-selects
-            based on data size.
+        start_strategy: Initial strategy. ``None`` triggers memory-aware
+            auto-selection via :func:`select_nlsq_strategy`.
         weights: Optional per-point weights.
 
     Returns:
-        StrategyResult from the first successful strategy.
+        :class:`~heterodyne.optimization.nlsq.results.NLSQResult` from
+        the first successful strategy.
 
     Raises:
         RuntimeError: If all strategies fail.
     """
     if start_strategy is None:
-        n_data = c2_data.size
-        if n_data < 10_000:
-            start_strategy = OptimizationStrategy.STANDARD
-        elif n_data < 250_000:
-            start_strategy = OptimizationStrategy.LARGE
-        else:
-            start_strategy = OptimizationStrategy.CHUNKED
+        n_params = model.parameter_manager.n_varying
+        decision = select_nlsq_strategy(c2_data.size, n_params)
+        start_strategy = _NLSQ_TO_OPT[decision.strategy]
+        logger.info(
+            "Auto-selected strategy: %s (%s)",
+            start_strategy.name,
+            decision.reason,
+        )
+
+    parameter_names: list[str] = list(
+        model.parameter_manager.get_parameter_names()
+    )
+    n_data = int(c2_data.size)
 
     current: OptimizationStrategy | None = start_strategy
     errors: list[tuple[str, str]] = []
 
     while current is not None:
-        strategy_instance = _create_strategy(current)
-        logger.info(
-            "Fallback chain: attempting %s strategy (%s)",
-            current.name,
-            strategy_instance.name,
-        )
+        logger.info("Fallback chain: attempting %s strategy", current.name)
 
         try:
-            result = strategy_instance.fit(
-                model, c2_data, phi_angle, config, weights
+            popt, pcov, info = _run_strategy(
+                current, model, c2_data, phi_angle, config, weights
             )
 
-            if result.result.success:
-                logger.info(
-                    "Fallback chain: %s succeeded (cost=%.4e)",
-                    current.name,
-                    result.result.final_cost or 0.0,
-                )
-                result.metadata["fallback_chain"] = {
-                    "strategy_used": current.name,
-                    "attempts": len(errors) + 1,
-                    "failed_strategies": [e[0] for e in errors],
-                }
-                return result
+            # Reconstruct a minimal dict/object to pass to build_result_from_nlsq
+            raw_for_builder: dict[str, Any] = {"x": popt, **info}
+            if pcov is not None:
+                raw_for_builder["pcov"] = pcov
 
-            # Strategy ran but didn't converge — current is still non-None
-            # because get_fallback_strategy hasn't been called yet.
-            assert current is not None  # narrowing for mypy
-            logger.warning(
-                "Fallback chain: %s did not converge: %s",
+            result = build_result_from_nlsq(
+                raw_for_builder,
+                parameter_names=parameter_names,
+                n_data=n_data,
+                metadata={
+                    "fallback_chain": {
+                        "strategy_used": current.name,
+                        "attempts": len(errors) + 1,
+                        "failed_strategies": [e[0] for e in errors],
+                    }
+                },
+            )
+
+            logger.info(
+                "Fallback chain: %s succeeded (cost=%s)",
                 current.name,
-                result.result.message,
+                f"{result.final_cost:.4e}" if result.final_cost is not None else "n/a",
             )
-            errors.append((current.name, result.result.message))
-            current = get_fallback_strategy(current)
+            return result
 
         except Exception as exc:  # noqa: BLE001
-            # Exception occurs before current is reassigned in the try block,
-            # so current is guaranteed non-None here.
+            # current is non-None here (set at loop entry and not yet mutated)
             assert current is not None  # narrowing for mypy
             logger.warning(
                 "Fallback chain: %s raised %s: %s",
@@ -208,8 +404,15 @@ def execute_optimization_with_fallback(
             errors.append((current.name, f"{type(exc).__name__}: {exc}"))
             current = get_fallback_strategy(current, error=exc)
 
-    # All strategies exhausted
     error_summary = "; ".join(f"{name}: {msg}" for name, msg in errors)
     raise RuntimeError(
         f"All optimization strategies failed. Errors: {error_summary}"
     )
+
+
+__all__ = [
+    "OptimizationStrategy",
+    "execute_optimization_with_fallback",
+    "get_fallback_strategy",
+    "handle_nlsq_result",
+]
