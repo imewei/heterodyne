@@ -172,55 +172,23 @@ class TestNLSQAdapterUnit:
 
 
 class TestScipyAdapterFallback:
-    """Tests for scipy fallback adapter."""
+    """ScipyNLSQAdapter was removed in the dual-adapter refactor.
+
+    The tests below act as a tombstone: they verify that the class no longer
+    exists in the module (so any attempt to reintroduce it will break CI).
+    Full coverage of the replacement classes is in test_adapter.py.
+    """
 
     @pytest.mark.unit
-    def test_scipy_adapter_creation(self) -> None:
-        """Test ScipyNLSQAdapter can be created."""
-        from heterodyne.optimization.nlsq.adapter import ScipyNLSQAdapter
+    def test_scipy_adapter_does_not_exist(self) -> None:
+        """ScipyNLSQAdapter must NOT be importable after the dual-adapter refactor."""
+        import importlib
 
-        adapter = ScipyNLSQAdapter(parameter_names=["p1", "p2"])
-        assert adapter is not None
-
-    @pytest.mark.unit
-    def test_scipy_adapter_name_property(self) -> None:
-        """Test scipy adapter name property."""
-        from heterodyne.optimization.nlsq.adapter import ScipyNLSQAdapter
-
-        adapter = ScipyNLSQAdapter(parameter_names=["p1"])
-        assert "scipy" in adapter.name.lower()
-
-    @pytest.mark.unit
-    @pytest.mark.integration
-    def test_scipy_adapter_fit_with_numpy_function(self) -> None:
-        """Test ScipyNLSQAdapter can fit a simple numpy function.
-
-        This tests the fallback path when nlsq tracing fails.
-        """
-        from heterodyne.optimization.nlsq.adapter import ScipyNLSQAdapter
-        from heterodyne.optimization.nlsq.config import NLSQConfig
-
-        # Simple quadratic residual function
-        def residual_fn(params: np.ndarray) -> np.ndarray:
-            a, b = params
-            x = np.linspace(0, 1, 10)
-            y_true = 2.0 * x + 1.0  # True: a=2, b=1
-            y_pred = a * x + b
-            return y_pred - y_true
-
-        adapter = ScipyNLSQAdapter(parameter_names=["a", "b"])
-        config = NLSQConfig(max_iterations=50, tolerance=1e-8)
-
-        result = adapter.fit(
-            residual_fn=residual_fn,
-            initial_params=np.array([1.0, 0.5]),
-            bounds=(np.array([-10.0, -10.0]), np.array([10.0, 10.0])),
-            config=config,
+        mod = importlib.import_module("heterodyne.optimization.nlsq.adapter")
+        assert not hasattr(mod, "ScipyNLSQAdapter"), (
+            "ScipyNLSQAdapter was re-introduced into adapter.py; "
+            "it must remain deleted — scipy.optimize is forbidden in the NLSQ path."
         )
-
-        assert result.success, f"Fit failed: {result.message}"
-        assert np.isclose(result.parameters[0], 2.0, atol=0.1)
-        assert np.isclose(result.parameters[1], 1.0, atol=0.1)
 
 
 class TestNLSQAdapterIntegration:

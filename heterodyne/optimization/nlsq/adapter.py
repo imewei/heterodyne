@@ -1,16 +1,39 @@
-"""NLSQ adapter using the nlsq library (CurveFit)."""
+"""NLSQ adapters: NLSQAdapter (JAX-traced) and NLSQWrapper (memory-aware fallback).
+
+Import order: nlsq imports appear before JAX so that nlsq can configure
+JAX x64 mode before JAX is initialised.
+"""
 
 from __future__ import annotations
 
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+# ---------------------------------------------------------------------------
+# nlsq imports — MUST precede any JAX import so nlsq can set x64 mode
+# ---------------------------------------------------------------------------
+from nlsq import CurveFit, curve_fit, curve_fit_large  # noqa: E402
+
+try:
+    from nlsq import AdaptiveHybridStreamingOptimizer, HybridStreamingConfig
+
+    STREAMING_AVAILABLE = True
+except ImportError:
+    STREAMING_AVAILABLE = False
+    AdaptiveHybridStreamingOptimizer = None  # type: ignore[assignment,misc]
+    HybridStreamingConfig = None  # type: ignore[assignment,misc]
+
 from heterodyne.optimization.nlsq.adapter_base import NLSQAdapterBase
 from heterodyne.optimization.nlsq.config import NLSQConfig
+from heterodyne.optimization.nlsq.memory import NLSQStrategy, select_nlsq_strategy
+from heterodyne.optimization.nlsq.result_builder import (
+    build_failed_result,
+    build_result_from_nlsq,
+)
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import get_logger
 
@@ -22,15 +45,22 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 # Model cache — avoids re-JIT-compiling CurveFit for identical problem shapes
 # ---------------------------------------------------------------------------
-_MODEL_CACHE_MAX_SIZE = 8
+
+_MODEL_CACHE_MAX_SIZE = 64
 
 
 @dataclass(frozen=True)
 class ModelCacheKey:
-    """Cache key for CurveFit instances."""
+    """Cache key for CurveFit instances.
+
+    Includes phi_angles and scaling_mode so that different multi-angle
+    or scaling configurations do not share the same compiled fitter.
+    """
 
     n_data: int
     n_params: int
+    phi_angles: tuple[float, ...] | None
+    scaling_mode: str
 
 
 @dataclass
@@ -47,24 +77,41 @@ _model_cache: dict[ModelCacheKey, CachedModel] = {}
 _cache_stats: dict[str, int] = {"hits": 0, "misses": 0}
 
 
-def get_or_create_fitter(n_data: int, n_params: int) -> tuple[object, bool]:
+def get_or_create_fitter(
+    n_data: int,
+    n_params: int,
+    phi_angles: tuple[float, ...] | None = None,
+    scaling_mode: str = "auto",
+) -> tuple[object, bool]:
     """Get a CurveFit instance from cache or create a new one.
 
     Args:
         n_data: Number of data points (flength).
         n_params: Number of parameters.
+        phi_angles: Tuple of azimuthal angles (distinguishes multi-angle configs).
+        scaling_mode: Contrast/offset scaling mode (e.g. "auto", "individual").
 
     Returns:
         Tuple of (CurveFit fitter, cache_hit: bool).
     """
-    from nlsq import CurveFit
-
-    key = ModelCacheKey(n_data=n_data, n_params=n_params)
+    key = ModelCacheKey(
+        n_data=n_data,
+        n_params=n_params,
+        phi_angles=phi_angles,
+        scaling_mode=scaling_mode,
+    )
 
     if key in _model_cache:
         _model_cache[key].last_accessed = time.monotonic()
         _model_cache[key].n_hits += 1
         _cache_stats["hits"] += 1
+        logger.debug(
+            "CurveFit cache hit: n_data=%d n_params=%d phi=%s scaling=%s",
+            n_data,
+            n_params,
+            phi_angles,
+            scaling_mode,
+        )
         return _model_cache[key].fitter, True
 
     _cache_stats["misses"] += 1
@@ -72,6 +119,7 @@ def get_or_create_fitter(n_data: int, n_params: int) -> tuple[object, bool]:
     # Evict oldest entry if cache is full
     if len(_model_cache) >= _MODEL_CACHE_MAX_SIZE:
         oldest_key = min(_model_cache, key=lambda k: _model_cache[k].last_accessed)
+        logger.debug("CurveFit cache eviction: removing oldest entry %s", oldest_key)
         del _model_cache[oldest_key]
 
     fitter = CurveFit(flength=int(n_data))
@@ -80,28 +128,67 @@ def get_or_create_fitter(n_data: int, n_params: int) -> tuple[object, bool]:
 
 
 def clear_model_cache() -> None:
-    """Clear the CurveFit model cache."""
+    """Clear the CurveFit model cache and reset hit/miss counters."""
     _model_cache.clear()
     _cache_stats["hits"] = 0
     _cache_stats["misses"] = 0
 
 
 def get_cache_stats() -> dict[str, int]:
-    """Get cache hit/miss statistics."""
+    """Return cache hit/miss/size statistics."""
     return {**_cache_stats, "size": len(_model_cache)}
+
+
+# ---------------------------------------------------------------------------
+# Shared convergence assessment
+# ---------------------------------------------------------------------------
+
+
+def _assess_convergence(
+    fitted_params: np.ndarray,
+    initial_params: np.ndarray,
+    reduced_chi2: float | None,
+) -> tuple[bool, str, str]:
+    """Apply post-fit convergence heuristics.
+
+    Returns:
+        (success, message, convergence_reason)
+    """
+    if not np.all(np.isfinite(fitted_params)):
+        return False, "Non-finite parameters in result", "failed"
+
+    if reduced_chi2 is not None and reduced_chi2 > 1e6:
+        return (
+            False,
+            f"Poor fit quality (reduced chi-squared = {reduced_chi2:.2e})",
+            "poor_fit",
+        )
+
+    if np.allclose(fitted_params, initial_params, rtol=1e-12, atol=0):
+        return False, "Optimizer made no progress from initial values", "no_progress"
+
+    return True, "Optimization converged", "tolerance"
+
+
+# ---------------------------------------------------------------------------
+# NLSQAdapter — primary JAX-traced adapter
+# ---------------------------------------------------------------------------
 
 
 class NLSQAdapter(NLSQAdapterBase):
     """Adapter for the nlsq library's CurveFit optimizer.
 
     Uses JAX-accelerated nonlinear least squares from the nlsq package.
+    The ``fit()`` method calls ``nlsq.CurveFit`` directly — no scipy delegation.
+    For pure-JAX residual functions, prefer ``fit_jax()`` which passes a
+    JAX-traceable function to ``CurveFit.curve_fit()``.
     """
 
     def __init__(self, parameter_names: list[str]) -> None:
-        """Initialize adapter.
+        """Initialise the adapter.
 
         Args:
-            parameter_names: Names of parameters being optimized
+            parameter_names: Names of parameters being optimised, in order.
         """
         self._parameter_names = parameter_names
 
@@ -123,83 +210,169 @@ class NLSQAdapter(NLSQAdapterBase):
         config: NLSQConfig,
         jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None,
     ) -> NLSQResult:
-        """Run NLSQ optimization using nlsq library.
+        """Run NLSQ optimisation using nlsq.CurveFit.
 
-        Note: For JAX-traced optimization, use fit_jax() instead.
-        This method falls back to scipy for numpy-based residual functions.
+        Wraps the residual function into the (xdata, *params) signature
+        expected by ``CurveFit.curve_fit`` and normalises the result via
+        ``build_result_from_nlsq``.
 
         Args:
-            residual_fn: Function computing residuals (numpy)
-            initial_params: Starting parameter values
-            bounds: (lower, upper) bound arrays
-            config: Optimization configuration
-            jacobian_fn: Optional analytic Jacobian function
+            residual_fn: Callable ``(params: ndarray) -> residuals: ndarray``.
+            initial_params: Starting parameter values.
+            bounds: ``(lower, upper)`` bound arrays.
+            config: Optimisation configuration.
+            jacobian_fn: Optional analytic Jacobian (unused by CurveFit; kept
+                for API compatibility).
 
         Returns:
-            NLSQResult with fit results
+            NLSQResult with fit results.
         """
-        # Fall back to scipy since the residual_fn is numpy-based
-        # The nlsq library requires pure JAX functions for tracing
-        logger.debug("NLSQAdapter delegating to ScipyNLSQAdapter for numpy residual_fn")
-        scipy_adapter = ScipyNLSQAdapter(parameter_names=self._parameter_names)
-        return scipy_adapter.fit(
-            residual_fn=residual_fn,
-            initial_params=initial_params,
-            bounds=bounds,
-            config=config,
-            jacobian_fn=jacobian_fn,
-        )
+        start_time = time.perf_counter()
+
+        lower_bounds, upper_bounds = bounds
+        initial_params = np.clip(initial_params, lower_bounds, upper_bounds)
+        n_params = len(initial_params)
+
+        logger.info("NLSQAdapter.fit: %d parameters", n_params)
+
+        try:
+            # Probe residual length
+            probe = residual_fn(initial_params)
+            n_data = len(np.asarray(probe))
+
+            # Create xdata/ydata for CurveFit API (target = zero residuals)
+            xdata = np.arange(n_data, dtype=np.float64)
+            ydata = np.zeros(n_data, dtype=np.float64)
+
+            # Wrap residual_fn into (xdata, *params) signature
+            def _wrapped(x: np.ndarray, *params: float) -> np.ndarray:
+                return residual_fn(np.array(params, dtype=np.float64))
+
+            fitter, cache_hit = get_or_create_fitter(
+                n_data=n_data,
+                n_params=n_params,
+                phi_angles=None,
+                scaling_mode="auto",
+            )
+            if cache_hit:
+                logger.debug("CurveFit cache hit for shape (%d, %d)", n_data, n_params)
+
+            # Resolve method — dogbox is not supported by CurveFit
+            method = config.method
+            if method == "dogbox":
+                logger.warning("Method 'dogbox' not supported by CurveFit; using 'trf'")
+                method = "trf"
+
+            nlsq_result = fitter.curve_fit(  # type: ignore[union-attr]
+                f=_wrapped,
+                xdata=xdata,
+                ydata=ydata,
+                p0=initial_params,
+                bounds=(lower_bounds, upper_bounds),
+                method=method,
+            )
+
+            wall_time = time.perf_counter() - start_time
+
+            # Normalise via result_builder (handles tuple / object / dict formats)
+            result = build_result_from_nlsq(
+                nlsq_result=nlsq_result,
+                parameter_names=self._parameter_names,
+                n_data=n_data,
+                wall_time=wall_time,
+            )
+
+            # Apply convergence heuristics on top of build_result_from_nlsq
+            success, message, reason = _assess_convergence(
+                fitted_params=result.parameters,
+                initial_params=initial_params,
+                reduced_chi2=result.reduced_chi_squared,
+            )
+            if not success:
+                logger.warning("NLSQAdapter convergence check failed: %s", message)
+                # Return a corrected result with success=False
+                return NLSQResult(
+                    parameters=result.parameters,
+                    parameter_names=self._parameter_names,
+                    success=False,
+                    message=message,
+                    uncertainties=result.uncertainties,
+                    covariance=result.covariance,
+                    final_cost=result.final_cost,
+                    reduced_chi_squared=result.reduced_chi_squared,
+                    n_iterations=result.n_iterations,
+                    n_function_evals=result.n_function_evals,
+                    convergence_reason=reason,
+                    residuals=result.residuals,
+                    jacobian=result.jacobian,
+                    wall_time_seconds=wall_time,
+                    metadata=result.metadata,
+                )
+
+            return result
+
+        except (RuntimeError, ValueError, TypeError) as exc:
+            logger.error("NLSQAdapter.fit failed: %s", exc)
+            wall_time = time.perf_counter() - start_time
+            return build_failed_result(
+                parameter_names=self._parameter_names,
+                message=str(exc),
+                initial_params=initial_params,
+                wall_time=wall_time,
+            )
 
     def fit_jax(
         self,
-        jax_residual_fn: Callable,
+        jax_residual_fn: Callable[..., Any],
         initial_params: np.ndarray,
         bounds: tuple[np.ndarray, np.ndarray],
         config: NLSQConfig,
         n_data: int,
     ) -> NLSQResult:
-        """Run NLSQ optimization using nlsq library with JAX-traced function.
+        """Run NLSQ optimisation using a pure JAX-traceable residual function.
 
-        This method accepts a pure JAX function that nlsq can trace.
+        This method accepts a function with the signature
+        ``(xdata, *params) -> residuals`` that nlsq can trace through JAX.
 
         Args:
-            jax_residual_fn: JAX-compatible function (x, *params) -> residuals
-            initial_params: Starting parameter values
-            bounds: (lower, upper) bound arrays
-            config: Optimization configuration
-            n_data: Number of data points (for flength)
+            jax_residual_fn: JAX-compatible callable ``(x, *params) -> residuals``.
+            initial_params: Starting parameter values.
+            bounds: ``(lower, upper)`` bound arrays.
+            config: Optimisation configuration.
+            n_data: Number of data points (used as CurveFit ``flength``).
 
         Returns:
-            NLSQResult with fit results
+            NLSQResult with fit results.
         """
+        import jax.numpy as jnp
+
         start_time = time.perf_counter()
 
         lower_bounds, upper_bounds = bounds
+        initial_params = np.clip(initial_params, lower_bounds, upper_bounds)
         n_params = len(initial_params)
 
-        # Validate bounds
-        initial_params = np.clip(initial_params, lower_bounds, upper_bounds)
-
-        logger.info("Starting NLSQ fit (JAX) with %d parameters", n_params)
+        logger.info("NLSQAdapter.fit_jax: %d parameters, %d data points", n_params, n_data)
 
         try:
-            # Create xdata and ydata for nlsq API
             xdata = np.arange(n_data, dtype=np.float64)
-            ydata = np.zeros(n_data, dtype=np.float64)  # Target is zero residuals
+            ydata = np.zeros(n_data, dtype=np.float64)
 
-            # Get or create CurveFit instance (cached by shape)
-            fitter, cache_hit = get_or_create_fitter(n_data, n_params)
+            fitter, cache_hit = get_or_create_fitter(
+                n_data=n_data,
+                n_params=n_params,
+                phi_angles=None,
+                scaling_mode="auto",
+            )
             if cache_hit:
                 logger.debug("CurveFit cache hit for shape (%d, %d)", n_data, n_params)
 
-            # Resolve optimization method
             method = config.method
             if method == "dogbox":
-                logger.warning("Method 'dogbox' not supported by backend, coercing to 'trf'")
+                logger.warning("Method 'dogbox' not supported by CurveFit; using 'trf'")
                 method = "trf"
 
-            # Run optimization
-            fitted_params, covariance = fitter.curve_fit(
+            nlsq_result = fitter.curve_fit(  # type: ignore[union-attr]
                 f=jax_residual_fn,
                 xdata=xdata,
                 ydata=ydata,
@@ -208,101 +381,115 @@ class NLSQAdapter(NLSQAdapterBase):
                 method=method,
             )
 
-            # Compute final residuals and cost (using the JAX function)
-            import jax.numpy as jnp
+            # Compute final residuals for the result builder
+            fitted_params: np.ndarray
+            if isinstance(nlsq_result, tuple) and len(nlsq_result) >= 1:
+                fitted_params = np.asarray(nlsq_result[0], dtype=np.float64)
+            elif hasattr(nlsq_result, "x"):
+                fitted_params = np.asarray(nlsq_result.x, dtype=np.float64)
+            elif hasattr(nlsq_result, "popt"):
+                fitted_params = np.asarray(nlsq_result.popt, dtype=np.float64)
+            else:
+                fitted_params = initial_params
+
             final_residuals_jax = jax_residual_fn(jnp.arange(n_data), *fitted_params)
             final_residuals = np.asarray(final_residuals_jax)
-            final_cost = 0.5 * np.sum(final_residuals ** 2)
 
-            # Degrees of freedom
-            # final_cost = 0.5 * sum(residuals^2), so chi2 = 2 * final_cost
+            # Compute cost / reduced chi-squared for convergence assessment
+            final_cost = 0.5 * float(np.sum(final_residuals**2))
             n_dof = n_data - n_params
-            reduced_chi2 = 2.0 * final_cost / n_dof if n_dof > 0 else None
-
-            # Get uncertainties from covariance
-            uncertainties = None
-            if covariance is not None:
-                try:
-                    with np.errstate(invalid='raise'):
-                        uncertainties = np.sqrt(np.diag(covariance))
-                except (FloatingPointError, ValueError, np.linalg.LinAlgError):
-                    logger.warning("Could not extract uncertainties from covariance")
+            reduced_chi2: float | None = (
+                2.0 * final_cost / n_dof if n_dof > 0 else None
+            )
 
             wall_time = time.perf_counter() - start_time
 
-            # Assess convergence: nlsq does not expose a status flag,
-            # so we infer convergence from the result quality.
-            success = True
-            message = "Optimization converged"
-            convergence_reason = "tolerance"
+            # Normalise result then apply convergence heuristics
+            base = build_result_from_nlsq(
+                nlsq_result=nlsq_result,
+                parameter_names=self._parameter_names,
+                n_data=n_data,
+                wall_time=wall_time,
+            )
 
-            # Check 1: NaN/Inf in fitted parameters indicates failure
-            if not np.all(np.isfinite(fitted_params)):
-                success = False
-                message = "Non-finite parameters in result"
-                convergence_reason = "failed"
-
-            # Check 2: reduced chi-squared sanity (extremely large = not converged)
-            elif reduced_chi2 is not None and reduced_chi2 > 1e6:
-                success = False
-                message = f"Poor fit quality (reduced chi-squared = {reduced_chi2:.2e})"
-                convergence_reason = "poor_fit"
-
-            # Check 3: parameters stuck at initial values (no progress)
-            elif np.allclose(fitted_params, initial_params, rtol=1e-12, atol=0):
-                success = False
-                message = "Optimizer made no progress from initial values"
-                convergence_reason = "no_progress"
-
+            success, message, reason = _assess_convergence(
+                fitted_params=base.parameters,
+                initial_params=initial_params,
+                reduced_chi2=reduced_chi2,
+            )
             if not success:
-                logger.warning("NLSQ convergence check failed: %s", message)
+                logger.warning("fit_jax convergence check failed: %s", message)
 
             return NLSQResult(
-                parameters=np.asarray(fitted_params),
+                parameters=base.parameters,
                 parameter_names=self._parameter_names,
                 success=success,
                 message=message,
-                uncertainties=uncertainties,
-                covariance=np.asarray(covariance) if covariance is not None else None,
+                uncertainties=base.uncertainties,
+                covariance=base.covariance,
                 final_cost=final_cost,
                 reduced_chi_squared=reduced_chi2,
-                # nlsq.CurveFit does not expose iteration/function-eval counts
-                # at the Python level; convergence is assessed via result quality
-                # checks above (NaN detection, chi-squared, no-progress).
-                n_iterations=0,
-                n_function_evals=0,
-                convergence_reason=convergence_reason,
+                n_iterations=base.n_iterations,
+                n_function_evals=base.n_function_evals,
+                convergence_reason=reason,
                 residuals=final_residuals,
+                jacobian=base.jacobian,
                 wall_time_seconds=wall_time,
+                metadata=base.metadata,
             )
 
-        except (RuntimeError, ValueError, TypeError) as e:
-            logger.error("NLSQ optimization failed: %s", e)
+        except (RuntimeError, ValueError, TypeError) as exc:
+            logger.error("NLSQAdapter.fit_jax failed: %s", exc)
             wall_time = time.perf_counter() - start_time
-
-            return NLSQResult(
-                parameters=initial_params,
+            return build_failed_result(
                 parameter_names=self._parameter_names,
-                success=False,
-                message=str(e),
-                wall_time_seconds=wall_time,
+                message=str(exc),
+                initial_params=initial_params,
+                wall_time=wall_time,
             )
 
 
-class ScipyNLSQAdapter(NLSQAdapterBase):
-    """Fallback adapter using scipy.optimize.least_squares."""
+# ---------------------------------------------------------------------------
+# NLSQWrapper — stable fallback with memory-aware strategy routing
+# ---------------------------------------------------------------------------
 
-    def __init__(self, parameter_names: list[str]) -> None:
-        """Initialize adapter.
+
+class NLSQWrapper(NLSQAdapterBase):
+    """Stable fallback adapter with memory-aware strategy routing.
+
+    Selects between STANDARD, LARGE, and STREAMING optimization tiers based
+    on the estimated peak memory usage of the Jacobian matrix.  Falls back
+    down the tier list if a higher tier fails.
+
+    Fallback order (descending resource intensity):
+        STREAMING → LARGE → STANDARD
+
+    Each tier is retried up to ``max_retries`` times before falling back.
+    """
+
+    def __init__(
+        self,
+        parameter_names: list[str],
+        enable_large_dataset: bool = True,
+        enable_recovery: bool = True,
+        max_retries: int = 2,
+    ) -> None:
+        """Initialise the wrapper.
 
         Args:
-            parameter_names: Names of parameters being optimized
+            parameter_names: Names of parameters being optimised, in order.
+            enable_large_dataset: Allow the LARGE tier when memory warrants it.
+            enable_recovery: Enable cross-tier fallback on failure.
+            max_retries: Maximum per-tier retries before falling back.
         """
         self._parameter_names = parameter_names
+        self._enable_large_dataset = enable_large_dataset
+        self._enable_recovery = enable_recovery
+        self._max_retries = max(1, max_retries)
 
     @property
     def name(self) -> str:
-        return "scipy.optimize.least_squares"
+        return "nlsq.NLSQWrapper"
 
     def supports_bounds(self) -> bool:
         return True
@@ -318,106 +505,230 @@ class ScipyNLSQAdapter(NLSQAdapterBase):
         config: NLSQConfig,
         jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None,
     ) -> NLSQResult:
-        """Run optimization using scipy.
+        """Run NLSQ optimisation with automatic memory-based strategy routing.
 
         Args:
-            residual_fn: Function computing residuals
-            initial_params: Starting values
-            bounds: Bound arrays
-            config: Configuration
-            jacobian_fn: Optional Jacobian
+            residual_fn: Callable ``(params: ndarray) -> residuals: ndarray``.
+            initial_params: Starting parameter values.
+            bounds: ``(lower, upper)`` bound arrays.
+            config: Optimisation configuration.
+            jacobian_fn: Optional analytic Jacobian (for API compatibility).
 
         Returns:
-            NLSQResult
+            NLSQResult with fit results.
         """
-        from scipy.optimize import least_squares
-
         start_time = time.perf_counter()
 
         lower_bounds, upper_bounds = bounds
         initial_params = np.clip(initial_params, lower_bounds, upper_bounds)
+        n_params = len(initial_params)
 
-        logger.info("Starting scipy NLSQ with %d parameters", len(initial_params))
-
+        # --- Determine data size via a probe call ---
         try:
-            # Prepare jacobian argument
-            jac = jacobian_fn if config.use_jac and jacobian_fn else '2-point'
+            probe = residual_fn(initial_params)
+            n_data = len(np.asarray(probe))
+        except Exception as exc:  # noqa: BLE001
+            logger.error("NLSQWrapper: residual probe failed: %s", exc)
+            wall_time = time.perf_counter() - start_time
+            return build_failed_result(
+                parameter_names=self._parameter_names,
+                message=f"Residual probe failed: {exc}",
+                initial_params=initial_params,
+                wall_time=wall_time,
+            )
 
-            result = least_squares(
-                residual_fn,
-                initial_params,
+        # --- Memory-based strategy selection ---
+        decision = select_nlsq_strategy(n_points=n_data, n_params=n_params)
+        logger.info(
+            "NLSQWrapper strategy: %s (%s)",
+            decision.strategy.value,
+            decision.reason,
+        )
+
+        # --- Build xdata/ydata for CurveFit-style API ---
+        xdata = np.arange(n_data, dtype=np.float64)
+        ydata = np.zeros(n_data, dtype=np.float64)
+
+        def _wrapped(x: np.ndarray, *params: float) -> np.ndarray:
+            return residual_fn(np.array(params, dtype=np.float64))
+
+        method = config.method
+        if method == "dogbox":
+            logger.warning("Method 'dogbox' unsupported by nlsq; using 'trf'")
+            method = "trf"
+
+        # --- Tier ordering: initial strategy → fallback cascade ---
+        tiers = self._build_tier_list(decision.strategy)
+
+        last_exc: Exception | None = None
+        for tier in tiers:
+            result = self._try_tier(
+                tier=tier,
+                wrapped_fn=_wrapped,
+                xdata=xdata,
+                ydata=ydata,
+                initial_params=initial_params,
                 bounds=(lower_bounds, upper_bounds),
-                method=config.method,
-                jac=jac,
-                ftol=config.ftol,
-                xtol=config.xtol,
-                gtol=config.gtol,
-                max_nfev=config.max_nfev or config.max_iterations * len(initial_params),
-                verbose=2 if config.verbose > 1 else 0,
-                loss=config.loss,
+                n_data=n_data,
+                n_params=n_params,
+                method=method,
+                config=config,
+                start_time=start_time,
+            )
+            if result is not None:
+                return result
+            # Result is None → this tier exhausted all retries; try next
+            last_exc = RuntimeError(f"Tier {tier.value} failed after {self._max_retries} retries")
+            if not self._enable_recovery:
+                break
+
+        # All tiers failed
+        wall_time = time.perf_counter() - start_time
+        message = str(last_exc) if last_exc else "All NLSQ tiers failed"
+        logger.error("NLSQWrapper: %s", message)
+        return build_failed_result(
+            parameter_names=self._parameter_names,
+            message=message,
+            initial_params=initial_params,
+            wall_time=wall_time,
+        )
+
+    def _build_tier_list(self, initial_strategy: NLSQStrategy) -> list[NLSQStrategy]:
+        """Return ordered list of tiers to attempt, starting from initial_strategy."""
+        all_tiers = [NLSQStrategy.STREAMING, NLSQStrategy.LARGE, NLSQStrategy.STANDARD]
+
+        # Start from the selected strategy and work downward
+        try:
+            start_idx = all_tiers.index(initial_strategy)
+        except ValueError:
+            start_idx = len(all_tiers) - 1  # default to STANDARD
+
+        tiers = all_tiers[start_idx:]
+
+        # Drop LARGE if large-dataset support is disabled
+        if not self._enable_large_dataset and NLSQStrategy.LARGE in tiers:
+            tiers = [t for t in tiers if t != NLSQStrategy.LARGE]
+
+        return tiers
+
+    def _try_tier(
+        self,
+        tier: NLSQStrategy,
+        wrapped_fn: Callable[..., np.ndarray],
+        xdata: np.ndarray,
+        ydata: np.ndarray,
+        initial_params: np.ndarray,
+        bounds: tuple[np.ndarray, np.ndarray],
+        n_data: int,
+        n_params: int,
+        method: str,
+        config: NLSQConfig,
+        start_time: float,
+    ) -> NLSQResult | None:
+        """Attempt a single tier up to max_retries times.
+
+        Returns:
+            NLSQResult on success, or None if all retries failed.
+        """
+        lower_bounds, upper_bounds = bounds
+        for attempt in range(self._max_retries):
+            try:
+                raw_result = self._call_tier(
+                    tier=tier,
+                    wrapped_fn=wrapped_fn,
+                    xdata=xdata,
+                    ydata=ydata,
+                    p0=initial_params,
+                    lower_bounds=lower_bounds,
+                    upper_bounds=upper_bounds,
+                    n_data=n_data,
+                    n_params=n_params,
+                    method=method,
+                )
+                wall_time = time.perf_counter() - start_time
+                result = build_result_from_nlsq(
+                    nlsq_result=raw_result,
+                    parameter_names=self._parameter_names,
+                    n_data=n_data,
+                    wall_time=wall_time,
+                    metadata={"strategy": tier.value, "attempt": attempt},
+                )
+                logger.info(
+                    "NLSQWrapper: tier %s succeeded on attempt %d/%d",
+                    tier.value,
+                    attempt + 1,
+                    self._max_retries,
+                )
+                return result
+
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "NLSQWrapper: tier %s attempt %d/%d failed: %s",
+                    tier.value,
+                    attempt + 1,
+                    self._max_retries,
+                    exc,
+                )
+
+        return None
+
+    def _call_tier(
+        self,
+        tier: NLSQStrategy,
+        wrapped_fn: Callable[..., np.ndarray],
+        xdata: np.ndarray,
+        ydata: np.ndarray,
+        p0: np.ndarray,
+        lower_bounds: np.ndarray,
+        upper_bounds: np.ndarray,
+        n_data: int,
+        n_params: int,
+        method: str,
+    ) -> Any:
+        """Dispatch a single call to the appropriate nlsq function/class."""
+        if tier == NLSQStrategy.STREAMING:
+            if not STREAMING_AVAILABLE or AdaptiveHybridStreamingOptimizer is None:
+                raise RuntimeError(
+                    "AdaptiveHybridStreamingOptimizer not available in this nlsq build"
+                )
+            optimizer = AdaptiveHybridStreamingOptimizer()
+            return optimizer.fit(
+                f=wrapped_fn,
+                xdata=xdata,
+                ydata=ydata,
+                p0=p0,
+                bounds=(lower_bounds, upper_bounds),
             )
 
-            fitted_params = result.x
-            final_residuals = result.fun
-            final_cost = result.cost
-
-            # Degrees of freedom
-            n_data = len(final_residuals)
-            n_params = len(fitted_params)
-            n_dof = n_data - n_params
-            reduced_chi2 = 2 * final_cost / n_dof if n_dof > 0 else None
-
-            # Compute covariance from Jacobian
-            covariance = None
-            uncertainties = None
-            if result.jac is not None:
-                try:
-                    # J^T J approximates the Hessian
-                    jtj = result.jac.T @ result.jac
-                    # Covariance = (J^T J)^-1 * s^2 where s^2 is residual variance
-                    s2 = 2 * final_cost / n_dof if n_dof > 0 else 1.0
-                    cond = np.linalg.cond(jtj)
-                    if cond > 1e12:
-                        logger.warning(
-                            f"Ill-conditioned J^T J (cond={cond:.2e}), "
-                            f"using pseudo-inverse"
-                        )
-                        covariance = np.linalg.pinv(jtj) * s2
-                    else:
-                        covariance = np.linalg.inv(jtj) * s2
-                    uncertainties = np.sqrt(np.maximum(np.diag(covariance), 0.0))
-                except np.linalg.LinAlgError:
-                    logger.warning("Could not compute covariance matrix")
-
-            wall_time = time.perf_counter() - start_time
-
-            return NLSQResult(
-                parameters=fitted_params,
-                parameter_names=self._parameter_names,
-                success=result.success,
-                message=result.message,
-                uncertainties=uncertainties,
-                covariance=covariance,
-                final_cost=final_cost,
-                reduced_chi_squared=reduced_chi2,
-                # least_squares doesn't expose iteration count; njev
-                # (Jacobian evaluations) is the closest available proxy
-                n_iterations=result.njev if result.njev is not None else 0,
-                n_function_evals=result.nfev,
-                convergence_reason=str(result.status),
-                residuals=final_residuals,
-                jacobian=result.jac,
-                wall_time_seconds=wall_time,
+        if tier == NLSQStrategy.LARGE:
+            return curve_fit_large(
+                f=wrapped_fn,
+                xdata=xdata,
+                ydata=ydata,
+                p0=p0,
+                bounds=(lower_bounds, upper_bounds),
             )
 
-        except (RuntimeError, ValueError, TypeError, np.linalg.LinAlgError) as e:
-            logger.error("Scipy optimization failed: %s", e)
-            wall_time = time.perf_counter() - start_time
+        # STANDARD
+        return curve_fit(
+            f=wrapped_fn,
+            xdata=xdata,
+            ydata=ydata,
+            p0=p0,
+            bounds=(lower_bounds, upper_bounds),
+            method=method,
+        )
 
-            return NLSQResult(
-                parameters=initial_params,
-                parameter_names=self._parameter_names,
-                success=False,
-                message=str(e),
-                wall_time_seconds=wall_time,
-            )
+
+__all__ = [
+    "CachedModel",
+    "ModelCacheKey",
+    "NLSQAdapter",
+    "NLSQWrapper",
+    "_MODEL_CACHE_MAX_SIZE",
+    "_model_cache",
+    "clear_model_cache",
+    "get_cache_stats",
+    "get_or_create_fitter",
+    "STREAMING_AVAILABLE",
+]
