@@ -18,7 +18,6 @@ from heterodyne.optimization.nlsq.memory import (
     StrategyDecision,
     detect_total_system_memory,
     estimate_peak_memory_gb,
-    get_adaptive_memory_threshold,
     select_nlsq_strategy,
 )
 
@@ -83,67 +82,11 @@ class TestEstimatePeakMemory:
 
     @pytest.mark.unit
     def test_overhead_factor(self) -> None:
-        """Overhead factor of 4.0x is applied."""
+        """Overhead factor of 6.5x is applied."""
         n_points, n_params = 1000, 10
         jacobian_gb = n_points * n_params * 8 / (1024**3)
         estimated = estimate_peak_memory_gb(n_points, n_params)
-        assert estimated == pytest.approx(jacobian_gb * 4.0)
-
-
-# ============================================================================
-# get_adaptive_memory_threshold
-# ============================================================================
-
-
-class TestAdaptiveMemoryThreshold:
-    """Tests for threshold computation."""
-
-    @pytest.mark.unit
-    def test_default_returns_positive(self) -> None:
-        """Default threshold is positive."""
-        threshold = get_adaptive_memory_threshold()
-        assert threshold > 0
-
-    @pytest.mark.unit
-    def test_env_var_override(self) -> None:
-        """HETERODYNE_MEMORY_FRACTION env var is respected."""
-        with patch.dict("os.environ", {"HETERODYNE_MEMORY_FRACTION": "0.5"}):
-            threshold_50 = get_adaptive_memory_threshold()
-
-        with patch.dict("os.environ", {"HETERODYNE_MEMORY_FRACTION": "0.9"}):
-            threshold_90 = get_adaptive_memory_threshold()
-
-        # 90% should be >= 50% (assuming same total memory)
-        assert threshold_90 >= threshold_50
-
-    @pytest.mark.unit
-    def test_invalid_env_var_ignored(self) -> None:
-        """Invalid env var falls back to default."""
-        with patch.dict("os.environ", {"HETERODYNE_MEMORY_FRACTION": "not_a_number"}):
-            threshold = get_adaptive_memory_threshold()
-            assert threshold > 0  # Should not crash
-
-    @pytest.mark.unit
-    def test_fraction_clamped(self) -> None:
-        """Fraction is clamped to [0.1, 0.9]."""
-        # Very high fraction
-        with patch.dict("os.environ", {"HETERODYNE_MEMORY_FRACTION": "5.0"}):
-            t_high = get_adaptive_memory_threshold()
-
-        with patch.dict("os.environ", {"HETERODYNE_MEMORY_FRACTION": "0.9"}):
-            t_09 = get_adaptive_memory_threshold()
-
-        assert t_high == pytest.approx(t_09)
-
-    @pytest.mark.unit
-    def test_fallback_when_no_memory_detected(self) -> None:
-        """Returns 4.0 GB when system memory can't be detected."""
-        with patch(
-            "heterodyne.optimization.nlsq.memory.detect_total_system_memory",
-            return_value=None,
-        ):
-            threshold = get_adaptive_memory_threshold()
-            assert threshold == 4.0
+        assert estimated == pytest.approx(jacobian_gb * 6.5)
 
 
 # ============================================================================
@@ -162,15 +105,15 @@ class TestSelectNLSQStrategy:
         assert isinstance(decision, StrategyDecision)
 
     @pytest.mark.unit
-    def test_huge_problem_out_of_core(self) -> None:
-        """Huge problems recommend OUT_OF_CORE."""
-        # Force small threshold
+    def test_huge_problem_large_strategy(self) -> None:
+        """Large problems recommend LARGE strategy."""
+        # Threshold = 0.1 GB: index (0.007 GB) fits, peak (~0.68 GB) exceeds
         with patch(
-            "heterodyne.optimization.nlsq.memory.get_adaptive_memory_threshold",
-            return_value=0.001,  # 1 MB threshold
+            "heterodyne.optimization.nlsq.memory.detect_total_system_memory",
+            return_value=0.1 / 0.75,
         ):
             decision = select_nlsq_strategy(n_points=1_000_000, n_params=14)
-            assert decision.strategy == NLSQStrategy.OUT_OF_CORE
+            assert decision.strategy == NLSQStrategy.LARGE
 
     @pytest.mark.unit
     def test_decision_has_reason(self) -> None:
@@ -189,4 +132,5 @@ class TestSelectNLSQStrategy:
     def test_strategy_enum_values(self) -> None:
         """NLSQStrategy enum has expected values."""
         assert NLSQStrategy.STANDARD.value == "standard"
-        assert NLSQStrategy.OUT_OF_CORE.value == "out_of_core"
+        assert NLSQStrategy.LARGE.value == "large"
+        assert NLSQStrategy.STREAMING.value == "streaming"
