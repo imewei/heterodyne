@@ -30,17 +30,12 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 try:
-    from heterodyne.optimization.nlsq.adapter import NLSQAdapter, ScipyNLSQAdapter
+    from heterodyne.optimization.nlsq.adapter import NLSQAdapter, NLSQWrapper
 
     HAS_ADAPTERS = True
-except ImportError:
-    HAS_ADAPTERS = False
-
-try:
-    from heterodyne.optimization.nlsq.wrapper import NLSQWrapper
-
     HAS_WRAPPER = True
 except ImportError:
+    HAS_ADAPTERS = False
     HAS_WRAPPER = False
 
 try:
@@ -262,8 +257,6 @@ def _fit_joint_multi_phi(
     This is the heterodyne equivalent of homodyne's AntiDegeneracyController
     joint-fit path.
     """
-    from scipy.optimize import least_squares
-
     t_start = time.perf_counter()
 
     param_manager = model.param_manager
@@ -339,22 +332,58 @@ def _fit_joint_multi_phi(
 
         return np.concatenate(all_residuals)
 
-    # Run optimization
-    scipy_result = least_squares(
-        joint_residual_fn,
-        x0,
-        bounds=(lb, ub),
+    # Run optimization via NLSQAdapter (primary) with NLSQWrapper fallback
+    joint_config = NLSQConfig(
         method=config.method if config.method != "lm" else "trf",
         ftol=config.ftol,
         xtol=config.xtol,
         gtol=config.gtol,
         max_nfev=(config.max_nfev * n_phi if config.max_nfev is not None else None),
-        loss=config.loss,
     )
 
+    joint_result: NLSQResult | None = None
+    joint_param_names = list(varying_names) + [
+        f"fourier_{i}" for i in range(len(fourier_initial))
+    ]
+
+    if HAS_ADAPTERS:
+        try:
+            joint_adapter = NLSQAdapter(parameter_names=joint_param_names)
+            joint_result = joint_adapter.fit(
+                residual_fn=joint_residual_fn,
+                initial_params=x0,
+                bounds=(lb, ub),
+                config=joint_config,
+            )
+            if not joint_result.success:
+                raise RuntimeError(
+                    f"Joint adapter returned success=False: {joint_result.message}"
+                )
+        except (ValueError, RuntimeError, TypeError) as adapter_exc:
+            logger.warning(
+                "Joint NLSQAdapter failed, falling back to NLSQWrapper: %s", adapter_exc
+            )
+            joint_result = None
+
+    if joint_result is None and HAS_WRAPPER:
+        joint_wrapper = NLSQWrapper(parameter_names=joint_param_names)
+        joint_result = joint_wrapper.fit(
+            residual_fn=joint_residual_fn,
+            initial_params=x0,
+            bounds=(lb, ub),
+            config=joint_config,
+        )
+
+    if joint_result is None:
+        raise ImportError(
+            "No NLSQ backend available for joint multi-angle fit. "
+            "Ensure heterodyne.optimization.nlsq.adapter is importable."
+        )
+
     # Extract results
-    fitted_physics = scipy_result.x[:n_physics_varying]
-    fitted_fourier = scipy_result.x[n_physics_varying:]
+    fitted_params_full = joint_result.parameters
+    fitted_physics = fitted_params_full[:n_physics_varying]
+    fitted_fourier = fitted_params_full[n_physics_varying:]
     fitted_contrast, fitted_offset = fourier.fourier_to_per_angle(fitted_fourier)
 
     # Update model with fitted physics parameters
@@ -390,10 +419,10 @@ def _fit_joint_multi_phi(
                     offset=float(fitted_offset[i]),
                 )
             ),
-            final_cost=float(scipy_result.cost),
-            success=bool(scipy_result.success),
-            message=str(scipy_result.message),
-            n_function_evals=int(scipy_result.nfev),
+            final_cost=joint_result.final_cost,
+            success=bool(joint_result.success),
+            message=str(joint_result.message),
+            n_function_evals=int(joint_result.n_function_evals or 0),
             fitted_correlation=np.asarray(fitted_c2),
             metadata={
                 "phi_angle": float(phi_angles[i]),
@@ -414,9 +443,9 @@ def _fit_joint_multi_phi(
     logger.info(
         "Joint multi-angle fit complete: success=%s, cost=%.6f, "
         "n_evals=%d, wall_time=%.2fs, %d angles",
-        scipy_result.success,
-        scipy_result.cost,
-        scipy_result.nfev,
+        joint_result.success,
+        joint_result.final_cost or 0.0,
+        joint_result.n_function_evals or 0,
         wall_time,
         n_phi,
     )
@@ -661,16 +690,9 @@ def _fit_local(
             result = None
 
     # Wrapper fallback (or primary if use_nlsq_library=False)
-    if result is None and HAS_WRAPPER and HAS_ADAPTERS:
+    if result is None and HAS_WRAPPER:
         try:
-            enable_recovery = getattr(config, "enable_recovery", True)
-            wrapper = NLSQWrapper(
-                parameter_names=varying_names,
-                use_jax=False,
-                max_retries=getattr(config, "max_recovery_attempts", 3),
-                enable_recovery=enable_recovery,
-                enable_diagnostics=getattr(config, "enable_diagnostics", False),
-            )
+            wrapper = NLSQWrapper(parameter_names=varying_names)
             logger.debug("Attempting optimization with NLSQWrapper")
 
             result = wrapper.fit(
@@ -698,17 +720,6 @@ def _fit_local(
                 message=f"All optimizers failed. Adapter: {adapter_error}; "
                 f"Wrapper: {wrapper_error}",
             )
-
-    # Final fallback: direct scipy
-    if result is None and HAS_ADAPTERS:
-        logger.debug("Falling back to direct ScipyNLSQAdapter")
-        scipy_adapter = ScipyNLSQAdapter(parameter_names=varying_names)
-        result = scipy_adapter.fit(
-            residual_fn=numpy_residual_fn,
-            initial_params=initial_varying,
-            bounds=(lower_bounds, upper_bounds),
-            config=config,
-        )
 
     if result is None:
         raise ImportError(
@@ -768,14 +779,18 @@ def _select_adapter(
     varying_names: list[str],
     use_nlsq_library: bool,
 ) -> Any:
-    """Select the appropriate adapter backend."""
+    """Select the appropriate adapter backend.
+
+    Returns NLSQAdapter when the nlsq library is available and requested,
+    otherwise falls back to NLSQWrapper (memory-tier routing).
+    """
     if use_nlsq_library and HAS_ADAPTERS:
         try:
             return NLSQAdapter(parameter_names=varying_names)
         except ImportError:
-            logger.warning("nlsq library not available, using scipy")
-    if HAS_ADAPTERS:
-        return ScipyNLSQAdapter(parameter_names=varying_names)
+            logger.warning("nlsq library not available, falling back to NLSQWrapper")
+    if HAS_WRAPPER:
+        return NLSQWrapper(parameter_names=varying_names)
     raise ImportError("No NLSQ adapter available")
 
 
