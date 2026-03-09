@@ -125,13 +125,14 @@ class TestPerturbInitParams:
 
     @pytest.mark.unit
     def test_perturbation_is_small(self) -> None:
-        """Perturbation should be close to base values (scale=0.01)."""
+        """Perturbation should be small relative to base value (scale=0.01)."""
         base_val = 1000.0
         init = {"x": jnp.array(base_val)}
         result = _perturb_init_params(init, num_chains=8, seed=42)
         deviations = jnp.abs(result["x"] - base_val)
-        # With scale=0.01, deviations should be very small relative to 1.0
-        assert float(jnp.max(deviations)) < 1.0
+        # With relative scale=0.01, max deviation ~ 0.01 * |base| * |N(0,1)|
+        # ≈ 10 * |N(0,1)|, so max over 8 chains should be < 5% of base
+        assert float(jnp.max(deviations)) < 0.05 * base_val
 
     @pytest.mark.unit
     def test_chains_differ(self) -> None:
