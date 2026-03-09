@@ -153,8 +153,8 @@ class DatasetSize:
     """Dataset size categories for optimization."""
 
     SMALL = "small"    # <1M points
-    MEDIUM = "medium"  # 1-20M points
-    LARGE = "large"    # >20M points
+    MEDIUM = "medium"  # 1-10M points
+    LARGE = "large"    # >10M points
 
     @staticmethod
     def categorize(data_size: int) -> str:
@@ -172,7 +172,7 @@ class DatasetSize:
         """
         if data_size < 1_000_000:
             return DatasetSize.SMALL
-        elif data_size <= 20_000_000:
+        elif data_size < 10_000_000:
             return DatasetSize.MEDIUM
         else:
             return DatasetSize.LARGE
@@ -353,8 +353,7 @@ if JAX_AVAILABLE:
             return jax.scipy.linalg.solve_triangular(L.T, z, lower=False)
 
         def svd_solve() -> Any:
-            rhs = design_matrix.T @ target_vector
-            return jnp.linalg.lstsq(gram_matrix_reg, rhs, rcond=None)[0]
+            return jnp.linalg.lstsq(gram_matrix_reg, design_T_target, rcond=None)[0]
 
         params = jax.lax.cond(
             condition_number < 1e10,
@@ -500,7 +499,7 @@ else:
         n_data = 0
 
         for theory_chunk, exp_chunk in zip(
-            theory_chunks, exp_chunks, strict=False
+            theory_chunks, exp_chunks, strict=True
         ):
             sum_theory_sq += np.sum(theory_chunk * theory_chunk)
             sum_theory += np.sum(theory_chunk)
@@ -670,20 +669,29 @@ class UnifiedHeterodyneEngine:
             data_flat = jnp.ravel(jnp.asarray(data))
             sigma_flat = jnp.ravel(jnp.asarray(sigma))
 
-            # Truncate to matching length
-            n = min(len(c2_flat), len(data_flat))
-            residuals = (data_flat[:n] - c2_flat[:n]) / sigma_flat[:n]
+            # Validate array lengths match (no silent truncation)
+            if len(c2_flat) != len(data_flat):
+                raise ValueError(
+                    f"Model output length {len(c2_flat)} does not match "
+                    f"data length {len(data_flat)}"
+                )
+            if len(sigma_flat) != len(data_flat):
+                raise ValueError(
+                    f"Sigma length {len(sigma_flat)} does not match "
+                    f"data length {len(data_flat)}"
+                )
+            residuals = (data_flat - c2_flat) / sigma_flat
 
             if JAX_AVAILABLE:
                 chi_sq = jnp.sum(residuals**2)
                 nll = 0.5 * chi_sq + 0.5 * jnp.sum(
-                    jnp.log(2 * jnp.pi * sigma_flat[:n] ** 2)
+                    jnp.log(2 * jnp.pi * sigma_flat ** 2)
                 )
                 return float(nll)
             else:
                 chi_sq = np.sum(np.asarray(residuals) ** 2)
                 nll = 0.5 * chi_sq + 0.5 * np.sum(
-                    np.log(2 * np.pi * np.asarray(sigma_flat[:n]) ** 2)
+                    np.log(2 * np.pi * np.asarray(sigma_flat) ** 2)
                 )
                 return float(nll)
 
@@ -703,7 +711,7 @@ class UnifiedHeterodyneEngine:
         size = data.size
         category = DatasetSize.categorize(size)
 
-        memory_mb = (data.nbytes * 4) / (1024 * 1024)
+        memory_mb = data.nbytes / (1024 * 1024)
         logger.info("Dataset size: %s points (%s)", f"{size:,}", category)
         logger.info("Estimated memory: %.1f MB", memory_mb)
 

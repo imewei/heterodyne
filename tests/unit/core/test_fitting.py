@@ -87,9 +87,9 @@ class TestDatasetSize:
         assert DatasetSize.categorize(1_000_000) == DatasetSize.MEDIUM
 
     def test_boundary_medium_large(self) -> None:
-        # Task spec says >20M is LARGE
-        assert DatasetSize.categorize(20_000_000) == DatasetSize.MEDIUM
-        assert DatasetSize.categorize(20_000_001) == DatasetSize.LARGE
+        # Mirrors homodyne: <10M is MEDIUM, >=10M is LARGE
+        assert DatasetSize.categorize(9_999_999) == DatasetSize.MEDIUM
+        assert DatasetSize.categorize(10_000_000) == DatasetSize.LARGE
 
 
 # ---------------------------------------------------------------------------
