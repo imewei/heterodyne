@@ -302,3 +302,54 @@ class HierarchicalFitter:
         )
 
         return final_result
+
+
+# ---------------------------------------------------------------------------
+# HierarchicalResult dataclass
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class HierarchicalResult:
+    """Structured result from a completed hierarchical multi-stage fit.
+
+    Unlike the raw :class:`~heterodyne.optimization.nlsq.results.NLSQResult`
+    returned by :meth:`HierarchicalFitter.fit`, this container retains the
+    per-stage detail needed for convergence analysis and diagnostics.
+
+    Attributes:
+        best_params: Mapping of parameter name to fitted value at the end
+            of the final completed stage.
+        best_cost: Scalar cost (sum of squared residuals) of the best fit.
+        stage_results: List of per-stage summary dicts.  Each dict contains
+            at least the keys ``"stage"`` (str), ``"success"`` (bool),
+            ``"cost"`` (float | None), and ``"n_iterations"`` (int).
+        n_stages_completed: Number of stages that were actually executed
+            (stages with no varying parameters are not counted).
+        converged: ``True`` if the final stage reported
+            ``success=True``.
+        total_iterations: Sum of ``n_iterations`` across all executed stages.
+    """
+
+    best_params: dict[str, float]
+    best_cost: float
+    stage_results: list[dict[str, Any]]
+    n_stages_completed: int
+    converged: bool
+    total_iterations: int
+
+    @property
+    def convergence_trajectory(self) -> list[float]:
+        """Per-stage best cost, in stage execution order.
+
+        Stages whose cost is ``None`` (e.g. failed stages when
+        ``skip_failed_stages=True``) are represented as ``float('nan')``.
+
+        Returns:
+            List of scalar costs, one per entry in :attr:`stage_results`.
+        """
+        trajectory: list[float] = []
+        for entry in self.stage_results:
+            cost = entry.get("cost")
+            trajectory.append(float(cost) if cost is not None else float("nan"))
+        return trajectory

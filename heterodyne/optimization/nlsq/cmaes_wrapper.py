@@ -202,3 +202,161 @@ class CMAESWrapper:
             wall_time=wall_time,
             metadata=result_metadata,
         )
+
+
+# ---------------------------------------------------------------------------
+# CMAESResult dataclass
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CMAESResult:
+    """Detailed result container for a CMA-ES optimization run.
+
+    Attributes:
+        best_params: Mapping of parameter name to fitted value.
+        best_cost: Scalar cost (objective value) at the solution.
+        n_iterations: Number of CMA-ES generations completed.
+        n_evaluations: Total number of objective function evaluations.
+        converged: Whether CMA-ES stopped due to a convergence criterion.
+        final_sigma: Step-size (standard deviation) at termination.
+        history: Cost value recorded at the end of each generation.
+    """
+
+    best_params: dict[str, float]
+    best_cost: float
+    n_iterations: int
+    n_evaluations: int
+    converged: bool
+    final_sigma: float
+    history: list[float]
+
+
+# ---------------------------------------------------------------------------
+# Coordinate transformation utilities
+# ---------------------------------------------------------------------------
+
+
+def normalize_to_unit_cube(
+    x: np.ndarray,
+    lower: np.ndarray,
+    upper: np.ndarray,
+) -> np.ndarray:
+    """Map parameter vector from physical bounds to the unit hypercube [0, 1].
+
+    Args:
+        x: Parameter vector of shape ``(n_params,)``.
+        lower: Lower bound array of shape ``(n_params,)``.
+        upper: Upper bound array of shape ``(n_params,)``.
+
+    Returns:
+        Transformed array of shape ``(n_params,)`` with values in [0, 1].
+        Dimensions where ``lower == upper`` are mapped to 0.0.
+
+    Raises:
+        ValueError: If arrays have mismatched shapes.
+    """
+    x = np.asarray(x, dtype=np.float64)
+    lower = np.asarray(lower, dtype=np.float64)
+    upper = np.asarray(upper, dtype=np.float64)
+    if not (x.shape == lower.shape == upper.shape):
+        raise ValueError(
+            f"x, lower, and upper must have the same shape; "
+            f"got {x.shape}, {lower.shape}, {upper.shape}"
+        )
+    span = upper - lower
+    # Avoid division by zero for fixed dimensions
+    safe_span = np.where(span > 0, span, 1.0)
+    x_norm = np.where(span > 0, (x - lower) / safe_span, 0.0)
+    return x_norm
+
+
+def denormalize_from_unit_cube(
+    x_norm: np.ndarray,
+    lower: np.ndarray,
+    upper: np.ndarray,
+) -> np.ndarray:
+    """Map parameter vector from the unit hypercube [0, 1] to physical bounds.
+
+    This is the inverse of :func:`normalize_to_unit_cube`.
+
+    Args:
+        x_norm: Normalized parameter vector of shape ``(n_params,)``
+            with values in [0, 1].
+        lower: Lower bound array of shape ``(n_params,)``.
+        upper: Upper bound array of shape ``(n_params,)``.
+
+    Returns:
+        De-normalized array of shape ``(n_params,)`` in physical units.
+
+    Raises:
+        ValueError: If arrays have mismatched shapes.
+    """
+    x_norm = np.asarray(x_norm, dtype=np.float64)
+    lower = np.asarray(lower, dtype=np.float64)
+    upper = np.asarray(upper, dtype=np.float64)
+    if not (x_norm.shape == lower.shape == upper.shape):
+        raise ValueError(
+            f"x_norm, lower, and upper must have the same shape; "
+            f"got {x_norm.shape}, {lower.shape}, {upper.shape}"
+        )
+    return lower + x_norm * (upper - lower)
+
+
+def adjust_covariance_for_bounds(
+    cov: np.ndarray,
+    lower: np.ndarray,
+    upper: np.ndarray,
+) -> np.ndarray:
+    """Scale a covariance matrix to account for parameter bounds ranges.
+
+    When parameters have very different dynamic ranges, a unit-cube
+    covariance should be scaled to physical space.  The adjustment is:
+
+        cov_adjusted[i, j] = cov[i, j] * (upper[i] - lower[i])
+                                        * (upper[j] - lower[j])
+
+    Args:
+        cov: Covariance matrix of shape ``(n_params, n_params)``.
+        lower: Lower bound array of shape ``(n_params,)``.
+        upper: Upper bound array of shape ``(n_params,)``.
+
+    Returns:
+        Adjusted covariance matrix of shape ``(n_params, n_params)``.
+
+    Raises:
+        ValueError: If array shapes are inconsistent.
+    """
+    cov = np.asarray(cov, dtype=np.float64)
+    lower = np.asarray(lower, dtype=np.float64)
+    upper = np.asarray(upper, dtype=np.float64)
+
+    n = len(lower)
+    if cov.shape != (n, n):
+        raise ValueError(
+            f"cov must be square with side length matching bounds ({n}), "
+            f"got shape {cov.shape}"
+        )
+    if lower.shape != (n,) or upper.shape != (n,):
+        raise ValueError(
+            f"lower and upper must have shape ({n},), "
+            f"got {lower.shape} and {upper.shape}"
+        )
+
+    spans = upper - lower  # shape (n,)
+    # Outer product of spans gives the scaling matrix
+    scale = np.outer(spans, spans)  # shape (n, n)
+    result = cov * scale
+
+    # Warn if the result is not positive semi-definite (can happen if
+    # the input cov has numerical noise from CMA-ES)
+    min_eig = float(np.linalg.eigvalsh(result).min())
+    if min_eig < 0:
+        logger.warning(
+            "adjust_covariance_for_bounds: result is not PSD "
+            "(min eigenvalue=%.2e). Downstream consumers may need "
+            "to apply a PSD projection.",
+            min_eig,
+        )
+
+    return result

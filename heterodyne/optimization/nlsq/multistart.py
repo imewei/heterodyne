@@ -613,3 +613,120 @@ class MultiStartOptimizer:
 
         # Return in original start order
         return [results_map[i] for i in sorted(results_map)]
+
+
+# ---------------------------------------------------------------------------
+# Standalone LHS utilities
+# ---------------------------------------------------------------------------
+
+
+def check_zero_volume_bounds(
+    bounds_lower: np.ndarray,
+    bounds_upper: np.ndarray,
+) -> list[int]:
+    """Identify parameter dimensions with zero sampling volume.
+
+    A dimension has zero volume when its lower bound equals its upper bound,
+    meaning the parameter is effectively fixed.  LHS sampling should skip
+    these dimensions and keep all starts at the fixed value.
+
+    Args:
+        bounds_lower: Lower bound array of shape ``(n_params,)``.
+        bounds_upper: Upper bound array of shape ``(n_params,)``.
+
+    Returns:
+        Sorted list of dimension indices where
+        ``bounds_lower[i] == bounds_upper[i]``.
+
+    Raises:
+        ValueError: If arrays have different lengths.
+    """
+    lower = np.asarray(bounds_lower, dtype=np.float64)
+    upper = np.asarray(bounds_upper, dtype=np.float64)
+    if lower.shape != upper.shape:
+        raise ValueError(
+            f"bounds_lower and bounds_upper must have the same shape, "
+            f"got {lower.shape} vs {upper.shape}"
+        )
+    fixed_dims = [int(i) for i in np.where(lower == upper)[0]]
+    if fixed_dims:
+        logger.debug(
+            "check_zero_volume_bounds: %d fixed dimension(s) detected: %s",
+            len(fixed_dims),
+            fixed_dims,
+        )
+    return fixed_dims
+
+
+def generate_lhs_starts(
+    n_starts: int,
+    bounds_lower: np.ndarray,
+    bounds_upper: np.ndarray,
+    seed: int = 42,
+) -> np.ndarray:
+    """Generate Latin Hypercube starting points, excluding fixed dimensions.
+
+    Fixed dimensions (where ``bounds_lower[i] == bounds_upper[i]``) are
+    detected via :func:`check_zero_volume_bounds` and excluded from LHS
+    sampling.  All starts receive the fixed value for those dimensions.
+
+    Args:
+        n_starts: Number of starting points to generate.
+        bounds_lower: Lower bound array of shape ``(n_params,)``.
+        bounds_upper: Upper bound array of shape ``(n_params,)``.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        Array of shape ``(n_starts, n_params)`` containing starting points.
+
+    Raises:
+        ValueError: If ``n_starts < 1`` or bound arrays have mismatched shapes.
+    """
+    if n_starts < 1:
+        raise ValueError(f"n_starts must be >= 1, got {n_starts}")
+
+    lower = np.asarray(bounds_lower, dtype=np.float64)
+    upper = np.asarray(bounds_upper, dtype=np.float64)
+    n_params = len(lower)
+
+    fixed_dims = check_zero_volume_bounds(lower, upper)
+    fixed_set = set(fixed_dims)
+    free_dims = [i for i in range(n_params) if i not in fixed_set]
+
+    # Initialise output; fixed dimensions get their constant value immediately
+    starts = np.empty((n_starts, n_params), dtype=np.float64)
+    for i in fixed_dims:
+        starts[:, i] = lower[i]
+
+    if not free_dims:
+        logger.warning(
+            "generate_lhs_starts: all %d dimensions are fixed — "
+            "all starts are identical",
+            n_params,
+        )
+        return starts
+
+    # LHS over free dimensions only
+    rng = np.random.default_rng(seed)
+    n_free = len(free_dims)
+    lhs_block = np.zeros((n_starts, n_free), dtype=np.float64)
+
+    for col_idx, dim in enumerate(free_dims):
+        lo = lower[dim]
+        hi = upper[dim]
+        perm = rng.permutation(n_starts).astype(np.float64)
+        u = rng.random(n_starts)
+        lhs_block[:, col_idx] = lo + (perm + u) * (hi - lo) / n_starts
+
+    free_dims_arr = np.array(free_dims)
+    starts[:, free_dims_arr] = lhs_block
+
+    logger.debug(
+        "generate_lhs_starts: generated %d starts across %d free / %d fixed dims "
+        "(seed=%d)",
+        n_starts,
+        n_free,
+        len(fixed_dims),
+        seed,
+    )
+    return starts

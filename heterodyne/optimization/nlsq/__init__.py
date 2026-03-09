@@ -2,6 +2,18 @@
 
 from heterodyne.optimization.nlsq.adapter import NLSQAdapter
 from heterodyne.optimization.nlsq.adapter_base import NLSQAdapterBase
+from heterodyne.optimization.nlsq.anti_degeneracy_controller import (
+    GradientCollapseDetector,
+    compute_effective_lambda,
+    detect_hierarchical_trigger,
+    suggest_regularization,
+)
+from heterodyne.optimization.nlsq.cmaes_wrapper import (
+    CMAESResult,
+    adjust_covariance_for_bounds,
+    denormalize_from_unit_cube,
+    normalize_to_unit_cube,
+)
 from heterodyne.optimization.nlsq.config import NLSQConfig, NLSQValidationConfig
 from heterodyne.optimization.nlsq.core import fit_nlsq_jax
 from heterodyne.optimization.nlsq.data_prep import (
@@ -11,8 +23,18 @@ from heterodyne.optimization.nlsq.data_prep import (
     prepare_fit_data,
     unflatten_upper_triangle,
 )
+from heterodyne.optimization.nlsq.hierarchical import HierarchicalResult
+from heterodyne.optimization.nlsq.jacobian import (
+    analyze_parameter_sensitivity,
+    compute_jacobian_condition_number,
+    estimate_gradient_noise,
+)
 from heterodyne.optimization.nlsq.memory import NLSQStrategy, select_nlsq_strategy
-from heterodyne.optimization.nlsq.multistart import MultiStartOptimizer
+from heterodyne.optimization.nlsq.multistart import (
+    MultiStartOptimizer,
+    check_zero_volume_bounds,
+    generate_lhs_starts,
+)
 from heterodyne.optimization.nlsq.result_builder import (
     TimedContext,
     build_failed_result,
@@ -76,4 +98,23 @@ __all__ = [
     "ConvergenceValidator",
     "ValidationReport",
     "ValidationSeverity",
+    # Anti-degeneracy (parity)
+    "GradientCollapseDetector",
+    "suggest_regularization",
+    "compute_effective_lambda",
+    "detect_hierarchical_trigger",
+    # CMA-ES (parity)
+    "CMAESResult",
+    "normalize_to_unit_cube",
+    "denormalize_from_unit_cube",
+    "adjust_covariance_for_bounds",
+    # Hierarchical (parity)
+    "HierarchicalResult",
+    # Jacobian (parity)
+    "compute_jacobian_condition_number",
+    "analyze_parameter_sensitivity",
+    "estimate_gradient_noise",
+    # Multi-start (parity)
+    "check_zero_volume_bounds",
+    "generate_lhs_starts",
 ]

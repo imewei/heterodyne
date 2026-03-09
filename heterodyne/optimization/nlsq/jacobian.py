@@ -221,3 +221,131 @@ def compare_jacobians(
         "worst_column": int(worst_col),
         "worst_row": int(worst_row),
     }
+
+
+def compute_jacobian_condition_number(jacobian: np.ndarray) -> float:
+    """Compute the condition number of J^T @ J.
+
+    A large condition number indicates that the normal equations are
+    ill-conditioned, which typically leads to poor uncertainty estimates
+    and slow NLSQ convergence.
+
+    Args:
+        jacobian: Jacobian matrix of shape ``(n_residuals, n_params)``.
+
+    Returns:
+        Condition number of J^T J as a float.  Returns ``inf`` if the
+        matrix is singular or the computation fails.
+    """
+    jac = np.asarray(jacobian, dtype=np.float64)
+    try:
+        jtj = jac.T @ jac
+        cond = float(np.linalg.cond(jtj))
+    except np.linalg.LinAlgError:
+        logger.debug("compute_jacobian_condition_number: LinAlgError; returning inf")
+        cond = float("inf")
+    return cond
+
+
+def analyze_parameter_sensitivity(
+    jacobian: np.ndarray,
+    param_names: list[str],
+) -> dict[str, float]:
+    """Estimate per-parameter model sensitivity from Jacobian column norms.
+
+    The L2 norm of column *i* of the Jacobian measures how much the
+    residual vector changes per unit step in parameter *i*.  A larger
+    norm indicates the model output is more sensitive to that parameter,
+    while a near-zero norm suggests the parameter is locally
+    unidentifiable.
+
+    Args:
+        jacobian: Jacobian matrix of shape ``(n_residuals, n_params)``.
+        param_names: Names for each parameter (length must equal
+            ``n_params``).
+
+    Returns:
+        Dictionary mapping each parameter name to its sensitivity
+        (L2 column norm).
+
+    Raises:
+        ValueError: If ``len(param_names)`` does not match ``n_params``.
+    """
+    jac = np.asarray(jacobian, dtype=np.float64)
+    n_params = jac.shape[1]
+
+    if len(param_names) != n_params:
+        raise ValueError(
+            f"param_names length {len(param_names)} does not match "
+            f"n_params {n_params}"
+        )
+
+    col_norms = np.linalg.norm(jac, axis=0)
+    sensitivity: dict[str, float] = {
+        name: float(col_norms[i]) for i, name in enumerate(param_names)
+    }
+    logger.debug(
+        "analyze_parameter_sensitivity: norms min=%.3e max=%.3e",
+        float(col_norms.min()),
+        float(col_norms.max()),
+    )
+    return sensitivity
+
+
+def estimate_gradient_noise(
+    jacobian: np.ndarray,
+    residuals: np.ndarray,
+) -> dict[str, float]:
+    """Estimate the noise level in the gradient J^T @ r per parameter.
+
+    For each parameter column *j*, the per-residual gradient contribution
+    is ``g_j = J[:, j] * r``.  The ratio ``std(g_j) / mean(|g_j|)``
+    measures how noisy that gradient component is.  A ratio greater than
+    1.0 means the noise dominates the signal for that parameter.
+
+    Args:
+        jacobian: Jacobian matrix of shape ``(n_residuals, n_params)``.
+        residuals: Residual vector of shape ``(n_residuals,)``.
+
+    Returns:
+        Dictionary with three scalar diagnostics:
+
+        - ``mean_noise_ratio``: Mean noise ratio across all parameters.
+        - ``max_noise_ratio``: Maximum noise ratio across all parameters.
+        - ``noisy_params_fraction``: Fraction of parameters whose noise
+          ratio exceeds 1.0.
+
+    Raises:
+        ValueError: If ``residuals`` length does not match
+            ``n_residuals``.
+    """
+    jac = np.asarray(jacobian, dtype=np.float64)
+    r = np.asarray(residuals, dtype=np.float64)
+
+    n_residuals, n_params = jac.shape
+    if r.shape != (n_residuals,):
+        raise ValueError(
+            f"residuals shape {r.shape} does not match "
+            f"Jacobian n_residuals {n_residuals}"
+        )
+
+    # g[:, j] = J[:, j] * r  — elementwise gradient contributions
+    g = jac * r[:, np.newaxis]  # shape (n_residuals, n_params)
+
+    noise_ratios = np.std(g, axis=0) / (np.mean(np.abs(g), axis=0) + 1e-30)
+
+    mean_noise_ratio = float(np.mean(noise_ratios))
+    max_noise_ratio = float(np.max(noise_ratios))
+    noisy_params_fraction = float(np.mean(noise_ratios > 1.0))
+
+    logger.debug(
+        "estimate_gradient_noise: mean_ratio=%.3e max_ratio=%.3e noisy_frac=%.3f",
+        mean_noise_ratio,
+        max_noise_ratio,
+        noisy_params_fraction,
+    )
+    return {
+        "mean_noise_ratio": mean_noise_ratio,
+        "max_noise_ratio": max_noise_ratio,
+        "noisy_params_fraction": noisy_params_fraction,
+    }

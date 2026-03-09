@@ -9,8 +9,11 @@ are known failure modes.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from heterodyne.utils.logging import get_logger
 
@@ -258,3 +261,190 @@ class AntiDegeneracyController:
                 )
 
         return DegeneracyCheck(is_degenerate=False)
+
+
+# ---------------------------------------------------------------------------
+# Proactive monitoring: gradient collapse detection
+# ---------------------------------------------------------------------------
+
+
+class GradientCollapseDetector:
+    """Detect Jacobian collapse during iterative optimization.
+
+    Tracks the Frobenius norm of the Jacobian across successive calls.
+    When the norm stays below ``threshold`` for ``window`` consecutive
+    calls the optimizer has effectively lost gradient information and a
+    re-start or regularization bump should be considered.
+
+    Parameters
+    ----------
+    threshold : float
+        Frobenius norm below which a call counts as "collapsed".
+    window : int
+        Number of consecutive sub-threshold calls required before
+        :meth:`update` returns ``True``.
+    """
+
+    def __init__(self, threshold: float = 1e-8, window: int = 5) -> None:
+        if threshold <= 0:
+            raise ValueError("threshold must be positive")
+        if window < 1:
+            raise ValueError("window must be >= 1")
+        self._threshold = threshold
+        self._window = window
+        self._history: deque[float] = deque(maxlen=window)
+
+    def update(self, jacobian: np.ndarray) -> bool:
+        """Record the Frobenius norm of *jacobian* and check for collapse.
+
+        Args:
+            jacobian: Jacobian matrix of any shape.
+
+        Returns:
+            ``True`` if the norm has been below ``threshold`` for at least
+            ``window`` consecutive calls; ``False`` otherwise.
+        """
+        norm = float(np.linalg.norm(jacobian, ord="fro"))
+        self._history.append(norm)
+        logger.debug("GradientCollapseDetector: Frobenius norm = %.4e", norm)
+
+        if len(self._history) < self._window:
+            return False
+
+        collapsed = all(n < self._threshold for n in self._history)
+        if collapsed:
+            logger.warning(
+                "GradientCollapseDetector: Jacobian Frobenius norm has been "
+                "below %.2e for %d consecutive calls — gradient collapse detected",
+                self._threshold,
+                self._window,
+            )
+        return collapsed
+
+    def reset(self) -> None:
+        """Clear accumulated norm history."""
+        self._history.clear()
+
+
+# ---------------------------------------------------------------------------
+# Adaptive regularization helpers
+# ---------------------------------------------------------------------------
+
+
+def suggest_regularization(
+    degeneracy_checks: list[DegeneracyCheck],
+    base_lambda: float = 1e-4,
+) -> float:
+    """Suggest a Tikhonov regularization strength based on detected degeneracies.
+
+    The returned value scales linearly with the number of degenerate checks,
+    leaving ``base_lambda`` unchanged when no degeneracy is present.
+
+    Args:
+        degeneracy_checks: Results from one or more degeneracy checks.
+        base_lambda: Baseline regularization strength.
+
+    Returns:
+        Suggested regularization coefficient >= ``base_lambda``.
+    """
+    severity = sum(1 for d in degeneracy_checks if d.is_degenerate)
+    if severity == 0:
+        return base_lambda
+    suggested = base_lambda * (1 + severity)
+    logger.debug(
+        "suggest_regularization: %d degenerate checks → lambda=%.4e",
+        severity,
+        suggested,
+    )
+    return suggested
+
+
+def compute_effective_lambda(
+    base_lambda: float,
+    iteration: int,
+    decay_rate: float = 0.95,
+) -> float:
+    """Compute decaying regularization strength.
+
+    Applies an exponential schedule so that regularization pressure is
+    strongest early in the optimization and relaxes as the solver converges:
+
+        lambda_eff = base_lambda * decay_rate^iteration
+
+    Args:
+        base_lambda: Initial regularization coefficient.
+        iteration: Current iteration index (0-based).
+        decay_rate: Multiplicative decay per iteration; must be in (0, 1].
+
+    Returns:
+        Effective regularization coefficient for this iteration.
+
+    Raises:
+        ValueError: If ``decay_rate`` is outside (0, 1].
+    """
+    if not 0 < decay_rate <= 1:
+        raise ValueError(f"decay_rate must be in (0, 1], got {decay_rate}")
+    if iteration < 0:
+        raise ValueError(f"iteration must be >= 0, got {iteration}")
+    effective = base_lambda * (decay_rate**iteration)
+    logger.debug(
+        "compute_effective_lambda: iter=%d, base=%.4e, decay=%.4f → lambda=%.4e",
+        iteration,
+        base_lambda,
+        decay_rate,
+        effective,
+    )
+    return effective
+
+
+# ---------------------------------------------------------------------------
+# Hierarchical trigger detection
+# ---------------------------------------------------------------------------
+
+
+def detect_hierarchical_trigger(
+    degeneracy_checks: list[DegeneracyCheck],
+    cost_history: list[float],
+) -> bool:
+    """Decide whether to invoke the hierarchical fitting strategy.
+
+    Returns ``True`` when *both* of the following conditions hold:
+
+    1. At least one degeneracy check in *degeneracy_checks* reports
+       ``is_degenerate=True``.
+    2. The last three entries in *cost_history* are within 1 % relative
+       change of one another (cost plateau).
+
+    Args:
+        degeneracy_checks: Sequence of :class:`DegeneracyCheck` results.
+        cost_history: Ordered sequence of scalar cost values across
+            optimization iterations.
+
+    Returns:
+        ``True`` if both degeneracy and cost plateau are detected;
+        ``False`` otherwise.
+    """
+    # Condition 1: at least one degeneracy detected
+    any_degenerate = any(d.is_degenerate for d in degeneracy_checks)
+    if not any_degenerate:
+        return False
+
+    # Condition 2: cost plateau over the last 3 entries
+    if len(cost_history) < 3:
+        return False
+
+    last_three = cost_history[-3:]
+    ref = abs(last_three[0])
+    denom = ref if ref > 1e-30 else 1e-30
+    plateaued = all(
+        abs(c - last_three[0]) / denom < 0.01 for c in last_three[1:]
+    )
+    if not plateaued:
+        return False
+
+    logger.info(
+        "detect_hierarchical_trigger: degeneracy + cost plateau detected "
+        "(last 3 costs: %s) — hierarchical fitting recommended",
+        [f"{c:.4e}" for c in last_three],
+    )
+    return True
