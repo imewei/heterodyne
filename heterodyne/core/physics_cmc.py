@@ -400,8 +400,10 @@ def compute_shard_log_likelihood(
 
     .. deprecated::
         Use ``compute_log_likelihood_elementwise`` with a ``ShardGrid``
-        for production CMC.  This meshgrid variant is retained for
-        backward compatibility and testing.
+        for production CMC.  This meshgrid variant builds the **full N×N**
+        correlation matrix and then slices, defeating the purpose of
+        sharding.  For N > 2000, this can cause OOM (e.g. N=10000 → 800 MB
+        per evaluation).  Use the element-wise path instead.
 
     Args:
         params: Parameter array, shape (14,)
@@ -419,6 +421,25 @@ def compute_shard_log_likelihood(
     Returns:
         Scalar log-likelihood for this shard
     """
+    import warnings
+
+    warnings.warn(
+        "compute_shard_log_likelihood builds the full N×N matrix and is "
+        "deprecated. Use compute_log_likelihood_elementwise with a "
+        "ShardGrid instead to avoid OOM on large datasets.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    n_times = t.shape[0]
+    peak_mb = n_times * n_times * 8 / (1024 * 1024)
+    if n_times > 2000:
+        logger.warning(
+            "compute_shard_log_likelihood: N=%d will allocate ~%.0f MB "
+            "for the full correlation matrix. Consider switching to "
+            "compute_log_likelihood_elementwise.",
+            n_times,
+            peak_mb,
+        )
     c2_full = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     c2_model_shard = jax.lax.dynamic_slice(
         c2_full,
@@ -458,6 +479,14 @@ def compute_sharded_log_likelihood(
     Returns:
         Total scalar log-likelihood
     """
+    import warnings
+
+    warnings.warn(
+        "compute_sharded_log_likelihood is deprecated. Use "
+        "compute_sharded_log_likelihood_elementwise instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     total = jnp.float64(0.0)
     for start, end, c2_shard, sigma_shard in shards:
         ll = compute_shard_log_likelihood(

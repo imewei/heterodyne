@@ -48,7 +48,7 @@ def compute_diagonal_mask(n_times: int, width: int = 1) -> jnp.ndarray:
     if width < 1:
         msg = f"width must be >= 1, got {width}"
         raise ValueError(msg)
-    idx = jnp.arange(n_times, dtype=jnp.int16)
+    idx = jnp.arange(n_times, dtype=jnp.int32)
     return jnp.abs(idx[:, None] - idx[None, :]) < width
 
 
@@ -115,38 +115,59 @@ def _apply_interpolation(c2: jnp.ndarray, width: int) -> jnp.ndarray:
     n = c2.shape[0]
 
     if width == 1:
-        # Fast path: only the main diagonal
+        # Fast path: only the main diagonal.
+        # Use the 4 nearest off-diagonal neighbors.  At boundaries
+        # (i=0 or i=n-1) the clamped index duplicates one neighbor;
+        # count each unique neighbor exactly once via averaging with
+        # the actual number of distinct neighbors.
         i_idx = jnp.arange(n)
         i_prev = jnp.maximum(i_idx - 1, 0)
         i_next = jnp.minimum(i_idx + 1, n - 1)
 
-        # Average of 4 nearest off-diagonal neighbors
-        neighbor_avg = (
+        # Sum of 4 neighbor positions (some may alias at boundaries)
+        neighbor_sum = (
             c2[i_prev, i_idx]
             + c2[i_next, i_idx]
             + c2[i_idx, i_prev]
             + c2[i_idx, i_next]
-        ) / 4.0
+        )
+        # Count distinct neighbors per diagonal element (i,i):
+        #   row neighbors: (i_prev, i) and (i_next, i)
+        #   col neighbors: (i, i_prev) and (i, i_next)
+        # On the diagonal, row and col clamping conditions are symmetric:
+        # i_prev clamps at i=0 for both (i-1,i) and (i,i-1), so the
+        # distinctness test is the same for each pair.  Result:
+        # interior=4, corners (i=0,n-1)=2, edges=3.
+        n_distinct = (
+            (i_prev != i_idx).astype(jnp.float64)  # (i_prev, i) distinct?
+            + (i_next != i_idx).astype(jnp.float64)  # (i_next, i) distinct?
+            + (i_prev != i_idx).astype(jnp.float64)  # (i, i_prev) — same test by symmetry
+            + (i_next != i_idx).astype(jnp.float64)  # (i, i_next) — same test by symmetry
+        )
+        # Floor to 1 to avoid division by zero (n=1 edge case)
+        neighbor_avg = neighbor_sum / jnp.maximum(n_distinct, 1.0)
 
         diag_mask = jnp.eye(n, dtype=jnp.bool_)
         replacement = jnp.diag(neighbor_avg)
         return jnp.where(diag_mask, replacement, c2)
 
-    # General case: width > 1
-    idx_i, idx_j = jnp.meshgrid(
-        jnp.arange(n, dtype=jnp.int16), jnp.arange(n, dtype=jnp.int16), indexing="ij"
-    )
-    diff = idx_i - idx_j
-    mask = jnp.abs(diff) < width
+    # General case: width > 1.
+    # Use broadcasting instead of meshgrid to avoid allocating two N×N
+    # index arrays — saves ~4 MB at N=1000 and avoids XLA materializing
+    # unnecessary intermediates.
+    idx = jnp.arange(n, dtype=jnp.int32)
+    diff = idx[:, None] - idx[None, :]  # (N, N) via broadcasting
+    abs_diff = jnp.abs(diff)
+    mask = abs_diff < width
 
     # For each element, find the two nearest off-band neighbors along
     # the row axis (perpendicular to diagonal).
     # Shift needed to reach the band edge from element (i, j):
-    shift = width - jnp.abs(diff)
-    i_above = jnp.clip(idx_i - shift, 0, n - 1)
-    i_below = jnp.clip(idx_i + shift, 0, n - 1)
+    shift = width - abs_diff
+    i_above = jnp.clip(idx[:, None] - shift, 0, n - 1)
+    i_below = jnp.clip(idx[:, None] + shift, 0, n - 1)
 
-    interpolated = (c2[i_above, idx_j] + c2[i_below, idx_j]) / 2.0
+    interpolated = (c2[i_above, idx[None, :]] + c2[i_below, idx[None, :]]) / 2.0
     return jnp.where(mask, interpolated, c2)
 
 
@@ -257,8 +278,8 @@ def compute_weights_excluding_diagonal(
         msg = f"width must be >= 1, got {width}"
         raise ValueError(msg)
     n_rows, n_cols = shape
-    idx_i = jnp.arange(n_rows, dtype=jnp.int16)
-    idx_j = jnp.arange(n_cols, dtype=jnp.int16)
+    idx_i = jnp.arange(n_rows, dtype=jnp.int32)
+    idx_j = jnp.arange(n_cols, dtype=jnp.int32)
     dist = jnp.abs(idx_i[:, None] - idx_j[None, :])
     return jnp.where(dist < width, 0.0, 1.0)
 
@@ -327,7 +348,7 @@ def _apply_statistical_correction_numpy(
     import numpy as np
 
     n = c2.shape[0]
-    col_idx = np.arange(n, dtype=np.int16)
+    col_idx = np.arange(n, dtype=np.int32)
     # dist[i, j] = |i - j| — distance of column j from row i's diagonal
     dist = np.abs(col_idx[None, :] - col_idx[:, None])  # (N, N)
 
@@ -409,7 +430,7 @@ def _apply_statistical_correction_jax(
         Corrected JAX matrix of the same shape as *c2*.
     """
     n = c2.shape[0]
-    col_idx = jnp.arange(n, dtype=jnp.int16)
+    col_idx = jnp.arange(n, dtype=jnp.int32)
     dist = jnp.abs(col_idx[None, :] - col_idx[:, None])  # (N, N)
 
     band_mask = dist < width

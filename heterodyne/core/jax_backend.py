@@ -399,31 +399,57 @@ def batch_chi_squared(
     weights: jnp.ndarray,
     contrast: float = 1.0,
     offset: float = 1.0,
+    chunk_size: int | None = None,
 ) -> jnp.ndarray:
     """Vectorized chi-squared over a batch of parameter sets.
 
-    Uses jax.vmap for efficient parallel evaluation.
+    Uses ``jax.vmap`` for efficient parallel evaluation.  For large batches
+    or large time grids, ``chunk_size`` limits simultaneous N×N allocations
+    to prevent XLA memory exhaustion (each vmap'd evaluation allocates
+    multiple N×N intermediate matrices).
 
     Args:
-        params_batch: Parameter sets, shape (n_sets, 14)
-        t: Time array
-        q: Scattering wavevector
-        dt: Time step
-        phi_angle: Detector phi angle
-        c2_data: Experimental data
-        weights: Weights
-        contrast: Speckle contrast
-        offset: Baseline offset
+        params_batch: Parameter sets, shape ``(n_sets, 14)``.
+        t: Time array, shape ``(N,)``.
+        q: Scattering wavevector.
+        dt: Time step.
+        phi_angle: Detector phi angle.
+        c2_data: Experimental data.
+        weights: Weights.
+        contrast: Speckle contrast.
+        offset: Baseline offset.
+        chunk_size: Max batch elements to vmap simultaneously.  ``None``
+            (default) auto-selects based on time-grid size: ``max(1,
+            200 // (N // 100))`` to keep peak memory under ~1.6 GB.
 
     Returns:
-        Chi-squared values, shape (n_sets,)
+        Chi-squared values, shape ``(n_sets,)``.
     """
+    n_sets = params_batch.shape[0]
+    n_times = t.shape[0]
+
     def single_chi2(params: jnp.ndarray) -> jnp.ndarray:
         return compute_chi_squared(
             params, t, q, dt, phi_angle, c2_data, weights, contrast, offset
         )
 
-    return jax.vmap(single_chi2)(params_batch)  # type: ignore[no-any-return]
+    if chunk_size is None:
+        # Auto-select: each evaluation creates ~12 N×N float64 matrices
+        # (half_tr, cumsum, integral matrix, ref/sample/cross terms, plus
+        # XLA intermediates) → ~96 N² bytes per evaluation.
+        # Target peak ≈ 1.6 GB → chunk_size ≈ 1.6e9 / (96 * N²).
+        matrix_bytes = 96 * n_times * n_times
+        chunk_size = max(1, int(1.6e9 / max(matrix_bytes, 1)))
+
+    if n_sets <= chunk_size:
+        return jax.vmap(single_chi2)(params_batch)  # type: ignore[no-any-return]
+
+    # Chunked evaluation to bound peak memory
+    chunks = []
+    for start in range(0, n_sets, chunk_size):
+        chunk = params_batch[start : start + chunk_size]
+        chunks.append(jax.vmap(single_chi2)(chunk))
+    return jnp.concatenate(chunks)  # type: ignore[no-any-return]
 
 
 @jax.jit
