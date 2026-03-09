@@ -6,6 +6,7 @@ residuals, fitting weights, and parameter sensitivities.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -339,3 +340,80 @@ def plot_parameter_sensitivity(
     ax.figure.tight_layout()
 
     return ax
+
+
+# ---------------------------------------------------------------------------
+# Diagonal overlay statistics
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class DiagonalOverlayResult:
+    """Statistics from comparing diagonals of experimental vs fitted C2 surfaces.
+
+    Attributes:
+        phi_index: Angle index used for extraction.
+        raw_diagonal: Diagonal of the experimental C2.
+        solver_diagonal: Diagonal of the solver-fitted C2.
+        posthoc_diagonal: Diagonal of the post-hoc corrected C2.
+        raw_variance: Variance of the raw diagonal.
+        solver_variance: Variance of the solver diagonal.
+        posthoc_variance: Variance of the post-hoc diagonal.
+        solver_rmse: RMSE between raw and solver diagonals.
+        posthoc_rmse: RMSE between raw and post-hoc diagonals.
+    """
+
+    phi_index: int
+    raw_diagonal: np.ndarray
+    solver_diagonal: np.ndarray
+    posthoc_diagonal: np.ndarray
+    raw_variance: float
+    solver_variance: float
+    posthoc_variance: float
+    solver_rmse: float
+    posthoc_rmse: float
+
+
+def compute_diagonal_overlay_stats(
+    c2_exp: np.ndarray,
+    c2_solver: np.ndarray | None,
+    c2_posthoc: np.ndarray,
+    *,
+    phi_index: int = 0,
+) -> DiagonalOverlayResult:
+    """Compute diagonal overlay statistics for visual validation.
+
+    Extracts the diagonal from each C2 matrix at the given angle index
+    and computes variance and RMSE metrics.
+
+    Args:
+        c2_exp: Experimental C2, shape ``(n_phi, N, N)``.
+        c2_solver: Solver-fitted C2, shape ``(n_phi, N, N)``.
+        c2_posthoc: Post-hoc corrected C2, shape ``(n_phi, N, N)``.
+        phi_index: Angle index to extract.
+
+    Returns:
+        :class:`DiagonalOverlayResult` with diagonal arrays and metrics.
+
+    Raises:
+        ValueError: If *c2_solver* is ``None``.
+    """
+    if c2_solver is None:
+        msg = "c2_solver must not be None"
+        raise ValueError(msg)
+
+    raw_diag = np.diag(c2_exp[phi_index])
+    solver_diag = np.diag(c2_solver[phi_index])
+    posthoc_diag = np.diag(c2_posthoc[phi_index])
+
+    return DiagonalOverlayResult(
+        phi_index=phi_index,
+        raw_diagonal=raw_diag,
+        solver_diagonal=solver_diag,
+        posthoc_diagonal=posthoc_diag,
+        raw_variance=float(np.nanvar(raw_diag)),
+        solver_variance=float(np.nanvar(solver_diag)),
+        posthoc_variance=float(np.nanvar(posthoc_diag)),
+        solver_rmse=float(np.sqrt(np.nanmean((raw_diag - solver_diag) ** 2))),
+        posthoc_rmse=float(np.sqrt(np.nanmean((raw_diag - posthoc_diag) ** 2))),
+    )

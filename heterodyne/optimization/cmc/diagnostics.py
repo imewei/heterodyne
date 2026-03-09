@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import arviz as az
 import numpy as np
@@ -603,3 +603,586 @@ def compute_pair_correlations(
         len(names), len(names),
     )
     return result
+
+
+# ---------------------------------------------------------------------------
+# Bimodality detection
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class BimodalResult:
+    """Result of a bimodality test for a single parameter's samples.
+
+    Attributes:
+        param_name: Name of the parameter tested.
+        is_bimodal: True if the 2-component GMM is favoured by BIC.
+        bic_unimodal: BIC of the 1-component (unimodal) Gaussian mixture.
+        bic_bimodal: BIC of the 2-component Gaussian mixture.
+        delta_bic: ``bic_unimodal - bic_bimodal``.  Positive values
+            favour the bimodal model.
+        means: Tuple of the two component means (None when not bimodal).
+        weights: Tuple of the two component mixing weights (None when
+            not bimodal).
+    """
+
+    param_name: str
+    is_bimodal: bool
+    bic_unimodal: float
+    bic_bimodal: float
+    delta_bic: float
+    means: tuple[float, float] | None
+    weights: tuple[float, float] | None
+
+
+def detect_bimodal(
+    samples: np.ndarray,
+    param_name: str,
+    bic_threshold: float = 10.0,
+) -> BimodalResult:
+    """Fit 1- and 2-component Gaussian mixtures and compare BIC.
+
+    Uses scikit-learn's ``GaussianMixture`` to estimate Bayesian
+    Information Criterion for unimodal vs bimodal models.  A positive
+    ``delta_bic`` larger than ``bic_threshold`` is treated as evidence
+    for bimodality.
+
+    Args:
+        samples: 1-D array of posterior draws for the parameter.
+        param_name: Name used for logging and result labelling.
+        bic_threshold: Minimum ``delta_bic`` (BIC_unimodal − BIC_bimodal)
+            required to declare bimodality.  Default 10.0 corresponds to
+            strong evidence on the Raftery (1995) BIC scale.
+
+    Returns:
+        :class:`BimodalResult` with fitted statistics.
+
+    Raises:
+        ImportError: If scikit-learn is not installed, with a hint on
+            how to add the optional dependency.
+    """
+    try:
+        from sklearn.mixture import GaussianMixture  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise ImportError(
+            "scikit-learn is required for bimodality detection. "
+            "Install it with: uv add scikit-learn"
+        ) from exc
+
+    arr = np.asarray(samples, dtype=float).ravel()
+    x = arr.reshape(-1, 1)
+
+    # Fit 1-component model
+    gm1 = GaussianMixture(n_components=1, random_state=0).fit(x)
+    bic1 = float(gm1.bic(x))
+
+    # Fit 2-component model
+    gm2 = GaussianMixture(n_components=2, n_init=3, random_state=0).fit(x)
+    bic2 = float(gm2.bic(x))
+
+    delta = bic1 - bic2
+    is_bimodal = delta > bic_threshold
+
+    means: tuple[float, float] | None = None
+    weights: tuple[float, float] | None = None
+
+    if is_bimodal:
+        m = gm2.means_.ravel()
+        w = gm2.weights_.ravel()
+        means = (float(m[0]), float(m[1]))
+        weights = (float(w[0]), float(w[1]))
+        logger.warning(
+            "Bimodal posterior detected for %s: delta_BIC=%.2f, "
+            "means=(%.4e, %.4e), weights=(%.3f, %.3f)",
+            param_name, delta, means[0], means[1], weights[0], weights[1],
+        )
+    else:
+        logger.debug(
+            "Unimodal posterior for %s: delta_BIC=%.2f (threshold=%.1f)",
+            param_name, delta, bic_threshold,
+        )
+
+    return BimodalResult(
+        param_name=param_name,
+        is_bimodal=is_bimodal,
+        bic_unimodal=bic1,
+        bic_bimodal=bic2,
+        delta_bic=delta,
+        means=means,
+        weights=weights,
+    )
+
+
+def check_shard_bimodality(
+    shard_samples: dict[int, dict[str, np.ndarray]],
+    bic_threshold: float = 10.0,
+) -> dict[str, list[BimodalResult]]:
+    """Detect bimodality for each parameter across all CMC shards.
+
+    Runs :func:`detect_bimodal` for every (parameter, shard) combination
+    and aggregates results per parameter.
+
+    Args:
+        shard_samples: Mapping of shard index to a dict of
+            ``{param_name: samples_array}``.  Samples may be 1-D
+            ``(n_draws,)`` or 2-D ``(n_chains, n_draws)``; they are
+            flattened before testing.
+        bic_threshold: Forwarded to :func:`detect_bimodal`.
+
+    Returns:
+        Mapping from parameter name to a list of
+        :class:`BimodalResult`, one entry per shard (in shard-index
+        order).
+    """
+    results: dict[str, list[BimodalResult]] = {}
+
+    # Collect all parameter names in stable insertion order across shards
+    seen: dict[str, None] = {}
+    for shard_dict in shard_samples.values():
+        for name in shard_dict:
+            seen.setdefault(name, None)
+    all_param_names = list(seen)
+
+    for name in all_param_names:
+        param_results: list[BimodalResult] = []
+        for shard_idx in sorted(shard_samples.keys()):
+            shard_dict = shard_samples[shard_idx]
+            if name not in shard_dict:
+                continue
+            arr = np.asarray(shard_dict[name], dtype=float).ravel()
+            result = detect_bimodal(arr, param_name=name, bic_threshold=bic_threshold)
+            param_results.append(result)
+        results[name] = param_results
+
+    n_bimodal = sum(
+        1
+        for param_list in results.values()
+        for r in param_list
+        if r.is_bimodal
+    )
+    logger.info(
+        "check_shard_bimodality: %d params x %d shards; %d bimodal detections.",
+        len(all_param_names), len(shard_samples), n_bimodal,
+    )
+    return results
+
+
+# ---------------------------------------------------------------------------
+# NLSQ comparison and precision analysis
+# ---------------------------------------------------------------------------
+
+
+def _compute_hdi_95(sorted_arr: np.ndarray) -> tuple[float, float]:
+    """Return (low, high) for the shortest interval covering 95% of sorted samples."""
+    sorted_arr = np.sort(sorted_arr)  # defensive: ensure sorted
+    n = len(sorted_arr)
+    if n == 0:
+        return float("nan"), float("nan")
+    if n == 1:
+        return float(sorted_arr[0]), float(sorted_arr[0])
+    width = int(np.floor(0.95 * n))
+    if width < n:
+        intervals = sorted_arr[width:] - sorted_arr[: n - width]
+        best = int(np.argmin(intervals))
+        return float(sorted_arr[best]), float(sorted_arr[best + width])
+    return float(sorted_arr[0]), float(sorted_arr[-1])
+
+
+def compute_nlsq_comparison_metrics(
+    posterior_samples: dict[str, np.ndarray],
+    nlsq_values: dict[str, float],
+) -> dict[str, dict[str, float]]:
+    """Compare posterior statistics against NLSQ point estimates.
+
+    For each parameter present in both ``posterior_samples`` and
+    ``nlsq_values``, computes:
+
+    * ``posterior_mean`` — mean of the flattened posterior draws.
+    * ``posterior_std``  — standard deviation of the flattened draws.
+    * ``nlsq_value``     — the NLSQ point estimate.
+    * ``z_score``        — ``|nlsq_value - posterior_mean| / posterior_std``.
+      NaN when ``posterior_std == 0``.
+    * ``within_hdi``     — 1.0 if the NLSQ value falls inside the 95 % HDI,
+      0.0 otherwise.
+
+    Args:
+        posterior_samples: Mapping of parameter name to sample array
+            of shape ``(n_chains, n_draws)`` or ``(n_draws,)``.
+        nlsq_values: NLSQ MAP estimates keyed by parameter name.
+
+    Returns:
+        Nested dict ``result[param_name][metric_name] = value``.
+        Only parameters present in *both* inputs are included.
+    """
+    output: dict[str, dict[str, float]] = {}
+
+    for name, nlsq_val in nlsq_values.items():
+        if name not in posterior_samples:
+            continue
+
+        arr = np.asarray(posterior_samples[name], dtype=float).ravel()
+        if arr.size == 0:
+            continue
+
+        mean = float(np.mean(arr))
+        std = float(np.std(arr))
+
+        z_score = float("nan")
+        if std > 0:
+            z_score = abs(nlsq_val - mean) / std
+
+        # 95 % HDI
+        hdi_low, hdi_high = _compute_hdi_95(np.sort(arr))
+        within_hdi = 1.0 if hdi_low <= nlsq_val <= hdi_high else 0.0
+
+        output[name] = {
+            "posterior_mean": mean,
+            "posterior_std": std,
+            "nlsq_value": float(nlsq_val),
+            "z_score": z_score,
+            "within_hdi": within_hdi,
+        }
+
+        logger.debug(
+            "NLSQ comparison for %s: mean=%.4e, std=%.4e, "
+            "nlsq=%.4e, z=%.2f, within_hdi=%s",
+            name, mean, std, nlsq_val, z_score, bool(within_hdi),
+        )
+
+    logger.info(
+        "compute_nlsq_comparison_metrics: %d / %d parameters compared.",
+        len(output), len(nlsq_values),
+    )
+    return output
+
+
+def compute_precision_analysis(
+    posterior_samples: dict[str, np.ndarray],
+) -> dict[str, dict[str, float]]:
+    """Compute precision metrics for each parameter's posterior.
+
+    For each parameter, calculates:
+
+    * ``mean``       — posterior mean.
+    * ``std``        — posterior standard deviation.
+    * ``cv``         — coefficient of variation = ``std / |mean|``.
+      ``inf`` when ``mean == 0``.
+    * ``hdi_width``  — width of the shortest interval containing 95 % of
+      the posterior draws (highest-density interval).
+
+    Args:
+        posterior_samples: Mapping of parameter name to sample array
+            of shape ``(n_chains, n_draws)`` or ``(n_draws,)``.
+
+    Returns:
+        Nested dict ``result[param_name][metric_name] = value``.
+    """
+    output: dict[str, dict[str, float]] = {}
+
+    for name, samples in posterior_samples.items():
+        arr = np.asarray(samples, dtype=float).ravel()
+        if arr.size == 0:
+            continue
+
+        mean = float(np.mean(arr))
+        std = float(np.std(arr))
+        cv = std / abs(mean) if mean != 0.0 else float("inf")
+
+        # 95 % HDI (shortest covering interval)
+        hdi_low, hdi_high = _compute_hdi_95(np.sort(arr))
+        hdi_width = hdi_high - hdi_low
+
+        output[name] = {
+            "mean": mean,
+            "std": std,
+            "cv": cv,
+            "hdi_width": hdi_width,
+        }
+
+        logger.debug(
+            "Precision for %s: mean=%.4e, std=%.4e, cv=%.4f, hdi_width=%.4e",
+            name, mean, std, cv, hdi_width,
+        )
+
+    logger.info(
+        "compute_precision_analysis: computed metrics for %d parameters.",
+        len(output),
+    )
+    return output
+
+
+# ---------------------------------------------------------------------------
+# Cross-shard bimodal consensus
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ModeCluster:
+    """A single mode from bimodal consensus combination.
+
+    Attributes:
+        mean: Per-parameter consensus mean for this mode.
+        std: Per-parameter consensus std.
+        weight: Fraction of shards supporting this mode (0-1).
+        n_shards: Number of shards in this cluster.
+    """
+
+    mean: dict[str, float]
+    std: dict[str, float]
+    weight: float
+    n_shards: int
+
+
+@dataclass
+class BimodalConsensusResult:
+    """Result of mode-aware consensus combination.
+
+    Attributes:
+        modes: Mode clusters (typically 2) with per-mode consensus.
+        modal_params: Parameter names that triggered bimodal detection.
+        co_occurrence: Cross-parameter co-occurrence info.
+    """
+
+    modes: list[ModeCluster]
+    modal_params: list[str]
+    co_occurrence: dict[str, Any]
+
+
+def summarize_cross_shard_bimodality(
+    bimodal_detections: dict[str, list[BimodalResult]],
+    n_shards: int,
+    consensus_means: dict[str, float] | None = None,
+    significance_threshold: float = 0.05,
+) -> dict[str, Any]:
+    """Aggregate per-shard bimodal detections into a cross-shard summary.
+
+    Groups detections by parameter, computes mode statistics (mean of
+    lower modes, mean of upper modes), and checks whether the consensus
+    posterior mean falls between the modes (density trough).
+
+    Args:
+        bimodal_detections: Mapping from parameter name to a list of
+            :class:`BimodalResult` (one per shard), as returned by
+            :func:`check_shard_bimodality`.
+        n_shards: Total number of shards.
+        consensus_means: Consensus posterior means for each parameter.
+            Used to check if consensus falls in the density trough
+            between modes.
+        significance_threshold: Minimum separation significance
+            (``separation / pooled_std``) for a bimodal split to be
+            reported.
+
+    Returns:
+        Dictionary with keys:
+
+        - ``"per_param"``: ``{param_name -> {fraction_bimodal,
+          lower_mode_mean, upper_mode_mean, separation, significance,
+          consensus_in_trough}}``
+        - ``"n_detections"``: Total bimodal detections across all params.
+        - ``"n_shards"``: Number of shards.
+    """
+    per_param: dict[str, dict[str, Any]] = {}
+    total_detections = 0
+
+    for param_name, results in bimodal_detections.items():
+        bimodal_results = [r for r in results if r.is_bimodal]
+        n_bimodal = len(bimodal_results)
+        total_detections += n_bimodal
+        fraction_bimodal = n_bimodal / n_shards if n_shards > 0 else 0.0
+
+        if n_bimodal == 0:
+            per_param[param_name] = {
+                "fraction_bimodal": 0.0,
+                "lower_mode_mean": None,
+                "upper_mode_mean": None,
+                "separation": 0.0,
+                "significance": 0.0,
+                "consensus_in_trough": False,
+            }
+            continue
+
+        # Collect the two means from each bimodal shard (sorted so
+        # lower < upper within each detection).
+        lower_modes: list[float] = []
+        upper_modes: list[float] = []
+        for r in bimodal_results:
+            assert r.means is not None  # noqa: S101
+            m0, m1 = sorted(r.means)
+            lower_modes.append(m0)
+            upper_modes.append(m1)
+
+        lower_mean = float(np.mean(lower_modes))
+        upper_mean = float(np.mean(upper_modes))
+        separation = upper_mean - lower_mean
+
+        # Pooled std across the two mode populations
+        lower_std = float(np.std(lower_modes)) if len(lower_modes) > 1 else 1e-12
+        upper_std = float(np.std(upper_modes)) if len(upper_modes) > 1 else 1e-12
+        pooled_std = float(np.sqrt(0.5 * (lower_std**2 + upper_std**2)))
+        pooled_std = max(pooled_std, 1e-12)  # avoid division by zero
+
+        significance = separation / pooled_std
+
+        # Check if consensus falls in the trough between modes
+        consensus_in_trough = False
+        if consensus_means is not None and param_name in consensus_means:
+            c = consensus_means[param_name]
+            # Trough defined as the middle 60% of the gap between modes
+            margin = 0.2 * separation
+            consensus_in_trough = (lower_mean + margin) < c < (upper_mean - margin)
+
+        entry: dict[str, Any] = {
+            "fraction_bimodal": fraction_bimodal,
+            "lower_mode_mean": lower_mean,
+            "upper_mode_mean": upper_mean,
+            "separation": separation,
+            "significance": significance,
+            "consensus_in_trough": consensus_in_trough,
+        }
+
+        if significance < significance_threshold:
+            logger.debug(
+                "Bimodal split for %s has low significance (%.3f < %.3f); "
+                "may not be meaningful.",
+                param_name,
+                significance,
+                significance_threshold,
+            )
+
+        per_param[param_name] = entry
+
+    logger.info(
+        "summarize_cross_shard_bimodality: %d total detections across %d "
+        "params, %d shards.",
+        total_detections,
+        len(per_param),
+        n_shards,
+    )
+
+    return {
+        "per_param": per_param,
+        "n_detections": total_detections,
+        "n_shards": n_shards,
+    }
+
+
+def cluster_shard_modes(
+    bimodal_detections: dict[str, list[BimodalResult]],
+    shard_samples: dict[int, dict[str, np.ndarray]],
+    param_bounds: dict[str, tuple[float, float]] | None = None,
+) -> tuple[list[int], list[int]]:
+    """Jointly cluster shards into two mode populations.
+
+    Uses the parameters that show bimodal behaviour to build a
+    per-shard feature vector, then runs a simple 2-means clustering
+    (no sklearn dependency) to partition shards.
+
+    Args:
+        bimodal_detections: Mapping from parameter name to a list of
+            :class:`BimodalResult` as returned by
+            :func:`check_shard_bimodality`.
+        shard_samples: Per-shard samples mapping
+            ``{shard_idx: {param_name: samples_array}}``.
+        param_bounds: Optional per-parameter ``(lo, hi)`` bounds for
+            normalization.  If *None*, the global range across shards
+            is used.
+
+    Returns:
+        ``(cluster_0_indices, cluster_1_indices)`` where cluster 0 is
+        the "lower" cluster (centroid with lower mean across features).
+    """
+    # Identify modal parameters (any param where ≥1 shard is bimodal)
+    modal_params: list[str] = []
+    for param_name, results in bimodal_detections.items():
+        if any(r.is_bimodal for r in results):
+            modal_params.append(param_name)
+
+    shard_indices = sorted(shard_samples.keys())
+
+    if not modal_params or len(shard_indices) < 2:
+        logger.warning(
+            "cluster_shard_modes: no modal params or < 2 shards; "
+            "returning all shards in cluster 0."
+        )
+        return (shard_indices, [])
+
+    # Build feature matrix: one row per shard, one col per modal param
+    n_shards = len(shard_indices)
+    n_features = len(modal_params)
+    features = np.zeros((n_shards, n_features), dtype=float)
+
+    for i, shard_idx in enumerate(shard_indices):
+        shard_dict = shard_samples[shard_idx]
+        for j, param_name in enumerate(modal_params):
+            if param_name in shard_dict:
+                arr = np.asarray(shard_dict[param_name], dtype=float).ravel()
+                features[i, j] = float(np.mean(arr))
+            else:
+                features[i, j] = 0.0
+
+    # Normalize each feature column
+    for j, param_name in enumerate(modal_params):
+        col = features[:, j]
+        if param_bounds is not None and param_name in param_bounds:
+            lo, hi = param_bounds[param_name]
+            span = hi - lo
+        else:
+            lo = float(np.min(col))
+            hi = float(np.max(col))
+            span = hi - lo
+        if span > 0:
+            features[:, j] = (col - lo) / span
+
+    # Simple 2-means clustering (iterative assignment)
+    # Initialize centroids as min-mean and max-mean rows
+    row_means = np.mean(features, axis=1)
+    idx_lo = int(np.argmin(row_means))
+    idx_hi = int(np.argmax(row_means))
+
+    if idx_lo == idx_hi:
+        # All shards identical; put all in cluster 0
+        return (shard_indices, [])
+
+    centroid_0 = features[idx_lo].copy()
+    centroid_1 = features[idx_hi].copy()
+
+    max_iters = 50
+    labels = np.zeros(n_shards, dtype=int)
+
+    for _iteration in range(max_iters):
+        # Assign each shard to nearest centroid
+        new_labels = np.zeros(n_shards, dtype=int)
+        for i in range(n_shards):
+            d0 = float(np.sum((features[i] - centroid_0) ** 2))
+            d1 = float(np.sum((features[i] - centroid_1) ** 2))
+            new_labels[i] = 0 if d0 <= d1 else 1
+
+        if np.array_equal(new_labels, labels) and _iteration > 0:
+            labels = new_labels
+            break
+        labels = new_labels
+
+        # Recompute centroids
+        mask_0 = labels == 0
+        mask_1 = labels == 1
+        if np.any(mask_0):
+            centroid_0 = np.mean(features[mask_0], axis=0)
+        if np.any(mask_1):
+            centroid_1 = np.mean(features[mask_1], axis=0)
+
+    # Ensure cluster 0 is the "lower" one (lower centroid mean)
+    if float(np.mean(centroid_0)) > float(np.mean(centroid_1)):
+        labels = 1 - labels
+
+    cluster_0 = [shard_indices[i] for i in range(n_shards) if labels[i] == 0]
+    cluster_1 = [shard_indices[i] for i in range(n_shards) if labels[i] == 1]
+
+    logger.info(
+        "cluster_shard_modes: %d shards in cluster 0, %d in cluster 1 "
+        "(modal params: %s).",
+        len(cluster_0),
+        len(cluster_1),
+        modal_params,
+    )
+
+    return (cluster_0, cluster_1)

@@ -8,7 +8,10 @@ contamination, and severe parameter-sensitivity imbalance.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 
 from heterodyne.utils.logging import get_logger
@@ -180,4 +183,147 @@ def suggest_step_sizes(
     return {
         name: float(step)
         for name, step in zip(param_names, clipped, strict=True)
+    }
+
+
+# ---------------------------------------------------------------------------
+# JAX-based gradient diagnostics for parameter scaling
+# ---------------------------------------------------------------------------
+
+
+def compute_gradient_norms(
+    residual_fn: Any,
+    param_array: jnp.ndarray,
+    param_names: list[str],
+) -> dict[str, float]:
+    """Compute per-parameter gradient norms using JAX autodiff.
+
+    This is model-agnostic: callers build the residual function that maps
+    a parameter vector to a residual vector.
+
+    Args:
+        residual_fn: Callable ``(params) -> residuals`` where *params* is
+            a 1-D JAX array and *residuals* is a 1-D JAX array.
+        param_array: Current parameter vector, shape ``(n_params,)``.
+        param_names: Parameter names, one per element of *param_array*.
+
+    Returns:
+        Dict mapping each parameter name to ``|dL/dp_i|`` where
+        ``L = sum(residuals**2)``.
+    """
+    grad_fn = jax.grad(lambda p: jnp.sum(residual_fn(p) ** 2))
+    grads = grad_fn(param_array)
+    return {
+        name: float(jnp.abs(g))
+        for name, g in zip(param_names, grads, strict=True)
+    }
+
+
+def compute_optimal_x_scale(
+    gradient_norms: dict[str, float],
+    baseline_params: list[str] | None = None,
+    safety_factor: float = 1.0,
+    min_scale: float = 1e-8,
+    max_scale: float = 1e2,
+) -> dict[str, float]:
+    """Compute x_scale values inversely proportional to gradient norms.
+
+    Parameters with large gradients receive small scales and vice versa,
+    equalising the effective step size across parameters.
+
+    Args:
+        gradient_norms: Per-parameter gradient norms from
+            :func:`compute_gradient_norms`.
+        baseline_params: Parameter names for computing the geometric-mean
+            baseline.  Defaults to the first 3 parameters.
+        safety_factor: Multiplier applied to the raw scale.
+        min_scale: Floor for clipping.
+        max_scale: Ceiling for clipping.
+
+    Returns:
+        Dict mapping parameter name to recommended x_scale.
+    """
+    names = list(gradient_norms.keys())
+    norms = np.array([gradient_norms[n] for n in names])
+
+    # Baseline: geometric mean of selected parameters
+    if baseline_params is None:
+        baseline_params = names[:3]
+    baseline_norms = np.array(
+        [gradient_norms[n] for n in baseline_params if n in gradient_norms]
+    )
+    if len(baseline_norms) == 0 or np.any(baseline_norms <= 0):
+        baseline = float(np.median(norms[norms > 0])) if np.any(norms > 0) else 1.0
+    else:
+        baseline = float(np.exp(np.mean(np.log(baseline_norms))))
+
+    scales: dict[str, float] = {}
+    for name, norm in zip(names, norms, strict=True):
+        if norm <= 0:
+            scales[name] = 1.0
+            continue
+        raw = safety_factor * baseline / norm
+        clipped = float(np.clip(raw, min_scale, max_scale))
+        scales[name] = clipped
+
+        ratio = norm / baseline
+        if ratio > 10.0:
+            logger.info(
+                "Parameter %s gradient %.3e is %.1fx above baseline",
+                name, norm, ratio,
+            )
+        elif ratio < 0.1:
+            logger.info(
+                "Parameter %s gradient %.3e is %.1fx below baseline",
+                name, norm, 1.0 / ratio,
+            )
+
+    return scales
+
+
+def diagnose_gradient_imbalance(
+    gradient_norms: dict[str, float],
+    threshold: float = 10.0,
+) -> dict[str, Any]:
+    """Diagnose gradient imbalance across parameters.
+
+    Args:
+        gradient_norms: Per-parameter gradient norms.
+        threshold: Ratio above which imbalance is flagged.
+
+    Returns:
+        Dict with keys:
+        - ``gradient_norms``: The input norms.
+        - ``imbalance_detected``: Whether max/min ratio exceeds *threshold*.
+        - ``max_ratio``: The max/min gradient ratio.
+        - ``recommendations``: Recommended x_scale dict if imbalance
+          detected, else ``None``.
+    """
+    norms = np.array(list(gradient_norms.values()))
+    nonzero = norms[norms > 0]
+
+    if len(nonzero) < 2:
+        return {
+            "gradient_norms": gradient_norms,
+            "imbalance_detected": False,
+            "max_ratio": 1.0,
+            "recommendations": None,
+        }
+
+    max_ratio = float(nonzero.max() / nonzero.min())
+    imbalanced = max_ratio > threshold
+
+    recommendations = None
+    if imbalanced:
+        logger.warning(
+            "Gradient imbalance detected: max/min ratio = %.1f (threshold %.1f)",
+            max_ratio, threshold,
+        )
+        recommendations = compute_optimal_x_scale(gradient_norms)
+
+    return {
+        "gradient_norms": gradient_norms,
+        "imbalance_detected": imbalanced,
+        "max_ratio": max_ratio,
+        "recommendations": recommendations,
     }

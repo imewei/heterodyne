@@ -1,5 +1,9 @@
 """Visualization utilities for heterodyne analysis."""
 
+from heterodyne.viz.diagnostics import (
+    DiagonalOverlayResult,
+    compute_diagonal_overlay_stats,
+)
 from heterodyne.viz.experimental_plots import (
     plot_correlation,
     plot_diagonal_decay,
@@ -36,6 +40,8 @@ from heterodyne.viz.nlsq_plots import (
 )
 
 __all__ = [
+    "DiagonalOverlayResult",
+    "compute_diagonal_overlay_stats",
     "ReportConfig",
     "generate_report",
     "plot_adaptation_summary",

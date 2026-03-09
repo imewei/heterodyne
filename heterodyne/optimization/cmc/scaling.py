@@ -15,8 +15,12 @@ from typing import TYPE_CHECKING
 import jax.numpy as jnp
 import numpy as np
 
+from heterodyne.utils.logging import get_logger
+
 if TYPE_CHECKING:
     from heterodyne.config.parameter_space import ParameterSpace
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -178,3 +182,73 @@ def compute_scaling_factors(
         )
 
     return scalings
+
+
+def log_scaling_factors(scalings: dict[str, ParameterScaling]) -> None:
+    """Log all scaling factors for debugging.
+
+    Emits a header at INFO level, then per-parameter details at DEBUG.
+
+    Args:
+        scalings: Mapping of parameter name to its scaling specification.
+    """
+    logger.info("Scaling factors for %d parameters:", len(scalings))
+    for name, s in scalings.items():
+        logger.debug(
+            "  %s: center=%s, scale=%s, bounds=[%s, %s]",
+            name,
+            f"{s.center:.4e}",
+            f"{s.scale:.4e}",
+            f"{s.low:.4e}",
+            f"{s.high:.4e}",
+        )
+
+
+def transform_initial_values_to_z(
+    initial_values: dict[str, float],
+    scalings: dict[str, ParameterScaling],
+) -> dict[str, float]:
+    """Transform initial values from physics space to z-space.
+
+    Only transforms parameters present in both *initial_values* and
+    *scalings*.
+
+    Args:
+        initial_values: Physics-space values keyed by parameter name.
+        scalings: Scaling specifications keyed by parameter name.
+
+    Returns:
+        Dict with keys ``{name}_z`` mapped to normalized z-space values.
+    """
+    z_values: dict[str, float] = {}
+    for name, value in initial_values.items():
+        if name in scalings:
+            z_values[f"{name}_z"] = float(scalings[name].to_normalized(value))
+    return z_values
+
+
+def transform_samples_from_z(
+    samples: dict[str, jnp.ndarray],
+    scalings: dict[str, ParameterScaling],
+) -> dict[str, jnp.ndarray]:
+    """Transform MCMC samples from z-space back to physics space.
+
+    Input keys must end with ``"_z"``; the suffix is stripped to recover
+    the original parameter name.  Only parameters with a matching entry
+    in *scalings* are transformed.
+
+    Args:
+        samples: Z-space sample arrays keyed by ``{name}_z``.
+        scalings: Scaling specifications keyed by parameter name.
+
+    Returns:
+        Dict with original parameter names mapped to physics-space arrays.
+    """
+    physics: dict[str, jnp.ndarray] = {}
+    for key, z_value in samples.items():
+        if not key.endswith("_z"):
+            continue
+        name = key[:-2]
+        if name in scalings:
+            physics[name] = scalings[name].to_original(z_value)
+    return physics

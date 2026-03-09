@@ -163,3 +163,24 @@ def plot_arviz_pair(
         plt.close(fig)
 
     return fig  # type: ignore[no-any-return]
+
+
+def _create_empty_figure(title: str = "No data available") -> Figure:
+    """Create a minimal placeholder figure with a centered message.
+
+    Used as a safe fallback when a plotting function cannot produce a
+    meaningful output (e.g., empty posterior samples, ArviZ conversion
+    failure).
+
+    Args:
+        title: Text to display in the centre of the figure.
+
+    Returns:
+        Matplotlib Figure containing only the message text.
+    """
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+    ax.text(0.5, 0.5, title, ha="center", va="center", fontsize=14, color="gray")
+    ax.set_axis_off()
+    return fig

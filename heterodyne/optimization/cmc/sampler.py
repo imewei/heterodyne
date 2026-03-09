@@ -213,6 +213,11 @@ class NUTSSampler:
         self._plan = plan
         self._has_run = False
 
+    @property
+    def plan(self) -> SamplingPlan:
+        """The sampling plan used to configure this sampler."""
+        return self._plan
+
     @classmethod
     def from_plan(
         cls,
@@ -607,6 +612,222 @@ class AdaptiveSamplingPlan:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Divergence rate thresholds
+# ---------------------------------------------------------------------------
+
+#: Target divergence rate — below this level the run is considered healthy.
+DIVERGENCE_RATE_TARGET: float = 0.01
+
+#: Elevated divergence rate — triggers a retry in :func:`run_nuts_with_retry`.
+DIVERGENCE_RATE_HIGH: float = 0.05
+
+#: Critical divergence rate — posterior geometry is likely incompatible with HMC.
+DIVERGENCE_RATE_CRITICAL: float = 0.10
+
+
+# ---------------------------------------------------------------------------
+# SamplingStats dataclass
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SamplingStats:
+    """Summary statistics from a completed NUTS sampling run.
+
+    Attributes:
+        num_samples: Number of posterior draws per chain (post-warmup).
+        num_warmup: Number of warmup steps per chain.
+        num_divergences: Total divergent transitions across all chains.
+        divergence_rate: Fraction of post-warmup transitions that diverged.
+        mean_accept_prob: Mean Metropolis acceptance probability.
+        max_tree_depth_fraction: Fraction of samples that hit the maximum
+            NUTS tree depth.
+        wall_time_seconds: Elapsed wall-clock time for the run.
+    """
+
+    num_samples: int
+    num_warmup: int
+    num_divergences: int
+    divergence_rate: float
+    mean_accept_prob: float
+    max_tree_depth_fraction: float
+    wall_time_seconds: float
+
+    @property
+    def is_healthy(self) -> bool:
+        """Return True when divergence rate and acceptance probability are acceptable.
+
+        Criteria:
+
+        * ``divergence_rate < 0.05`` (below :data:`DIVERGENCE_RATE_HIGH`)
+        * ``mean_accept_prob > 0.6``
+        """
+        return (
+            self.divergence_rate < DIVERGENCE_RATE_HIGH
+            and self.mean_accept_prob > 0.6
+        )
+
+
+# ---------------------------------------------------------------------------
+# Retry wrapper
+# ---------------------------------------------------------------------------
+
+
+def run_nuts_with_retry(
+    sampler: NUTSSampler,
+    model_fn: Any,
+    model_kwargs: dict[str, Any],
+    max_retries: int = 3,
+    step_size_factor: float = 0.5,
+) -> tuple[dict[str, Any], SamplingStats]:
+    """Run NUTS sampling with automatic step-size reduction on high divergence.
+
+    Executes :meth:`~NUTSSampler.run` and checks the divergence rate
+    after each attempt.  When the rate exceeds
+    :data:`DIVERGENCE_RATE_HIGH`, a new :class:`NUTSSampler` is built
+    with a step size reduced by ``step_size_factor`` and the run is
+    retried.  After ``max_retries`` attempts the result with the lowest
+    divergence rate is returned regardless of health.
+
+    The ``model_fn`` is re-used across retries so it must be stateless
+    (i.e. a pure NumPyro model function with no side effects).
+
+    Args:
+        sampler: Configured :class:`NUTSSampler` for the first attempt.
+        model_fn: NumPyro model callable.  Not called directly here but
+            passed to :meth:`NUTSSampler.from_plan` for retry instances.
+        model_kwargs: Keyword arguments forwarded to the model via
+            :meth:`~NUTSSampler.run`.  Currently unused by
+            :meth:`~NUTSSampler.run` (which takes ``rng_key`` and
+            ``init_params``); included for forward compatibility.
+        max_retries: Maximum number of additional attempts after the
+            first run.  Total runs = ``max_retries + 1``.
+        step_size_factor: Multiplicative reduction applied to
+            ``target_accept`` (lower target accept ≈ larger step size
+            is avoided; instead we rebuild with a smaller target_accept
+            proxy) each retry.  Must be in ``(0, 1)``.
+
+    Returns:
+        Tuple of ``(samples_dict, SamplingStats)`` for the best attempt
+        (lowest divergence rate).
+
+    Note:
+        Step-size control in NumPyro NUTS is indirect — the target
+        acceptance probability drives dual-averaging adaptation.  This
+        function reduces ``target_accept`` by ``step_size_factor``
+        each retry (e.g. 0.8 → 0.4), which causes dual-averaging to
+        converge to a *larger* step size.  A larger step size can help
+        when divergences are caused by overly-conservative trajectories
+        in well-conditioned regions, but may worsen divergences in
+        funnel geometries.  If funnel geometry is suspected,
+        reparameterisation is the correct remedy and retrying will
+        not help.
+    """
+    import time
+
+    import numpy as np
+
+    if not (0.0 < step_size_factor < 1.0):
+        raise ValueError(
+            f"step_size_factor must be in (0, 1), got {step_size_factor}"
+        )
+
+    best_samples: dict[str, Any] | None = None
+    best_stats: SamplingStats | None = None
+    best_divergence_rate = float("inf")
+
+    current_sampler = sampler
+    current_target_accept = sampler.plan.target_accept
+
+    for attempt in range(max_retries + 1):
+        t_start = time.monotonic()
+        samples = current_sampler.run()
+        wall_time = time.monotonic() - t_start
+
+        div_stats = current_sampler.get_divergence_stats()
+        divergence_rate = div_stats["divergence_rate"]
+        max_tree_depth_fraction = div_stats.get("max_tree_depth_fraction", float("nan"))
+
+        # Extract mean acceptance probability from extra fields
+        extra = current_sampler.mcmc.get_extra_fields()
+        mean_accept_prob = 0.0
+        if "mean_accept_prob" in extra:
+            mean_accept_prob = float(np.mean(np.asarray(extra["mean_accept_prob"])))
+        elif "accept_prob" in extra:
+            mean_accept_prob = float(np.mean(np.asarray(extra["accept_prob"])))
+
+        plan = current_sampler.plan
+        n_divergent = int(round(
+            divergence_rate * plan.num_samples * plan.num_chains
+        ))
+
+        stats = SamplingStats(
+            num_samples=plan.num_samples,
+            num_warmup=plan.num_warmup,
+            num_divergences=n_divergent,
+            divergence_rate=divergence_rate,
+            mean_accept_prob=mean_accept_prob,
+            max_tree_depth_fraction=max_tree_depth_fraction,
+            wall_time_seconds=wall_time,
+        )
+
+        logger.info(
+            "run_nuts_with_retry attempt %d/%d: "
+            "divergence_rate=%.4f, mean_accept_prob=%.4f, wall_time=%.1fs",
+            attempt + 1, max_retries + 1,
+            divergence_rate, mean_accept_prob, wall_time,
+        )
+
+        if divergence_rate < best_divergence_rate:
+            best_divergence_rate = divergence_rate
+            best_samples = samples
+            best_stats = stats
+
+        # Stop early if divergence rate is acceptable
+        if divergence_rate <= DIVERGENCE_RATE_HIGH:
+            break
+
+        if attempt < max_retries:
+            current_target_accept = current_target_accept * step_size_factor
+            # Clamp to a sensible minimum to avoid pathological kernels
+            current_target_accept = max(0.1, current_target_accept)
+            logger.warning(
+                "run_nuts_with_retry: divergence_rate=%.4f > %.2f; "
+                "retrying with target_accept=%.4f (attempt %d/%d)",
+                divergence_rate, DIVERGENCE_RATE_HIGH,
+                current_target_accept, attempt + 2, max_retries + 1,
+            )
+            # Build a new sampler with reduced target acceptance
+            new_plan = SamplingPlan(
+                num_warmup=plan.num_warmup,
+                num_samples=plan.num_samples,
+                num_chains=plan.num_chains,
+                target_accept=current_target_accept,
+                max_tree_depth=plan.max_tree_depth,
+                adapt_step_size=plan.adapt_step_size,
+                dense_mass=plan.dense_mass,
+                seed=plan.seed,
+            )
+            current_sampler = NUTSSampler.from_plan(
+                new_plan,
+                model_fn,
+                chain_method="sequential",
+            )
+    else:
+        # Exhausted retries
+        logger.warning(
+            "run_nuts_with_retry: exhausted %d retries; "
+            "returning best result with divergence_rate=%.4f",
+            max_retries, best_divergence_rate,
+        )
+
+    # These are always set on the first iteration, so cannot be None here
+    assert best_samples is not None  # noqa: S101
+    assert best_stats is not None  # noqa: S101
+    return best_samples, best_stats
+
+
 def _perturb_init_params(
     init_params: dict[str, jnp.ndarray],
     num_chains: int,
@@ -638,7 +859,8 @@ def _perturb_init_params(
         # Ensure shape (num_chains,)
         base = jnp.broadcast_to(jnp.asarray(value), (num_chains,))
 
-        noise = perturbation_scale * jax.random.normal(
+        magnitude = jnp.abs(base) + 1e-10  # floor for zero-valued params
+        noise = perturbation_scale * magnitude * jax.random.normal(
             subkey, shape=(num_chains,)
         )
         perturbed[name] = base + noise

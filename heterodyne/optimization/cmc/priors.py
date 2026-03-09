@@ -8,7 +8,7 @@ for parameters flagged with ``log_space=True``.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpyro.distributions as dist
 from numpyro.distributions.truncated import TwoSidedTruncatedDistribution
@@ -557,3 +557,364 @@ def summarize_priors(priors: dict[str, dist.Distribution]) -> str:
             lines.append(f"{label}{type(prior).__name__}")
 
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Parameter name helpers
+# ---------------------------------------------------------------------------
+
+
+def get_param_names_in_order(
+    vary_flags: dict[str, bool] | None = None,
+) -> list[str]:
+    """Return the ordered list of parameter names that are set to vary.
+
+    Iteration order matches the registry's insertion order, which
+    follows the canonical group ordering defined in
+    ``parameter_names.py`` (reference → sample → velocity → fraction →
+    angle → scaling).
+
+    Args:
+        vary_flags: Optional override dict mapping parameter name to a
+            bool indicating whether that parameter varies.  Parameters
+            absent from ``vary_flags`` fall back to the registry's
+            ``vary_default`` attribute.  Pass ``None`` to use registry
+            defaults for all parameters.
+
+    Returns:
+        List of parameter names for which the effective ``vary`` flag is
+        ``True``, in registry order.
+    """
+    vary_flags = vary_flags or {}
+    names: list[str] = []
+    for name in DEFAULT_REGISTRY:
+        info = DEFAULT_REGISTRY[name]
+        effective_vary = vary_flags.get(name, info.vary_default)
+        if effective_vary:
+            names.append(name)
+
+    logger.debug(
+        "get_param_names_in_order: %d varying parameters selected.", len(names)
+    )
+    return names
+
+
+# ---------------------------------------------------------------------------
+# Initial value construction and validation
+# ---------------------------------------------------------------------------
+
+
+def validate_initial_value_bounds(
+    init_values: dict[str, float],
+    param_specs: dict[str, Any] | None = None,
+) -> dict[str, list[str]]:
+    """Check that each initial value lies within the parameter's bounds.
+
+    Args:
+        init_values: Mapping of parameter name to proposed initial value.
+        param_specs: Optional dict of ``{name: {min_bound, max_bound}}``
+            overrides.  When not provided, bounds are read from
+            :data:`DEFAULT_REGISTRY`.
+
+    Returns:
+        Mapping from parameter name to a list of warning strings.  An
+        empty dict indicates all values are within bounds.
+    """
+    issues: dict[str, list[str]] = {}
+
+    for name, value in init_values.items():
+        # Determine bounds
+        if param_specs and name in param_specs:
+            spec = param_specs[name]
+            low = float(spec.get("min_bound", -math.inf))
+            high = float(spec.get("max_bound", math.inf))
+        elif name in DEFAULT_REGISTRY:
+            info = DEFAULT_REGISTRY[name]
+            low = info.min_bound
+            high = info.max_bound
+        else:
+            # Unknown parameter — skip bounds check but warn
+            logger.warning(
+                "validate_initial_value_bounds: unknown parameter '%s', "
+                "not in registry or param_specs — skipping bounds check.",
+                name,
+            )
+            continue
+
+        param_issues: list[str] = []
+        if value < low:
+            param_issues.append(
+                f"Value {value:.4e} is below min_bound {low:.4e}."
+            )
+        if value > high:
+            param_issues.append(
+                f"Value {value:.4e} is above max_bound {high:.4e}."
+            )
+
+        if param_issues:
+            issues[name] = param_issues
+            logger.warning(
+                "validate_initial_value_bounds: %s — %s",
+                name, "; ".join(param_issues),
+            )
+
+    if not issues:
+        logger.debug(
+            "validate_initial_value_bounds: all %d values within bounds.",
+            len(init_values),
+        )
+
+    return issues
+
+
+def build_init_values_dict(
+    nlsq_values: dict[str, float] | None = None,
+    vary_flags: dict[str, bool] | None = None,
+    fallback: str = "prior_mean",
+) -> dict[str, float]:
+    """Build an initial-values dict for NUTS warm-starting.
+
+    For each varying parameter the value is resolved in order:
+
+    1. NLSQ estimate from ``nlsq_values`` (if available).
+    2. Registry ``prior_mean`` when ``fallback="prior_mean"`` and
+       ``prior_mean`` is not ``None``.
+    3. Registry ``default`` value.
+
+    All resolved values are validated against bounds and clamped when
+    necessary, with a logged warning per clamped parameter.
+
+    Args:
+        nlsq_values: Optional NLSQ MAP estimates keyed by parameter
+            name.
+        vary_flags: Optional dict controlling which parameters vary (see
+            :func:`get_param_names_in_order`).
+        fallback: Strategy for parameters absent from ``nlsq_values``.
+            ``"prior_mean"`` uses the registry prior mean (default);
+            ``"default"`` uses the registry default value.
+
+    Returns:
+        Dict mapping each varying parameter name to its initial value,
+        ready to pass to :meth:`~heterodyne.optimization.cmc.sampler.NUTSSampler.run_with_init_values`.
+    """
+    if fallback not in {"prior_mean", "default"}:
+        raise ValueError(
+            f"fallback must be 'prior_mean' or 'default', got {fallback!r}"
+        )
+
+    nlsq_values = nlsq_values or {}
+    param_names = get_param_names_in_order(vary_flags)
+
+    init_values: dict[str, float] = {}
+
+    for name in param_names:
+        info = DEFAULT_REGISTRY[name]
+
+        # 1. NLSQ estimate
+        if name in nlsq_values:
+            value = float(nlsq_values[name])
+        # 2/3. Fallback
+        elif fallback == "prior_mean" and info.prior_mean is not None:
+            value = float(info.prior_mean)
+        else:
+            value = float(info.default)
+
+        # Clamp to bounds and warn if adjusted
+        clamped = float(
+            max(info.min_bound, min(info.max_bound, value))
+        )
+        if clamped != value:
+            logger.warning(
+                "build_init_values_dict: %s initial value %.4e clamped to [%.4e, %.4e] -> %.4e",
+                name, value, info.min_bound, info.max_bound, clamped,
+            )
+        init_values[name] = clamped
+
+    logger.info(
+        "build_init_values_dict: built %d initial values "
+        "(nlsq=%d, fallback=%r).",
+        len(init_values),
+        sum(1 for n in param_names if n in nlsq_values),
+        fallback,
+    )
+    return init_values
+
+
+# ---------------------------------------------------------------------------
+# NLSQ value extraction for CMC warm-starting
+# ---------------------------------------------------------------------------
+
+
+def extract_nlsq_values_for_cmc(
+    nlsq_result: NLSQResult,
+) -> tuple[dict[str, float], dict[str, float] | None]:
+    """Extract parameter values and uncertainties from an NLSQ result.
+
+    Converts the array-based :class:`NLSQResult` into plain ``float``
+    dictionaries suitable for CMC warm-starting.  NaN and inf values are
+    filtered out so that downstream prior construction never receives
+    non-finite inputs.
+
+    Args:
+        nlsq_result: Converged NLSQ result with ``.parameters``,
+            ``.parameter_names``, and optionally ``.uncertainties``.
+
+    Returns:
+        A tuple ``(values, uncertainties)`` where:
+
+        * ``values`` maps parameter name to its fitted float value
+          (non-finite entries excluded).
+        * ``uncertainties`` maps parameter name to its float
+          uncertainty, or ``None`` when the NLSQ result carries no
+          uncertainty information.  Non-finite entries are excluded.
+    """
+    values: dict[str, float] = {}
+    n_skipped = 0
+
+    for name, val in zip(
+        nlsq_result.parameter_names,
+        nlsq_result.parameters,
+        strict=True,
+    ):
+        fval = float(val)
+        if not math.isfinite(fval):
+            logger.debug(
+                "extract_nlsq_values_for_cmc: skipping %s value (non-finite: %s)",
+                name,
+                fval,
+            )
+            n_skipped += 1
+            continue
+        values[name] = fval
+
+    # Uncertainties
+    uncertainties: dict[str, float] | None = None
+    if nlsq_result.uncertainties is not None:
+        uncertainties = {}
+        for name, unc in zip(
+            nlsq_result.parameter_names,
+            nlsq_result.uncertainties,
+            strict=True,
+        ):
+            func = float(unc)
+            if not math.isfinite(func):
+                logger.debug(
+                    "extract_nlsq_values_for_cmc: skipping %s uncertainty "
+                    "(non-finite: %s)",
+                    name,
+                    func,
+                )
+                continue
+            uncertainties[name] = func
+
+    logger.info(
+        "extract_nlsq_values_for_cmc: extracted %d values, %s uncertainties "
+        "(%d non-finite skipped)",
+        len(values),
+        len(uncertainties) if uncertainties is not None else "no",
+        n_skipped,
+    )
+    return values, uncertainties
+
+
+# ---------------------------------------------------------------------------
+# Per-angle scaling estimation
+# ---------------------------------------------------------------------------
+
+
+def estimate_per_angle_scaling(
+    data_dict: dict[str, Any],
+    angle_keys: list[str] | None = None,
+) -> dict[str, tuple[float, float]]:
+    """Estimate contrast and offset scaling per scattering angle.
+
+    Uses simple heuristics on the raw g2 correlation data to provide
+    starting-point estimates for the ``contrast`` and ``offset``
+    scaling parameters:
+
+    * ``contrast`` estimate ≈ ``max(g2) - min(g2)`` over the full
+      lag range.
+    * ``offset`` estimate ≈ mean of the last 10 % of g2 values
+      (long-lag baseline), clamped to ``[0, 1]``.
+
+    These are heuristics suitable for warm-starting, not MAP estimates.
+    The NLSQ/MCMC optimisation will refine them.
+
+    Args:
+        data_dict: Dict mapping angle keys to g2 data.  Each value may
+            be:
+
+            * a 1-D array-like ``(n_lags,)`` of g2 values, or
+            * a dict with a ``"g2"`` key holding such an array.
+
+        angle_keys: Subset of keys in ``data_dict`` to process.
+            Defaults to all keys when ``None``.
+
+    Returns:
+        Mapping of ``angle_key -> (contrast_estimate, offset_estimate)``.
+        Keys for which data could not be parsed are silently omitted.
+    """
+    import numpy as np
+
+    if angle_keys is None:
+        angle_keys = list(data_dict.keys())
+
+    result: dict[str, tuple[float, float]] = {}
+
+    for key in angle_keys:
+        raw = data_dict.get(key)
+        if raw is None:
+            logger.warning(
+                "estimate_per_angle_scaling: key '%s' not found in data_dict.",
+                key,
+            )
+            continue
+
+        # Accept either a plain array or a dict with a "g2" sub-key
+        if isinstance(raw, dict):
+            g2_raw = raw.get("g2")
+            if g2_raw is None:
+                logger.debug(
+                    "estimate_per_angle_scaling: key '%s' dict has no 'g2' entry.",
+                    key,
+                )
+                continue
+        else:
+            g2_raw = raw
+
+        try:
+            g2 = np.asarray(g2_raw, dtype=float).ravel()
+        except (ValueError, TypeError) as exc:
+            logger.debug(
+                "estimate_per_angle_scaling: cannot convert key '%s' to array: %s",
+                key, exc,
+            )
+            continue
+
+        if g2.size == 0:
+            continue
+
+        g2_max = float(np.nanmax(g2))
+        g2_min = float(np.nanmin(g2))
+
+        contrast_est = g2_max - g2_min
+
+        # Baseline: mean of the last 10 % of points (long-tau asymptote)
+        n_tail = max(1, int(np.ceil(0.1 * g2.size)))
+        offset_est = float(np.nanmean(g2[-n_tail:]))
+        # Physical constraint: offset in [0, 1]
+        offset_est = float(np.clip(offset_est, 0.0, 1.0))
+
+        result[key] = (contrast_est, offset_est)
+
+        logger.debug(
+            "estimate_per_angle_scaling: key='%s', "
+            "contrast=%.4e, offset=%.4e",
+            key, contrast_est, offset_est,
+        )
+
+    logger.info(
+        "estimate_per_angle_scaling: estimated scaling for %d / %d angles.",
+        len(result), len(angle_keys),
+    )
+    return result

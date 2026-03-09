@@ -9,6 +9,7 @@ import numpyro
 import numpyro.distributions as dist
 
 from heterodyne.config.parameter_names import ALL_PARAM_NAMES, PARAM_INDICES
+from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
 from heterodyne.core.jax_backend import compute_c2_heterodyne
 from heterodyne.core.physics_cmc import ShardGrid, compute_c2_elementwise
 from heterodyne.optimization.cmc.reparameterization import (
@@ -16,12 +17,15 @@ from heterodyne.optimization.cmc.reparameterization import (
     reparam_to_physics_jax,
 )
 from heterodyne.optimization.cmc.scaling import ParameterScaling, smooth_bound
+from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from heterodyne.config.parameter_space import ParameterSpace
     from heterodyne.optimization.nlsq.results import NLSQResult
+
+logger = get_logger(__name__)
 
 
 def get_heterodyne_model(
@@ -445,6 +449,7 @@ def get_heterodyne_model_individual(
     contrast_prior_scale: float = 0.25,
     offset_prior_loc: jnp.ndarray | float = 1.0,
     offset_prior_scale: float = 0.25,
+    shard_grids: list[ShardGrid] | None = None,
 ):
     """Create NumPyro model with per-angle sampled contrast and offset.
 
@@ -469,6 +474,12 @@ def get_heterodyne_model_individual(
         offset_prior_loc: Prior centre(s) for offset.  Scalar or
             ``(n_phi,)`` array.  Default ``1.0``.
         offset_prior_scale: Prior width for offset.  Default ``0.25``.
+        shard_grids: Optional list of pre-computed ShardGrids, one per phi
+            angle.  When provided, uses the memory-efficient element-wise
+            path (no N×N allocation per angle).  ``c2_data[ai]`` and
+            ``sigma[ai]`` must then be flattened to match each shard grid's
+            paired indices.  Without this, the model builds n_phi N×N
+            matrices per NUTS step which can cause OOM for large datasets.
 
     Returns:
         NumPyro model callable (no required arguments).
@@ -478,6 +489,11 @@ def get_heterodyne_model_individual(
 
     phi_arr = jnp.asarray(phi_angles)
     n_phi = phi_arr.shape[0]
+
+    if shard_grids is not None and len(shard_grids) != n_phi:
+        raise ValueError(
+            f"shard_grids length {len(shard_grids)} must match n_phi {n_phi}"
+        )
 
     contrast_loc = jnp.broadcast_to(jnp.asarray(contrast_prior_loc), (n_phi,))
     offset_loc = jnp.broadcast_to(jnp.asarray(offset_prior_loc), (n_phi,))
@@ -519,15 +535,26 @@ def get_heterodyne_model_individual(
         # which is safe here, but a Python loop keeps tracing simple and avoids
         # shape-inference issues with dynamic plate sizes.
         for ai in range(n_phi):
-            c2_model_i = compute_c2_heterodyne(
-                params,
-                t,
-                q,
-                dt,
-                float(phi_arr[ai]),
-                contrast_i[ai],
-                offset_i[ai],
-            )
+            if shard_grids is not None:
+                c2_model_i = compute_c2_elementwise(
+                    params,
+                    shard_grids[ai],
+                    q,
+                    dt,
+                    float(phi_arr[ai]),
+                    contrast_i[ai],
+                    offset_i[ai],
+                )
+            else:
+                c2_model_i = compute_c2_heterodyne(
+                    params,
+                    t,
+                    q,
+                    dt,
+                    float(phi_arr[ai]),
+                    contrast_i[ai],
+                    offset_i[ai],
+                )
             sigma_i = sigma[ai] if hasattr(sigma, "__len__") else sigma  # type: ignore[index]
             numpyro.sample(
                 f"obs_{ai}",
@@ -676,6 +703,7 @@ def get_model_for_mode(
 
     # per_angle_mode == "individual"
     phi_angles = kwargs.pop("phi_angles")
+    sg_individual: list[ShardGrid] | None = kwargs.pop("shard_grids", None)  # type: ignore[assignment]
     return get_heterodyne_model_individual(
         t=t,
         q=q,
@@ -684,6 +712,7 @@ def get_model_for_mode(
         c2_data=c2_data,
         sigma=sigma,
         space=space,
+        shard_grids=sg_individual,
         **kwargs,  # type: ignore[arg-type]
     )
 
@@ -802,3 +831,123 @@ def estimate_sigma(
             f"Unknown method '{method}'. Valid options: "
             "'diagonal', 'constant', 'local', 'residual', 'bootstrap'."
         )
+
+
+# ---------------------------------------------------------------------------
+# Model output validation and parameter counting
+# ---------------------------------------------------------------------------
+
+
+def validate_model_output(
+    c2_theory: jnp.ndarray,
+    params: jnp.ndarray,
+) -> bool:
+    """Validate that theoretical C2 values are physically reasonable.
+
+    Checks for NaN/inf values and enforces the heterodyne C2 range
+    constraint ``[-1.0, 10.0]``.  Heterodyne C2 can go negative due to
+    the velocity phase term, unlike homodyne where C2 >= 0.
+
+    Args:
+        c2_theory: Theoretical C2 array from model evaluation.
+        params: Parameter array used to produce ``c2_theory`` (logged
+            on failure for diagnostics).
+
+    Returns:
+        ``True`` if the output passes all checks, ``False`` otherwise.
+    """
+    # Check for NaN values
+    if bool(jnp.any(jnp.isnan(c2_theory))):
+        logger.warning(
+            "validate_model_output: NaN detected in C2 theory "
+            "(params=%s)",
+            params,
+        )
+        return False
+
+    # Check for inf values
+    if bool(jnp.any(jnp.isinf(c2_theory))):
+        logger.warning(
+            "validate_model_output: inf detected in C2 theory "
+            "(params=%s)",
+            params,
+        )
+        return False
+
+    # Enforce heterodyne C2 range: [-1.0, 10.0]
+    c2_min = float(jnp.min(c2_theory))
+    c2_max = float(jnp.max(c2_theory))
+    if c2_min < -1.0 or c2_max > 10.0:
+        logger.warning(
+            "validate_model_output: C2 range [%.4e, %.4e] exceeds "
+            "physical bounds [-1.0, 10.0] (params=%s)",
+            c2_min,
+            c2_max,
+            params,
+        )
+        return False
+
+    return True
+
+
+def get_model_param_count(
+    n_phi: int,
+    per_angle_mode: str = "individual",
+) -> int:
+    """Return total number of sampled parameters for the model.
+
+    Accounts for per-angle mode semantics when counting contrast/offset
+    parameters that are sampled in addition to the shared physics
+    parameters.
+
+    Per-angle mode contributions:
+
+    * ``"constant"`` — 0 per-angle params (fixed contrast/offset).
+    * ``"constant_averaged"`` — 0 per-angle params (fixed averaged
+      contrast/offset).
+    * ``"auto"`` — physics params only (contrast/offset live in the
+      parameter space, already counted).
+    * ``"individual"`` — ``2 * n_phi`` per-angle params
+      (``contrast_z`` + ``offset_z`` per angle).
+
+    Args:
+        n_phi: Number of scattering angles.
+        per_angle_mode: One of ``"constant"``, ``"constant_averaged"``,
+            ``"auto"``, ``"individual"``.
+
+    Returns:
+        Total number of sampled parameters (int).
+
+    Raises:
+        ValueError: If ``per_angle_mode`` is not recognised.
+    """
+    _VALID_MODES = frozenset({"auto", "constant", "constant_averaged", "individual"})
+    if per_angle_mode not in _VALID_MODES:
+        raise ValueError(
+            f"Unknown per_angle_mode '{per_angle_mode}'. "
+            f"Valid options: {sorted(_VALID_MODES)}"
+        )
+
+    # Base: count physics params that vary by default in the registry
+    n_physics = sum(
+        1 for name in ALL_PARAM_NAMES
+        if DEFAULT_REGISTRY[name].vary_default
+    )
+
+    # Per-angle contributions
+    if per_angle_mode == "individual":
+        n_per_angle = 2 * n_phi  # contrast_z + offset_z per angle
+    else:
+        # "constant", "constant_averaged", "auto" — no additional sampled params
+        n_per_angle = 0
+
+    total = n_physics + n_per_angle
+    logger.debug(
+        "get_model_param_count: n_physics=%d, n_per_angle=%d (mode=%s, n_phi=%d) -> %d",
+        n_physics,
+        n_per_angle,
+        per_angle_mode,
+        n_phi,
+        total,
+    )
+    return total
