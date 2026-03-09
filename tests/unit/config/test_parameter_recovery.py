@@ -271,16 +271,15 @@ class TestGetParamNamesInOrder:
         assert len(names_reduced) == len(all_names) - 1
 
     def test_vary_flags_override_enables_param(self) -> None:
-        # Find a param with vary_default=False if one exists, else skip
-        fixed_params = [
-            name for name in DEFAULT_REGISTRY
-            if not DEFAULT_REGISTRY[name].vary_default
-        ]
-        if not fixed_params:
-            pytest.skip("No parameters with vary_default=False in registry")
-        name = fixed_params[0]
-        names = get_param_names_in_order(vary_flags={name: True})
-        assert name in names
+        # Disable a parameter first, then verify re-enabling it works
+        all_names = get_param_names_in_order()
+        target = all_names[0]
+        # Confirm it's excluded when disabled
+        names_without = get_param_names_in_order(vary_flags={target: False})
+        assert target not in names_without
+        # Re-enable it explicitly
+        names_with = get_param_names_in_order(vary_flags={target: True})
+        assert target in names_with
 
     def test_result_count_matches_registry_vary_defaults(self) -> None:
         expected_count = sum(
