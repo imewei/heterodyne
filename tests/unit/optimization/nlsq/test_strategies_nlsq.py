@@ -123,9 +123,10 @@ def _assert_nlsq_import(module_path: str, symbol: str) -> None:
     assert spec.origin is not None
     with open(spec.origin) as fh:
         source = fh.read()
-    assert f"from nlsq import" in source and symbol in source, (
-        f"{module_path} does not import '{symbol}' from nlsq."
-    )
+    assert any(
+        "from nlsq import" in line and symbol in line
+        for line in source.splitlines()
+    ), f"{module_path} does not import '{symbol}' from nlsq."
 
 
 # ---------------------------------------------------------------------------

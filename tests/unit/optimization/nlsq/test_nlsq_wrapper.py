@@ -121,13 +121,13 @@ class TestNLSQWrapperTierFallback:
 
         call_tiers: list[NLSQStrategy] = []
 
-        original_call_tier = wrapper._call_tier
-
+        # Mock _call_tier: STREAMING raises, LARGE returns a valid result tuple
         def mock_call_tier(tier: NLSQStrategy, **kwargs: object) -> object:
             call_tiers.append(tier)
             if tier == NLSQStrategy.STREAMING:
                 raise RuntimeError("Streaming unavailable")
-            return original_call_tier(tier=tier, **kwargs)
+            # Return (popt, pcov) tuple for successful tiers
+            return (np.array([1.1, 2.1]), np.eye(2) * 0.01)
 
         decision = _make_strategy_decision(NLSQStrategy.STREAMING)
 
@@ -153,7 +153,7 @@ class TestNLSQWrapperTierFallback:
         # STREAMING failed, should have tried LARGE or STANDARD next
         assert NLSQStrategy.STREAMING in call_tiers
         assert len(call_tiers) >= 2
-        assert result is not None
+        assert result.success is True, f"Expected success but got: {result.message}"
 
 
 # ---------------------------------------------------------------------------

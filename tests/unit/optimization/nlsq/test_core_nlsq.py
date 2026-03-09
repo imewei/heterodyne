@@ -230,6 +230,7 @@ class TestFitLocalFallback:
 
         # The adapter raised a RuntimeError from success=False, triggering fallback
         wrapper_instance.fit.assert_called_once()
+        assert result.success is True
         assert result.metadata.get("fallback_occurred") is True
 
 

@@ -25,6 +25,7 @@ from heterodyne.optimization.nlsq.fallback_chain import (
     get_fallback_strategy,
     handle_nlsq_result,
 )
+from heterodyne.optimization.nlsq.results import NLSQResult
 
 
 # ---------------------------------------------------------------------------
@@ -260,10 +261,8 @@ def test_enum_values_match_nlsq_strategy() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _make_mock_nlsq_result() -> NLSQResult_type:  # type: ignore[valid-type]
+def _make_mock_nlsq_result() -> NLSQResult:
     """Return a minimal mock NLSQResult."""
-    from heterodyne.optimization.nlsq.results import NLSQResult
-
     return NLSQResult(
         parameters=_make_popt(),
         parameter_names=["a", "b", "c"],

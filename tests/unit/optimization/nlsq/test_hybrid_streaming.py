@@ -13,6 +13,7 @@ import ast
 import importlib
 import sys
 import textwrap
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -25,15 +26,15 @@ import pytest
 # ---------------------------------------------------------------------------
 
 _MODULE_PATH = (
-    "heterodyne/optimization/nlsq/strategies/hybrid_streaming.py"
+    Path(__file__).resolve().parents[4]
+    / "heterodyne/optimization/nlsq/strategies/hybrid_streaming.py"
 )
 _MODULE_NAME = "heterodyne.optimization.nlsq.strategies.hybrid_streaming"
 
 
 def _source() -> str:
     """Return the source text of the strategy module."""
-    with open(_MODULE_PATH) as fh:
-        return fh.read()
+    return _MODULE_PATH.read_text(encoding="utf-8")
 
 
 def _ast_imports(source: str) -> list[str]:
