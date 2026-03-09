@@ -1,22 +1,25 @@
-"""Unit tests for NLSQWrapper.
+"""Unit tests for NLSQWrapper (memory-aware fallback adapter).
 
 Tests cover:
-- Success on first attempt (simple quadratic residual via ScipyNLSQAdapter).
-- Retry when the adapter fails on attempt 0 then succeeds.
-- Max retries exhausted — returns best result seen so far.
+- Success on first attempt (simple residual).
+- Tier fallback when one tier fails.
+- All tiers exhausted returns failure result.
+- Memory-based strategy selection.
+- _build_tier_list() ordering and filtering.
+- enable_large_dataset / enable_recovery flags.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
+from heterodyne.optimization.nlsq.adapter import NLSQWrapper
 from heterodyne.optimization.nlsq.config import NLSQConfig
+from heterodyne.optimization.nlsq.memory import NLSQStrategy, StrategyDecision
 from heterodyne.optimization.nlsq.results import NLSQResult
-from heterodyne.optimization.nlsq.wrapper import NLSQWrapper
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -35,12 +38,11 @@ DEFAULT_CONFIG = NLSQConfig(max_iterations=50, verbose=0)
 def _make_result(
     *,
     success: bool,
-    final_cost: float | None,
     params: np.ndarray | None = None,
+    final_cost: float | None = None,
 ) -> NLSQResult:
-    """Create a minimal NLSQResult for testing."""
     if params is None:
-        params = np.zeros(2)
+        params = np.array([1.5, -0.5])
     return NLSQResult(
         parameters=params,
         parameter_names=PARAM_NAMES,
@@ -50,287 +52,330 @@ def _make_result(
     )
 
 
+def _make_strategy_decision(strategy: NLSQStrategy) -> StrategyDecision:
+    return StrategyDecision(
+        strategy=strategy,
+        threshold_gb=16.0,
+        peak_memory_gb=1.0,
+        reason="test",
+    )
+
+
 # ---------------------------------------------------------------------------
-# Tests
+# Tests: success on first attempt
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestNLSQWrapperSuccessFirstAttempt:
-    """Wrapper returns immediately on first-attempt success."""
+class TestNLSQWrapperSuccess:
+    """Wrapper returns on first successful tier."""
 
-    def test_quadratic_residual_converges(self) -> None:
-        """Wrapper converges on a trivial least-squares problem.
+    def test_simple_residual_succeeds(self) -> None:
+        """STANDARD tier returns success when _call_tier succeeds."""
+        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES, max_retries=1)
 
-        Residual: f(x) = x - target, so the optimum is x = target.
-        """
         target = np.array([3.0, -2.0])
+        mock_raw = (target, np.eye(2) * 0.01)
 
-        def residual_fn(params: np.ndarray) -> np.ndarray:
-            return params - target
+        decision = _make_strategy_decision(NLSQStrategy.STANDARD)
 
-        wrapper = NLSQWrapper(
-            parameter_names=PARAM_NAMES,
-            use_jax=False,
-            max_retries=3,
-        )
-        result = wrapper.fit(
-            residual_fn=residual_fn,
-            initial_params=np.array([0.0, 0.0]),
-            bounds=DEFAULT_BOUNDS,
-            config=DEFAULT_CONFIG,
-        )
+        with (
+            patch.object(wrapper, "_call_tier", return_value=mock_raw),
+            patch(
+                "heterodyne.optimization.nlsq.adapter.select_nlsq_strategy",
+                return_value=decision,
+            ),
+        ):
+
+            def residual_fn(params: np.ndarray) -> np.ndarray:
+                return params - target
+
+            result = wrapper.fit(
+                residual_fn=residual_fn,
+                initial_params=np.array([0.0, 0.0]),
+                bounds=DEFAULT_BOUNDS,
+                config=DEFAULT_CONFIG,
+            )
 
         assert result.success, f"Expected success, got: {result.message}"
         np.testing.assert_allclose(result.parameters, target, atol=1e-4)
 
-    def test_adapter_called_once_on_success(self) -> None:
-        """When the adapter succeeds immediately, fit is only called once."""
-        success_result = _make_result(success=True, final_cost=0.01)
-        mock_adapter = MagicMock()
-        mock_adapter.fit.return_value = success_result
-        mock_adapter.name = "mock"
 
-        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES, max_retries=3)
-        wrapper._adapter = mock_adapter
-
-        wrapper.fit(
-            residual_fn=lambda p: p,
-            initial_params=np.zeros(2),
-            bounds=DEFAULT_BOUNDS,
-            config=DEFAULT_CONFIG,
-        )
-
-        assert mock_adapter.fit.call_count == 1
+# ---------------------------------------------------------------------------
+# Tests: tier fallback
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestNLSQWrapperRetry:
-    """Wrapper retries after failure and returns first success."""
+class TestNLSQWrapperTierFallback:
+    """Wrapper falls back to next tier when current tier fails."""
 
-    def test_retry_succeeds_on_second_attempt(self) -> None:
-        """When attempt 0 fails and attempt 1 succeeds, result is attempt 1's."""
-        fail_result = _make_result(success=False, final_cost=999.0)
-        success_result = _make_result(
-            success=True,
-            final_cost=0.5,
-            params=np.array([1.0, 2.0]),
-        )
-
-        mock_adapter = MagicMock()
-        mock_adapter.fit.side_effect = [fail_result, success_result]
-        mock_adapter.name = "mock"
-
-        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES, max_retries=3)
-        wrapper._adapter = mock_adapter
-
-        result = wrapper.fit(
-            residual_fn=lambda p: p,
-            initial_params=np.zeros(2),
-            bounds=DEFAULT_BOUNDS,
-            config=DEFAULT_CONFIG,
-        )
-
-        assert result.success
-        assert result.final_cost == pytest.approx(0.5)
-        assert mock_adapter.fit.call_count == 2
-
-    def test_perturbed_params_passed_on_retry(self) -> None:
-        """Params passed to the second attempt differ from the first."""
-        fail_result = _make_result(success=False, final_cost=1.0)
-        success_result = _make_result(success=True, final_cost=0.1)
-
-        call_params: list[np.ndarray] = []
-
-        def fake_fit(
-            residual_fn: Callable,
-            initial_params: np.ndarray,
-            bounds: tuple[np.ndarray, np.ndarray],
-            config: NLSQConfig,
-            jacobian_fn: Callable | None = None,
-        ) -> NLSQResult:
-            call_params.append(initial_params.copy())
-            return fail_result if len(call_params) == 1 else success_result
-
-        mock_adapter = MagicMock()
-        mock_adapter.fit.side_effect = fake_fit
-        mock_adapter.name = "mock"
-
+    def test_fallback_to_next_tier_on_failure(self) -> None:
+        """When _call_tier raises on STREAMING, falls back to LARGE/STANDARD."""
         wrapper = NLSQWrapper(
             parameter_names=PARAM_NAMES,
-            max_retries=3,
-            perturb_scale=0.1,
-        )
-        wrapper._adapter = mock_adapter
-
-        wrapper.fit(
-            residual_fn=lambda p: p,
-            initial_params=np.array([1.0, 1.0]),
-            bounds=DEFAULT_BOUNDS,
-            config=DEFAULT_CONFIG,
+            enable_large_dataset=True,
+            enable_recovery=True,
+            max_retries=1,
         )
 
-        assert len(call_params) == 2
-        # First attempt: original params (clipped).
-        np.testing.assert_allclose(call_params[0], [1.0, 1.0])
-        # Second attempt: perturbed — must differ.
-        assert not np.allclose(call_params[0], call_params[1]), (
-            "Second attempt should use perturbed parameters"
-        )
+        call_tiers: list[NLSQStrategy] = []
 
+        original_call_tier = wrapper._call_tier
 
-@pytest.mark.unit
-class TestNLSQWrapperMaxRetriesExhausted:
-    """When all attempts fail, wrapper returns the best result seen."""
+        def mock_call_tier(tier: NLSQStrategy, **kwargs: object) -> object:
+            call_tiers.append(tier)
+            if tier == NLSQStrategy.STREAMING:
+                raise RuntimeError("Streaming unavailable")
+            return original_call_tier(tier=tier, **kwargs)
 
-    def test_returns_best_when_all_fail(self) -> None:
-        """Best result (lowest cost) is returned after all retries fail."""
-        results = [
-            _make_result(success=False, final_cost=50.0),
-            _make_result(success=False, final_cost=10.0),  # best
-            _make_result(success=False, final_cost=30.0),
-            _make_result(success=False, final_cost=20.0),
-        ]
+        decision = _make_strategy_decision(NLSQStrategy.STREAMING)
 
-        mock_adapter = MagicMock()
-        mock_adapter.fit.side_effect = results
-        mock_adapter.name = "mock"
+        with (
+            patch.object(wrapper, "_call_tier", side_effect=mock_call_tier),
+            patch(
+                "heterodyne.optimization.nlsq.adapter.select_nlsq_strategy",
+                return_value=decision,
+            ),
+        ):
+            target = np.array([1.0, 2.0])
 
-        wrapper = NLSQWrapper(
-            parameter_names=PARAM_NAMES,
-            max_retries=3,  # 4 total attempts
-        )
-        wrapper._adapter = mock_adapter
+            def residual_fn(params: np.ndarray) -> np.ndarray:
+                return params - target
 
-        result = wrapper.fit(
-            residual_fn=lambda p: p,
-            initial_params=np.zeros(2),
-            bounds=DEFAULT_BOUNDS,
-            config=DEFAULT_CONFIG,
-        )
-
-        # All 4 attempts should be exhausted
-        assert mock_adapter.fit.call_count == 4
-        # The result with cost 10.0 is the best
-        assert result.final_cost == pytest.approx(10.0)
-        assert not result.success
-
-    def test_returns_result_when_cost_is_none(self) -> None:
-        """A result with final_cost=None is treated as infinite cost."""
-        none_cost = _make_result(success=False, final_cost=None)
-        finite_cost = _make_result(success=False, final_cost=999.0)
-
-        mock_adapter = MagicMock()
-        mock_adapter.fit.side_effect = [none_cost, finite_cost]
-        mock_adapter.name = "mock"
-
-        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES, max_retries=1)
-        wrapper._adapter = mock_adapter
-
-        result = wrapper.fit(
-            residual_fn=lambda p: p,
-            initial_params=np.zeros(2),
-            bounds=DEFAULT_BOUNDS,
-            config=DEFAULT_CONFIG,
-        )
-
-        # finite_cost wins over None-cost
-        assert result.final_cost == pytest.approx(999.0)
-
-    def test_total_attempts_equals_max_retries_plus_one(self) -> None:
-        """Total number of adapter calls equals max_retries + 1."""
-        for max_retries in (0, 1, 3, 5):
-            fail_result = _make_result(success=False, final_cost=1.0)
-            mock_adapter = MagicMock()
-            mock_adapter.fit.return_value = fail_result
-            mock_adapter.name = "mock"
-
-            wrapper = NLSQWrapper(
-                parameter_names=PARAM_NAMES,
-                max_retries=max_retries,
+            result = wrapper.fit(
+                residual_fn=residual_fn,
+                initial_params=np.array([0.0, 0.0]),
+                bounds=DEFAULT_BOUNDS,
+                config=DEFAULT_CONFIG,
             )
-            wrapper._adapter = mock_adapter
 
-            wrapper.fit(
-                residual_fn=lambda p: p,
+        # STREAMING failed, should have tried LARGE or STANDARD next
+        assert NLSQStrategy.STREAMING in call_tiers
+        assert len(call_tiers) >= 2
+        assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# Tests: all tiers exhausted
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestNLSQWrapperAllTiersExhausted:
+    """When every tier fails, wrapper returns a failure result."""
+
+    def test_all_tiers_fail_returns_failure(self) -> None:
+        wrapper = NLSQWrapper(
+            parameter_names=PARAM_NAMES,
+            enable_recovery=True,
+            max_retries=1,
+        )
+
+        decision = _make_strategy_decision(NLSQStrategy.STANDARD)
+
+        with (
+            patch.object(
+                wrapper,
+                "_call_tier",
+                side_effect=RuntimeError("always fails"),
+            ),
+            patch(
+                "heterodyne.optimization.nlsq.adapter.select_nlsq_strategy",
+                return_value=decision,
+            ),
+        ):
+
+            def residual_fn(params: np.ndarray) -> np.ndarray:
+                return params
+
+            result = wrapper.fit(
+                residual_fn=residual_fn,
                 initial_params=np.zeros(2),
                 bounds=DEFAULT_BOUNDS,
                 config=DEFAULT_CONFIG,
             )
 
-            assert mock_adapter.fit.call_count == max_retries + 1, (
-                f"Expected {max_retries + 1} calls for max_retries={max_retries}, "
-                f"got {mock_adapter.fit.call_count}"
+        assert result.success is False
+        assert "failed" in result.message.lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests: memory-based strategy selection
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestNLSQWrapperStrategySelection:
+    """select_nlsq_strategy determines the initial tier."""
+
+    def test_strategy_decision_is_used(self) -> None:
+        """The wrapper uses the strategy from select_nlsq_strategy."""
+        wrapper = NLSQWrapper(
+            parameter_names=PARAM_NAMES,
+            enable_large_dataset=True,
+            enable_recovery=False,
+            max_retries=1,
+        )
+
+        call_tiers: list[NLSQStrategy] = []
+
+        def mock_call_tier(tier: NLSQStrategy, **kwargs: object) -> object:
+            call_tiers.append(tier)
+            raise RuntimeError("fail")
+
+        decision = _make_strategy_decision(NLSQStrategy.LARGE)
+
+        with (
+            patch.object(wrapper, "_call_tier", side_effect=mock_call_tier),
+            patch(
+                "heterodyne.optimization.nlsq.adapter.select_nlsq_strategy",
+                return_value=decision,
+            ),
+        ):
+
+            def residual_fn(params: np.ndarray) -> np.ndarray:
+                return params
+
+            wrapper.fit(
+                residual_fn=residual_fn,
+                initial_params=np.zeros(2),
+                bounds=DEFAULT_BOUNDS,
+                config=DEFAULT_CONFIG,
             )
 
+        # First tier attempted should be LARGE (as selected)
+        assert call_tiers[0] == NLSQStrategy.LARGE
 
-@pytest.mark.unit
-class TestNLSQWrapperPerturbation:
-    """Unit tests for the internal _perturbed_params helper."""
 
-    def test_attempt_zero_returns_clipped_original(self) -> None:
-        """Attempt 0 must return the original params (clipped to bounds)."""
-        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES)
-        params = np.array([5.0, -3.0])
-        lower = np.array([-10.0, -10.0])
-        upper = np.array([10.0, 10.0])
-
-        result = wrapper._perturbed_params(params, lower, upper, attempt=0)
-        np.testing.assert_array_equal(result, params)
-
-    def test_attempt_zero_clips_out_of_bounds(self) -> None:
-        """Params outside bounds are clipped on attempt 0."""
-        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES)
-        params = np.array([15.0, -15.0])
-        lower = np.array([-10.0, -10.0])
-        upper = np.array([10.0, 10.0])
-
-        result = wrapper._perturbed_params(params, lower, upper, attempt=0)
-        np.testing.assert_array_equal(result, np.array([10.0, -10.0]))
-
-    def test_perturbed_params_stay_within_bounds(self) -> None:
-        """Perturbed params for any attempt must be within bounds."""
-        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES, perturb_scale=2.0)
-        params = np.array([0.0, 0.0])
-        lower = np.array([-1.0, -1.0])
-        upper = np.array([1.0, 1.0])
-
-        for attempt in range(1, 6):
-            result = wrapper._perturbed_params(params, lower, upper, attempt=attempt)
-            assert np.all(result >= lower), f"attempt {attempt}: below lower bound"
-            assert np.all(result <= upper), f"attempt {attempt}: above upper bound"
-
-    def test_reproducibility_same_seed(self) -> None:
-        """Same attempt index always produces the same perturbation."""
-        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES)
-        params = np.array([1.0, 2.0])
-        lower = np.array([-10.0, -10.0])
-        upper = np.array([10.0, 10.0])
-
-        r1 = wrapper._perturbed_params(params, lower, upper, attempt=2)
-        r2 = wrapper._perturbed_params(params, lower, upper, attempt=2)
-        np.testing.assert_array_equal(r1, r2)
+# ---------------------------------------------------------------------------
+# Tests: _build_tier_list
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestNLSQWrapperUpdateBest:
-    """Unit tests for the static _update_best helper."""
+class TestBuildTierList:
+    """Unit tests for _build_tier_list ordering and filtering."""
 
-    def test_none_best_returns_candidate(self) -> None:
-        candidate = _make_result(success=True, final_cost=1.0)
-        assert NLSQWrapper._update_best(None, candidate) is candidate
+    def test_streaming_start_gives_full_cascade(self) -> None:
+        wrapper = NLSQWrapper(
+            parameter_names=PARAM_NAMES,
+            enable_large_dataset=True,
+        )
+        tiers = wrapper._build_tier_list(NLSQStrategy.STREAMING)
+        assert tiers == [
+            NLSQStrategy.STREAMING,
+            NLSQStrategy.LARGE,
+            NLSQStrategy.STANDARD,
+        ]
 
-    def test_lower_cost_candidate_wins(self) -> None:
-        best = _make_result(success=False, final_cost=5.0)
-        candidate = _make_result(success=False, final_cost=2.0)
-        assert NLSQWrapper._update_best(best, candidate) is candidate
+    def test_large_start_skips_streaming(self) -> None:
+        wrapper = NLSQWrapper(
+            parameter_names=PARAM_NAMES,
+            enable_large_dataset=True,
+        )
+        tiers = wrapper._build_tier_list(NLSQStrategy.LARGE)
+        assert tiers == [NLSQStrategy.LARGE, NLSQStrategy.STANDARD]
 
-    def test_higher_cost_candidate_loses(self) -> None:
-        best = _make_result(success=True, final_cost=1.0)
-        candidate = _make_result(success=False, final_cost=10.0)
-        assert NLSQWrapper._update_best(best, candidate) is best
+    def test_standard_start_is_single(self) -> None:
+        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES)
+        tiers = wrapper._build_tier_list(NLSQStrategy.STANDARD)
+        assert tiers == [NLSQStrategy.STANDARD]
 
-    def test_none_cost_treated_as_infinity(self) -> None:
-        best = _make_result(success=False, final_cost=100.0)
-        candidate = _make_result(success=False, final_cost=None)
-        assert NLSQWrapper._update_best(best, candidate) is best
+    def test_enable_large_dataset_false_drops_large(self) -> None:
+        wrapper = NLSQWrapper(
+            parameter_names=PARAM_NAMES,
+            enable_large_dataset=False,
+        )
+        tiers = wrapper._build_tier_list(NLSQStrategy.STREAMING)
+        assert NLSQStrategy.LARGE not in tiers
+        assert NLSQStrategy.STREAMING in tiers
+        assert NLSQStrategy.STANDARD in tiers
+
+    def test_enable_recovery_false_stops_after_first_tier(self) -> None:
+        """With enable_recovery=False, only the first tier is attempted."""
+        wrapper = NLSQWrapper(
+            parameter_names=PARAM_NAMES,
+            enable_recovery=False,
+            max_retries=1,
+        )
+
+        call_tiers: list[NLSQStrategy] = []
+
+        def mock_call_tier(tier: NLSQStrategy, **kwargs: object) -> object:
+            call_tiers.append(tier)
+            raise RuntimeError("fail")
+
+        decision = _make_strategy_decision(NLSQStrategy.STREAMING)
+
+        with (
+            patch.object(wrapper, "_call_tier", side_effect=mock_call_tier),
+            patch(
+                "heterodyne.optimization.nlsq.adapter.select_nlsq_strategy",
+                return_value=decision,
+            ),
+        ):
+
+            def residual_fn(params: np.ndarray) -> np.ndarray:
+                return params
+
+            wrapper.fit(
+                residual_fn=residual_fn,
+                initial_params=np.zeros(2),
+                bounds=DEFAULT_BOUNDS,
+                config=DEFAULT_CONFIG,
+            )
+
+        # Only tried one tier (STREAMING), did not cascade
+        assert call_tiers == [NLSQStrategy.STREAMING]
+
+
+# ---------------------------------------------------------------------------
+# Tests: max_retries enforcement
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestNLSQWrapperMaxRetries:
+    """max_retries controls per-tier retry count."""
+
+    def test_max_retries_clamped_to_at_least_one(self) -> None:
+        wrapper = NLSQWrapper(parameter_names=PARAM_NAMES, max_retries=0)
+        assert wrapper._max_retries == 1
+
+    def test_retries_exhausted_per_tier(self) -> None:
+        wrapper = NLSQWrapper(
+            parameter_names=PARAM_NAMES,
+            enable_recovery=False,
+            max_retries=3,
+        )
+
+        call_count = 0
+
+        def mock_call_tier(tier: NLSQStrategy, **kwargs: object) -> object:
+            nonlocal call_count
+            call_count += 1
+            raise RuntimeError("fail")
+
+        decision = _make_strategy_decision(NLSQStrategy.STANDARD)
+
+        with (
+            patch.object(wrapper, "_call_tier", side_effect=mock_call_tier),
+            patch(
+                "heterodyne.optimization.nlsq.adapter.select_nlsq_strategy",
+                return_value=decision,
+            ),
+        ):
+
+            def residual_fn(params: np.ndarray) -> np.ndarray:
+                return params
+
+            wrapper.fit(
+                residual_fn=residual_fn,
+                initial_params=np.zeros(2),
+                bounds=DEFAULT_BOUNDS,
+                config=DEFAULT_CONFIG,
+            )
+
+        # STANDARD tier retried max_retries=3 times
+        assert call_count == 3
