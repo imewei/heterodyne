@@ -34,6 +34,9 @@ try:
 except ImportError:
     _HAS_CMA = False
 
+#: Public availability flag consumed by ``core.py``.
+CMAES_AVAILABLE: bool = _HAS_CMA
+
 
 @dataclass
 class CMAESConfig:
@@ -56,6 +59,7 @@ class CMAESConfig:
     tolx: float = 1e-11
     tolfun: float = 1e-11
     seed: int = 42
+    diagonal_filtering: str = "none"
 
     def __post_init__(self) -> None:
         """Validate configuration values."""
@@ -65,6 +69,11 @@ class CMAESConfig:
             raise ValueError("maxiter must be >= 1")
         if self.popsize is not None and self.popsize < 2:
             raise ValueError("popsize must be >= 2 when specified")
+        if self.diagonal_filtering not in ("remove", "none"):
+            raise ValueError(
+                f"diagonal_filtering must be 'remove' or 'none', "
+                f"got {self.diagonal_filtering!r}"
+            )
 
 
 class CMAESWrapper:
@@ -146,6 +155,8 @@ class CMAESWrapper:
         }
         if self._config.popsize is not None:
             opts["popsize"] = self._config.popsize
+        if self._config.diagonal_filtering == "remove":
+            opts["CMA_diagonal"] = True
 
         logger.info(
             "Starting CMA-ES: sigma0=%.3g, maxiter=%d, n_params=%d",
@@ -301,6 +312,181 @@ def denormalize_from_unit_cube(
             f"got {x_norm.shape}, {lower.shape}, {upper.shape}"
         )
     return lower + x_norm * (upper - lower)
+
+
+def compute_adaptive_cmaes_params(
+    bounds: tuple[np.ndarray, np.ndarray],
+) -> tuple[int, int]:
+    """Compute adaptive population size and max generations from bound ranges.
+
+    Scales popsize from 50 to 200 and max_generations from 200 to 500 based
+    on the ratio between the largest and smallest parameter ranges.  This
+    ensures the search budget grows with the difficulty implied by
+    heterogeneous parameter scales (e.g. D0 in 1e6 vs alpha near 1).
+
+    Args:
+        bounds: ``(lower, upper)`` arrays, each shape ``(n_params,)``.
+
+    Returns:
+        ``(popsize, max_generations)`` tuple.
+    """
+    lower = np.asarray(bounds[0], dtype=np.float64)
+    upper = np.asarray(bounds[1], dtype=np.float64)
+    spans = upper - lower
+    # Filter out fixed dimensions (span <= 0)
+    active_spans = spans[spans > 0]
+    if len(active_spans) < 2:
+        return 50, 200
+
+    scale_ratio = float(active_spans.max() / active_spans.min())
+
+    # Clamp the ratio to [1, 1e6] for interpolation
+    log_ratio = np.log10(max(scale_ratio, 1.0))
+    # log_ratio in [0, 6], map linearly to popsize in [50, 200]
+    t = min(log_ratio / 6.0, 1.0)
+    popsize = int(50 + t * 150)
+
+    # max_generations: [200, 500]
+    max_generations = int(200 + t * 300)
+
+    logger.debug(
+        "Adaptive CMA-ES: scale_ratio=%.1f, popsize=%d, max_generations=%d",
+        scale_ratio,
+        popsize,
+        max_generations,
+    )
+    return popsize, max_generations
+
+
+def build_anti_degeneracy_objective(
+    base_objective: Callable[[np.ndarray], float],
+    bounds: tuple[np.ndarray, np.ndarray],
+    parameter_names: list[str],
+    penalty_weight: float = 0.01,
+) -> Callable[[np.ndarray], float]:
+    """Wrap an objective with penalty terms for known degenerate parameter pairs.
+
+    For each known degenerate pair (e.g. v0/v_offset, D0_ref/D0_sample),
+    a soft penalty encourages separation of their normalized values.
+    This discourages the optimizer from settling in degenerate valleys.
+
+    Args:
+        base_objective: Original scalar objective ``f(x) -> float``.
+        bounds: ``(lower, upper)`` arrays.
+        parameter_names: Parameter names matching the indices in ``x``.
+        penalty_weight: Strength of the penalty terms relative to the
+            base cost.
+
+    Returns:
+        Wrapped objective function with degeneracy penalties.
+    """
+    from heterodyne.optimization.nlsq.anti_degeneracy_controller import (
+        _KNOWN_DEGENERATE_PAIRS,
+    )
+
+    lower = np.asarray(bounds[0], dtype=np.float64)
+    upper = np.asarray(bounds[1], dtype=np.float64)
+    spans = upper - lower
+    safe_spans = np.where(spans > 0, spans, 1.0)
+
+    # Build index pairs for known degeneracies that are present in this fit
+    name_to_idx = {n: i for i, n in enumerate(parameter_names)}
+    active_pairs: list[tuple[int, int]] = []
+    for name_a, name_b, _desc in _KNOWN_DEGENERATE_PAIRS:
+        if name_a in name_to_idx and name_b in name_to_idx:
+            active_pairs.append((name_to_idx[name_a], name_to_idx[name_b]))
+
+    if not active_pairs:
+        return base_objective
+
+    def penalized_objective(x: np.ndarray) -> float:
+        cost = base_objective(x)
+        x_norm = (x - lower) / safe_spans
+        penalty = 0.0
+        for idx_a, idx_b in active_pairs:
+            diff = abs(x_norm[idx_a] - x_norm[idx_b])
+            # Penalize when normalized values are too close
+            penalty += 1.0 / (diff + 0.01)
+        return cost + penalty_weight * penalty
+
+    return penalized_objective
+
+
+def fit_with_cmaes(
+    objective_fn: Callable[[np.ndarray], float],
+    initial_params: np.ndarray,
+    bounds: tuple[np.ndarray, np.ndarray],
+    parameter_names: list[str] | None = None,
+    *,
+    config: CMAESConfig | None = None,
+    residual_fn: Callable[[np.ndarray], np.ndarray] | None = None,
+    n_data: int | None = None,
+    anti_degeneracy: bool = False,
+    metadata: dict[str, Any] | None = None,
+) -> NLSQResult:
+    """Convenience function to run CMA-ES optimization.
+
+    Applies adaptive population sizing and max_generations based on the
+    parameter scale ratio when the user hasn't explicitly set these values.
+
+    Args:
+        objective_fn: Scalar objective ``f(x) -> float`` to minimize.
+        initial_params: Initial guess, shape ``(n_params,)``.
+        bounds: ``(lower, upper)`` arrays.
+        parameter_names: Ordered parameter names.
+        config: CMA-ES configuration; ``None`` for defaults.
+        residual_fn: Optional residual function for covariance estimation.
+        n_data: Number of data points (for reduced chi-squared).
+        anti_degeneracy: Apply degeneracy-penalty weighting to objective.
+        metadata: Extra metadata attached to the result.
+
+    Returns:
+        An :class:`NLSQResult` from the CMA-ES solution.
+    """
+    cfg = config or CMAESConfig()
+
+    # Adaptive population sizing and max_generations (Fix #2, #3)
+    if cfg.popsize is None or cfg.maxiter == CMAESConfig.maxiter:
+        adaptive_pop, adaptive_gen = compute_adaptive_cmaes_params(bounds)
+        if cfg.popsize is None:
+            cfg = CMAESConfig(
+                sigma0=cfg.sigma0,
+                popsize=adaptive_pop,
+                maxiter=cfg.maxiter if cfg.maxiter != CMAESConfig.maxiter else adaptive_gen,
+                tolx=cfg.tolx,
+                tolfun=cfg.tolfun,
+                seed=cfg.seed,
+                diagonal_filtering=cfg.diagonal_filtering,
+            )
+        elif cfg.maxiter == CMAESConfig.maxiter:
+            cfg = CMAESConfig(
+                sigma0=cfg.sigma0,
+                popsize=cfg.popsize,
+                maxiter=adaptive_gen,
+                tolx=cfg.tolx,
+                tolfun=cfg.tolfun,
+                seed=cfg.seed,
+                diagonal_filtering=cfg.diagonal_filtering,
+            )
+
+    # Anti-degeneracy objective wrapping (Fix #6)
+    effective_objective = objective_fn
+    names = parameter_names or [f"p{i}" for i in range(len(initial_params))]
+    if anti_degeneracy:
+        effective_objective = build_anti_degeneracy_objective(
+            objective_fn, bounds, names,
+        )
+
+    wrapper = CMAESWrapper(config=cfg, parameter_names=names)
+    return wrapper.fit(
+        objective_fn=effective_objective,
+        x0=initial_params,
+        bounds=bounds,
+        residual_fn=residual_fn,
+        n_data=n_data,
+        parameter_names=names,
+        metadata=metadata,
+    )
 
 
 def adjust_covariance_for_bounds(

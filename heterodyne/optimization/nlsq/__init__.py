@@ -9,9 +9,12 @@ from heterodyne.optimization.nlsq.anti_degeneracy_controller import (
     suggest_regularization,
 )
 from heterodyne.optimization.nlsq.cmaes_wrapper import (
+    CMAES_AVAILABLE,
     CMAESResult,
     adjust_covariance_for_bounds,
+    compute_adaptive_cmaes_params,
     denormalize_from_unit_cube,
+    fit_with_cmaes,
     normalize_to_unit_cube,
 )
 from heterodyne.optimization.nlsq.config import NLSQConfig, NLSQValidationConfig
@@ -104,7 +107,10 @@ __all__ = [
     "compute_effective_lambda",
     "detect_hierarchical_trigger",
     # CMA-ES (parity)
+    "CMAES_AVAILABLE",
     "CMAESResult",
+    "compute_adaptive_cmaes_params",
+    "fit_with_cmaes",
     "normalize_to_unit_cube",
     "denormalize_from_unit_cube",
     "adjust_covariance_for_bounds",

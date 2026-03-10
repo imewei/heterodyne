@@ -362,6 +362,8 @@ class NLSQConfig:
     cmaes_population_size: int | None = None
     cmaes_tolx: float = 1e-6
     cmaes_tolfun: float = 1e-8
+    cmaes_diagonal_filtering: str = "none"
+    cmaes_anti_degeneracy: bool = False
 
     # ------------------------------------------------------------------
     # Hybrid streaming optimizer
@@ -440,6 +442,11 @@ class NLSQConfig:
             raise ValueError("gradient_consecutive_triggers must be >= 1")
         if self.cmaes_sigma0 <= 0:
             raise ValueError("cmaes_sigma0 must be > 0")
+        if self.cmaes_diagonal_filtering not in ("remove", "none"):
+            raise ValueError(
+                f"cmaes_diagonal_filtering must be 'remove' or 'none', "
+                f"got {self.cmaes_diagonal_filtering!r}"
+            )
         if not (0 < self.hybrid_warmup_fraction < 1):
             raise ValueError("hybrid_warmup_fraction must be in (0, 1)")
         if not (0 < self.screen_keep_fraction <= 1):
@@ -621,6 +628,8 @@ class NLSQConfig:
             "cmaes_population_size": "int_or_none",
             "cmaes_tolx": "float",
             "cmaes_tolfun": "float",
+            "cmaes_diagonal_filtering": "str",
+            "cmaes_anti_degeneracy": "bool",
             # Hybrid streaming optimizer
             "hybrid_enable": "bool",
             "hybrid_warmup_fraction": "float",
@@ -832,6 +841,8 @@ class NLSQConfig:
             "cmaes_population_size": self.cmaes_population_size,
             "cmaes_tolx": self.cmaes_tolx,
             "cmaes_tolfun": self.cmaes_tolfun,
+            "cmaes_diagonal_filtering": self.cmaes_diagonal_filtering,
+            "cmaes_anti_degeneracy": self.cmaes_anti_degeneracy,
             # Hybrid streaming optimizer
             "hybrid_enable": self.hybrid_enable,
             "hybrid_warmup_fraction": self.hybrid_warmup_fraction,
