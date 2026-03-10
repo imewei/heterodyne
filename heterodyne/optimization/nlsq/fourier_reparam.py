@@ -4,7 +4,10 @@ This module replaces n_phi independent per-angle contrast/offset values
 with truncated Fourier series, dramatically reducing structural degeneracy
 in joint multi-angle fits.
 
-Ported from homodyne Anti-Degeneracy Defense System for heterodyne parity.
+Adapted from homodyne Anti-Degeneracy Defense System.  The Fourier basis is
+model-agnostic (captures smooth phi-variation); here it regularises the
+angle-dependent velocity phase term cos(q·cos(φ)·∫v dt) rather than the
+homodyne shear sinc term.
 
 Mathematical Formulation
 ------------------------
