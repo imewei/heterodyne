@@ -24,6 +24,31 @@ _SCALING_NAMES = frozenset(
 )
 
 
+def classify_fit_quality(reduced_chi_squared: float | None) -> str:
+    """Classify fit quality into a 3-level flag.
+
+    Thresholds match the homodyne NLSQWrapper convention:
+
+    - ``"good"``     — reduced chi-squared < 1.5
+    - ``"marginal"`` — 1.5 <= reduced chi-squared < 3.0
+    - ``"poor"``     — reduced chi-squared >= 3.0 or unavailable
+
+    Args:
+        reduced_chi_squared: Reduced chi-squared statistic, or ``None``
+            if not computed.
+
+    Returns:
+        One of ``"good"``, ``"marginal"``, or ``"poor"``.
+    """
+    if reduced_chi_squared is None:
+        return "poor"
+    if reduced_chi_squared < 1.5:
+        return "good"
+    if reduced_chi_squared < 3.0:
+        return "marginal"
+    return "poor"
+
+
 def _is_physical_param(name: str) -> bool:
     """Check if parameter is a physics param (not per-angle scaling)."""
     return not any(name.startswith(f"{s}_") or name == s for s in _SCALING_NAMES)

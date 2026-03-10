@@ -477,8 +477,8 @@ def _try_global_optimization(
             logger.info("CMA-ES enabled, delegating to fit_with_cmaes")
             return _fit_cmaes(model, c2_data, phi_angle, config, weights)
         logger.warning(
-            "CMA-ES enabled in config but not available (evosax not installed). "
-            "Falling back."
+            "CMA-ES enabled in config but not available (cma not installed). "
+            "Install with: uv add cma. Falling back."
         )
 
     # Multi-start is second priority
@@ -503,7 +503,20 @@ def _fit_cmaes(
     config: NLSQConfig,
     weights: np.ndarray | jnp.ndarray | None,
 ) -> NLSQResult:
-    """Run CMA-ES global optimization."""
+    """Run CMA-ES global optimization with NLSQ warm-start and two-phase comparison.
+
+    Implements fixes #1, #5, #6, #7 from homodyne parity:
+
+    - **Phase 1 (Fix #1)**: Run local NLSQ refinement to get a warm-start point.
+    - **Phase 2**: Run CMA-ES using the NLSQ result as initial guess.
+    - **Phase 3 (Fix #7)**: Compare NLSQ vs CMA-ES by reduced chi-squared,
+      keep the better result.
+    - **Fix #5**: Classify result quality as good/marginal/poor.
+    - **Fix #6**: Optionally apply anti-degeneracy penalty weights.
+    """
+    from heterodyne.optimization.nlsq.cmaes_wrapper import CMAESConfig
+    from heterodyne.optimization.nlsq.validation.fit_quality import classify_fit_quality
+
     param_manager = model.param_manager
 
     initial_varying = param_manager.get_initial_values()
@@ -513,6 +526,7 @@ def _fit_cmaes(
     c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
     weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
     t, q, dt = model.t, model.q, model.dt
+    n_data = c2_jax.size
 
     def objective_fn(varying_params: np.ndarray) -> float:
         full_params = np.array(param_manager.get_full_values())
@@ -523,20 +537,98 @@ def _fit_cmaes(
         )
         return float(0.5 * jnp.sum(residuals ** 2))
 
-    result = fit_with_cmaes(  # type: ignore[misc]
-        objective_fn=objective_fn,
-        initial_params=initial_varying,
-        bounds=(lower_bounds, upper_bounds),
-        parameter_names=param_manager.varying_names,
+    residual_fn = _make_numpy_residual_fn(model, c2_data, phi_angle, weights)
+
+    # ------------------------------------------------------------------
+    # Phase 1 (Fix #1): NLSQ warm-start
+    # ------------------------------------------------------------------
+    nlsq_result: NLSQResult | None = None
+    cmaes_x0 = initial_varying
+
+    try:
+        logger.info("CMA-ES Phase 1: NLSQ warm-start refinement")
+        nlsq_result = _fit_local(
+            model, c2_data, phi_angle, config, weights,
+            use_nlsq_library=config.use_nlsq_library,
+        )
+        if nlsq_result.success:
+            cmaes_x0 = nlsq_result.parameters.copy()
+            logger.info(
+                "NLSQ warm-start succeeded: cost=%.6e, chi2_red=%.4f",
+                nlsq_result.final_cost or float("inf"),
+                nlsq_result.reduced_chi_squared or float("inf"),
+            )
+        else:
+            logger.warning(
+                "NLSQ warm-start failed (%s), using raw initial params for CMA-ES",
+                nlsq_result.message,
+            )
+    except (ValueError, RuntimeError, ImportError) as e:
+        logger.warning("NLSQ warm-start raised %s: %s — proceeding with raw p0", type(e).__name__, e)
+
+    # Ensure model parameters are reset for CMA-ES (NLSQ may have modified them)
+    model.set_params(param_manager.expand_varying_to_full(initial_varying))
+
+    # ------------------------------------------------------------------
+    # Phase 2: CMA-ES global optimization
+    # ------------------------------------------------------------------
+    logger.info("CMA-ES Phase 2: global search (warm-started)")
+
+    cmaes_config = CMAESConfig(
+        sigma0=config.cmaes_sigma0,
+        popsize=config.cmaes_population_size,
+        maxiter=config.cmaes_max_iterations,
+        tolx=config.cmaes_tolx,
+        tolfun=config.cmaes_tolfun,
+        diagonal_filtering=getattr(config, "cmaes_diagonal_filtering", "none"),
     )
 
+    cmaes_result = fit_with_cmaes(
+        objective_fn=objective_fn,
+        initial_params=cmaes_x0,
+        bounds=(lower_bounds, upper_bounds),
+        parameter_names=param_manager.varying_names,
+        config=cmaes_config,
+        residual_fn=residual_fn,
+        n_data=n_data,
+        anti_degeneracy=getattr(config, "cmaes_anti_degeneracy", False),
+    )
+
+    # ------------------------------------------------------------------
+    # Phase 3 (Fix #7): Compare NLSQ vs CMA-ES, keep the better result
+    # ------------------------------------------------------------------
+    nlsq_cost = float(nlsq_result.final_cost) if (nlsq_result and nlsq_result.success and nlsq_result.final_cost is not None) else float("inf")
+    cmaes_cost = float(cmaes_result.final_cost) if (cmaes_result.success and cmaes_result.final_cost is not None) else float("inf")
+
+    if nlsq_cost <= cmaes_cost and nlsq_result is not None and nlsq_result.success:
+        result = nlsq_result
+        winner = "nlsq"
+        logger.info(
+            "Phase 3: NLSQ wins (cost=%.6e vs CMA-ES=%.6e)", nlsq_cost, cmaes_cost,
+        )
+    else:
+        result = cmaes_result
+        winner = "cmaes"
+        logger.info(
+            "Phase 3: CMA-ES wins (cost=%.6e vs NLSQ=%.6e)", cmaes_cost, nlsq_cost,
+        )
+
+    # ------------------------------------------------------------------
+    # Post-fit: update model, classify quality (Fix #5)
+    # ------------------------------------------------------------------
     if result.success:
         full_fitted = param_manager.expand_varying_to_full(result.parameters)
         fitted_c2 = compute_c2_heterodyne(jnp.asarray(full_fitted), t, q, dt, phi_angle)
         result.fitted_correlation = np.asarray(fitted_c2)
         model.set_params(full_fitted)
 
+    quality_flag = classify_fit_quality(result.reduced_chi_squared)
     result.metadata["optimizer"] = "cmaes"
+    result.metadata["cmaes_winner"] = winner
+    result.metadata["cmaes_cost"] = cmaes_cost
+    result.metadata["nlsq_warmstart_cost"] = nlsq_cost
+    result.metadata["quality_flag"] = quality_flag
+
     _log_result(result)
     return result
 

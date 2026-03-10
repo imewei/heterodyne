@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from heterodyne.optimization.nlsq.validation.bounds import BoundsValidator
 from heterodyne.optimization.nlsq.validation.convergence import ConvergenceValidator
+from heterodyne.optimization.nlsq.validation.fit_quality import classify_fit_quality
 from heterodyne.optimization.nlsq.validation.result import (
     ResultValidator,
     ValidationReport,
@@ -22,4 +23,5 @@ __all__ = [
     "ValidationSeverity",
     "BoundsValidator",
     "ConvergenceValidator",
+    "classify_fit_quality",
 ]
