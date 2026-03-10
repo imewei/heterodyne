@@ -13,6 +13,25 @@ from heterodyne.data.filtering_utils import (
     apply_time_window,
     compute_data_mask,
 )
+from heterodyne.data.memory_manager import (
+    AdaptiveChunker,
+    ChunkInfo,
+    MemoryManager,
+    MemoryMapManager,
+    MemoryPressureLevel,
+    MemoryPressureMonitor,
+)
+from heterodyne.data.optimization import (
+    DatasetSizeCategory,
+    categorize_dataset,
+    create_loading_plan,
+    process_chunks_parallel,
+)
+from heterodyne.data.performance_engine import (
+    PerformanceEngine,
+    TieredCache,
+    TieredCacheConfig,
+)
 from heterodyne.data.phi_filtering import PhiAngleFilter, filter_by_phi
 from heterodyne.data.preprocessing import PreprocessingPipeline, preprocess_correlation
 from heterodyne.data.quality_controller import (
@@ -30,7 +49,11 @@ from heterodyne.data.validators import (
     validate_time_arrays,
     validate_weights,
 )
-from heterodyne.data.xpcs_loader import XPCSDataLoader, load_xpcs_data
+from heterodyne.data.xpcs_loader import (
+    XPCSDataLoader,
+    load_xpcs_data,
+    select_optimal_wavevector,
+)
 
 __all__ = [
     # Types
@@ -61,13 +84,32 @@ __all__ = [
     "QualityMetric",
     "QualityReport",
     "QualityController",
-    # Existing exports
+    # Loader
     "XPCSDataLoader",
     "load_xpcs_data",
+    "select_optimal_wavevector",
+    # Validation
     "validate_xpcs_data",
     "DataQualityReport",
+    # Preprocessing
     "PreprocessingPipeline",
     "preprocess_correlation",
     "PhiAngleFilter",
     "filter_by_phi",
+    # Memory management
+    "MemoryManager",
+    "MemoryMapManager",
+    "AdaptiveChunker",
+    "ChunkInfo",
+    "MemoryPressureLevel",
+    "MemoryPressureMonitor",
+    # Performance
+    "PerformanceEngine",
+    "TieredCache",
+    "TieredCacheConfig",
+    # Optimization
+    "DatasetSizeCategory",
+    "categorize_dataset",
+    "create_loading_plan",
+    "process_chunks_parallel",
 ]

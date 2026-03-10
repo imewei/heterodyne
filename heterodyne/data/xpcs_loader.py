@@ -433,6 +433,9 @@ def load_xpcs_batch(
     apply_diag_correction: bool = False,
     diag_correction_width: int = 1,
     diag_correction_method: str = "interpolate",
+    frame_range: tuple[int, int] | None = None,
+    select_q: float | None = None,
+    q_tolerance: float | None = None,
 ) -> list[XPCSData]:
     """Load multiple XPCS data files and return them as a list.
 
@@ -450,6 +453,10 @@ def load_xpcs_batch(
         apply_diag_correction: If True, apply diagonal correction to each c2.
         diag_correction_width: Band width passed to diagonal correction.
         diag_correction_method: Method passed to diagonal correction.
+        frame_range: Optional ``(start, end)`` with 1-based inclusive frame
+            indices applied uniformly to every file.
+        select_q: Target wavevector in Å⁻¹ applied uniformly to every file.
+        q_tolerance: Maximum absolute deviation from ``select_q`` in Å⁻¹.
 
     Returns:
         List of :class:`XPCSData` objects, one per successfully loaded file.
@@ -465,6 +472,9 @@ def load_xpcs_batch(
                 c2_key=c2_key,
                 time_key=time_key,
                 use_cache=use_cache,
+                frame_range=frame_range,
+                select_q=select_q,
+                q_tolerance=q_tolerance,
             )
             if apply_diag_correction:
                 data.c2 = _apply_diagonal_correction(
@@ -611,6 +621,9 @@ class XPCSDataLoader:
         q_key: str | None = "q",
         phi_key: str | None = "phi",
         use_cache: bool = False,
+        frame_range: tuple[int, int] | None = None,
+        select_q: float | None = None,
+        q_tolerance: float | None = None,
     ) -> XPCSData:
         """Load XPCS data from file.
 
@@ -623,6 +636,17 @@ class XPCSDataLoader:
                 attempt to load from a collocated NPZ cache first.  The cache
                 is invalidated automatically when the source file's mtime
                 changes.
+            frame_range: Optional ``(start, end)`` with **1-based** indexing
+                (matching homodyne convention).  If provided, only frames
+                ``start`` through ``end`` (inclusive) are retained after
+                loading.  Validation is performed before slicing.
+            select_q: Target wavevector in Å⁻¹.  When set and the loaded data
+                has ``q_values`` (multi-q 3-D), the q-bin(s) closest to this
+                value are selected.  If ``q_tolerance`` is also given, all
+                bins within that tolerance are kept; otherwise only the single
+                nearest bin is kept.
+            q_tolerance: Maximum absolute deviation from ``select_q`` in Å⁻¹.
+                Ignored when ``select_q`` is ``None``.
 
         Returns:
             XPCSData container.
@@ -630,18 +654,176 @@ class XPCSDataLoader:
         logger.info("Loading XPCS data from %s", self.file_path)
 
         if use_cache and self.format in ("hdf5", "mat"):
-            return self._load_with_cache(c2_key, time_key, q_key, phi_key)
-
-        if self.format == "hdf5":
-            return self._load_hdf5(c2_key, time_key, q_key, phi_key)
+            data = self._load_with_cache(c2_key, time_key, q_key, phi_key)
+        elif self.format == "hdf5":
+            data = self._load_hdf5(c2_key, time_key, q_key, phi_key)
         elif self.format == "npz":
-            return self._load_npz(c2_key, time_key, q_key, phi_key)
+            data = self._load_npz(c2_key, time_key, q_key, phi_key)
         elif self.format == "npy":
-            return self._load_npy()
+            data = self._load_npy()
         elif self.format == "mat":
-            return self._load_mat(c2_key, time_key, q_key, phi_key)
+            data = self._load_mat(c2_key, time_key, q_key, phi_key)
         else:
             raise ValueError(f"Unsupported format: {self.format}")
+
+        if frame_range is not None:
+            data = self._apply_frame_slicing(data, frame_range)
+
+        if select_q is not None and data.q_values is not None:
+            data = self._apply_q_selection(data, select_q, q_tolerance)
+
+        return data
+
+    # ------------------------------------------------------------------
+    # Post-load transforms
+    # ------------------------------------------------------------------
+
+    def _apply_frame_slicing(
+        self,
+        data: XPCSData,
+        frame_range: tuple[int, int],
+    ) -> XPCSData:
+        """Slice an XPCSData to a sub-range of frames.
+
+        Uses **1-based, inclusive** indexing on both ends, consistent with
+        the homodyne convention.  For a 2-D c2 the slice is
+        ``c2[start_0:end, start_0:end]``; for a 3-D c2 the time axes are
+        sliced as ``c2[:, start_0:end, start_0:end]``.
+
+        Args:
+            data: Loaded XPCSData to slice.
+            frame_range: ``(start, end)`` with 1-based inclusive indices.
+
+        Returns:
+            New XPCSData with sliced arrays.
+
+        Raises:
+            ValueError: If ``start`` < 1, ``end`` > n_frames, or
+                ``start`` > ``end``.
+        """
+        start, end = frame_range
+        n_frames = data.n_times
+
+        start_0 = start - 1  # convert to 0-based
+        if start_0 < 0:
+            raise ValueError(
+                f"frame_range start must be >= 1 (1-based), got {start}"
+            )
+        if end > n_frames:
+            raise ValueError(
+                f"frame_range end {end} exceeds n_frames {n_frames}"
+            )
+        if start > end:
+            raise ValueError(
+                f"frame_range start {start} must be <= end {end}"
+            )
+
+        logger.info(
+            "Frame slicing: frames %d–%d (0-based %d:%d), %d → %d frames",
+            start,
+            end,
+            start_0,
+            end,
+            n_frames,
+            end - start_0,
+        )
+
+        if data.c2.ndim == 2:
+            c2_sliced = data.c2[start_0:end, start_0:end]
+        else:
+            c2_sliced = data.c2[:, start_0:end, start_0:end]
+
+        t1_sliced = data.t1[start_0:end]
+        t2_sliced = data.t2[start_0:end]
+
+        return XPCSData(
+            c2=c2_sliced,
+            t1=t1_sliced,
+            t2=t2_sliced,
+            q=data.q,
+            q_values=data.q_values,
+            phi_angles=data.phi_angles,
+            uncertainties=data.uncertainties,
+            metadata=data.metadata,
+        )
+
+    def _apply_q_selection(
+        self,
+        data: XPCSData,
+        select_q: float,
+        q_tolerance: float | None,
+    ) -> XPCSData:
+        """Select q-bin(s) from a multi-q XPCSData by proximity to a target.
+
+        When ``q_tolerance`` is ``None``, only the single nearest q-bin is
+        kept.  When ``q_tolerance`` is given, all bins within that absolute
+        deviation are kept.
+
+        If the result is a single q-bin the data is reduced to 2-D: ``c2``
+        drops to ``(n_t, n_t)``, ``q`` is set to the selected q-value, and
+        ``q_values`` is cleared.  If multiple bins are selected the data
+        remains 3-D with updated ``q_values``.
+
+        Args:
+            data: Multi-q XPCSData (``q_values`` must not be ``None``).
+            select_q: Target wavevector in Å⁻¹.
+            q_tolerance: Maximum absolute deviation in Å⁻¹.  ``None`` means
+                select only the single closest bin.
+
+        Returns:
+            Sliced XPCSData.
+
+        Raises:
+            ValueError: If no q-bin lies within the requested tolerance.
+        """
+        q_values = data.q_values
+        assert q_values is not None  # guaranteed by caller
+
+        indices, selected_q = select_optimal_wavevector(q_values, select_q, q_tolerance)
+
+        if indices.size == 0:
+            raise ValueError(
+                f"No q-bin within tolerance {q_tolerance} Å⁻¹ of target "
+                f"{select_q:.6g} Å⁻¹.  Available q: {q_values.tolist()}"
+            )
+
+        deviation = float(np.abs(selected_q - select_q).min())
+        logger.info(
+            "Q selection: target=%.6g Å⁻¹, selected %d bin(s) "
+            "(min deviation=%.4g Å⁻¹)",
+            select_q,
+            indices.size,
+            deviation,
+        )
+
+        c2_sel = data.c2[indices]  # (n_sel, n_t, n_t) or (1, n_t, n_t)
+        phi_sel: np.ndarray | None = None
+        if data.phi_angles is not None:
+            phi_sel = data.phi_angles[indices]
+
+        if indices.size == 1:
+            # Reduce to single-q 2-D
+            return XPCSData(
+                c2=c2_sel[0],
+                t1=data.t1,
+                t2=data.t2,
+                q=float(selected_q[0]),
+                q_values=None,
+                phi_angles=phi_sel,
+                uncertainties=data.uncertainties,
+                metadata=data.metadata,
+            )
+
+        return XPCSData(
+            c2=c2_sel,
+            t1=data.t1,
+            t2=data.t2,
+            q=None,
+            q_values=selected_q,
+            phi_angles=phi_sel,
+            uncertainties=data.uncertainties,
+            metadata=data.metadata,
+        )
 
     # ------------------------------------------------------------------
     # NPZ caching
@@ -703,6 +885,221 @@ class XPCSDataLoader:
     # Format-specific loaders
     # ------------------------------------------------------------------
 
+    def _detect_hdf5_format(self, f: h5py.File) -> str:
+        """Detect the HDF5 layout convention used in an open file.
+
+        Checks for well-known dataset paths to identify the format:
+
+        - ``"aps_u"`` - APS-U twotime format: has
+          ``xpcs/twotime/correlation_map`` and
+          ``xpcs/qmap/dynamic_v_list_dim0``.
+        - ``"aps_old"`` - APS legacy format: has ``xpcs/dqlist`` and
+          ``exchange/C2T_all``.
+        - ``"exchange"`` - APS-style ``/exchange/`` group (existing
+          heterodyne convention).
+        - ``"flat"`` - Default: datasets at root level.
+
+        Args:
+            f: Open ``h5py.File`` object.
+
+        Returns:
+            One of ``"aps_u"``, ``"aps_old"``, ``"exchange"``, ``"flat"``.
+        """
+        if (
+            "xpcs/twotime/correlation_map" in f
+            and "xpcs/qmap/dynamic_v_list_dim0" in f
+        ):
+            logger.debug("HDF5 format detected: aps_u")
+            return "aps_u"
+        if "xpcs/dqlist" in f and "exchange/C2T_all" in f:
+            logger.debug("HDF5 format detected: aps_old")
+            return "aps_old"
+        if "exchange" in f:
+            logger.debug("HDF5 format detected: exchange")
+            return "exchange"
+        logger.debug("HDF5 format detected: flat")
+        return "flat"
+
+    def _load_hdf5_aps_u(self, f: h5py.File) -> XPCSData:
+        """Load from APS-U twotime HDF5 format.
+
+        Layout expectations:
+
+        - ``xpcs/qmap/dynamic_v_list_dim0`` - 1-D array of q-values (Å⁻¹).
+        - ``xpcs/qmap/dynamic_v_list_dim1`` - 1-D array of phi-values.
+        - ``xpcs/twotime/processed_bins`` - 1-based bin indices (int array).
+        - ``xpcs/twotime/correlation_map`` - group whose datasets are
+          sorted half-matrices keyed as ``c2_00001``, ``c2_00002``, etc.
+
+        The bin index encodes ``(q_idx, phi_idx)`` via::
+
+            bin_idx = bin - 1          # 0-based
+            q_idx   = bin_idx // n_phi
+            phi_idx = bin_idx % n_phi
+
+        Args:
+            f: Open ``h5py.File`` object.
+
+        Returns:
+            XPCSData with a 3-D ``c2`` of shape ``(n_valid_bins, n_t, n_t)``,
+            ``q_values`` set to the per-bin q-values, and ``phi_angles`` set
+            to the per-bin phi-values.
+        """
+        q_all = np.asarray(f["xpcs/qmap/dynamic_v_list_dim0"], dtype=np.float64).ravel()
+        phi_all = np.asarray(f["xpcs/qmap/dynamic_v_list_dim1"], dtype=np.float64).ravel()
+        n_phi = phi_all.shape[0]
+
+        bins_raw = np.asarray(f["xpcs/twotime/processed_bins"]).ravel()
+        # Convert 1-based bin indices to 0-based
+        bins_0 = bins_raw.astype(np.int64) - 1
+
+        corr_group = f["xpcs/twotime/correlation_map"]
+        sorted_keys = sorted(corr_group.keys())
+
+        matrices: list[np.ndarray] = []
+        q_sel: list[float] = []
+        phi_sel: list[float] = []
+
+        for key, bin_idx in zip(sorted_keys, bins_0, strict=True):
+            if bin_idx < 0:
+                logger.debug("APS-U loader: skipping invalid bin index %d (key %s)", bin_idx, key)
+                continue
+            q_idx = int(bin_idx) // n_phi
+            phi_idx = int(bin_idx) % n_phi
+            if q_idx >= q_all.shape[0] or phi_idx >= phi_all.shape[0]:
+                logger.warning(
+                    "APS-U loader: index out of range (q_idx=%d/%d, phi_idx=%d/%d) "
+                    "for key %s, skipping",
+                    q_idx,
+                    q_all.shape[0],
+                    phi_idx,
+                    phi_all.shape[0],
+                    key,
+                )
+                continue
+            half = np.asarray(corr_group[key], dtype=np.float64)
+            full = _reconstruct_from_half_matrix(half)
+            matrices.append(full)
+            q_sel.append(float(q_all[q_idx]))
+            phi_sel.append(float(phi_all[phi_idx]))
+
+        if not matrices:
+            raise ValueError("APS-U HDF5 file contains no valid correlation matrices")
+
+        c2 = np.stack(matrices, axis=0)  # (n_bins, n_t, n_t)
+        n_frames = c2.shape[1]
+
+        t: np.ndarray
+        for t_candidate in ("xpcs/twotime/t", "xpcs/t", "exchange/t"):
+            if t_candidate in f:
+                t = np.asarray(f[t_candidate], dtype=np.float64).ravel()
+                logger.debug("APS-U loader: time from '%s'", t_candidate)
+                break
+        else:
+            t = np.arange(n_frames, dtype=np.float64)
+            logger.warning("APS-U loader: time dataset not found, using frame indices")
+
+        metadata: dict[str, Any] = {}
+        for attr_key in f.attrs:
+            value = f.attrs[attr_key]
+            if isinstance(value, bytes):
+                value = value.decode("utf-8")
+            elif isinstance(value, np.generic):
+                value = value.item()
+            metadata[attr_key] = value
+
+        logger.info(
+            "APS-U loader: loaded %d bins, %d frames, q in [%.4g, %.4g] Å⁻¹",
+            c2.shape[0],
+            n_frames,
+            min(q_sel),
+            max(q_sel),
+        )
+        return XPCSData(
+            c2=c2,
+            t1=t,
+            t2=t,
+            q=None,
+            q_values=np.array(q_sel, dtype=np.float64),
+            phi_angles=np.array(phi_sel, dtype=np.float64),
+            metadata=metadata,
+        )
+
+    def _load_hdf5_aps_old(self, f: h5py.File) -> XPCSData:
+        """Load from APS legacy twotime HDF5 format.
+
+        Layout expectations:
+
+        - ``xpcs/dqlist`` - shape (1, N) q-values (Å⁻¹); squeezed to (N,).
+        - ``xpcs/dphilist`` - shape (1, N) phi-values; squeezed to (N,).
+        - ``exchange/C2T_all`` - group of half-matrix datasets, one per q-bin.
+
+        Args:
+            f: Open ``h5py.File`` object.
+
+        Returns:
+            XPCSData with a 3-D ``c2`` of shape ``(n_q, n_t, n_t)``,
+            ``q_values``, and ``phi_angles``.
+        """
+        q_raw = np.asarray(f["xpcs/dqlist"], dtype=np.float64)
+        q_values = q_raw.squeeze()
+        if q_values.ndim == 0:
+            q_values = q_values.reshape(1)
+
+        phi_raw = np.asarray(f["xpcs/dphilist"], dtype=np.float64)
+        phi_values = phi_raw.squeeze()
+        if phi_values.ndim == 0:
+            phi_values = phi_values.reshape(1)
+
+        c2t_group = f["exchange/C2T_all"]
+        sorted_keys = sorted(c2t_group.keys())
+
+        matrices: list[np.ndarray] = []
+        for key in sorted_keys:
+            half = np.asarray(c2t_group[key], dtype=np.float64)
+            full = _reconstruct_from_half_matrix(half)
+            matrices.append(full)
+
+        if not matrices:
+            raise ValueError("APS old HDF5 file: exchange/C2T_all group is empty")
+
+        c2 = np.stack(matrices, axis=0)  # (n_q, n_t, n_t)
+        n_frames = c2.shape[1]
+
+        t: np.ndarray
+        for t_candidate in ("exchange/t", "exchange/tau", "xpcs/t"):
+            if t_candidate in f:
+                t = np.asarray(f[t_candidate], dtype=np.float64).ravel()
+                logger.debug("APS old loader: time from '%s'", t_candidate)
+                break
+        else:
+            t = np.arange(n_frames, dtype=np.float64)
+            logger.warning("APS old loader: time dataset not found, using frame indices")
+
+        metadata: dict[str, Any] = {}
+        for attr_key in f.attrs:
+            value = f.attrs[attr_key]
+            if isinstance(value, bytes):
+                value = value.decode("utf-8")
+            elif isinstance(value, np.generic):
+                value = value.item()
+            metadata[attr_key] = value
+
+        logger.info(
+            "APS old loader: loaded %d q-bins, %d frames",
+            c2.shape[0],
+            n_frames,
+        )
+        return XPCSData(
+            c2=c2,
+            t1=t,
+            t2=t,
+            q=None,
+            q_values=q_values,
+            phi_angles=phi_values,
+            metadata=metadata,
+        )
+
     def _load_hdf5(
         self,
         c2_key: str,
@@ -712,18 +1109,26 @@ class XPCSDataLoader:
     ) -> XPCSData:
         """Load from HDF5 file.
 
-        Supports two layout conventions:
+        Supports four layout conventions detected automatically via
+        :meth:`_detect_hdf5_format`:
 
-        1. **Flat** - datasets at root level (``/c2``, ``/t``, etc.).
-        2. **Exchange group** - APS-style ``/exchange/`` group containing
+        1. **APS-U** - ``xpcs/twotime/correlation_map`` with q/phi maps.
+        2. **APS old** - ``xpcs/dqlist`` + ``exchange/C2T_all``.
+        3. **Exchange group** - APS-style ``/exchange/`` group containing
            ``twotime_corr``, ``tau``, ``q_val`` (or ``q_values``), and
-           optionally ``phi``.  Detected automatically when ``/exchange/``
-           is present and ``c2_key`` is not found at root.
+           optionally ``phi``.
+        4. **Flat** - datasets at root level (``/c2``, ``/t``, etc.).
         """
         with h5py.File(self.file_path, "r") as f:
-            use_exchange = "exchange" in f and c2_key not in f
+            fmt = self._detect_hdf5_format(f)
 
-            if use_exchange:
+            if fmt == "aps_u":
+                return self._load_hdf5_aps_u(f)
+
+            if fmt == "aps_old":
+                return self._load_hdf5_aps_old(f)
+
+            if fmt == "exchange":
                 return self._load_hdf5_exchange(f)
 
             # --- Flat layout ---
@@ -967,6 +1372,48 @@ class XPCSDataLoader:
 
 
 # ---------------------------------------------------------------------------
+# Wavevector selection
+# ---------------------------------------------------------------------------
+
+
+def select_optimal_wavevector(
+    q_values: np.ndarray,
+    target_q: float,
+    tolerance: float | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Select q-bin indices closest to a target wavevector.
+
+    Args:
+        q_values: Available q-values array (Å⁻¹).
+        target_q: Target wavevector in Å⁻¹.
+        tolerance: Maximum absolute deviation from ``target_q`` in Å⁻¹.  If
+            ``None``, only the single closest q-value is selected.
+
+    Returns:
+        Tuple of ``(selected_indices, selected_q_values)`` where both are
+        1-D NumPy arrays.  ``selected_indices`` contains integer indices into
+        ``q_values``; ``selected_q_values`` contains the corresponding
+        q-values.
+
+    Raises:
+        ValueError: If ``q_values`` is empty.
+    """
+    q_values = np.asarray(q_values, dtype=np.float64)
+    if q_values.size == 0:
+        raise ValueError("q_values is empty")
+
+    deviations = np.abs(q_values - target_q)
+
+    if tolerance is None:
+        closest_idx = int(np.argmin(deviations))
+        indices = np.array([closest_idx], dtype=np.intp)
+    else:
+        indices = np.where(deviations <= tolerance)[0].astype(np.intp)
+
+    return indices, q_values[indices]
+
+
+# ---------------------------------------------------------------------------
 # Convenience functions
 # ---------------------------------------------------------------------------
 
@@ -977,6 +1424,9 @@ def load_xpcs_data(
     time_key: str = "t",
     format: str | None = None,
     use_cache: bool = False,
+    frame_range: tuple[int, int] | None = None,
+    select_q: float | None = None,
+    q_tolerance: float | None = None,
 ) -> XPCSData:
     """Convenience function to load XPCS data.
 
@@ -986,9 +1436,22 @@ def load_xpcs_data(
         time_key: Key for time array.
         format: File format (auto-detected if None).
         use_cache: Enable NPZ caching to avoid re-reading large source files.
+        frame_range: Optional ``(start, end)`` with 1-based inclusive frame
+            indices.  See :meth:`XPCSDataLoader.load` for details.
+        select_q: Target wavevector in Å⁻¹ for q-bin selection.  Applied only
+            when the loaded data has multiple q-bins.
+        q_tolerance: Maximum absolute deviation from ``select_q`` in Å⁻¹.
+            ``None`` selects only the single closest bin.
 
     Returns:
         XPCSData container.
     """
     loader = XPCSDataLoader(file_path, format=format)
-    return loader.load(c2_key=c2_key, time_key=time_key, use_cache=use_cache)
+    return loader.load(
+        c2_key=c2_key,
+        time_key=time_key,
+        use_cache=use_cache,
+        frame_range=frame_range,
+        select_q=select_q,
+        q_tolerance=q_tolerance,
+    )
