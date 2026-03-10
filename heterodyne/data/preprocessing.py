@@ -258,6 +258,72 @@ class PreprocessingPipeline:
             statistics=statistics,
         )
 
+    def process_with_provenance(
+        self, c2: np.ndarray, source_file: str | None = None
+    ) -> tuple[PreprocessingResult, PreprocessingProvenance]:
+        """Apply all preprocessing steps and record full provenance.
+
+        Generates a unique pipeline ID and computes per-step input/output
+        hashes so that every transformation can be audited.
+
+        Args:
+            c2: Input correlation array.
+            source_file: Optional path to the source data file, stored in
+                the provenance record.
+
+        Returns:
+            A tuple of (:class:`PreprocessingResult`,
+            :class:`PreprocessingProvenance`).
+        """
+        pipeline_id = _generate_pipeline_id()
+        config_hash = _compute_config_hash({"steps": [name for name, _ in self._steps]})
+        logger.debug(
+            "Starting pipeline %s (config_hash=%s, steps=%d)",
+            pipeline_id,
+            config_hash,
+            len(self._steps),
+        )
+
+        provenance = PreprocessingProvenance(
+            source_file=source_file,
+            pipeline_id=pipeline_id,
+            config_hash=config_hash,
+        )
+        current = c2.copy()
+        applied: list[str] = []
+
+        for name, func in self._steps:
+            input_hash = _compute_array_hash(current)
+            logger.debug("Applying: %s", name)
+            current = func(current)
+            output_hash = _compute_array_hash(current)
+            applied.append(name)
+            provenance.add_record(
+                TransformationRecord(
+                    stage=PreprocessingStage.TRANSFORM,
+                    method=name,
+                    parameters={},
+                    timestamp=datetime.now(UTC).isoformat(),
+                    input_hash=input_hash,
+                    output_hash=output_hash,
+                )
+            )
+
+        statistics = {
+            "min": float(np.nanmin(current)),
+            "max": float(np.nanmax(current)),
+            "mean": float(np.nanmean(current)),
+            "std": float(np.nanstd(current)),
+            "nan_count": int(np.sum(np.isnan(current))),
+        }
+
+        result = PreprocessingResult(
+            c2=current,
+            applied_steps=applied,
+            statistics=statistics,
+        )
+        return result, provenance
+
 
 def preprocess_correlation(
     c2: np.ndarray,
@@ -323,6 +389,8 @@ class NoiseReductionMethod(Enum):
 
     MEDIAN_FILTER = "median_filter"
     GAUSSIAN_SMOOTH = "gaussian_smooth"
+    WIENER_FILTER = "wiener_filter"
+    SAVGOL_FILTER = "savgol_filter"
     WAVELET = "wavelet"
     NONE = "none"
 
@@ -359,11 +427,15 @@ class PreprocessingProvenance:
         records: List of transformation records.
         source_file: Path to the source data file, if applicable.
         created_at: ISO-format creation timestamp.
+        pipeline_id: Unique identifier for this pipeline run.
+        config_hash: Hash of the pipeline configuration for reproducibility.
     """
 
     records: list[TransformationRecord] = field(default_factory=list)
     source_file: str | None = None
     created_at: str = field(default_factory=lambda: "")
+    pipeline_id: str = ""
+    config_hash: str = ""
 
     def __post_init__(self) -> None:
         """Set created_at to current UTC time if not provided."""
@@ -385,6 +457,8 @@ class PreprocessingProvenance:
             Dictionary representation suitable for JSON serialization.
         """
         return {
+            "pipeline_id": self.pipeline_id,
+            "config_hash": self.config_hash,
             "source_file": self.source_file,
             "created_at": self.created_at,
             "records": [
@@ -432,6 +506,8 @@ class PreprocessingProvenance:
             records=records,
             source_file=d.get("source_file"),
             created_at=d.get("created_at", ""),
+            pipeline_id=d.get("pipeline_id", ""),
+            config_hash=d.get("config_hash", ""),
         )
 
 
@@ -463,6 +539,43 @@ def _compute_array_hash(arr: np.ndarray) -> str:
     sample = np.concatenate([flat[:n], flat[-n:]]) if flat.size > 2 * n else flat
     h.update(np.ascontiguousarray(sample).tobytes())
     return h.hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Pipeline ID and config hash utilities
+# ---------------------------------------------------------------------------
+
+
+def _generate_pipeline_id() -> str:
+    """Generate a unique pipeline identifier.
+
+    Combines a UTC timestamp with a random suffix for uniqueness.
+
+    Returns:
+        Pipeline ID string like ``"pp-20260309T143022-a1b2c3"``.
+    """
+    import secrets
+
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
+    suffix = secrets.token_hex(3)
+    return f"pp-{timestamp}-{suffix}"
+
+
+def _compute_config_hash(config: dict[str, Any]) -> str:
+    """Compute a SHA-256 hash of a configuration dictionary.
+
+    Used for reproducibility tracking in provenance records.
+
+    Args:
+        config: Configuration dictionary to hash.
+
+    Returns:
+        Hex-encoded SHA-256 digest (first 16 chars).
+    """
+    import json
+
+    config_str = json.dumps(config, sort_keys=True, default=str)
+    return hashlib.sha256(config_str.encode()).hexdigest()[:16]
 
 
 # ---------------------------------------------------------------------------
@@ -702,6 +815,16 @@ def apply_noise_reduction(
     if method is NoiseReductionMethod.GAUSSIAN_SMOOTH:
         return _noise_gaussian_smooth(c2, sigma=kwargs.get("sigma", 1.0))
 
+    if method is NoiseReductionMethod.WIENER_FILTER:
+        return _noise_wiener_filter(c2, noise_variance=kwargs.get("noise_variance"))
+
+    if method is NoiseReductionMethod.SAVGOL_FILTER:
+        return _noise_savgol_filter(
+            c2,
+            window_length=kwargs.get("window_length", 5),
+            polyorder=kwargs.get("polyorder", 2),
+        )
+
     if method is NoiseReductionMethod.WAVELET:
         logger.warning(
             "Wavelet noise reduction is not yet implemented; "
@@ -711,6 +834,84 @@ def apply_noise_reduction(
 
     msg = f"Unsupported noise reduction method: {method}"  # type: ignore[unreachable]
     raise ValueError(msg)
+
+
+def _noise_wiener_filter(c2: np.ndarray, noise_variance: float | None = None) -> np.ndarray:
+    """Apply Wiener filter for noise reduction.
+
+    The Wiener filter is optimal in the MSE sense for additive Gaussian noise.
+    Uses scipy.signal.wiener which applies a local empirical Wiener filter.
+
+    Args:
+        c2: Input array (2D or 3D).
+        noise_variance: Estimated noise power. If None, estimated from data.
+
+    Returns:
+        Filtered array.
+    """
+    from scipy.signal import wiener
+
+    if np.any(np.isnan(c2)):
+        logger.warning(
+            "Wiener filter: input contains %d NaN(s); these may propagate "
+            "into the output. Consider interpolating NaNs first.",
+            int(np.sum(np.isnan(c2))),
+        )
+
+    if c2.ndim == 3:
+        result = np.empty_like(c2)
+        for i in range(c2.shape[0]):
+            result[i] = wiener(c2[i], noise=noise_variance)
+        return result
+    return np.asarray(wiener(c2, noise=noise_variance))
+
+
+def _noise_savgol_filter(
+    c2: np.ndarray,
+    window_length: int = 5,
+    polyorder: int = 2,
+) -> np.ndarray:
+    """Apply Savitzky-Golay filter for noise reduction.
+
+    Applies the filter along each row then each column of the correlation
+    matrix.  This preserves polynomial trends up to degree *polyorder*
+    while smoothing higher-frequency noise.
+
+    Args:
+        c2: Input array (2D or 3D).
+        window_length: Length of the filter window (must be odd and > polyorder).
+        polyorder: Order of the polynomial used to fit samples.
+
+    Returns:
+        Filtered array.
+
+    Raises:
+        ValueError: If window_length is even or <= polyorder.
+    """
+    from scipy.signal import savgol_filter
+
+    if window_length % 2 == 0:
+        raise ValueError(f"window_length must be odd, got {window_length}")
+    if window_length <= polyorder:
+        raise ValueError(
+            f"window_length ({window_length}) must be > polyorder ({polyorder})"
+        )
+
+    def _apply_2d(mat: np.ndarray) -> np.ndarray:
+        # Filter rows, then columns of result; skip axis if too short
+        out = mat
+        if mat.shape[1] >= window_length:
+            out = savgol_filter(out, window_length, polyorder, axis=1)
+        if mat.shape[0] >= window_length:
+            out = savgol_filter(out, window_length, polyorder, axis=0)
+        return np.asarray(out)
+
+    if c2.ndim == 3:
+        result = np.empty_like(c2)
+        for i in range(c2.shape[0]):
+            result[i] = _apply_2d(c2[i])
+        return result
+    return _apply_2d(c2)
 
 
 def _noise_median_filter(c2: np.ndarray, kernel_size: int = 3) -> np.ndarray:
@@ -886,7 +1087,9 @@ def preprocess_xpcs_data(
     if noise_reduction is not NoiseReductionMethod.NONE:
         nr_method = noise_reduction
         nr_kwargs = {
-            k: v for k, v in kwargs.items() if k in ("kernel_size", "sigma")
+            k: v
+            for k, v in kwargs.items()
+            if k in ("kernel_size", "sigma", "noise_variance", "window_length", "polyorder")
         }
         pipeline.add_step(
             f"noise_reduction({nr_method.value})",

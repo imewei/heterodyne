@@ -7,7 +7,12 @@ correlation matrices before fitting.
 
 from __future__ import annotations
 
+import os
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -317,6 +322,251 @@ def recommend_strategy(
 
     logger.info("Recommended strategy: %s", strategy)
     return strategy
+
+
+# ---------------------------------------------------------------------------
+# Parallel chunk processing
+# ---------------------------------------------------------------------------
+
+
+def process_chunks_parallel(
+    c2: np.ndarray,
+    process_fn: Callable[[np.ndarray], np.ndarray],
+    chunk_size: int = 100,
+    max_workers: int | None = None,
+) -> np.ndarray:
+    """Process 3D correlation data chunks in parallel using threads.
+
+    For 3D data (n_phi, n_t, n_t), splits along axis 0 into chunks
+    and processes each chunk concurrently. For 2D data, applies
+    process_fn directly (no parallelism needed).
+
+    Args:
+        c2: Input correlation array (2D or 3D).
+        process_fn: Function that transforms a chunk of c2 (must be
+            thread-safe and accept/return np.ndarray).
+        chunk_size: Number of slices per chunk along axis 0.
+        max_workers: Maximum number of threads. Defaults to
+            min(os.cpu_count(), n_chunks).
+
+    Returns:
+        Processed array with same shape as input.
+    """
+    if c2.ndim == 2:
+        return process_fn(c2)
+
+    n_slices = c2.shape[0]
+    chunks = [c2[i : i + chunk_size] for i in range(0, n_slices, chunk_size)]
+    n_chunks = len(chunks)
+
+    cpu_count = os.cpu_count() or 1
+    n_workers = min(cpu_count, n_chunks) if max_workers is None else max_workers
+
+    logger.info(
+        "Processing %d chunks with %d workers (chunk_size=%d)",
+        n_chunks,
+        n_workers,
+        chunk_size,
+    )
+
+    with ThreadPoolExecutor(max_workers=n_workers) as executor:
+        futures = [executor.submit(process_fn, chunk) for chunk in chunks]
+        results: list[np.ndarray] = []
+        for idx, future in enumerate(futures):
+            try:
+                results.append(future.result())
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Chunk {idx}/{n_chunks} failed during parallel processing"
+                ) from exc
+
+    return np.concatenate(results, axis=0)
+
+
+# ---------------------------------------------------------------------------
+# Progressive loading strategy
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class DatasetSizeCategory:
+    """Classification of dataset by size.
+
+    Attributes:
+        category: One of "small", "medium", "large", "very_large".
+        size_bytes: Estimated total size in bytes.
+        n_elements: Total number of array elements.
+        recommended_chunk_size: Suggested chunk size for processing.
+        use_memory_mapping: Whether to use memory-mapped I/O.
+        use_progressive_loading: Whether to load data incrementally.
+        use_compression: Whether to enable cache compression.
+    """
+
+    category: str
+    size_bytes: int
+    n_elements: int
+    recommended_chunk_size: int
+    use_memory_mapping: bool
+    use_progressive_loading: bool
+    use_compression: bool
+
+
+def categorize_dataset(
+    shape: tuple[int, ...],
+    dtype: np.dtype | type = np.float64,
+    available_memory: int | None = None,
+) -> DatasetSizeCategory:
+    """Classify a dataset by size and recommend loading strategy.
+
+    Uses the dataset's estimated memory footprint relative to available
+    system memory to determine the optimal loading approach.
+
+    Categories:
+
+    - **small** (< 100 MB): Load fully, no special handling.
+    - **medium** (100 MB - 1 GB): Standard chunked processing.
+    - **large** (1 GB - 10 GB): Memory-mapped I/O, compressed caching.
+    - **very_large** (> 10 GB): Progressive loading, aggressive chunking.
+
+    Args:
+        shape: Array dimensions.
+        dtype: Element data type.
+        available_memory: Available system memory in bytes. If None,
+            auto-detected via psutil (fallback: 8 GB).
+
+    Returns:
+        DatasetSizeCategory with recommendations.
+    """
+    n_elements = int(np.prod(shape))
+    size_bytes = n_elements * np.dtype(dtype).itemsize
+
+    if available_memory is None:
+        try:
+            import psutil  # type: ignore[import-untyped]
+
+            available_memory = int(psutil.virtual_memory().available)
+        except Exception:
+            available_memory = 8_000_000_000  # 8 GB fallback
+            logger.debug(
+                "psutil unavailable; assuming %d bytes available memory",
+                available_memory,
+            )
+
+    _MB = 100_000_000
+    _GB = 1_000_000_000
+
+    # Derive a representative first-axis length for chunk-size heuristics.
+    n = shape[0] if shape else 1
+
+    if size_bytes < _MB:
+        # small: load everything, no special handling
+        category = "small"
+        chunk_size = n
+        use_mmap = False
+        use_progressive = False
+        use_compression = False
+    elif size_bytes < _GB:
+        # medium: standard chunked processing
+        category = "medium"
+        chunk_size = max(1, n // 4)
+        use_mmap = False
+        use_progressive = False
+        use_compression = False
+    elif size_bytes < 10 * _GB:
+        # large: memory-mapped I/O, compressed caching
+        category = "large"
+        chunk_size = max(1, n // 16)
+        use_mmap = True
+        use_progressive = False
+        use_compression = True
+    else:
+        # very_large: progressive loading, aggressive chunking
+        category = "very_large"
+        chunk_size = max(1, n // 64)
+        use_mmap = True
+        use_progressive = True
+        use_compression = True
+
+    logger.info(
+        "Dataset categorized as '%s': %d bytes, %d elements, chunk_size=%d",
+        category,
+        size_bytes,
+        n_elements,
+        chunk_size,
+    )
+
+    return DatasetSizeCategory(
+        category=category,
+        size_bytes=size_bytes,
+        n_elements=n_elements,
+        recommended_chunk_size=chunk_size,
+        use_memory_mapping=use_mmap,
+        use_progressive_loading=use_progressive,
+        use_compression=use_compression,
+    )
+
+
+def create_loading_plan(
+    file_path: Path | str,
+    dataset_shape: tuple[int, ...],
+    dtype: np.dtype | type = np.float64,
+) -> dict[str, Any]:
+    """Create a comprehensive loading plan for a dataset file.
+
+    Combines dataset categorization with specific loading recommendations.
+
+    Args:
+        file_path: Path to the data file.
+        dataset_shape: Shape of the primary dataset.
+        dtype: Data type of the dataset.
+
+    Returns:
+        Dictionary with keys: "category", "strategy", "chunk_size",
+        "use_cache", "use_mmap", "estimated_load_time_seconds".
+    """
+    file_path = Path(file_path)
+    cat = categorize_dataset(dataset_shape, dtype)
+
+    # Rough throughput estimates (bytes/s) for sequentially reading from disk.
+    # These are conservative approximations suitable for planning purposes.
+    _THROUGHPUT = {
+        "small": 500_000_000,       # 500 MB/s (fast SSD, fully cached)
+        "medium": 300_000_000,      # 300 MB/s (SSD)
+        "large": 150_000_000,       # 150 MB/s (mmap, partial cache pressure)
+        "very_large": 80_000_000,   # 80 MB/s (HDD / high memory pressure)
+    }
+
+    throughput = _THROUGHPUT.get(cat.category, 100_000_000)
+    estimated_load_time = cat.size_bytes / throughput
+
+    strategy_map = {
+        "small": "full_load",
+        "medium": "chunked",
+        "large": "mmap_chunked",
+        "very_large": "progressive_mmap",
+    }
+
+    plan: dict[str, Any] = {
+        "category": cat.category,
+        "strategy": strategy_map.get(cat.category, "chunked"),
+        "chunk_size": cat.recommended_chunk_size,
+        "use_cache": cat.category in ("medium", "large", "very_large"),
+        "use_mmap": cat.use_memory_mapping,
+        "estimated_load_time_seconds": round(estimated_load_time, 3),
+    }
+
+    logger.info(
+        "Loading plan for '%s': category=%s strategy=%s chunk_size=%d "
+        "use_mmap=%s estimated_load_time=%.2fs",
+        file_path.name,
+        plan["category"],
+        plan["strategy"],
+        plan["chunk_size"],
+        plan["use_mmap"],
+        plan["estimated_load_time_seconds"],
+    )
+
+    return plan
 
 
 # ---------------------------------------------------------------------------
