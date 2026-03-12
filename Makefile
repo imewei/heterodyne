@@ -2,14 +2,14 @@
 # =====================================
 # JAX-accelerated XPCS heterodyne analysis with NLSQ and CMC (CPU-only)
 
-.PHONY: help install install-dev env-info deps-check version info \
+.PHONY: help install env-info deps-check version info \
         test test-smoke test-fast test-ci test-ci-full test-coverage test-unit test-integration test-scientific \
         test-parallel test-all-parallel test-parallel-fast test-coverage-parallel test-nlsq test-cmc test-quick \
-        format lint type-check check quality quick pre-commit install-hooks \
+        format lint type-check check quality quick \
         benchmark profile-nlsq profile-cmc \
         clean clean-all clean-pyc clean-build clean-test clean-cache clean-venv \
         docs docs-serve docs-clean \
-        build release ci ci-full dev-install watch stats verify-nlsq verify-cmc
+        build release ci ci-full watch stats verify-nlsq verify-cmc
 
 # Configuration
 PYTHON := python
@@ -90,8 +90,6 @@ help:
 	@echo ""
 	@echo "$(BOLD)$(GREEN)INSTALLATION$(RESET)"
 	@echo "  $(CYAN)install$(RESET)          Install package in editable mode (CPU-only)"
-	@echo "  $(CYAN)dev$(RESET)              Install with development dependencies"
-	@echo "  $(CYAN)dev-install$(RESET)      Install dev deps + pre-commit hooks"
 	@echo ""
 	@echo "$(BOLD)$(GREEN)TESTING$(RESET)"
 	@echo "  $(CYAN)test$(RESET)                   Run all tests"
@@ -118,7 +116,6 @@ help:
 	@echo "  $(CYAN)check$(RESET)            Run all checks (format + lint + type)"
 	@echo "  $(CYAN)quality$(RESET)          Run all quality checks"
 	@echo "  $(CYAN)quick$(RESET)            Fast iteration: format + smoke tests"
-	@echo "  $(CYAN)pre-commit$(RESET)       Run pre-commit hooks"
 	@echo ""
 	@echo "$(BOLD)$(GREEN)PERFORMANCE$(RESET)"
 	@echo "  $(CYAN)benchmark$(RESET)        Run performance benchmarks"
@@ -151,17 +148,9 @@ install:
 	@echo "$(BOLD)$(BLUE)Installing $(PACKAGE_NAME) in editable mode (CPU-only)...$(RESET)"
 	@$(INSTALL_CMD) -e .
 	@echo "$(BOLD)$(GREEN)✓ Package installed!$(RESET)"
-
-dev:
-	@echo "$(BOLD)$(BLUE)Installing development dependencies...$(RESET)"
-	@$(INSTALL_CMD) -e ".[dev,docs]"
-	@echo "$(BOLD)$(GREEN)✓ Dev dependencies installed!$(RESET)"
 	@echo "  Platform: $(PLATFORM)"
 	@echo "  Python: $(shell $(PYTHON) --version 2>&1)"
 	@echo "  JAX: $(shell $(PYTHON) -c 'import jax; print(jax.__version__)' 2>/dev/null || echo 'not installed')"
-
-dev-install: dev install-hooks
-	@echo "$(BOLD)$(GREEN)✓ Development environment ready!$(RESET)"
 
 # ===================
 # Environment info targets
@@ -295,19 +284,19 @@ test-unit:
 
 test-integration:
 	@echo "$(BOLD)$(BLUE)Running integration tests...$(RESET)"
-	$(RUN_CMD) $(PYTEST) $(TEST_DIR)/test_integration.py -v --tb=short
+	$(RUN_CMD) $(PYTEST) $(TEST_DIR)/integration/ -v --tb=short
 
 test-scientific:
 	@echo "$(BOLD)$(BLUE)Running scientific tests...$(RESET)"
-	$(RUN_CMD) $(PYTEST) $(TEST_DIR)/test_*_scientific.py $(TEST_DIR)/test_property_based.py -v --tb=short
+	$(RUN_CMD) $(PYTEST) $(TEST_DIR)/scientific/ -v --tb=short
 
 test-nlsq:
 	@echo "$(BOLD)$(BLUE)Running NLSQ optimization tests...$(RESET)"
-	$(RUN_CMD) $(PYTEST) $(TEST_DIR)/test_nlsq*.py -v
+	$(RUN_CMD) $(PYTEST) $(TEST_DIR)/unit/optimization/nlsq/ -v
 
 test-cmc:
 	@echo "$(BOLD)$(BLUE)Running CMC optimization tests...$(RESET)"
-	$(RUN_CMD) $(PYTEST) $(TEST_DIR)/test_cmc*.py -v
+	$(RUN_CMD) $(PYTEST) $(TEST_DIR)/unit/optimization/cmc/ -v
 
 test-quick:
 	@echo "$(BOLD)$(BLUE)Running quick tests...$(RESET)"
@@ -345,15 +334,6 @@ quality: format lint type-check
 
 quick: format test-smoke
 	@echo "$(BOLD)$(GREEN)✓ Quick iteration complete!$(RESET)"
-
-pre-commit:
-	@echo "$(BOLD)$(BLUE)Running pre-commit hooks...$(RESET)"
-	$(RUN_CMD) pre-commit run --all-files
-
-install-hooks:
-	@echo "$(BOLD)$(BLUE)Installing pre-commit hooks...$(RESET)"
-	$(RUN_CMD) pre-commit install
-	@echo "$(BOLD)$(GREEN)✓ Hooks installed!$(RESET)"
 
 # ===================
 # Performance targets
@@ -512,11 +492,11 @@ docs:
 	@echo "$(BOLD)$(BLUE)Building documentation...$(RESET)"
 	cd $(DOCS_DIR) && $(MAKE) html
 	@echo "$(BOLD)$(GREEN)✓ Documentation built!$(RESET)"
-	@echo "Open: $(DOCS_DIR)/_build/html/index.html"
+	@echo "Open: $(DOCS_DIR)/build/html/index.html"
 
 docs-serve:
 	@echo "$(BOLD)$(BLUE)Serving documentation locally...$(RESET)"
-	cd $(DOCS_DIR)/_build/html && $(PYTHON) -m http.server 8000
+	cd $(DOCS_DIR)/build/html && $(PYTHON) -m http.server 8000
 
 docs-clean:
 	@echo "$(BOLD)$(BLUE)Cleaning documentation build...$(RESET)"

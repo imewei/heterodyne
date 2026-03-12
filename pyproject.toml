@@ -85,29 +85,19 @@ dependencies = [
     "xarray>=2025.12",
     # Machine learning utilities (for GMM bimodal detection)
     "scikit-learn>=1.6",
-]
-
-[project.optional-dependencies]
-dev = [
+    # Development tools
     "pytest>=9.0.2",
     "pytest-cov>=7.0",
     "pytest-xdist>=3.8",
     "ruff>=0.15.2",
     "mypy>=1.19.1",
-    "pre-commit>=4.5.1",
     "types-pyyaml>=6.0.12.20250915",
-]
-
-docs = [
+    # Documentation
     "sphinx>=9.1.0",
     "furo>=2025.12.19",
     "myst-parser>=5.0.0",
     "sphinx-autodoc-typehints>=3.6.3",
     "sphinx-copybutton>=0.5.2",
-]
-
-all = [
-    "heterodyne[dev,docs]",
 ]
 
 [project.urls]
@@ -231,12 +221,11 @@ ignore_errors = true
 # Large modules with complex type inference - relax some checks
 [[tool.mypy.overrides]]
 module = [
-    "heterodyne.optimization.nlsq.wrapper",
     "heterodyne.optimization.nlsq.core",
     "heterodyne.optimization.nlsq.progress",
     "heterodyne.optimization.nlsq.strategies.residual",
     "heterodyne.optimization.nlsq.strategies.sequential",
-    "heterodyne.optimization.nlsq.strategies.chunking",
+    "heterodyne.optimization.nlsq.strategies.chunked",
     "heterodyne.optimization.nlsq.strategies.executors",
     "heterodyne.optimization.nlsq.fourier_reparam",
     "heterodyne.optimization.nlsq.fit_computation",
@@ -250,8 +239,8 @@ module = [
     "heterodyne.optimization.nlsq.adapter",
     "heterodyne.optimization.nlsq.cmaes_wrapper",
     "heterodyne.optimization.cmc.sampler",
-    "heterodyne.optimization.cmc.backends.multiprocessing",
-    "heterodyne.optimization.cmc.backends.pjit",
+    "heterodyne.optimization.cmc.backends.multiprocessing_backend",
+    "heterodyne.optimization.cmc.backends.pjit_backend",
     "heterodyne.optimization.cmc.backends.base",
     "heterodyne.optimization.cmc.core",
     "heterodyne.optimization.cmc.io",
@@ -312,7 +301,6 @@ filterwarnings = [
     # General warnings
     "ignore::PendingDeprecationWarning",
     "ignore::matplotlib.MatplotlibDeprecationWarning",
-    "ignore::RuntimeWarning:heterodyne.optimization.sequential_angle",
     # Specific warnings
     "ignore:There are not enough devices to run parallel chains:UserWarning",
     "ignore:Covariance of the parameters could not be estimated:scipy.optimize.OptimizeWarning",
@@ -354,30 +342,14 @@ omit = [
     "heterodyne/core/physics_factors.py",
     "heterodyne/core/physics_nlsq.py",
     "heterodyne/core/theory.py",
-    "heterodyne/optimization/mcmc.py",
-    "heterodyne/optimization/nlsq_wrapper.py",
-    "heterodyne/optimization/nlsq.py",
     "heterodyne/optimization/cmc/*",
     "heterodyne/optimization/gradient_diagnostics.py",
-    "heterodyne/optimization/stratified_residual_jit.py",
     "heterodyne/optimization/batch_statistics.py",
-    "heterodyne/optimization/sequential_angle.py",
     "heterodyne/optimization/numerical_validation.py",
-    "heterodyne/optimization/strategy.py",
-    "heterodyne/optimization/initialization/*",
-    "heterodyne/optimization/nlsq/wrapper.py",
     "heterodyne/optimization/nlsq/jacobian.py",
     "heterodyne/optimization/nlsq/transforms.py",
     "heterodyne/optimization/nlsq/strategies/residual_jit.py",
-    "heterodyne/optimization/mcmc/cmc/*",
-    "heterodyne/optimization/mcmc/data_prep.py",
-    "heterodyne/optimization/mcmc/priors.py",
-    "heterodyne/optimization/mcmc/scaling.py",
-    "heterodyne/optimization/mcmc/single_angle.py",
-    "heterodyne/utils/progress.py",
-    "heterodyne/utils/validation.py",
     "tests/*",
-    "*/tests/*",
 ]
 
 [tool.coverage.report]
