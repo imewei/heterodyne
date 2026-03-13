@@ -156,7 +156,7 @@ def plot_nlsq_fit(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -250,7 +250,7 @@ def plot_residual_map(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -301,7 +301,7 @@ def plot_parameter_uncertainties(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig

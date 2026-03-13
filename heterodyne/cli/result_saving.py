@@ -353,7 +353,7 @@ def _compute_theoretical_g1_from_mcmc(
             g1 = model.compute_g1(param_dict)
             logger.debug("Computed theoretical g1 from posterior means.")
             return g1
-        except Exception:
+        except (AttributeError, ValueError, RuntimeError):
             logger.warning(
                 "Failed to compute theoretical g1 from posterior means.",
                 exc_info=True,

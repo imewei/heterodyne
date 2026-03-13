@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from heterodyne.utils.logging import get_logger
+from heterodyne.viz.mcmc_diagnostics import BFMI_THRESHOLD
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
@@ -144,7 +145,7 @@ def plot_posterior(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -219,7 +220,7 @@ def plot_trace(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -291,7 +292,7 @@ def plot_corner(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -477,7 +478,7 @@ def plot_energy(
         if np.var(energy) > 0
         else float("nan")
     )
-    bfmi_color = "green" if bfmi >= 0.3 else "red"
+    bfmi_color = "green" if bfmi >= BFMI_THRESHOLD else "red"
     ax.text(
         0.97,
         0.97,
