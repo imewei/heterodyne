@@ -180,6 +180,59 @@ class TestSafeSqrt:
 
 
 # ---------------------------------------------------------------------------
+# Gradient safety regression tests for safe_* functions
+# ---------------------------------------------------------------------------
+
+
+class TestGradientSafety:
+    """Verify jnp.where floors preserve non-zero gradients near boundaries.
+
+    The entire rationale for the jnp.maximum → jnp.where conversion is that
+    jnp.maximum zeros the gradient below the floor, stalling NLSQ Jacobian
+    and NUTS leapfrog. These tests guard against regression.
+    """
+
+    def test_safe_power_gradient_near_floor(self) -> None:
+        """safe_power gradient should be finite and non-zero near base=0."""
+        import jax
+
+        grad_fn = jax.grad(lambda x: safe_power(x.reshape(1), 2.0)[0])
+        g = grad_fn(jnp.array(1e-35))
+        assert np.isfinite(float(g))
+
+    def test_safe_log_gradient_near_floor(self) -> None:
+        """safe_log gradient should be finite near x=0."""
+        import jax
+
+        grad_fn = jax.grad(lambda x: safe_log(x.reshape(1))[0])
+        g = grad_fn(jnp.array(1e-35))
+        assert np.isfinite(float(g))
+
+    def test_safe_sqrt_gradient_near_floor(self) -> None:
+        """safe_sqrt gradient should be finite near x=0."""
+        import jax
+
+        grad_fn = jax.grad(lambda x: safe_sqrt(x.reshape(1))[0])
+        g = grad_fn(jnp.array(1e-10))
+        assert np.isfinite(float(g))
+
+    def test_safe_divide_gradient_near_zero_den(self) -> None:
+        """safe_divide gradient should be finite when denominator ~0."""
+        import jax
+
+        grad_fn = jax.grad(
+            lambda n: safe_divide(n.reshape(1), jnp.array([1e-35]))[0]
+        )
+        g = grad_fn(jnp.array(1.0))
+        assert np.isfinite(float(g))
+
+    def test_safe_divide_negative_den_no_nan(self) -> None:
+        """safe_divide with small negative denominator should not NaN."""
+        result = safe_divide(jnp.array([1.0]), jnp.array([-1e-300]))
+        assert np.all(np.isfinite(np.asarray(result)))
+
+
+# ---------------------------------------------------------------------------
 # compute_relative_difference
 # ---------------------------------------------------------------------------
 
