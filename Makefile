@@ -2,14 +2,15 @@
 # =====================================
 # JAX-accelerated XPCS heterodyne analysis with NLSQ and CMC (CPU-only)
 
-.PHONY: help install env-info deps-check version info \
+.PHONY: help install dev dev-install env-info deps-check version info \
         test test-smoke test-fast test-ci test-ci-full test-coverage test-unit test-integration test-scientific \
         test-parallel test-all-parallel test-parallel-fast test-coverage-parallel test-nlsq test-cmc test-quick \
-        format lint type-check check quality quick \
+        format lint lint-tests type-check shellcheck check quality quick pre-commit install-hooks \
         benchmark profile-nlsq profile-cmc \
         clean clean-all clean-pyc clean-build clean-test clean-cache clean-venv \
         docs docs-serve docs-clean \
-        build release ci ci-full watch stats verify-nlsq verify-cmc
+        build release run-example ci ci-full watch stats verify-nlsq verify-cmc \
+        verify verify-fast
 
 # Configuration
 PYTHON := python
@@ -90,6 +91,8 @@ help:
 	@echo ""
 	@echo "$(BOLD)$(GREEN)INSTALLATION$(RESET)"
 	@echo "  $(CYAN)install$(RESET)          Install package in editable mode (CPU-only)"
+	@echo "  $(CYAN)dev$(RESET)              Install with development dependencies"
+	@echo "  $(CYAN)dev-install$(RESET)      Install dev deps + pre-commit hooks"
 	@echo ""
 	@echo "$(BOLD)$(GREEN)TESTING$(RESET)"
 	@echo "  $(CYAN)test$(RESET)                   Run all tests"
@@ -113,9 +116,15 @@ help:
 	@echo "  $(CYAN)format$(RESET)           Format code with ruff"
 	@echo "  $(CYAN)lint$(RESET)             Run linting checks (ruff)"
 	@echo "  $(CYAN)type-check$(RESET)       Run type checking (mypy)"
-	@echo "  $(CYAN)check$(RESET)            Run all checks (format + lint + type)"
+	@echo "  $(CYAN)shellcheck$(RESET)       Check shell scripts"
+	@echo "  $(CYAN)check$(RESET)            Run all checks (format + lint + type + shellcheck)"
 	@echo "  $(CYAN)quality$(RESET)          Run all quality checks"
 	@echo "  $(CYAN)quick$(RESET)            Fast iteration: format + smoke tests"
+	@echo "  $(CYAN)pre-commit$(RESET)       Run pre-commit hooks"
+	@echo ""
+	@echo "$(BOLD)$(GREEN)PRE-PUSH VERIFICATION$(RESET)"
+	@echo "  $(CYAN)verify$(RESET)           Full local CI verification (lint + shellcheck + type-check + smoke tests)"
+	@echo "  $(CYAN)verify-fast$(RESET)      Quick verification (lint + type-check only, no tests)"
 	@echo ""
 	@echo "$(BOLD)$(GREEN)PERFORMANCE$(RESET)"
 	@echo "  $(CYAN)benchmark$(RESET)        Run performance benchmarks"
@@ -148,9 +157,21 @@ install:
 	@echo "$(BOLD)$(BLUE)Installing $(PACKAGE_NAME) in editable mode (CPU-only)...$(RESET)"
 	@$(INSTALL_CMD) -e .
 	@echo "$(BOLD)$(GREEN)✓ Package installed!$(RESET)"
+
+dev:
+	@echo "$(BOLD)$(BLUE)Installing development dependencies...$(RESET)"
+ifdef UV_AVAILABLE
+	@uv sync
+else
+	@$(INSTALL_CMD) -e .
+endif
+	@echo "$(BOLD)$(GREEN)✓ Dev dependencies installed!$(RESET)"
 	@echo "  Platform: $(PLATFORM)"
 	@echo "  Python: $(shell $(PYTHON) --version 2>&1)"
 	@echo "  JAX: $(shell $(PYTHON) -c 'import jax; print(jax.__version__)' 2>/dev/null || echo 'not installed')"
+
+dev-install: dev install-hooks
+	@echo "$(BOLD)$(GREEN)✓ Development environment ready!$(RESET)"
 
 # ===================
 # Environment info targets
@@ -326,14 +347,77 @@ type-check:
 	$(RUN_CMD) mypy $(SRC_DIR) --show-error-codes
 	@echo "$(BOLD)$(GREEN)✓ Type checking passed!$(RESET)"
 
-check: format lint type-check
+shellcheck:
+	@echo "$(BOLD)$(BLUE)Running shellcheck on shell scripts...$(RESET)"
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		shellcheck -S warning $(SRC_DIR)/runtime/shell/completion.sh && \
+		echo "$(BOLD)$(GREEN)✓ Shell scripts passed!$(RESET)"; \
+	else \
+		echo "$(BOLD)$(YELLOW)⚠ shellcheck not installed, skipping$(RESET)"; \
+	fi
+
+check: format lint type-check shellcheck
 	@echo "$(BOLD)$(GREEN)✓ All checks passed!$(RESET)"
 
-quality: format lint type-check
+quality: format lint type-check shellcheck
 	@echo "$(BOLD)$(GREEN)✓ All quality checks passed!$(RESET)"
 
 quick: format test-smoke
 	@echo "$(BOLD)$(GREEN)✓ Quick iteration complete!$(RESET)"
+
+pre-commit:
+	@echo "$(BOLD)$(BLUE)Running pre-commit hooks...$(RESET)"
+	$(RUN_CMD) pre-commit run --all-files
+
+install-hooks:
+	@echo "$(BOLD)$(BLUE)Installing pre-commit hooks...$(RESET)"
+	$(RUN_CMD) pre-commit install
+	@echo "$(BOLD)$(GREEN)✓ Hooks installed!$(RESET)"
+
+# ===================
+# Pre-push verification
+# ===================
+verify:
+	@echo "$(BOLD)$(BLUE)======================================$(RESET)"
+	@echo "$(BOLD)$(BLUE)  FULL LOCAL CI VERIFICATION$(RESET)"
+	@echo "$(BOLD)$(BLUE)======================================$(RESET)"
+	@echo ""
+	@echo "$(BOLD)Step 1/4: Linting$(RESET)"
+	@$(RUN_CMD) $(RUFF) check $(SRC_DIR) $(TEST_DIR) || (echo "$(RED)Lint check failed!$(RESET)" && exit 1)
+	@echo ""
+	@echo "$(BOLD)Step 2/4: Shell scripts$(RESET)"
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		shellcheck -S warning $(SRC_DIR)/runtime/shell/completion.sh || (echo "$(RED)Shellcheck failed!$(RESET)" && exit 1); \
+	else \
+		echo "$(YELLOW)shellcheck not installed, skipping$(RESET)"; \
+	fi
+	@echo ""
+	@echo "$(BOLD)Step 3/4: Type checking (advisory)$(RESET)"
+	@$(RUN_CMD) mypy $(SRC_DIR) --no-error-summary 2>&1 | tail -1 || true
+	@echo "$(YELLOW)Note: Type checking is advisory. See 'make type-check' for full report.$(RESET)"
+	@echo ""
+	@echo "$(BOLD)Step 4/4: Smoke tests$(RESET)"
+	@$(RUN_CMD) $(PYTEST) $(TEST_DIR) -v --tb=short -x -q -m "not slow" || (echo "$(RED)Smoke tests failed!$(RESET)" && exit 1)
+	@echo ""
+	@echo "$(BOLD)$(GREEN)======================================$(RESET)"
+	@echo "$(BOLD)$(GREEN)  ALL CHECKS PASSED - SAFE TO PUSH$(RESET)"
+	@echo "$(BOLD)$(GREEN)======================================$(RESET)"
+
+verify-fast:
+	@echo "$(BOLD)$(BLUE)======================================$(RESET)"
+	@echo "$(BOLD)$(BLUE)  QUICK LOCAL CI VERIFICATION$(RESET)"
+	@echo "$(BOLD)$(BLUE)======================================$(RESET)"
+	@echo ""
+	@echo "$(BOLD)Step 1/2: Linting$(RESET)"
+	@$(RUN_CMD) $(RUFF) check $(SRC_DIR) $(TEST_DIR) || (echo "$(RED)Lint check failed!$(RESET)" && exit 1)
+	@echo ""
+	@echo "$(BOLD)Step 2/2: Type checking (advisory)$(RESET)"
+	@$(RUN_CMD) mypy $(SRC_DIR) --no-error-summary 2>&1 | tail -1 || true
+	@echo "$(YELLOW)Note: Type checking is advisory. See 'make type-check' for full report.$(RESET)"
+	@echo ""
+	@echo "$(BOLD)$(GREEN)======================================$(RESET)"
+	@echo "$(BOLD)$(GREEN)  QUICK CHECKS PASSED$(RESET)"
+	@echo "$(BOLD)$(GREEN)======================================$(RESET)"
 
 # ===================
 # Performance targets
@@ -515,6 +599,13 @@ release: test quality build
 	@echo "$(BOLD)$(BLUE)Checking package...$(RESET)"
 	$(PYTHON) -m twine check dist/* 2>/dev/null || echo "Run 'pip install twine' for package validation"
 	@echo "$(BOLD)$(GREEN)✓ Package ready for release!$(RESET)"
+
+# ===================
+# Example/Demo targets
+# ===================
+run-example:
+	@echo "$(BOLD)$(BLUE)Running example...$(RESET)"
+	$(RUN_CMD) $(PYTHON) scripts/example.py
 
 # ===================
 # CI targets

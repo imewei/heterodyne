@@ -36,45 +36,16 @@ pytest -m "not slow" tests/                      # Skip slow markers
 
 ```
 heterodyne/
-├── core/               # Physics & JAX primitives (two-path integral)
-│   ├── jax_backend.py       # NLSQ meshgrid path: cumsum → N×N matrix
-│   ├── physics_cmc.py       # CMC element-wise path: ShardGrid + O(n_pairs) cumsum
-│   ├── physics_utils.py     # Shared: trapezoid_cumsum, create_time_integral_matrix, smooth_abs
-│   ├── physics_nlsq.py      # NLSQ residual/Jacobian adapters
-│   ├── physics.py           # Constants, bounds, validation (PhysicsConstants)
-│   ├── models.py            # ParameterInfo, ParameterSpace
-│   ├── heterodyne_model.py  # HeterodyneModel with ParameterManager
-│   ├── theory.py            # c1, c2, g2 correlation calculations
-│   ├── scaling_utils.py     # Per-angle contrast/offset scaling
-│   └── fitting.py           # Curve fitting interface
+├── core/               # Physics engine & JAX primitives
 ├── optimization/
-│   ├── nlsq/           # Primary: Trust-region L-M optimizer
-│   │   ├── core.py              # fit_nlsq_jax(), fit_nlsq_multi_phi()
-│   │   ├── adapter.py           # NLSQAdapter (recommended entry)
-│   │   ├── fallback_chain.py    # OptimizationStrategy enum, fallback logic
-│   │   ├── recovery.py          # 3-attempt error recovery
-│   │   ├── cmaes_wrapper.py     # CMA-ES global optimization
-│   │   ├── fourier_reparam.py   # Fourier angular reparameterization
-│   │   ├── strategies/
-│   │   │   ├── stratified_ls.py     # Primary: stratified LS + anti-degeneracy
-│   │   │   ├── hybrid_streaming.py  # Large datasets
-│   │   │   └── out_of_core.py       # Out-of-core JTJ accumulation
-│   │   └── validation/             # Input, bounds, convergence, fit quality
-│   └── cmc/            # Secondary: Consensus Monte Carlo (NumPyro)
-│       ├── core.py          # fit_cmc_jax(), fit_cmc_sharded()
-│       ├── model.py         # NumPyro model definition
-│       ├── sampler.py       # SamplingPlan, NUTS execution
-│       ├── priors.py        # build_default_priors(), build_log_space_priors()
-│       ├── reparameterization.py  # t_ref, log-space priors
-│       └── backends/        # multiprocessing, PBS, pjit
-├── config/             # YAML config (ConfigManager), parameter_registry.py
+│   ├── nlsq/           # Primary: trust-region L-M optimizer
+│   │   ├── strategies/ #   Execution strategies (stratified, chunked, streaming, OOC)
+│   │   └── validation/ #   Input, bounds, convergence, fit quality checks
+│   └── cmc/            # Secondary: Consensus Monte Carlo (NumPyro NUTS)
+│       └── backends/   #   Execution backends (CPU, multiprocessing, PBS, pjit)
+├── config/             # YAML config (ConfigManager), parameter_registry
 ├── data/               # HDF5 loading (XPCSDataLoader)
-├── cli/                # Command-line interface
-│   ├── commands.py          # dispatch_command() orchestrator
-│   ├── config_handling.py   # Device config, CLI overrides
-│   ├── data_pipeline.py     # Data loading, angle filtering
-│   ├── optimization_runner.py # NLSQ/CMC execution, warm-start
-│   └── result_saving.py     # JSON/NPZ serialization
+├── cli/                # Command-line interface & orchestration
 ├── viz/                # MCMC diagnostics, comparison, dashboard, ArviZ
 ├── device/             # CPU/NUMA detection, XLA flag configuration
 ├── io/                 # File I/O utilities
@@ -82,17 +53,43 @@ heterodyne/
 └── runtime/            # Shell completion system
 ```
 
-## Two-Path Integral Architecture
+### Two-Path Integral Architecture
 
 The physics model uses two distinct integral evaluation paths:
 
-1. **Meshgrid path** (NLSQ): `jax_backend.py` builds a full N×N time-integral matrix via `create_time_integral_matrix()`. Fast for JIT-compiled least-squares but O(N²) memory.
+1. **Meshgrid path** (NLSQ): `core/jax_backend.py` builds a full N×N time-integral matrix via `create_time_integral_matrix()`. Fast for JIT-compiled least-squares but O(N²) memory.
 
-2. **Element-wise path** (CMC): `physics_cmc.py` uses `ShardGrid` + `precompute_shard_grid()` for O(n_pairs) cumsum lookup. No N×N matrix — designed for per-shard NUTS evaluation.
+2. **Element-wise path** (CMC): `core/physics_cmc.py` uses `ShardGrid` + `precompute_shard_grid()` for O(n_pairs) cumsum lookup. No N×N matrix — designed for per-shard NUTS evaluation.
 
-Both paths share primitives from `physics_utils.py` (trapezoid_cumsum, rate functions).
+Both paths share primitives from `core/physics_utils.py` (trapezoid_cumsum, rate functions).
 
-## Analysis Modes — 14 Physics Parameters
+## Key Files for Common Tasks
+
+| Task | Primary files |
+|------|---------------|
+| Physics model | `core/physics_utils.py` (shared primitives), `core/theory.py` (c1/c2/g2), `core/physics.py` (constants/bounds) |
+| Two-path integrals | `core/jax_backend.py` (meshgrid), `core/physics_cmc.py` (element-wise), `core/physics_nlsq.py` (NLSQ adapters) |
+| Parameter system | `config/parameter_registry.py` (registry), `core/models.py` (ParameterInfo/ParameterSpace) |
+| Model wrapper | `core/heterodyne_model.py` (HeterodyneModel + ParameterManager) |
+| Scaling modes | `core/scaling_utils.py`, `nlsq/fourier_reparam.py` |
+| NLSQ fitting | `nlsq/core.py` (fit_nlsq_jax), `nlsq/adapter.py` (NLSQAdapter entry) |
+| NLSQ strategies | `nlsq/strategies/stratified_ls.py`, `hybrid_streaming.py`, `out_of_core.py` |
+| NLSQ config | `nlsq/config.py`, `nlsq/fallback_chain.py`, `nlsq/recovery.py` |
+| CMA-ES | `nlsq/cmaes_wrapper.py` |
+| CMC fitting | `cmc/core.py` (fit_cmc_jax), `cmc/model.py`, `cmc/sampler.py` |
+| CMC priors | `cmc/priors.py`, `cmc/reparameterization.py` |
+| CMC config | `cmc/config.py` |
+| CLI dispatch | `cli/commands.py` (orchestrator), `cli/optimization_runner.py` |
+| MCMC viz | `viz/mcmc_diagnostics.py`, `viz/mcmc_dashboard.py`, `viz/mcmc_arviz.py` |
+| Add physics param | `config/parameter_registry.py`, `core/physics.py`, `core/models.py` |
+
+## Data Flow
+
+```
+YAML → ConfigManager → XPCSDataLoader(HDF5) → HeterodyneModel → NLSQ/CMC → Result(JSON+NPZ)
+```
+
+## 14 Physics Parameters
 
 All 14 physics parameters + 2 scaling (contrast, offset) per angle:
 
@@ -109,17 +106,10 @@ All 14 physics parameters + 2 scaling (contrast, offset) per angle:
 
 Units: All in Angstroms (Å). q in Å⁻¹, D₀ in Å²/s^α, velocities in Å/s.
 
-## Data Flow
-
-```
-YAML → ConfigManager → XPCSDataLoader(HDF5) → HeterodyneModel → NLSQ/CMC → Result(JSON+NPZ)
-```
-
 ## NLSQ Optimization
 
 ```python
 from heterodyne.optimization.nlsq import fit_nlsq_jax
-
 result = fit_nlsq_jax(data, config, use_adapter=True)
 ```
 
@@ -193,12 +183,12 @@ jax.config.update("jax_persistent_cache_min_compile_time_secs", 0)
 
 ## Critical Rules
 
-1. **Never subsample data** — full precision always
-2. **CPU-only** — no GPU support
-3. **JAX-first** — numerical core in JAX, NumPy only at I/O boundaries
-4. **Explicit imports** — `from heterodyne.optimization import fit_nlsq_jax`
-5. **Use NLSQ 0.6.10+** — heterodyne's `curve_fit()` with internal memory selection
-6. **Narrow exceptions** — specific types (`OSError`, `ValueError`, `KeyError`) at function boundaries; broad `except Exception` only at top-level dispatchers with `log_exception()`
+1. **Never subsample data** — full precision always.
+2. **CPU-only** — no GPU support.
+3. **JAX-first** — numerical core in JAX, NumPy only at I/O boundaries.
+4. **Explicit imports** — `from heterodyne.optimization import fit_nlsq_jax`.
+5. **Use NLSQ 0.6.10+** — heterodyne's `curve_fit()` with internal memory selection.
+6. **Narrow exceptions** — specific types (`OSError`, `ValueError`, `KeyError`) at function boundaries; broad `except Exception` only at top-level dispatchers with `log_exception()`.
 7. **Gradient-safe floors** — Use `jnp.where(x > eps, x, eps)` instead of `jnp.maximum(x, eps)`. `jnp.maximum` zeros the gradient below the floor, stalling NLSQ Jacobian and NUTS leapfrog.
 8. **Float64 before JAX import** — `JAX_ENABLE_X64=1` must be set before first JAX import. `heterodyne/__init__.py` and `cli/main.py` both call `os.environ.setdefault("JAX_ENABLE_X64", "1")`. Workers re-set in multiprocessing since spawn-mode starts fresh.
 9. **Dual prior system** — `parameter_registry.py` (prior_mean/prior_std) AND `parameter_space.py` (`_DEFAULT_PRIOR_SPECS`) must stay in sync. Registry consumed by `cmc/priors.py`; `_DEFAULT_PRIOR_SPECS` by `parameter_space.py:_default_prior()`.
@@ -225,17 +215,3 @@ with log_phase("Optimization"):
 | `heterodyne-post-install` | Shell completion setup |
 | `heterodyne-cleanup` | Remove shell completion files |
 | `heterodyne-validate` | System validation |
-
-## Key Files for Common Tasks
-
-| Task | Files |
-|------|-------|
-| Add physics param | `config/parameter_registry.py`, `core/physics.py`, `core/models.py` |
-| Modify fitting | `core/fitting.py`, `core/heterodyne_model.py` |
-| NLSQ config | `optimization/nlsq/config.py` |
-| NLSQ strategies | `optimization/nlsq/strategies/stratified_ls.py`, `hybrid_streaming.py`, `out_of_core.py` |
-| CMC model/priors | `optimization/cmc/model.py`, `cmc/priors.py` |
-| CMC config | `optimization/cmc/config.py` |
-| CMC sampling | `optimization/cmc/sampler.py` (SamplingPlan, NUTS) |
-| CLI dispatch | `cli/commands.py` (orchestrator) |
-| MCMC viz | `viz/mcmc_diagnostics.py`, `viz/mcmc_dashboard.py`, `viz/mcmc_arviz.py` |

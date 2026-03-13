@@ -85,12 +85,15 @@ dependencies = [
     "xarray>=2025.12",
     # Machine learning utilities (for GMM bimodal detection)
     "scikit-learn>=1.6",
+    # Interactive computing
+    "ipykernel>=7.2.0",
     # Development tools
     "pytest>=9.0.2",
     "pytest-cov>=7.0",
     "pytest-xdist>=3.8",
     "ruff>=0.15.2",
     "mypy>=1.19.1",
+    "pre-commit>=4.5.1",
     "types-pyyaml>=6.0.12.20250915",
     # Documentation
     "sphinx>=9.1.0",
@@ -124,7 +127,7 @@ __version_tuple__ = {version_tuple}
 """
 
 # Version scheme: "guess-next-dev" automatically bumps the PATCH version (last digit)
-# Examples: v0.1.0 → 0.1.0, then commits → 0.1.1.dev1, 0.1.1.dev2, ...
+# Examples: v0.1.0 -> 0.1.0, then commits -> 0.1.1.dev1, 0.1.1.dev2, ...
 version_scheme = "guess-next-dev"
 
 # Local scheme: "no-local-version" for clean versions in CI/CD (PEP 440 compliant)
@@ -174,7 +177,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"docs/notebooks/*.ipynb" = ["E402", "B905"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "docs", "build", "dist"]
@@ -210,6 +212,7 @@ module = [
     "xarray.*",
     "scipy.*",
     "zstd.*",
+    "sklearn.*",
 ]
 ignore_missing_imports = true
 
@@ -284,8 +287,7 @@ markers = [
     "mcmc: marks tests as MCMC statistical tests",
     "requires_jax: marks tests as requiring JAX",
     "api: marks tests as API compatibility tests",
-    "self_consistency: marks tests as CMC self-consistency tests",
-    "validation: marks tests as CMC accuracy validation tests",
+    "property: marks tests as property-based tests",
     "arviz: marks tests as ArviZ integration tests",
     "visualization: marks tests as visualization tests",
     "regression: marks tests as regression tests",
@@ -301,6 +303,7 @@ filterwarnings = [
     # General warnings
     "ignore::PendingDeprecationWarning",
     "ignore::matplotlib.MatplotlibDeprecationWarning",
+    "ignore::RuntimeWarning:heterodyne.optimization.*",
     # Specific warnings
     "ignore:There are not enough devices to run parallel chains:UserWarning",
     "ignore:Covariance of the parameters could not be estimated:scipy.optimize.OptimizeWarning",
@@ -350,6 +353,7 @@ omit = [
     "heterodyne/optimization/nlsq/transforms.py",
     "heterodyne/optimization/nlsq/strategies/residual_jit.py",
     "tests/*",
+    "*/tests/*",
 ]
 
 [tool.coverage.report]
@@ -383,7 +387,6 @@ cache_compilation = true
 [dependency-groups]
 dev = [
     "hypothesis>=6.151.9",
-    "ipykernel>=7.2.0",
 ]
 
 [tool.uv]

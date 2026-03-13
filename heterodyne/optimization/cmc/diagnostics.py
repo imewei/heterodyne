@@ -670,7 +670,7 @@ def detect_bimodal(
             how to add the optional dependency.
     """
     try:
-        from sklearn.mixture import GaussianMixture  # type: ignore[import-untyped]
+        from sklearn.mixture import GaussianMixture
     except ImportError as exc:
         raise ImportError(
             "scikit-learn is required for bimodality detection. "
