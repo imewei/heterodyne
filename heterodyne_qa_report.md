@@ -11,3 +11,4 @@
 | 5 | 0 findings — physics computation path verified clean | N/A | 0 | — | ALL CLEAR |
 | 6 | 1 MEDIUM (legacy key in CMC worker pool) | No review issues | 1 | optimization/cmc | PASS — 2578 tests, 0 mypy errors |
 | 7 | 0 findings — validation, CMA-ES, data loader, parameter_space all clean | N/A | 0 | — | ALL CLEAR |
+| 8 | 0 findings — trapezoid indexing, exp/log guards, mutable defaults, thread safety, float64 init all verified | N/A | 0 | — | ALL CLEAR |
