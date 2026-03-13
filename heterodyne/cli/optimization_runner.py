@@ -137,9 +137,7 @@ def run_cmc(
             "cmc", "num_samples", args.num_samples
         )
     if getattr(args, "num_chains", None) is not None:
-        config_manager.update_optimization_config(
-            "cmc", "num_chains", args.num_chains
-        )
+        config_manager.update_optimization_config("cmc", "num_chains", args.num_chains)
 
     cmc_config = CMCConfig.from_dict(config_manager.cmc_config)
 

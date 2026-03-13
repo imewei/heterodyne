@@ -220,9 +220,7 @@ class TestGradientSafety:
         """safe_divide gradient should be finite when denominator ~0."""
         import jax
 
-        grad_fn = jax.grad(
-            lambda n: safe_divide(n.reshape(1), jnp.array([1e-35]))[0]
-        )
+        grad_fn = jax.grad(lambda n: safe_divide(n.reshape(1), jnp.array([1e-35]))[0])
         g = grad_fn(jnp.array(1.0))
         assert np.isfinite(float(g))
 
