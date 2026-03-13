@@ -19,17 +19,17 @@ the sample velocity.
 
 ### Two-Time Correlation (Eq. S-95)
 
-$$c_2(\vec{q},\, t_1,\, t_2) = 1 + \frac{\beta}{f^2} \left[ C_\text{ref} + C_\text{sample} + C_\text{cross} \right]$$
+$$c_2(\vec{q}, t_1, t_2) = 1 + \frac{\beta}{f^2} \left[ C_{\text{ref}} + C_{\text{sample}} + C_{\text{cross}} \right]$$
 
 with three physical contributions:
 
-$$C_\text{ref} = \bigl[x_r(t_1)\, x_r(t_2)\bigr]^2 \exp\!\left(-q^2 \int_{t_1}^{t_2} J_r(t')\, dt'\right)$$
+$$C_{\text{ref}} = [x_r(t_1) \cdot x_r(t_2)]^2 \exp\left(-q^2 \int_{t_1}^{t_2} J_r(t') dt'\right)$$
 
-$$C_\text{sample} = \bigl[x_s(t_1)\, x_s(t_2)\bigr]^2 \exp\!\left(-q^2 \int_{t_1}^{t_2} J_s(t')\, dt'\right)$$
+$$C_{\text{sample}} = [x_s(t_1) \cdot x_s(t_2)]^2 \exp\left(-q^2 \int_{t_1}^{t_2} J_s(t') dt'\right)$$
 
-$$C_\text{cross} = 2\, x_r(t_1)\, x_r(t_2)\, x_s(t_1)\, x_s(t_2) \; \exp\!\left(-\tfrac{1}{2}\, q^2 \int_{t_1}^{t_2} \bigl[J_s(t') + J_r(t')\bigr]\, dt'\right) \cos\!\left[q \cos(\varphi) \int_{t_1}^{t_2} \mathbb{E}[v]\, dt'\right]$$
+$$C_{\text{cross}} = 2 x_r(t_1) x_r(t_2) x_s(t_1) x_s(t_2) \exp\left(-\frac{1}{2} q^2 \int_{t_1}^{t_2} [J_s(t') + J_r(t')] dt'\right) \cos\left[q \cos(\varphi) \int_{t_1}^{t_2} \mathbb{E}[v] dt'\right]$$
 
-$$f^2 = \bigl[x_s(t_1)^2 + x_r(t_1)^2\bigr]\bigl[x_s(t_2)^2 + x_r(t_2)^2\bigr]$$
+$$f^2 = [x_s(t_1)^2 + x_r(t_1)^2][x_s(t_2)^2 + x_r(t_2)^2]$$
 
 where $x_s(t)$ is the sample fraction, $x_r(t) = 1 - x_s(t)$ the reference fraction,
 $\beta$ the optical contrast, $\varphi$ the angle between velocity and $\vec{q}$, and
@@ -40,7 +40,7 @@ $f^2$ a normalization ensuring $c_2(t, t) = 1 + \beta$ on the diagonal.
 When all parameters are time-independent and $J_n(t) = 6D_n$ (Wiener process), the
 two-time correlation reduces to a function of lag time $\tau = t_2 - t_1$ only:
 
-$$g_2(\vec{q},\, \tau) = 1 + \beta \left[ (1 - x)^2 e^{-6q^2 D_r \tau} + x^2 e^{-6q^2 D_s \tau} + 2x(1 - x)\, e^{-3q^2(D_r + D_s)\tau} \cos\!\bigl[q \cos(\varphi)\, \mathbb{E}[v]\, \tau\bigr] \right]$$
+$$g_2(\vec{q}, \tau) = 1 + \beta \left[ (1 - x)^2 e^{-6q^2 D_r \tau} + x^2 e^{-6q^2 D_s \tau} + 2x(1 - x) e^{-3q^2(D_r + D_s)\tau} \cos[q \cos(\varphi) \mathbb{E}[v] \tau] \right]$$
 
 where $x = x_s^2 / (x_s^2 + x_r^2)$ is the equilibrium sample intensity fraction.
 
@@ -48,14 +48,14 @@ where $x = x_s^2 / (x_s^2 + x_r^2)$ is the equilibrium sample intensity fraction
 
 The implementation wraps the correlation with per-angle scaling parameters:
 
-$$c_2^\text{model} = \text{offset} + \text{contrast} \times \frac{C_\text{ref} + C_\text{sample} + C_\text{cross}}{f^2}$$
+$$c_2^{\text{model}} = \text{offset} + \text{contrast} \times \frac{C_{\text{ref}} + C_{\text{sample}} + C_{\text{cross}}}{f^2}$$
 
 ### Rate Functions
 
 Each component has its own power-law transport coefficient, and the sample has an
 additional velocity rate:
 
-$$J(t) = D_0\, t^\alpha + D_\text{offset} \qquad\qquad v(t) = v_0\, t^\beta + v_\text{offset}$$
+$$J(t) = D_0 t^\alpha + D_{\text{offset}} \qquad v(t) = v_0 t^\beta + v_{\text{offset}}$$
 
 All time integrals are evaluated **numerically** via cumulative trapezoid — no analytical
 antiderivatives are ever used, ensuring correctness for the general power-law form.
@@ -65,7 +65,7 @@ antiderivatives are ever used, ensuring correctness for the general power-law fo
 The model has 14 physics parameters organized into five groups, plus 2 per-angle scaling
 parameters:
 
-**Reference transport** — $J_r(t) = D_{0,r}\, t^{\alpha_r} + D_{\text{offset},r}$
+**Reference transport** — $J_r(t) = D_{0,r} t^{\alpha_r} + D_{\text{offset},r}$
 
 | Parameter | Description | Default | Units |
 |-----------|-------------|---------|-------|
@@ -73,7 +73,7 @@ parameters:
 | `alpha_ref` | Reference transport exponent | 0.0 | — |
 | `D_offset_ref` | Reference transport rate offset | 0.0 | Å²/s |
 
-**Sample transport** — $J_s(t) = D_{0,s}\, t^{\alpha_s} + D_{\text{offset},s}$
+**Sample transport** — $J_s(t) = D_{0,s} t^{\alpha_s} + D_{\text{offset},s}$
 
 | Parameter | Description | Default | Units |
 |-----------|-------------|---------|-------|
@@ -81,7 +81,7 @@ parameters:
 | `alpha_sample` | Sample transport exponent | 0.0 | — |
 | `D_offset_sample` | Sample transport rate offset | 0.0 | Å²/s |
 
-**Velocity** — $v(t) = v_0\, t^\beta + v_\text{offset}$
+**Velocity** — $v(t) = v_0 t^\beta + v_{\text{offset}}$
 
 | Parameter | Description | Default | Units |
 |-----------|-------------|---------|-------|
@@ -89,7 +89,7 @@ parameters:
 | `beta` | Velocity exponent (0 = constant velocity) | 0.0 | — |
 | `v_offset` | Velocity offset (negative for reversal) | 0.0 | Å/s |
 
-**Sample fraction** — $f_s(t) = \text{clip}(f_0 \exp(f_1 (t - f_2)) + f_3,\; 0,\; 1)$
+**Sample fraction** — $f_s(t) = \text{clip}(f_0 \exp(f_1 (t - f_2)) + f_3, 0, 1)$
 
 | Parameter | Description | Default | Units |
 |-----------|-------------|---------|-------|
