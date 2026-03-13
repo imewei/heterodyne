@@ -538,6 +538,26 @@ def _apply_statistical_correction(
     return _apply_statistical_correction_numpy(c2, width, estimator)
 
 
+@functools.lru_cache(maxsize=8)
+def _get_batch_statistical_fn(width: int) -> Any:
+    """Return a cached jit(vmap) function for batch statistical correction."""
+
+    def _correct_one(c2: jnp.ndarray) -> jnp.ndarray:
+        return _apply_statistical_correction_jax(c2, width)  # type: ignore[no-any-return]
+
+    return jax.jit(jax.vmap(_correct_one))
+
+
+@functools.lru_cache(maxsize=8)
+def _get_batch_standard_fn(width: int, method: str) -> Any:
+    """Return a cached jit(vmap) function for batch standard correction."""
+
+    def _correct_one(c2: jnp.ndarray) -> jnp.ndarray:
+        return apply_diagonal_correction(c2, width, method)
+
+    return jax.jit(jax.vmap(_correct_one))
+
+
 def apply_diagonal_correction_batch(
     c2_batch: Any,
     width: int = 1,
@@ -581,16 +601,9 @@ def apply_diagonal_correction_batch(
     # Batch dimension present
     if backend == "jax":
         if method == "statistical":
+            return _get_batch_statistical_fn(width)(c2_batch)
 
-            def _correct_one(c2: jnp.ndarray) -> jnp.ndarray:
-                return _apply_statistical_correction_jax(c2, width)  # type: ignore[no-any-return]
-
-            return jax.jit(jax.vmap(_correct_one))(c2_batch)
-
-        def _correct_one_standard(c2: jnp.ndarray) -> jnp.ndarray:
-            return apply_diagonal_correction(c2, width, method)
-
-        return jax.jit(jax.vmap(_correct_one_standard))(c2_batch)
+        return _get_batch_standard_fn(width, method)(c2_batch)
 
     # NumPy path: loop over batch dimension
     import numpy as np

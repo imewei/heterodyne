@@ -268,7 +268,7 @@ class ResidualStrategy:
         # params arrive as individual JAX-traced scalars; jnp.stack reassembles.
 
         def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
-            return -residual_fn(np.asarray(jnp.stack(list(params))))  # type: ignore[arg-type]
+            return -residual_fn(np.asarray(jnp.stack(params)))  # type: ignore[arg-type]
 
         _xdata = np.arange(n_data, dtype=np.float64)
         _ydata = np.zeros(n_data, dtype=np.float64)
@@ -278,7 +278,7 @@ class ResidualStrategy:
             # CurveFit jac must share the same (xdata, *params) signature as f.
             # Negate Jacobian to match the negated residual convention.
             def _jac_wrapped(xdata: np.ndarray, *params: object) -> np.ndarray:
-                return -jacobian_fn(np.asarray(jnp.stack(list(params))))  # type: ignore[arg-type]
+                return -jacobian_fn(np.asarray(jnp.stack(params)))  # type: ignore[arg-type]
 
             jac_callable = _jac_wrapped
 

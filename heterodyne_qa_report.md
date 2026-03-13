@@ -12,3 +12,4 @@
 | 6 | 1 MEDIUM (legacy key in CMC worker pool) | No review issues | 1 | optimization/cmc | PASS — 2578 tests, 0 mypy errors |
 | 7 | 0 findings — validation, CMA-ES, data loader, parameter_space all clean | N/A | 0 | — | ALL CLEAR |
 | 8 | 0 findings — trapezoid indexing, exp/log guards, mutable defaults, thread safety, float64 init all verified | N/A | 0 | — | ALL CLEAR |
+| 9 | B018 JIT cache miss in diagonal_correction batch path; B008 unnecessary list() alloc in 6 strategy _wrapped fns | Profiled B005/B015/B016/B020/B021 — B016/B020 closed as non-issues | 1 | core, optimization/nlsq/strategies, docs | PASS — 2595 tests, 0 mypy errors |

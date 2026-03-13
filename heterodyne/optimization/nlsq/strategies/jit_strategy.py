@@ -336,7 +336,7 @@ class JITStrategy:
         # Set ydata=zeros so residuals = -residual_fn(params).
         # params arrive as JAX-traced scalars; jnp.stack reassembles.
         def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
-            varying_jax = jnp.stack(list(params))  # type: ignore[arg-type]
+            varying_jax = jnp.stack(params)  # type: ignore[arg-type]
             return -jit_res_fn(varying_jax)  # type: ignore[no-any-return]
 
         _xdata = np.arange(n_data, dtype=np.float64)
@@ -350,7 +350,7 @@ class JITStrategy:
             _vidx = varying_idx_np
 
             def _jac_wrapped(xdata: np.ndarray, *params: object) -> np.ndarray:
-                varying_jax = jnp.stack(list(params))  # type: ignore[arg-type]
+                varying_jax = jnp.stack(params)  # type: ignore[arg-type]
                 J_full = np.asarray(_jac_fn(varying_jax), dtype=np.float64)
                 return J_full[:, _vidx]
 

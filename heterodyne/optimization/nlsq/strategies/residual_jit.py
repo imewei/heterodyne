@@ -126,7 +126,7 @@ class ResidualJITStrategy:
         # Set ydata=zeros so residuals = -residual_fn(params).
         # params arrive as JAX-traced scalars; jnp.stack reassembles.
         def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
-            return -_jit_residuals(jnp.stack(list(params)))  # type: ignore[arg-type, no-any-return]
+            return -_jit_residuals(jnp.stack(params))  # type: ignore[arg-type, no-any-return]
 
         _xdata = np.arange(n_data, dtype=np.float64)
         _ydata = np.zeros(n_data, dtype=np.float64)

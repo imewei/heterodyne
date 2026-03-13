@@ -106,7 +106,7 @@ class StratifiedLSStrategy:
         # params arrive as JAX-traced scalars; jnp.stack reassembles.
         def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
             return -jnp.asarray(
-                residual_fn(np.asarray(jnp.stack(list(params))))  # type: ignore[arg-type]
+                residual_fn(np.asarray(jnp.stack(params)))  # type: ignore[arg-type]
             )
 
         _xdata = np.arange(n_data, dtype=np.float64)

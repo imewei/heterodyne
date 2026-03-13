@@ -14,7 +14,7 @@
 | B005 | `physics_cmc.py:562-581` | JIT | HIGH | jax | DEFERRED | Python loop over shards breaks XLA fusion in NUTS hot path — requires uniform shard padding + lax.scan |
 | B006 | `parameter_manager.py:93-98` | CPU | HIGH | python | VERIFIED | Cached `varying_indices`/`varying_names`/`fixed_indices` with invalidation |
 | B007 | `parameter_manager.py:150` | CPU | HIGH | python | VERIFIED | Cached `get_full_values()` with invalidation on mutation |
-| B008 | `adapter.py:248,541` | CPU | HIGH | python | DEFERRED | `_wrapped` reconstructs array from Python tuple per call — upstream NLSQ CurveFit API constraint |
+| B008 | `adapter.py:248,541` | CPU | HIGH | python | PARTIAL | `_wrapped` tuple→array: removed `list()` alloc in 6 strategy files; core adapter API constraint remains |
 | B009 | `adapter.py:398-400` | CPU | HIGH | python | VERIFIED | Reuses optimizer's final residuals instead of re-evaluating |
 | B010 | — | MULTIPROCESSING | HIGH | systems | DEFERRED | No XLA thread pinning; E-cores mixed with P-cores — requires hardware-specific benchmarking |
 | B011 | `jax_backend.py:507` | JIT | MEDIUM | jax | VERIFIED | `jax.hessian` → `jacfwd(grad(...))` — forward-over-reverse |
@@ -22,11 +22,11 @@
 | B013 | `physics_utils.py:165-286` | JIT | MEDIUM | jax | VERIFIED | Removed 5 inner `@jax.jit` on primitives (kept `safe_sinc`) |
 | B014 | `models.py:318-320` | CPU | MEDIUM | python | VERIFIED | Vectorized scatter via `_active_indices_array` |
 | B015 | `memory.py:150` | MEMORY | MEDIUM | systems | DEFERRED | Memory estimator omits per-call N×N model cost — overhead factor absorbs it in practice |
-| B016 | `physics_cmc.py:104` | JIT | MEDIUM | jax | DEFERRED | `ShardGrid.n_pairs` as Python int triggers recompilation per shard size — tied to B005 uniform padding |
+| B016 | `physics_cmc.py:104` | JIT | MEDIUM | jax | CLOSED | `ShardGrid.n_pairs` never read during JIT trace — recompilation driven by idx array shapes, not n_pairs |
 | B017 | `theory.py:377-381` | VECTORIZATION | MEDIUM | jax | VERIFIED | Delegated to `batch_chi_squared` vmap — eliminates Python loop |
-| B018 | `diagonal_correction.py:588,593` | JIT | MEDIUM | debugger | DEFERRED | `jit(vmap(...))` closure in conditional — low-frequency path, retrace only on width change |
+| B018 | `diagonal_correction.py:588,593` | JIT | MEDIUM | debugger | VERIFIED | `jit(vmap(...))` closure → `lru_cache`-backed factory — eliminates per-call recompilation |
 | B019 | `sampler.py:864-876` | CPU | MEDIUM | python | VERIFIED | Vectorized `jax.random.split(key, n)` — single call |
-| B020 | `models.py:141-163` | CPU | MEDIUM | python | DEFERRED | `params_to_dict`/`dict_to_params` — dead code, never called in codebase |
+| B020 | `models.py:141-163` | CPU | MEDIUM | python | CLOSED | `params_to_dict`/`dict_to_params` — convenience API only, not on any hot path |
 | B021 | `adapter.py:517` | CPU | LOW | python | DEFERRED | Probe residual for n_data — single call per fit, negligible impact |
 | B022 | `parameter_manager.py:284` | CPU | LOW | python | VERIFIED | `frozenset` cache key — O(1) hash vs O(n log n) sort+str |
 
