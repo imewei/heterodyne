@@ -73,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: {e}", file=sys.stderr)
         if args.verbose >= 2:
             import traceback
+
             traceback.print_exc()
         return 1
 

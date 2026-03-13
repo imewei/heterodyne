@@ -71,11 +71,13 @@ def _dispatch_simulated_plots(
             suffix = f"_phi{int(phi)}" if len(nlsq_results) > 1 else ""
 
             plot_nlsq_fit(
-                c2_2d, nlsq_result,
+                c2_2d,
+                nlsq_result,
                 save_path=plots_dir / f"nlsq_fit{suffix}.png",
             )
             plot_residual_map(
-                nlsq_result, c2_2d,
+                nlsq_result,
+                c2_2d,
                 save_path=plots_dir / f"nlsq_residuals{suffix}.png",
             )
 
@@ -104,6 +106,7 @@ def dispatch_plots(
         phi_angles: Phi angles for filtering/labeling per-angle plots.
     """
     import matplotlib
+
     matplotlib.use("Agg")
 
     if output_dir is None:
@@ -116,12 +119,8 @@ def dispatch_plots(
     logger.info("Generating plots in %s (mode=%s)", plots_dir, mode)
 
     # Filter results by phi_angles if specified
-    filtered_nlsq: list[NLSQResult] | None = (
-        _filter_by_phi(nlsq_results, phi_angles)  # type: ignore[assignment]
-    )
-    filtered_cmc: list[CMCResult] | None = (
-        _filter_by_phi(cmc_results, phi_angles)  # type: ignore[assignment]
-    )
+    filtered_nlsq: list[NLSQResult] | None = _filter_by_phi(nlsq_results, phi_angles)  # type: ignore[assignment]
+    filtered_cmc: list[CMCResult] | None = _filter_by_phi(cmc_results, phi_angles)  # type: ignore[assignment]
 
     # Dispatch based on mode
     if mode in ("experimental", "both"):
@@ -153,10 +152,7 @@ def _filter_by_phi(
     if results is None or phi_angles is None:
         return results
 
-    filtered = [
-        r for r in results
-        if r.metadata.get("phi_angle", 0) in phi_angles
-    ]
+    filtered = [r for r in results if r.metadata.get("phi_angle", 0) in phi_angles]
     return filtered if filtered else results  # type: ignore[return-value]
 
 

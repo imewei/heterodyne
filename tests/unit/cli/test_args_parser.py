@@ -301,18 +301,17 @@ class TestConfigFromArgs:
 
     @patch("heterodyne.cli.config_handling.ConfigManager")
     def test_num_samples_override_applied(self, mock_cm_cls: object) -> None:
-        """--num-samples value should be written into cmc_config."""
+        """--num-samples value should be written via update_optimization_config."""
         from unittest.mock import MagicMock
 
         from heterodyne.cli.config_handling import apply_cli_overrides
 
         mgr = MagicMock()
-        mgr.cmc_config = {}
         args = self._make_args(num_samples=5000)
 
         apply_cli_overrides(mgr, args)
 
-        assert mgr.cmc_config["num_samples"] == 5000
+        mgr.update_optimization_config.assert_any_call("cmc", "num_samples", 5000)
 
     @patch("heterodyne.cli.config_handling.ConfigManager")
     def test_num_chains_override_applied(self, mock_cm_cls: object) -> None:
@@ -321,12 +320,11 @@ class TestConfigFromArgs:
         from heterodyne.cli.config_handling import apply_cli_overrides
 
         mgr = MagicMock()
-        mgr.cmc_config = {}
         args = self._make_args(num_chains=8)
 
         apply_cli_overrides(mgr, args)
 
-        assert mgr.cmc_config["num_chains"] == 8
+        mgr.update_optimization_config.assert_any_call("cmc", "num_chains", 8)
 
     @patch("heterodyne.cli.config_handling.ConfigManager")
     def test_multistart_override_applied(self, mock_cm_cls: object) -> None:
@@ -335,13 +333,12 @@ class TestConfigFromArgs:
         from heterodyne.cli.config_handling import apply_cli_overrides
 
         mgr = MagicMock()
-        mgr.nlsq_config = {}
         args = self._make_args(multistart=True, multistart_n=50)
 
         apply_cli_overrides(mgr, args)
 
-        assert mgr.nlsq_config["multistart"] is True
-        assert mgr.nlsq_config["multistart_n"] == 50
+        mgr.update_optimization_config.assert_any_call("nlsq", "multistart", True)
+        mgr.update_optimization_config.assert_any_call("nlsq", "multistart_n", 50)
 
     @patch("heterodyne.cli.config_handling.ConfigManager")
     def test_no_override_when_none(self, mock_cm_cls: object) -> None:
@@ -351,11 +348,8 @@ class TestConfigFromArgs:
         from heterodyne.cli.config_handling import apply_cli_overrides
 
         mgr = MagicMock()
-        mgr.cmc_config = {}
-        mgr.nlsq_config = {}
         args = self._make_args()
 
         apply_cli_overrides(mgr, args)
 
-        assert mgr.cmc_config == {}
-        assert mgr.nlsq_config == {}
+        mgr.update_optimization_config.assert_not_called()

@@ -51,7 +51,9 @@ class TestRunNLSQ:
 
     @patch("heterodyne.cli.optimization_runner.save_nlsq_npz_file")
     @patch("heterodyne.cli.optimization_runner.save_nlsq_json_files")
-    @patch("heterodyne.cli.optimization_runner.format_nlsq_summary", return_value="summary")
+    @patch(
+        "heterodyne.cli.optimization_runner.format_nlsq_summary", return_value="summary"
+    )
     @patch("heterodyne.cli.optimization_runner.fit_nlsq_jax")
     def test_calls_fit_nlsq_for_each_angle(
         self,
@@ -87,7 +89,9 @@ class TestRunNLSQ:
 
     @patch("heterodyne.cli.optimization_runner.save_nlsq_npz_file")
     @patch("heterodyne.cli.optimization_runner.save_nlsq_json_files")
-    @patch("heterodyne.cli.optimization_runner.format_nlsq_summary", return_value="summary")
+    @patch(
+        "heterodyne.cli.optimization_runner.format_nlsq_summary", return_value="summary"
+    )
     @patch("heterodyne.cli.optimization_runner.fit_nlsq_jax")
     def test_returns_list_of_nlsq_results(
         self,
@@ -123,7 +127,9 @@ class TestRunNLSQ:
 
     @patch("heterodyne.cli.optimization_runner.save_nlsq_npz_file")
     @patch("heterodyne.cli.optimization_runner.save_nlsq_json_files")
-    @patch("heterodyne.cli.optimization_runner.format_nlsq_summary", return_value="summary")
+    @patch(
+        "heterodyne.cli.optimization_runner.format_nlsq_summary", return_value="summary"
+    )
     @patch("heterodyne.cli.optimization_runner.fit_nlsq_jax")
     def test_records_chi2_metric_in_summary(
         self,
@@ -165,7 +171,9 @@ class TestRunCMC:
     """Tests for run_cmc function."""
 
     @patch("heterodyne.cli.optimization_runner.save_mcmc_results")
-    @patch("heterodyne.cli.optimization_runner.format_mcmc_summary", return_value="summary")
+    @patch(
+        "heterodyne.cli.optimization_runner.format_mcmc_summary", return_value="summary"
+    )
     @patch("heterodyne.cli.optimization_runner.fit_cmc_jax")
     def test_calls_fit_cmc_for_each_angle(
         self,
@@ -174,9 +182,8 @@ class TestRunCMC:
         mock_save: MagicMock,
     ) -> None:
         """run_cmc calls fit_cmc_jax once per phi angle."""
-        from heterodyne.optimization.cmc.results import CMCResult
-
         from heterodyne.cli.optimization_runner import run_cmc
+        from heterodyne.optimization.cmc.results import CMCResult
 
         phi_angles = [0.0, 90.0]
         mock_result = CMCResult(
@@ -208,8 +215,13 @@ class TestRunCMC:
         assert len(results) == len(phi_angles)
 
     @patch("heterodyne.cli.optimization_runner.save_mcmc_results")
-    @patch("heterodyne.cli.optimization_runner.format_mcmc_summary", return_value="summary")
-    @patch("heterodyne.cli.optimization_runner._validate_warmstart_quality", return_value=True)
+    @patch(
+        "heterodyne.cli.optimization_runner.format_mcmc_summary", return_value="summary"
+    )
+    @patch(
+        "heterodyne.cli.optimization_runner._validate_warmstart_quality",
+        return_value=True,
+    )
     @patch("heterodyne.cli.optimization_runner._log_warmstart_physical_params")
     @patch("heterodyne.cli.optimization_runner.fit_cmc_jax")
     def test_validates_warmstart_quality(
@@ -221,9 +233,8 @@ class TestRunCMC:
         mock_save: MagicMock,
     ) -> None:
         """run_cmc validates warm-start quality when nlsq_results are provided."""
-        from heterodyne.optimization.cmc.results import CMCResult
-
         from heterodyne.cli.optimization_runner import run_cmc
+        from heterodyne.optimization.cmc.results import CMCResult
 
         mock_cmc_result = CMCResult(
             parameter_names=["D0_ref"],

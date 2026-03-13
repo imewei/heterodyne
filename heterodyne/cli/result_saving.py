@@ -231,9 +231,7 @@ def _create_mcmc_diagnostics_dict(result: CMCResult) -> dict[str, Any]:
     if result.r_hat is not None and result.ess_bulk is not None:
         max_r_hat = float(np.max(result.r_hat))
         min_ess = float(np.min(result.ess_bulk))
-        diagnostics["convergence_passed"] = bool(
-            max_r_hat < 1.1 and min_ess > 400
-        )
+        diagnostics["convergence_passed"] = bool(max_r_hat < 1.1 and min_ess > 400)
         diagnostics["max_r_hat"] = max_r_hat
         diagnostics["min_ess_bulk"] = min_ess
     else:
@@ -362,9 +360,7 @@ def _compute_theoretical_g1_from_mcmc(
             )
             return None
 
-    logger.warning(
-        "Model does not expose compute_g1(); cannot compute theoretical g1."
-    )
+    logger.warning("Model does not expose compute_g1(); cannot compute theoretical g1.")
     return None
 
 

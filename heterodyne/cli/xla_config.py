@@ -60,6 +60,7 @@ def configure_xla(
     # Disable GPU/TPU memory preallocation (only relevant when GPU is present)
     try:
         import jax  # noqa: E402
+
         if any(d.platform == "gpu" for d in jax.devices()):
             os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
             env_vars["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"

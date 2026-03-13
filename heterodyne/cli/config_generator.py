@@ -64,7 +64,9 @@ def generate_config(
     output_path = Path(output_path)
 
     if output_path.exists() and not overwrite:
-        raise FileExistsError(f"File exists: {output_path}. Use --overwrite to replace.")
+        raise FileExistsError(
+            f"File exists: {output_path}. Use --overwrite to replace."
+        )
 
     template_path = get_template_path()
 

@@ -36,14 +36,11 @@ def _exclude_t0_from_analysis(data: XPCSData) -> XPCSData:
     """
     original_n = data.t1.shape[0]
     if original_n <= 1:
-        logger.warning(
-            "Cannot exclude t=0: data has only %d time point(s)", original_n
-        )
+        logger.warning("Cannot exclude t=0: data has only %d time point(s)", original_n)
         return data
 
     logger.warning(
-        "Excluding t=0 time point to prevent D(t)->inf singularity "
-        "(c2 %s -> %s)",
+        "Excluding t=0 time point to prevent D(t)->inf singularity (c2 %s -> %s)",
         data.c2.shape,
         (
             (*data.c2.shape[:-2], data.c2.shape[-2] - 1, data.c2.shape[-1] - 1)
@@ -167,6 +164,7 @@ def prepare_cmc_data(
 
     logger.debug(
         "Prepared CMC data: %d angles, c2 shape=%s",
-        len(phi_angles), c2.shape,
+        len(phi_angles),
+        c2.shape,
     )
     return prepared

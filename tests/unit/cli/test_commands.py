@@ -251,7 +251,9 @@ class TestAnalysisSummaryLogger:
 
         from heterodyne.utils.logging import AnalysisSummaryLogger
 
-        summary = AnalysisSummaryLogger(run_id="test_001", analysis_mode="two_component")
+        summary = AnalysisSummaryLogger(
+            run_id="test_001", analysis_mode="two_component"
+        )
         summary.start_phase("loading")
         time.sleep(0.01)
         summary.end_phase("loading", memory_peak_gb=1.5)
@@ -268,7 +270,9 @@ class TestAnalysisSummaryLogger:
         """AnalysisSummaryLogger tracks multiple phases independently."""
         from heterodyne.utils.logging import AnalysisSummaryLogger
 
-        summary = AnalysisSummaryLogger(run_id="test_002", analysis_mode="two_component")
+        summary = AnalysisSummaryLogger(
+            run_id="test_002", analysis_mode="two_component"
+        )
         summary.start_phase("phase_a")
         summary.end_phase("phase_a")
         summary.start_phase("phase_b")
@@ -281,7 +285,9 @@ class TestAnalysisSummaryLogger:
         """AnalysisSummaryLogger stores convergence status."""
         from heterodyne.utils.logging import AnalysisSummaryLogger
 
-        summary = AnalysisSummaryLogger(run_id="test_003", analysis_mode="two_component")
+        summary = AnalysisSummaryLogger(
+            run_id="test_003", analysis_mode="two_component"
+        )
         summary.set_convergence_status("completed")
         assert summary._convergence_status == "completed"
 
@@ -289,7 +295,9 @@ class TestAnalysisSummaryLogger:
         """AnalysisSummaryLogger stores named metrics."""
         from heterodyne.utils.logging import AnalysisSummaryLogger
 
-        summary = AnalysisSummaryLogger(run_id="test_004", analysis_mode="two_component")
+        summary = AnalysisSummaryLogger(
+            run_id="test_004", analysis_mode="two_component"
+        )
         summary.record_metric("chi_squared", 1.23)
         assert summary._metrics["chi_squared"] == 1.23
 

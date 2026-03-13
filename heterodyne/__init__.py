@@ -12,8 +12,7 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 
 # Configure XLA flags for multi-core CPU parallelism and stability
 _xla_flags = (
-    "--xla_force_host_platform_device_count=4 "
-    "--xla_disable_hlo_passes=constant_folding"
+    "--xla_force_host_platform_device_count=4 --xla_disable_hlo_passes=constant_folding"
 )
 _existing_flags = os.environ.get("XLA_FLAGS", "")
 if _existing_flags:
@@ -23,6 +22,7 @@ else:
 
 # Now import JAX and configure
 import jax
+
 jax.config.update("jax_enable_x64", True)
 
 # Filter NumPyro deprecation warnings
@@ -134,6 +134,7 @@ def get_device_config() -> types.ModuleType:
         >>> hw = device.configure_optimal_device(mode="cmc")
     """
     from heterodyne import device
+
     return device
 
 

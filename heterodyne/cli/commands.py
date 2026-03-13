@@ -137,7 +137,9 @@ def _generate_cmc_diagnostic_plots(
             plot_kl_divergence_matrix,
         )
     except ImportError:
-        logger.warning("Could not import mcmc_diagnostics — skipping CMC diagnostic plots")
+        logger.warning(
+            "Could not import mcmc_diagnostics — skipping CMC diagnostic plots"
+        )
         return
 
     diag_dir = output_dir / "cmc_diagnostics"

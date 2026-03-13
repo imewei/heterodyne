@@ -151,6 +151,7 @@ Examples:
 
     # Version
     from heterodyne._version import __version__
+
     parser.add_argument(
         "--version",
         action="version",

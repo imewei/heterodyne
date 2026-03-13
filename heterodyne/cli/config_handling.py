@@ -55,20 +55,25 @@ def apply_cli_overrides(
 
     # Override NLSQ settings
     if hasattr(args, "multistart") and args.multistart:
-        nlsq_config = config_manager.nlsq_config
-        nlsq_config["multistart"] = True
+        config_manager.update_optimization_config("nlsq", "multistart", True)
         if hasattr(args, "multistart_n"):
-            nlsq_config["multistart_n"] = args.multistart_n
-        logger.debug("CLI override: multistart enabled (n=%s)",
-                     getattr(args, "multistart_n", "default"))
+            config_manager.update_optimization_config(
+                "nlsq", "multistart_n", args.multistart_n
+            )
+        logger.debug(
+            "CLI override: multistart enabled (n=%s)",
+            getattr(args, "multistart_n", "default"),
+        )
 
     # Override CMC settings
     if hasattr(args, "num_samples") and args.num_samples is not None:
-        config_manager.cmc_config["num_samples"] = args.num_samples
+        config_manager.update_optimization_config(
+            "cmc", "num_samples", args.num_samples
+        )
         logger.debug("CLI override: num_samples=%d", args.num_samples)
 
     if hasattr(args, "num_chains") and args.num_chains is not None:
-        config_manager.cmc_config["num_chains"] = args.num_chains
+        config_manager.update_optimization_config("cmc", "num_chains", args.num_chains)
         logger.debug("CLI override: num_chains=%d", args.num_chains)
 
 

@@ -146,13 +146,17 @@ def run_cmc(
 
         c2_phi = c2_data[i] if c2_data.ndim == 3 else c2_data
 
-        nlsq_result_i = nlsq_results[i] if nlsq_results and i < len(nlsq_results) else None
+        nlsq_result_i = (
+            nlsq_results[i] if nlsq_results and i < len(nlsq_results) else None
+        )
 
         if nlsq_result_i is not None:
             if _validate_warmstart_quality(nlsq_result_i):
                 _log_warmstart_physical_params(nlsq_result_i)
             else:
-                logger.warning("Warm-start quality below threshold for phi=%s°; using anyway", phi)
+                logger.warning(
+                    "Warm-start quality below threshold for phi=%s°; using anyway", phi
+                )
 
         with log_phase(f"cmc_phi_{i}", logger=logger, track_memory=True) as phase:
             result = fit_cmc_jax(
@@ -173,7 +177,9 @@ def run_cmc(
         )
 
         if summary is not None:
-            summary.record_metric(f"cmc_n_samples_phi{int(phi)}", float(cmc_config.num_samples))
+            summary.record_metric(
+                f"cmc_n_samples_phi{int(phi)}", float(cmc_config.num_samples)
+            )
 
         print(f"\n{'=' * 50}")
         print(f"CMC Results for phi={phi}°")
@@ -210,11 +216,14 @@ def resolve_nlsq_warmstart(
 
     try:
         from heterodyne.io.nlsq_writers import load_nlsq_npz_file
+
         result = load_nlsq_npz_file(Path(warmstart_path))
         logger.info("Loaded NLSQ warm-start from %s", warmstart_path)
         return result
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Could not load NLSQ warm-start from %s: %s", warmstart_path, exc)
+    except (OSError, ValueError, KeyError) as exc:
+        logger.warning(
+            "Could not load NLSQ warm-start from %s: %s", warmstart_path, exc
+        )
         return None
 
 
@@ -257,7 +266,9 @@ def _validate_warmstart_quality(
 
     # --- convergence flag ---
     if hasattr(result, "success") and not result.success:
-        logger.warning("Warm-start NLSQ did not converge: %s", getattr(result, "message", ""))
+        logger.warning(
+            "Warm-start NLSQ did not converge: %s", getattr(result, "message", "")
+        )
         ok = False
 
     # --- reduced chi-squared ---
@@ -271,7 +282,9 @@ def _validate_warmstart_quality(
             )
             ok = False
         else:
-            logger.debug("Warm-start reduced chi² = %.3f (threshold %.1f)", chi2, chi2_threshold)
+            logger.debug(
+                "Warm-start reduced chi² = %.3f (threshold %.1f)", chi2, chi2_threshold
+            )
 
     # --- parameter bounds check via registry ---
     try:
@@ -293,7 +306,7 @@ def _validate_warmstart_quality(
                     info.max_bound,
                 )
                 ok = False
-    except Exception:  # noqa: BLE001
+    except (ImportError, AttributeError, KeyError):
         # Registry unavailable — skip bounds check
         pass
 
