@@ -83,7 +83,8 @@ def safe_divide(
     """
     num = jnp.asarray(numerator)
     den = jnp.asarray(denominator)
-    safe_den = jnp.where(jnp.abs(den) > min_denom, den, jnp.sign(den) * min_denom)
+    # Use sign(den + 1e-300) to avoid sign(0.0)=0 producing safe_den=0 (NaN)
+    safe_den = jnp.where(jnp.abs(den) > min_denom, den, jnp.sign(den + 1e-300) * min_denom)
     # Where original denominator was ~0, return fill value
     result = num / safe_den
     return jnp.where(jnp.abs(den) > min_denom, result, fill)
