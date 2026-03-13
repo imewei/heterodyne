@@ -65,7 +65,7 @@ class CMCOptimizationConfig(TypedDict):
     num_warmup: NotRequired[int]
     num_samples: NotRequired[int]
     num_chains: NotRequired[int]
-    target_accept: NotRequired[float]
+    target_accept_prob: NotRequired[float]
 
 
 class OptimizationConfig(TypedDict):
@@ -243,7 +243,9 @@ class AnalysisConfig(TypedDict):
     phi_angles: NotRequired[list[float]]
     q: NotRequired[float]
     dt: NotRequired[float]
-    scaling_mode: NotRequired[str]  # "constant", "individual", "auto", "constant_averaged"
+    scaling_mode: NotRequired[
+        str
+    ]  # "constant", "individual", "auto", "constant_averaged"
 
 
 class AnalyzerParametersConfig(TypedDict):

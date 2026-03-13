@@ -7,7 +7,6 @@ validate_initial_value_bounds correctly identifies out-of-range values.
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
@@ -16,7 +15,6 @@ from heterodyne.optimization.cmc.priors import (
     get_param_names_in_order,
     validate_initial_value_bounds,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -56,9 +54,7 @@ class TestPriorMeanRecovery:
         for name in _all_varying_names():
             info = DEFAULT_REGISTRY[name]
             if info.prior_mean is None:
-                expected = float(
-                    max(info.min_bound, min(info.max_bound, info.default))
-                )
+                expected = float(max(info.min_bound, min(info.max_bound, info.default)))
                 assert init[name] == pytest.approx(expected, rel=1e-9), (
                     f"{name}: expected default {info.default} "
                     f"(clamped to {expected}), got {init[name]}"
@@ -88,9 +84,7 @@ class TestDefaultRecovery:
         init = build_init_values_dict(fallback="default")
         for name in _all_varying_names():
             info = DEFAULT_REGISTRY[name]
-            expected = float(
-                max(info.min_bound, min(info.max_bound, info.default))
-            )
+            expected = float(max(info.min_bound, min(info.max_bound, info.default)))
             assert init[name] == pytest.approx(expected, rel=1e-9), (
                 f"{name}: expected {expected}, got {init[name]}"
             )
@@ -121,9 +115,7 @@ class TestNLSQOverride:
         )
         info = DEFAULT_REGISTRY[name]
         # Use a value that differs from prior_mean but is within bounds
-        override_val = float(
-            (info.min_bound + info.max_bound) / 2.0
-        )
+        override_val = float((info.min_bound + info.max_bound) / 2.0)
         init = build_init_values_dict(
             nlsq_values={name: override_val}, fallback="prior_mean"
         )
@@ -133,9 +125,7 @@ class TestNLSQOverride:
         name = _all_varying_names()[0]
         info = DEFAULT_REGISTRY[name]
         mid = float((info.min_bound + info.max_bound) / 2.0)
-        init = build_init_values_dict(
-            nlsq_values={name: mid}, fallback="default"
-        )
+        init = build_init_values_dict(nlsq_values={name: mid}, fallback="default")
         assert init[name] == pytest.approx(mid, rel=1e-9)
 
     def test_non_overridden_params_use_fallback(self) -> None:
@@ -149,9 +139,7 @@ class TestNLSQOverride:
         )
         for name in varying[1:]:
             inf2 = DEFAULT_REGISTRY[name]
-            expected = float(
-                max(inf2.min_bound, min(inf2.max_bound, inf2.default))
-            )
+            expected = float(max(inf2.min_bound, min(inf2.max_bound, inf2.default)))
             assert init[name] == pytest.approx(expected, rel=1e-9)
 
     def test_out_of_bounds_nlsq_value_is_clamped(self) -> None:
@@ -159,9 +147,7 @@ class TestNLSQOverride:
         info = DEFAULT_REGISTRY[name]
         # Pass a value well above max_bound
         extreme = info.max_bound * 1e6 + 1.0
-        init = build_init_values_dict(
-            nlsq_values={name: extreme}, fallback="default"
-        )
+        init = build_init_values_dict(nlsq_values={name: extreme}, fallback="default")
         assert init[name] == pytest.approx(info.max_bound, rel=1e-9)
 
     def test_empty_nlsq_dict_behaves_like_no_override(self) -> None:
@@ -231,7 +217,9 @@ class TestParamBoundsValidation:
         # Use a tight custom spec that makes the default out-of-range
         name = _all_varying_names()[0]
         info = DEFAULT_REGISTRY[name]
-        tight_spec = {name: {"min_bound": info.default + 1.0, "max_bound": info.default + 2.0}}
+        tight_spec = {
+            name: {"min_bound": info.default + 1.0, "max_bound": info.default + 2.0}
+        }
         issues = validate_initial_value_bounds(
             {name: info.default}, param_specs=tight_spec
         )
@@ -283,8 +271,7 @@ class TestGetParamNamesInOrder:
 
     def test_result_count_matches_registry_vary_defaults(self) -> None:
         expected_count = sum(
-            1 for name in DEFAULT_REGISTRY
-            if DEFAULT_REGISTRY[name].vary_default
+            1 for name in DEFAULT_REGISTRY if DEFAULT_REGISTRY[name].vary_default
         )
         names = get_param_names_in_order()
         assert len(names) == expected_count

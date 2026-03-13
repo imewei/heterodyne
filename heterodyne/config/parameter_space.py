@@ -64,7 +64,11 @@ class PriorDistribution:
 
     @classmethod
     def truncated_normal(
-        cls, loc: float, scale: float, low: float, high: float,
+        cls,
+        loc: float,
+        scale: float,
+        low: float,
+        high: float,
     ) -> PriorDistribution:
         """Create truncated normal prior (bounded Gaussian)."""
         return cls(
@@ -74,7 +78,11 @@ class PriorDistribution:
 
     @classmethod
     def beta_scaled(
-        cls, low: float, high: float, concentration1: float, concentration2: float,
+        cls,
+        low: float,
+        high: float,
+        concentration1: float,
+        concentration2: float,
     ) -> PriorDistribution:
         """Create a Beta prior scaled to [low, high].
 
@@ -93,7 +101,12 @@ class PriorDistribution:
         """
         return cls(
             PriorType.BETA_SCALED,
-            {"low": low, "high": high, "concentration1": concentration1, "concentration2": concentration2},
+            {
+                "low": low,
+                "high": high,
+                "concentration1": concentration1,
+                "concentration2": concentration2,
+            },
         )
 
     def to_numpyro(self, name: str) -> Any:
@@ -177,12 +190,18 @@ class ParameterSpace:
     @property
     def varying_names(self) -> list[str]:
         """Names of parameters that vary (physics + scaling)."""
-        return [name for name in ALL_PARAM_NAMES_WITH_SCALING if self.vary.get(name, False)]
+        return [
+            name for name in ALL_PARAM_NAMES_WITH_SCALING if self.vary.get(name, False)
+        ]
 
     @property
     def fixed_names(self) -> list[str]:
         """Names of parameters that are fixed."""
-        return [name for name in ALL_PARAM_NAMES_WITH_SCALING if not self.vary.get(name, False)]
+        return [
+            name
+            for name in ALL_PARAM_NAMES_WITH_SCALING
+            if not self.vary.get(name, False)
+        ]
 
     @property
     def varying_physics_names(self) -> list[str]:
@@ -270,9 +289,7 @@ class ParameterSpace:
 
             low, high = bounds
             if not (low <= value <= high):
-                errors.append(
-                    f"{name}={value} outside bounds [{low}, {high}]"
-                )
+                errors.append(f"{name}={value} outside bounds [{low}, {high}]")
 
         return errors
 
@@ -296,12 +313,21 @@ class ParameterSpace:
 
             conc1, conc2 = _compute_beta_concentrations(loc, scale, low, high)
             self.priors[name] = PriorDistribution.beta_scaled(
-                low, high, conc1, conc2,
+                low,
+                high,
+                conc1,
+                conc2,
             )
             logger.debug(
                 "Converted %s prior: TruncatedNormal(loc=%.4g, scale=%.4g) "
                 "-> BetaScaled(conc1=%.4g, conc2=%.4g) on [%.4g, %.4g]",
-                name, loc, scale, conc1, conc2, low, high,
+                name,
+                loc,
+                scale,
+                conc1,
+                conc2,
+                low,
+                high,
             )
 
     def with_single_angle_stabilization(self) -> ParameterSpace:
@@ -329,7 +355,10 @@ class ParameterSpace:
             new.bounds["contrast"] = (new_low, new_high)
             logger.debug(
                 "Single-angle stabilization: contrast bounds [%.4g, %.4g] -> [%.4g, %.4g]",
-                low, high, new_low, new_high,
+                low,
+                high,
+                new_low,
+                new_high,
             )
 
         # Tighten offset bounds
@@ -341,7 +370,10 @@ class ParameterSpace:
             new.bounds["offset"] = (new_low, new_high)
             logger.debug(
                 "Single-angle stabilization: offset bounds [%.4g, %.4g] -> [%.4g, %.4g]",
-                low, high, new_low, new_high,
+                low,
+                high,
+                new_low,
+                new_high,
             )
 
         return new
@@ -399,7 +431,10 @@ class ParameterSpace:
                         prior_type_str = pconfig["prior"]
                         prior_params = pconfig.get("prior_params", {})
                         space.priors[param_name] = _build_prior(
-                            param_name, prior_type_str, prior_params, space.bounds[param_name]
+                            param_name,
+                            prior_type_str,
+                            prior_params,
+                            space.bounds[param_name],
                         )
 
         return space
@@ -428,7 +463,10 @@ _DEFAULT_PRIOR_SPECS: dict[str, tuple[float, float]] = {
 
 
 def _compute_beta_concentrations(
-    mean: float, std: float, low: float, high: float,
+    mean: float,
+    std: float,
+    low: float,
+    high: float,
 ) -> tuple[float, float]:
     """Compute Beta concentration parameters from desired mean and std on [low, high].
 
@@ -464,9 +502,7 @@ def _compute_beta_concentrations(
     if high <= low:
         raise ValueError(f"high ({high}) must be > low ({low})")
     if not (low <= mean <= high):
-        raise ValueError(
-            f"mean ({mean}) must be in [{low}, {high}]"
-        )
+        raise ValueError(f"mean ({mean}) must be in [{low}, {high}]")
 
     range_width = high - low
     mu_01 = (mean - low) / range_width
@@ -477,7 +513,7 @@ def _compute_beta_concentrations(
     if var_01 >= max_var:
         raise ValueError(
             f"std={std} is too large for Beta on [{low}, {high}] with mean={mean}. "
-            f"Max std ~ {(max_var ** 0.5) * range_width:.4e}"
+            f"Max std ~ {(max_var**0.5) * range_width:.4e}"
         )
 
     # Method of moments
@@ -508,8 +544,10 @@ def _default_prior(
     if name in _DEFAULT_PRIOR_SPECS:
         loc, scale = _DEFAULT_PRIOR_SPECS[name]
         return PriorDistribution.truncated_normal(
-            loc=loc, scale=scale,
-            low=info.min_bound, high=info.max_bound,
+            loc=loc,
+            scale=scale,
+            low=info.min_bound,
+            high=info.max_bound,
         )
     # Fallback for any unspecified parameter
     return PriorDistribution.uniform(info.min_bound, info.max_bound)
@@ -577,7 +615,10 @@ def _build_prior(
 
 
 def clamp_to_open_interval(
-    value: float, low: float, high: float, epsilon: float = 1e-6,
+    value: float,
+    low: float,
+    high: float,
+    epsilon: float = 1e-6,
 ) -> float:
     """Clamp value to the open interval (low+epsilon, high-epsilon).
 

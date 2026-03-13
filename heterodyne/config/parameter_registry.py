@@ -122,19 +122,11 @@ class ParameterRegistry:
 
     def get_log_space_names(self) -> list[str]:
         """Get names of parameters that should be sampled in log-space."""
-        return [
-            name
-            for name in self
-            if self._parameters[name].log_space
-        ]
+        return [name for name in self if self._parameters[name].log_space]
 
     def get_scaling_names(self) -> list[str]:
         """Get names of per-angle scaling parameters."""
-        return [
-            name
-            for name in self._parameters
-            if self._parameters[name].is_scaling
-        ]
+        return [name for name in self._parameters if self._parameters[name].is_scaling]
 
 
 def _create_default_registry() -> dict[str, ParameterInfo]:
@@ -384,7 +376,6 @@ DEFAULT_REGISTRY = ParameterRegistry()
 
 # Convenience alias: scaling-only view of the registry for code that needs
 # to distinguish scaling from physics parameters.
-SCALING_PARAMS: Mapping[str, ParameterInfo] = MappingProxyType({
-    name: DEFAULT_REGISTRY[name]
-    for name in ("contrast", "offset")
-})
+SCALING_PARAMS: Mapping[str, ParameterInfo] = MappingProxyType(
+    {name: DEFAULT_REGISTRY[name] for name in ("contrast", "offset")}
+)

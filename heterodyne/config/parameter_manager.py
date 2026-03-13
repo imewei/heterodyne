@@ -52,9 +52,7 @@ class ParameterManager:
     _bounds_cache: dict[str, list[BoundDict]] = field(
         default_factory=dict, init=False, repr=False
     )
-    _active_params_cache: list[str] | None = field(
-        default=None, init=False, repr=False
-    )
+    _active_params_cache: list[str] | None = field(default=None, init=False, repr=False)
     _cache_enabled: bool = field(default=True, init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -296,10 +294,13 @@ class ParameterManager:
             if name in self._default_bounds:
                 # Always reflect live space.bounds (may differ from registry defaults
                 # if set_bounds() was called)
-                lo, hi = self.space.bounds.get(name, (
-                    self._default_bounds[name]["min"],
-                    self._default_bounds[name]["max"],
-                ))
+                lo, hi = self.space.bounds.get(
+                    name,
+                    (
+                        self._default_bounds[name]["min"],
+                        self._default_bounds[name]["max"],
+                    ),
+                )
                 bounds_list.append(
                     BoundDict(name=name, min=lo, max=hi, type="TruncatedNormal")
                 )
@@ -331,7 +332,9 @@ class ParameterManager:
         Returns:
             List of (min, max) tuples, one per parameter.
         """
-        return [(b["min"], b["max"]) for b in self.get_parameter_bounds(parameter_names)]
+        return [
+            (b["min"], b["max"]) for b in self.get_parameter_bounds(parameter_names)
+        ]
 
     def get_bounds_as_arrays(
         self,
@@ -486,9 +489,7 @@ class ParameterManager:
             param_dict_full.update(
                 {k: v for k, v in params.items() if k in param_dict_full}
             )
-            arr = np.array(
-                [param_dict_full[name] for name in ALL_PARAM_NAMES]
-            )
+            arr = np.array([param_dict_full[name] for name in ALL_PARAM_NAMES])
         else:
             arr = np.asarray(params, dtype=float)
 

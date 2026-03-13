@@ -201,9 +201,7 @@ class TestGetGroupValues:
         """Create a ParameterManager for testing."""
         return ParameterManager()
 
-    def test_get_group_values_reference(
-        self, param_manager: ParameterManager
-    ) -> None:
+    def test_get_group_values_reference(self, param_manager: ParameterManager) -> None:
         """get_group_values returns reference group parameters."""
         values = param_manager.get_group_values("reference")
         assert set(values.keys()) == {"D0_ref", "alpha_ref", "D_offset_ref"}

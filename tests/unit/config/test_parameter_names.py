@@ -43,7 +43,14 @@ class TestModuleConstants:
 
     def test_param_groups_keys(self) -> None:
         """PARAM_GROUPS has expected keys."""
-        expected_groups = {"reference", "sample", "velocity", "fraction", "angle", "scaling"}
+        expected_groups = {
+            "reference",
+            "sample",
+            "velocity",
+            "fraction",
+            "angle",
+            "scaling",
+        }
         assert set(PARAM_GROUPS.keys()) == expected_groups
 
 

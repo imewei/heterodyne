@@ -54,12 +54,24 @@ class TestValidateParameters:
     @pytest.mark.unit
     def test_valid_array_14_params(self) -> None:
         """Valid 14-parameter array passes validation."""
-        params = np.array([
-            1.0, 1.0, 0.0,  # D0_ref, alpha_ref, offset_ref
-            1.0, 1.0, 0.0,  # D0_sample, alpha_sample, offset_sample
-            0.0, 1.0, 0.0,  # v0, beta, phase
-            0.5, 0.1, 0.0, 0.1, 0.0,  # f0, f1, f2, f3, background
-        ])
+        params = np.array(
+            [
+                1.0,
+                1.0,
+                0.0,  # D0_ref, alpha_ref, offset_ref
+                1.0,
+                1.0,
+                0.0,  # D0_sample, alpha_sample, offset_sample
+                0.0,
+                1.0,
+                0.0,  # v0, beta, phase
+                0.5,
+                0.1,
+                0.0,
+                0.1,
+                0.0,  # f0, f1, f2, f3, background
+            ]
+        )
         result = validate_parameters(params)
         assert result.is_valid
         assert len(result.errors) == 0
@@ -340,10 +352,24 @@ class TestPhysicsValidatorsIntegration:
     def test_full_valid_scenario(self) -> None:
         """Full valid scenario passes all validators."""
         # Valid parameters
-        params = np.array([
-            1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-            0.0, 1.0, 0.0, 0.5, 0.1, 0.0, 0.1, 0.0,
-        ])
+        params = np.array(
+            [
+                1.0,
+                1.0,
+                0.0,
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.5,
+                0.1,
+                0.0,
+                0.1,
+                0.0,
+            ]
+        )
         param_result = validate_parameters(params)
         assert param_result.is_valid
 

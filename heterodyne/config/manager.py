@@ -50,7 +50,9 @@ class ConfigManager:
             for key, value in group_config.items():
                 canonical: str = PARAMETER_NAME_MAPPING.get(str(key), str(key))
                 if canonical != key:
-                    logger.debug("Normalized parameter key '%s' -> '%s'", key, canonical)
+                    logger.debug(
+                        "Normalized parameter key '%s' -> '%s'", key, canonical
+                    )
                 normalized[canonical] = value
             params[group_name] = normalized
 
@@ -69,7 +71,12 @@ class ConfigManager:
 
     def _validate(self) -> None:
         """Validate configuration structure."""
-        required_sections = ["experimental_data", "temporal", "scattering", "parameters"]
+        required_sections = [
+            "experimental_data",
+            "temporal",
+            "scattering",
+            "parameters",
+        ]
         missing = [s for s in required_sections if s not in self._config]
         if missing:
             raise ConfigurationError(f"Missing required sections: {missing}")
@@ -282,15 +289,21 @@ class ConfigManager:
         errors: list[str] = []
 
         num_warmup = cmc_config.get("num_warmup")
-        if num_warmup is not None and (not isinstance(num_warmup, int) or num_warmup <= 0):
+        if num_warmup is not None and (
+            not isinstance(num_warmup, int) or num_warmup <= 0
+        ):
             errors.append(f"num_warmup must be > 0, got {num_warmup}")
 
         num_samples = cmc_config.get("num_samples")
-        if num_samples is not None and (not isinstance(num_samples, int) or num_samples <= 0):
+        if num_samples is not None and (
+            not isinstance(num_samples, int) or num_samples <= 0
+        ):
             errors.append(f"num_samples must be > 0, got {num_samples}")
 
         num_chains = cmc_config.get("num_chains")
-        if num_chains is not None and (not isinstance(num_chains, int) or num_chains <= 0):
+        if num_chains is not None and (
+            not isinstance(num_chains, int) or num_chains <= 0
+        ):
             errors.append(f"num_chains must be > 0, got {num_chains}")
 
         target_accept_prob = cmc_config.get("target_accept_prob")
@@ -309,17 +322,25 @@ class ConfigManager:
             or max_tree_depth < 1
             or max_tree_depth > 20
         ):
-            errors.append(
-                f"max_tree_depth must be in [1, 20], got {max_tree_depth}"
-            )
+            errors.append(f"max_tree_depth must be in [1, 20], got {max_tree_depth}")
 
         return errors
 
+    def update_optimization_config(self, section: str, key: str, value: Any) -> None:
+        """Update a single optimization config key in-place.
+
+        Args:
+            section: Optimization sub-section ("nlsq" or "cmc").
+            key: Configuration key to update.
+            value: New value for the key.
+        """
+        self._config.setdefault("optimization", {}).setdefault(section, {})[key] = value
+
     def get_config(self) -> dict[str, Any]:
-        """Return raw config dict without deep copy (for internal use).
+        """Return a deep copy of the raw configuration dictionary.
 
         Returns:
-            Configuration dictionary (not copied)
+            Deep copy of the full configuration dictionary
         """
         return copy.deepcopy(self._config)
 
