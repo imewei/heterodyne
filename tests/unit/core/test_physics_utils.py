@@ -12,7 +12,6 @@ from __future__ import annotations
 import jax.numpy as jnp
 import numpy as np
 import numpy.testing as npt
-import pytest
 
 from heterodyne.core.physics_utils import (
     compute_relative_difference,
@@ -30,7 +29,6 @@ from heterodyne.core.physics_utils import (
     trapezoid_cumsum,
 )
 
-
 # ---------------------------------------------------------------------------
 # safe_exp
 # ---------------------------------------------------------------------------
@@ -42,7 +40,9 @@ class TestSafeExp:
     def test_normal_values(self) -> None:
         x = jnp.array([0.0, 1.0, -1.0, 2.0])
         result = safe_exp(x)
-        npt.assert_allclose(np.asarray(result), np.exp([0.0, 1.0, -1.0, 2.0]), rtol=1e-7)
+        npt.assert_allclose(
+            np.asarray(result), np.exp([0.0, 1.0, -1.0, 2.0]), rtol=1e-7
+        )
 
     def test_overflow_protection(self) -> None:
         x = jnp.array([1000.0, -1000.0])
@@ -274,6 +274,7 @@ class TestSmoothAbs:
     def test_no_nan_gradient(self) -> None:
         # The whole point: gradient at x=0 should be finite
         import jax
+
         grad_fn = jax.grad(lambda x: smooth_abs(x.reshape(1))[0])
         g = grad_fn(jnp.array(0.0))
         assert np.isfinite(float(g))

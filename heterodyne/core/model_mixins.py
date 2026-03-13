@@ -84,9 +84,7 @@ class TransportMixin:
         Returns:
             Transport integral matrix, shape (N, N), non-negative and symmetric.
         """
-        return compute_transport_integral_matrix(
-            self.t, D0, alpha, offset, self.dt
-        )
+        return compute_transport_integral_matrix(self.t, D0, alpha, offset, self.dt)
 
     def compute_half_transport(
         self,

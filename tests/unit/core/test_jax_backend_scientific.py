@@ -20,6 +20,7 @@ from numpy.testing import assert_allclose
 # Test Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def time_array() -> jnp.ndarray:
     """Standard time array for testing."""
@@ -29,18 +30,31 @@ def time_array() -> jnp.ndarray:
 @pytest.fixture
 def default_params() -> jnp.ndarray:
     """Default 14-parameter array for testing."""
-    return jnp.array([
-        1.0, 1.0, 0.0,     # D0_ref, alpha_ref, D_offset_ref
-        1.0, 1.0, 0.0,     # D0_sample, alpha_sample, D_offset_sample
-        0.0, 1.0, 0.0,     # v0, beta, v_offset
-        0.5, 0.0, 0.0, 0.0,  # f0, f1, f2, f3
-        0.0,               # phi0
-    ], dtype=jnp.float64)
+    return jnp.array(
+        [
+            1.0,
+            1.0,
+            0.0,  # D0_ref, alpha_ref, D_offset_ref
+            1.0,
+            1.0,
+            0.0,  # D0_sample, alpha_sample, D_offset_sample
+            0.0,
+            1.0,
+            0.0,  # v0, beta, v_offset
+            0.5,
+            0.0,
+            0.0,
+            0.0,  # f0, f1, f2, f3
+            0.0,  # phi0
+        ],
+        dtype=jnp.float64,
+    )
 
 
 # ============================================================================
 # Transport Coefficient Tests
 # ============================================================================
+
 
 class TestComputeTransportJIT:
     """Scientific tests for compute_transport_jit."""
@@ -81,7 +95,7 @@ class TestComputeTransportJIT:
 
         J = compute_transport_jit(time_array, D0, alpha, offset, n_times)
 
-        expected = D0 * time_array ** 2
+        expected = D0 * time_array**2
         assert_allclose(J, expected, rtol=1e-12)
 
     @pytest.mark.unit
@@ -149,6 +163,7 @@ class TestComputeTransportJIT:
 # ============================================================================
 # g1 Correlation Tests
 # ============================================================================
+
 
 class TestComputeG1Transport:
     """Scientific tests for compute_g1_transport."""
@@ -219,6 +234,7 @@ class TestComputeG1Transport:
 # Fraction Tests
 # ============================================================================
 
+
 class TestComputeFractionJIT:
     """Scientific tests for compute_fraction_jit."""
 
@@ -287,6 +303,7 @@ class TestComputeFractionJIT:
 # Velocity Integral Matrix Tests
 # ============================================================================
 
+
 class TestComputeVelocityIntegralMatrix:
     """Scientific tests for compute_velocity_integral_matrix."""
 
@@ -350,6 +367,7 @@ class TestComputeVelocityIntegralMatrix:
 # ============================================================================
 # Transport Integral Matrix Tests
 # ============================================================================
+
 
 class TestComputeTransportIntegralMatrix:
     """Scientific tests for compute_transport_integral_matrix."""
@@ -419,7 +437,7 @@ class TestComputeTransportIntegralMatrix:
         # smooth_abs(x) = sqrt(x² + 1e-12)
         indices = jnp.arange(N, dtype=jnp.float64)
         diff = rate * dt * (indices[None, :] - indices[:, None])
-        expected = jnp.sqrt(diff ** 2 + 1e-12)
+        expected = jnp.sqrt(diff**2 + 1e-12)
         assert_allclose(M, expected, rtol=1e-10)
 
     @pytest.mark.unit
@@ -448,12 +466,15 @@ class TestComputeTransportIntegralMatrix:
 # Full C2 Correlation Tests
 # ============================================================================
 
+
 class TestComputeC2Heterodyne:
     """Scientific tests for compute_c2_heterodyne."""
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_output_shape(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_output_shape(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """Test C2 output shape is (N, N)."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
@@ -463,7 +484,9 @@ class TestComputeC2Heterodyne:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_c2_symmetric(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_c2_symmetric(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """C2 should be approximately symmetric: c2(t1,t2) ≈ c2(t2,t1)."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
@@ -477,7 +500,9 @@ class TestComputeC2Heterodyne:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_c2_diagonal_normalized(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_c2_diagonal_normalized(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """Diagonal c2(t,t) should be close to 1 for equal-time correlation."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
@@ -489,7 +514,9 @@ class TestComputeC2Heterodyne:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_c2_positive(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_c2_positive(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """C2 correlation should be positive (physical requirement)."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
@@ -499,7 +526,9 @@ class TestComputeC2Heterodyne:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_c2_no_nan_inf(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_c2_no_nan_inf(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """C2 should not contain NaN or Inf."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
@@ -510,7 +539,9 @@ class TestComputeC2Heterodyne:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_c2_phi_angle_periodicity(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_c2_phi_angle_periodicity(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """C2 should be periodic in phi with period 360°."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
@@ -521,7 +552,9 @@ class TestComputeC2Heterodyne:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_c2_offset_propagation(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_c2_offset_propagation(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """offset parameter shifts the baseline of c2."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
@@ -537,7 +570,9 @@ class TestComputeC2Heterodyne:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_c2_contrast_propagation(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_c2_contrast_propagation(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """contrast parameter scales the signal above offset."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
@@ -557,12 +592,15 @@ class TestComputeC2Heterodyne:
 # Residual Tests
 # ============================================================================
 
+
 class TestComputeResiduals:
     """Scientific tests for compute_residuals."""
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_zero_residuals_for_exact_model(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_zero_residuals_for_exact_model(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """Residuals should be zero when data equals model."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 
@@ -577,7 +615,9 @@ class TestComputeResiduals:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_residual_shape(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_residual_shape(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """Residuals should be flattened to 1D."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 
@@ -591,7 +631,9 @@ class TestComputeResiduals:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_weighted_residuals(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_weighted_residuals(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """Weighted residuals should scale by sqrt(weights)."""
         from heterodyne.core.jax_backend import compute_residuals
 
@@ -613,12 +655,15 @@ class TestComputeResiduals:
 # JIT and Gradient Tests
 # ============================================================================
 
+
 class TestJITEquivalence:
     """Tests verifying JIT compilation preserves correctness."""
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_c2_jit_equals_non_jit(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_c2_jit_equals_non_jit(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """JIT-compiled c2 should equal eager execution."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
@@ -631,14 +676,20 @@ class TestJITEquivalence:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_residual_jit_equals_non_jit(self, time_array: jnp.ndarray, default_params: jnp.ndarray) -> None:
+    def test_residual_jit_equals_non_jit(
+        self, time_array: jnp.ndarray, default_params: jnp.ndarray
+    ) -> None:
         """JIT-compiled residuals should be deterministic."""
         from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 
         c2_data = compute_c2_heterodyne(default_params, time_array, 0.01, 1.0, 0.0)
 
-        res1 = compute_residuals(default_params, time_array, 0.01, 1.0, 0.0, c2_data, None)
-        res2 = compute_residuals(default_params, time_array, 0.01, 1.0, 0.0, c2_data, None)
+        res1 = compute_residuals(
+            default_params, time_array, 0.01, 1.0, 0.0, c2_data, None
+        )
+        res2 = compute_residuals(
+            default_params, time_array, 0.01, 1.0, 0.0, c2_data, None
+        )
 
         assert_allclose(res1, res2, rtol=1e-14)
 
@@ -653,15 +704,15 @@ class TestGradientCorrectness:
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
         t = jnp.arange(10, dtype=jnp.float64)
-        params = jnp.array([
-            1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-            0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0
-        ], dtype=jnp.float64)
+        params = jnp.array(
+            [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0],
+            dtype=jnp.float64,
+        )
 
         # Scalar loss function
         def loss_fn(p):
             c2 = compute_c2_heterodyne(p, t, 0.01, 1.0, 0.0)
-            return jnp.sum(c2 ** 2)
+            return jnp.sum(c2**2)
 
         # Autodiff gradient
         grad_auto = jax.grad(loss_fn)(params)
@@ -686,10 +737,10 @@ class TestGradientCorrectness:
         from heterodyne.core.jax_backend import compute_residuals_jacobian
 
         t = jnp.arange(5, dtype=jnp.float64)
-        params = jnp.array([
-            1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-            0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0
-        ], dtype=jnp.float64)
+        params = jnp.array(
+            [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0],
+            dtype=jnp.float64,
+        )
         c2_data = jnp.ones((5, 5))
 
         jacobian = compute_residuals_jacobian(params, t, 0.01, 1.0, 0.0, c2_data, None)
@@ -709,10 +760,10 @@ class TestVmapCorrectness:
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
         t = jnp.arange(10, dtype=jnp.float64)
-        params = jnp.array([
-            1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-            0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0
-        ], dtype=jnp.float64)
+        params = jnp.array(
+            [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0],
+            dtype=jnp.float64,
+        )
         phi_angles = jnp.array([0.0, 45.0, 90.0, 180.0])
 
         # Batched with vmap
@@ -721,10 +772,12 @@ class TestVmapCorrectness:
         )(phi_angles)
 
         # Loop version
-        c2_loop = jnp.stack([
-            compute_c2_heterodyne(params, t, 0.01, 1.0, float(phi))
-            for phi in phi_angles
-        ])
+        c2_loop = jnp.stack(
+            [
+                compute_c2_heterodyne(params, t, 0.01, 1.0, float(phi))
+                for phi in phi_angles
+            ]
+        )
 
         assert_allclose(c2_batched, c2_loop, rtol=1e-12)
 
@@ -735,27 +788,28 @@ class TestVmapCorrectness:
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
         t = jnp.arange(5, dtype=jnp.float64)
-        base_params = jnp.array([
-            1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-            0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0
-        ], dtype=jnp.float64)
+        base_params = jnp.array(
+            [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0],
+            dtype=jnp.float64,
+        )
 
         # Multiple parameter sets (varying D0_ref)
-        param_sets = jnp.stack([
-            base_params.at[0].set(0.5),
-            base_params.at[0].set(1.0),
-            base_params.at[0].set(2.0),
-        ])
+        param_sets = jnp.stack(
+            [
+                base_params.at[0].set(0.5),
+                base_params.at[0].set(1.0),
+                base_params.at[0].set(2.0),
+            ]
+        )
 
         # Batched
-        c2_batched = jax.vmap(
-            lambda p: compute_c2_heterodyne(p, t, 0.01, 1.0, 0.0)
-        )(param_sets)
+        c2_batched = jax.vmap(lambda p: compute_c2_heterodyne(p, t, 0.01, 1.0, 0.0))(
+            param_sets
+        )
 
         # Loop
-        c2_loop = jnp.stack([
-            compute_c2_heterodyne(p, t, 0.01, 1.0, 0.0)
-            for p in param_sets
-        ])
+        c2_loop = jnp.stack(
+            [compute_c2_heterodyne(p, t, 0.01, 1.0, 0.0) for p in param_sets]
+        )
 
         assert_allclose(c2_batched, c2_loop, rtol=1e-12)

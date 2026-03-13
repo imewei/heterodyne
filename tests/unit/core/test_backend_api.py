@@ -13,7 +13,6 @@ Covers:
 from __future__ import annotations
 
 from types import ModuleType
-from unittest.mock import patch
 
 import numpy as np
 import numpy.testing as npt
@@ -27,7 +26,6 @@ from heterodyne.core.backend_api import (
     get_current_backend,
     set_backend,
 )
-
 
 # ---------------------------------------------------------------------------
 # Backend enum

@@ -15,6 +15,7 @@ from numpy.testing import assert_allclose
 # Transport Coefficient Tests
 # ============================================================================
 
+
 class TestComputeTransportCoefficient:
     """Scientific tests for compute_transport_coefficient."""
 
@@ -43,7 +44,7 @@ class TestComputeTransportCoefficient:
 
         J = compute_transport_coefficient(t, D0, alpha, offset=0.0)
 
-        expected = D0 * t ** 2
+        expected = D0 * t**2
         assert_allclose(J, expected, rtol=1e-12)
 
     @pytest.mark.unit
@@ -93,6 +94,7 @@ class TestComputeTransportCoefficient:
 # ============================================================================
 # Fraction Tests
 # ============================================================================
+
 
 class TestComputeFraction:
     """Scientific tests for compute_fraction."""
@@ -162,6 +164,7 @@ class TestComputeFraction:
 # g1 Decay Tests
 # ============================================================================
 
+
 class TestComputeG1Decay:
     """Scientific tests for compute_g1_decay."""
 
@@ -176,7 +179,7 @@ class TestComputeG1Decay:
 
         g1 = compute_g1_decay(J, q)
 
-        expected = jnp.exp(-q**2 * J)
+        expected = jnp.exp(-(q**2) * J)
         assert_allclose(g1, expected, rtol=1e-14)
 
     @pytest.mark.unit
@@ -221,6 +224,7 @@ class TestComputeG1Decay:
 # ============================================================================
 # Transport Integral Matrix Tests
 # ============================================================================
+
 
 class TestComputeTransportIntegralMatrix:
     """Scientific tests for compute_transport_integral_matrix (theory)."""
@@ -274,7 +278,7 @@ class TestComputeTransportIntegralMatrix:
         # Expected: smooth_abs(rate * (j - i) * dt) = sqrt((rate*(j-i)*dt)² + ε)
         indices = jnp.arange(N, dtype=jnp.float64)
         diff = rate * dt * (indices[None, :] - indices[:, None])
-        expected = jnp.sqrt(diff ** 2 + 1e-12)
+        expected = jnp.sqrt(diff**2 + 1e-12)
         assert_allclose(M, expected, rtol=1e-10)
 
     @pytest.mark.unit
@@ -311,6 +315,7 @@ class TestComputeTransportIntegralMatrix:
 # ============================================================================
 # Velocity Field Tests
 # ============================================================================
+
 
 class TestComputeVelocityField:
     """Scientific tests for compute_velocity_field."""
@@ -349,6 +354,7 @@ class TestComputeVelocityField:
 # Time Integral Matrix Tests
 # ============================================================================
 
+
 class TestComputeTimeIntegralMatrix:
     """Scientific tests for compute_time_integral_matrix."""
 
@@ -383,6 +389,7 @@ class TestComputeTimeIntegralMatrix:
 # ============================================================================
 # Cross Term Phase Tests
 # ============================================================================
+
 
 class TestComputeCrossTermPhase:
     """Scientific tests for compute_cross_term_phase."""
@@ -431,6 +438,7 @@ class TestComputeCrossTermPhase:
 # ============================================================================
 # Normalization Factor Tests
 # ============================================================================
+
 
 class TestComputeNormalizationFactor:
     """Scientific tests for compute_normalization_factor."""
@@ -497,6 +505,7 @@ class TestComputeNormalizationFactor:
 # ============================================================================
 # Physics Interpretation Tests
 # ============================================================================
+
 
 class TestTransportPhysics:
     """Tests for physical interpretation of transport parameters."""

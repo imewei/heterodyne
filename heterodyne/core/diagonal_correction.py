@@ -141,8 +141,12 @@ def _apply_interpolation(c2: jnp.ndarray, width: int) -> jnp.ndarray:
         n_distinct = (
             (i_prev != i_idx).astype(jnp.float64)  # (i_prev, i) distinct?
             + (i_next != i_idx).astype(jnp.float64)  # (i_next, i) distinct?
-            + (i_prev != i_idx).astype(jnp.float64)  # (i, i_prev) — same test by symmetry
-            + (i_next != i_idx).astype(jnp.float64)  # (i, i_next) — same test by symmetry
+            + (i_prev != i_idx).astype(
+                jnp.float64
+            )  # (i, i_prev) — same test by symmetry
+            + (i_next != i_idx).astype(
+                jnp.float64
+            )  # (i, i_next) — same test by symmetry
         )
         # Floor to 1 to avoid division by zero (n=1 edge case)
         neighbor_avg = neighbor_sum / jnp.maximum(n_distinct, 1.0)
@@ -322,7 +326,9 @@ def _resolve_backend(array: Any) -> str:
         ``"jax"`` or ``"numpy"``.
     """
     backend = "jax" if _is_jax_array(array) else "numpy"
-    logger.debug("Detected backend: %s for array type %s", backend, type(array).__name__)
+    logger.debug(
+        "Detected backend: %s for array type %s", backend, type(array).__name__
+    )
     return backend
 
 
@@ -364,7 +370,9 @@ def _apply_statistical_correction_numpy(
     # Determine which rows have no primary window elements
     has_primary = np.any(window_mask, axis=1)  # (N,)
     # Use fallback where primary is empty
-    effective_mask = np.where(has_primary[:, None], window_mask, fallback_mask)  # (N, N)
+    effective_mask = np.where(
+        has_primary[:, None], window_mask, fallback_mask
+    )  # (N, N)
 
     # Determine which rows have *any* window elements
     has_any = np.any(effective_mask, axis=1)  # (N,)

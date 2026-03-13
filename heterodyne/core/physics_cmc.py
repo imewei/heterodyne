@@ -248,15 +248,29 @@ def compute_c2_elementwise(
 
     # Half-transport at paired indices (no N×N)
     half_tr_ref = compute_transport_elementwise(
-        shard_grid, D0_ref, alpha_ref, D_offset_ref, q, dt,
+        shard_grid,
+        D0_ref,
+        alpha_ref,
+        D_offset_ref,
+        q,
+        dt,
     )
     half_tr_sample = compute_transport_elementwise(
-        shard_grid, D0_sample, alpha_sample, D_offset_sample, q, dt,
+        shard_grid,
+        D0_sample,
+        alpha_sample,
+        D_offset_sample,
+        q,
+        dt,
     )
 
     # Velocity integral at paired indices (signed, no N×N)
     v_integral = compute_velocity_elementwise(
-        shard_grid, v0, beta, v_offset_param, dt,
+        shard_grid,
+        v0,
+        beta,
+        v_offset_param,
+        dt,
     )
 
     # Phase factor
@@ -286,13 +300,13 @@ def compute_c2_elementwise(
     f_cross_prod = f_cross_1 * f_cross_2
 
     # Correlation terms
-    ref_term = f_ref_prod ** 2 * half_tr_ref ** 2
-    sample_term = f_sample_prod ** 2 * half_tr_sample ** 2
+    ref_term = f_ref_prod**2 * half_tr_ref**2
+    sample_term = f_sample_prod**2 * half_tr_sample**2
     cross_term = 2.0 * f_cross_prod * half_tr_ref * half_tr_sample * jnp.cos(phase)
 
     # Normalization: (f_s² + f_r²)_t1 × (f_s² + f_r²)_t2
-    norm_1 = f_sample_1 ** 2 + f_ref_1 ** 2
-    norm_2 = f_sample_2 ** 2 + f_ref_2 ** 2
+    norm_1 = f_sample_1**2 + f_ref_1**2
+    norm_2 = f_sample_2**2 + f_ref_2**2
     normalization = jnp.maximum(norm_1 * norm_2, 1e-10)
 
     c2 = offset + contrast * (ref_term + sample_term + cross_term) / normalization
@@ -337,7 +351,7 @@ def compute_log_likelihood(
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     residuals = (c2_model - c2_data) / sigma
-    return -0.5 * jnp.sum(residuals ** 2)  # type: ignore[no-any-return]
+    return -0.5 * jnp.sum(residuals**2)  # type: ignore[no-any-return]
 
 
 @jax.jit
@@ -372,10 +386,16 @@ def compute_log_likelihood_elementwise(
         Scalar log-likelihood.
     """
     c2_model = compute_c2_elementwise(
-        params, shard_grid, q, dt, phi_angle, contrast, offset,
+        params,
+        shard_grid,
+        q,
+        dt,
+        phi_angle,
+        contrast,
+        offset,
     )
     residuals = (c2_model - c2_data_flat) / sigma_flat
-    return -0.5 * jnp.sum(residuals ** 2)  # type: ignore[no-any-return]
+    return -0.5 * jnp.sum(residuals**2)  # type: ignore[no-any-return]
 
 
 @partial(jax.jit, static_argnames=("shard_start", "shard_end"))
@@ -447,7 +467,7 @@ def compute_shard_log_likelihood(
         (shard_end - shard_start, shard_end - shard_start),
     )
     residuals = (c2_model_shard - c2_shard) / sigma_shard
-    return -0.5 * jnp.sum(residuals ** 2)  # type: ignore[no-any-return]
+    return -0.5 * jnp.sum(residuals**2)  # type: ignore[no-any-return]
 
 
 def compute_sharded_log_likelihood(
@@ -490,9 +510,17 @@ def compute_sharded_log_likelihood(
     total = jnp.float64(0.0)
     for start, end, c2_shard, sigma_shard in shards:
         ll = compute_shard_log_likelihood(
-            params, t, q, dt, phi_angle,
-            c2_shard, sigma_shard, contrast, offset,
-            shard_start=start, shard_end=end,
+            params,
+            t,
+            q,
+            dt,
+            phi_angle,
+            c2_shard,
+            sigma_shard,
+            contrast,
+            offset,
+            shard_start=start,
+            shard_end=end,
         )
         total = total + ll
     return total
@@ -530,11 +558,21 @@ def compute_sharded_log_likelihood_elementwise(
     """
     total = jnp.float64(0.0)
     for sg, c2_flat, sigma_flat in zip(
-        shard_grids, c2_data_flats, sigma_flats, strict=True,
+        shard_grids,
+        c2_data_flats,
+        sigma_flats,
+        strict=True,
     ):
         ll = compute_log_likelihood_elementwise(
-            params, sg, c2_flat, sigma_flat,
-            q, dt, phi_angle, contrast, offset,
+            params,
+            sg,
+            c2_flat,
+            sigma_flat,
+            q,
+            dt,
+            phi_angle,
+            contrast,
+            offset,
         )
         total = total + ll
     return total

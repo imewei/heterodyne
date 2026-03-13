@@ -158,7 +158,9 @@ class TwoComponentModel(HeterodyneModelBase):
         Returns:
             Parameter array, shape (14,)
         """
-        return np.array([param_dict.get(name, self._defaults[name]) for name in ALL_PARAM_NAMES])
+        return np.array(
+            [param_dict.get(name, self._defaults[name]) for name in ALL_PARAM_NAMES]
+        )
 
     def compute_g1_reference(
         self,
@@ -276,11 +278,13 @@ class ReducedModel(HeterodyneModelBase):
             )
         # Precompute template and index mapping for _expand_to_full
         object.__setattr__(
-            self, "_template",
+            self,
+            "_template",
             jnp.array([self._FULL_DEFAULTS[name] for name in ALL_PARAM_NAMES]),
         )
         object.__setattr__(
-            self, "_active_indices",
+            self,
+            "_active_indices",
             tuple(ALL_PARAM_NAMES.index(name) for name in self._active_params),
         )
 

@@ -189,9 +189,7 @@ class TestComputationDtypes:
 
         g1 = compute_g1_transport(J, q)
 
-        assert g1.dtype == jnp.float64, (
-            f"g1 has dtype {g1.dtype}, expected float64."
-        )
+        assert g1.dtype == jnp.float64, f"g1 has dtype {g1.dtype}, expected float64."
 
 
 class TestNumericPrecision:

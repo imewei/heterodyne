@@ -180,7 +180,8 @@ def compute_hessian_finite_diff(
         logger.warning(
             "compute_hessian_finite_diff called with n_params=%d; "
             "cost scales as O(n²) function evaluations (%d evals).",
-            n_params, 1 + 2 * n_params + 2 * n_params * (n_params - 1),
+            n_params,
+            1 + 2 * n_params + 2 * n_params * (n_params - 1),
         )
 
     if step_sizes is None:
@@ -220,16 +221,15 @@ def compute_hessian_finite_diff(
             p_mm[i] -= h_i
             p_mm[j] -= h_j
 
-            cross = (
-                cost_fn(p_pp) - cost_fn(p_pm) - cost_fn(p_mp) + cost_fn(p_mm)
-            ) / (4.0 * h_i * h_j)
+            cross = (cost_fn(p_pp) - cost_fn(p_pm) - cost_fn(p_mp) + cost_fn(p_mm)) / (
+                4.0 * h_i * h_j
+            )
 
             hessian[i, j] = cross
             hessian[j, i] = cross
 
     logger.debug(
-        "Computed finite-difference Hessian: shape=(%d, %d), "
-        "n_function_evals=%d",
+        "Computed finite-difference Hessian: shape=(%d, %d), n_function_evals=%d",
         n_params,
         n_params,
         1 + 2 * n_params + 4 * n_params * (n_params - 1) // 2,
@@ -274,9 +274,7 @@ def validate_gradient(
         )
 
     abs_diff = np.abs(analytic - numerical)
-    max_magnitude = np.maximum(
-        np.maximum(np.abs(analytic), np.abs(numerical)), 1e-10
-    )
+    max_magnitude = np.maximum(np.maximum(np.abs(analytic), np.abs(numerical)), 1e-10)
     rel_diff = abs_diff / max_magnitude
 
     worst_idx = int(np.argmax(abs_diff))
@@ -313,6 +311,7 @@ def validate_gradient(
 # ---------------------------------------------------------------------------
 # Advanced numerical differentiation (Task 1.6)
 # ---------------------------------------------------------------------------
+
 
 class DifferentiationMethod(Enum):
     """Supported numerical differentiation methods."""
@@ -493,9 +492,7 @@ def _richardson_extrapolation(
     for j in range(1, n_terms):
         factor = 4.0**j
         for i in range(j, n_terms):
-            improved = (factor * table[i][j - 1] - table[i - 1][j - 1]) / (
-                factor - 1.0
-            )
+            improved = (factor * table[i][j - 1] - table[i - 1][j - 1]) / (factor - 1.0)
             table[i].append(improved)
 
     best = table[-1][-1]
@@ -630,16 +627,14 @@ def compute_adaptive_gradient(
             gradient[i] = cur_est
             max_err = max(max_err, abs(cur_est - prev_est))
             logger.debug(
-                "Adaptive gradient did not converge for param %d after %d "
-                "halvings",
+                "Adaptive gradient did not converge for param %d after %d halvings",
                 i,
                 max_iters,
             )
 
     elapsed = time.monotonic() - t0
     logger.debug(
-        "Adaptive gradient: n_params=%d, n_evals=%d, max_err=%.2e, "
-        "elapsed=%.4fs",
+        "Adaptive gradient: n_params=%d, n_evals=%d, max_err=%.2e, elapsed=%.4fs",
         n_params,
         total_evals,
         max_err,

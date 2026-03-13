@@ -168,7 +168,7 @@ def smooth_abs(x: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
     Returns:
         Smooth |x|, same shape as x.
     """
-    return jnp.sqrt(x ** 2 + eps)
+    return jnp.sqrt(x**2 + eps)
 
 
 @jax.jit

@@ -155,14 +155,18 @@ class PerAngleScaling:
         contrast_info = SCALING_PARAMS["contrast"]
         offset_info = SCALING_PARAMS["offset"]
 
-        lower_full = np.concatenate([
-            np.full(self.n_angles, contrast_info.min_bound),
-            np.full(self.n_angles, offset_info.min_bound),
-        ])
-        upper_full = np.concatenate([
-            np.full(self.n_angles, contrast_info.max_bound),
-            np.full(self.n_angles, offset_info.max_bound),
-        ])
+        lower_full = np.concatenate(
+            [
+                np.full(self.n_angles, contrast_info.min_bound),
+                np.full(self.n_angles, offset_info.min_bound),
+            ]
+        )
+        upper_full = np.concatenate(
+            [
+                np.full(self.n_angles, contrast_info.max_bound),
+                np.full(self.n_angles, offset_info.max_bound),
+            ]
+        )
 
         idx = self.varying_indices
         return lower_full[idx], upper_full[idx]
@@ -406,7 +410,10 @@ def estimate_per_angle_scaling(
 
         log.debug(
             "Angle %d: estimated contrast=%.4f, offset=%.4f from %d data points",
-            i, contrast_est, offset_est, end - start,
+            i,
+            contrast_est,
+            offset_est,
+            end - start,
         )
 
     estimates: dict[str, float] = {}

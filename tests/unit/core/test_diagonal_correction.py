@@ -14,7 +14,7 @@ import pytest
 jax = pytest.importorskip("jax")
 jnp = pytest.importorskip("jax.numpy")
 
-from heterodyne.core.diagonal_correction import (
+from heterodyne.core.diagonal_correction import (  # noqa: E402
     apply_diagonal_correction,
     apply_diagonal_correction_batch,
     compute_diagonal_mask,
@@ -23,7 +23,6 @@ from heterodyne.core.diagonal_correction import (
     get_available_backends,
     get_diagonal_correction_methods,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -106,9 +105,7 @@ class TestDiagonalCorrectionBasic:
         c2 = jnp.array(_make_c2(n))
         result = apply_diagonal_correction(c2, width=1, method="interpolate")
         mask = ~np.eye(n, dtype=bool)
-        np.testing.assert_allclose(
-            np.asarray(result)[mask], np.asarray(c2)[mask]
-        )
+        np.testing.assert_allclose(np.asarray(result)[mask], np.asarray(c2)[mask])
 
     def test_mask_method_sets_diagonal_to_nan(self) -> None:
         """Mask method sets diagonal elements to NaN."""
@@ -159,7 +156,9 @@ class TestCorrectionMethods:
         sym = _make_c2(n)
         # Create a perfectly symmetric matrix (no diagonal artifact for off-diag)
         sym_jax = jnp.array((sym + sym.T) / 2.0)
-        result = np.asarray(apply_diagonal_correction(sym_jax, width=1, method="mirror"))
+        result = np.asarray(
+            apply_diagonal_correction(sym_jax, width=1, method="mirror")
+        )
         # Off-diagonal should be unchanged (mirror of symmetric is itself)
         mask = ~np.eye(n, dtype=bool)
         np.testing.assert_allclose(result[mask], np.asarray(sym_jax)[mask])
@@ -177,7 +176,9 @@ class TestBatchCorrection:
         """Batch input (k, N, N) returns same shape."""
         k, n = 4, 8
         c2_batch = jnp.stack([jnp.array(_make_c2(n)) for _ in range(k)])
-        result = apply_diagonal_correction_batch(c2_batch, width=1, method="interpolate")
+        result = apply_diagonal_correction_batch(
+            c2_batch, width=1, method="interpolate"
+        )
         assert result.shape == (k, n, n)
 
     def test_batch_2d_delegates_to_single(self) -> None:
@@ -197,7 +198,9 @@ class TestBatchCorrection:
         """NumPy batch input is processed correctly."""
         k, n = 3, 6
         c2_batch = np.stack([_make_c2(n) for _ in range(k)])
-        result = apply_diagonal_correction_batch(c2_batch, width=1, method="interpolate")
+        result = apply_diagonal_correction_batch(
+            c2_batch, width=1, method="interpolate"
+        )
         assert result.shape == (k, n, n)
         assert isinstance(result, np.ndarray)
 

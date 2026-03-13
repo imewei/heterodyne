@@ -227,8 +227,8 @@ def compute_normalization_factor(
     f_r_2 = 1.0 - f_s_2
 
     # (f_s² + f_r²) at each time
-    norm_1 = f_s_1 ** 2 + f_r_1 ** 2  # shape (N1,)
-    norm_2 = f_s_2 ** 2 + f_r_2 ** 2  # shape (N2,)
+    norm_1 = f_s_1**2 + f_r_1**2  # shape (N1,)
+    norm_2 = f_s_2**2 + f_r_2**2  # shape (N2,)
 
     # Outer product for matrix
     return norm_1[:, None] * norm_2[None, :]
@@ -333,7 +333,7 @@ class TheoryEngine:
         residuals = self.compute_residuals(
             params, c2_data, phi_angle, weights, contrast, offset
         )
-        return float(jnp.sum(residuals ** 2))
+        return float(jnp.sum(residuals**2))
 
     def compute_batch_chi_squared(
         self,
@@ -362,8 +362,7 @@ class TheoryEngine:
             raise ValueError("params_batch must be 2D (n_sets, n_params)")
         if params_batch.shape[1] != self.n_params:
             raise ValueError(
-                f"Expected {self.n_params} params per set, "
-                f"got {params_batch.shape[1]}"
+                f"Expected {self.n_params} params per set, got {params_batch.shape[1]}"
             )
 
         results = np.empty(params_batch.shape[0])
@@ -394,9 +393,11 @@ class TheoryEngine:
         total_ops = n_total * ops_per_element
 
         # Memory: 8 bytes × ~6 intermediate matrices per angle
-        memory_mb = (n_matrix_elements * 8 * 6 * n_phi) / (1024 ** 2)
+        memory_mb = (n_matrix_elements * 8 * 6 * n_phi) / (1024**2)
 
-        tier = "light" if total_ops < 1e6 else ("medium" if total_ops < 1e8 else "heavy")
+        tier = (
+            "light" if total_ops < 1e6 else ("medium" if total_ops < 1e8 else "heavy")
+        )
 
         return {
             "n_times": n_times,
@@ -448,9 +449,7 @@ def compute_c2_theory(
         Correlation matrix c2, shape (N, N)
     """
     engine = TheoryEngine(t=jnp.asarray(t), q=q, dt=dt)
-    c2 = engine.compute_correlation(
-        jnp.asarray(params), phi_angle, contrast, offset
-    )
+    c2 = engine.compute_correlation(jnp.asarray(params), phi_angle, contrast, offset)
     return np.asarray(c2)
 
 
@@ -484,8 +483,12 @@ def compute_chi2_theory(
     engine = TheoryEngine(t=jnp.asarray(t), q=q, dt=dt)
     w = jnp.asarray(weights) if weights is not None else None
     return engine.compute_chi_squared(
-        jnp.asarray(params), jnp.asarray(c2_data),
-        phi_angle, w, contrast, offset,
+        jnp.asarray(params),
+        jnp.asarray(c2_data),
+        phi_angle,
+        w,
+        contrast,
+        offset,
     )
 
 

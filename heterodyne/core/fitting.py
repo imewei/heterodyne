@@ -51,6 +51,7 @@ except ImportError:
     def jit(f: F) -> F:  # type: ignore[misc]  # noqa: UP047
         return f  # No-op decorator
 
+
 logger = get_logger(__name__)
 
 
@@ -100,11 +101,15 @@ class ParameterSpace:
         for name in ALL_PARAM_NAMES:
             info = DEFAULT_REGISTRY[name]
             self._physics_bounds.append((info.min_bound, info.max_bound))
-            prior_mean = info.prior_mean if info.prior_mean is not None else (
-                (info.min_bound + info.max_bound) / 2.0
+            prior_mean = (
+                info.prior_mean
+                if info.prior_mean is not None
+                else ((info.min_bound + info.max_bound) / 2.0)
             )
-            prior_std = info.prior_std if info.prior_std is not None else (
-                (info.max_bound - info.min_bound) / 2.0
+            prior_std = (
+                info.prior_std
+                if info.prior_std is not None
+                else ((info.max_bound - info.min_bound) / 2.0)
             )
             self._physics_priors.append((prior_mean, prior_std))
 
@@ -152,9 +157,9 @@ class ParameterSpace:
 class DatasetSize:
     """Dataset size categories for optimization."""
 
-    SMALL = "small"    # <1M points
+    SMALL = "small"  # <1M points
     MEDIUM = "medium"  # 1-10M points
-    LARGE = "large"    # >10M points
+    LARGE = "large"  # >10M points
 
     @staticmethod
     def categorize(data_size: int) -> str:
@@ -404,7 +409,7 @@ if JAX_AVAILABLE:
             jnp.array(0.0, dtype=jnp.float64),  # sum_theory
             jnp.array(0.0, dtype=jnp.float64),  # sum_exp
             jnp.array(0.0, dtype=jnp.float64),  # sum_theory_exp
-            jnp.array(0, dtype=jnp.int64),       # n_data
+            jnp.array(0, dtype=jnp.int64),  # n_data
         )
 
         (
@@ -498,9 +503,7 @@ else:
         sum_theory_exp = 0.0
         n_data = 0
 
-        for theory_chunk, exp_chunk in zip(
-            theory_chunks, exp_chunks, strict=True
-        ):
+        for theory_chunk, exp_chunk in zip(theory_chunks, exp_chunks, strict=True):
             sum_theory_sq += np.sum(theory_chunk * theory_chunk)
             sum_theory += np.sum(theory_chunk)
             sum_exp += np.sum(exp_chunk)
@@ -550,9 +553,7 @@ class UnifiedHeterodyneEngine:
         self.param_priors = self.parameter_space.get_param_priors()
 
         logger.info("Unified heterodyne engine initialized")
-        logger.info(
-            "Parameter count: %d physical + 2 scaling", len(self.param_bounds)
-        )
+        logger.info("Parameter count: %d physical + 2 scaling", len(self.param_bounds))
         logger.info(
             "JAX acceleration: %s",
             "enabled" if JAX_AVAILABLE else "disabled (NumPy fallback)",
@@ -592,9 +593,7 @@ class UnifiedHeterodyneEngine:
             data_jax = data_batch
             theory_jax = theory_batch
 
-        contrast_batch, offset_batch = solve_least_squares_jax(
-            theory_jax, data_jax
-        )
+        contrast_batch, offset_batch = solve_least_squares_jax(theory_jax, data_jax)
 
         if JAX_AVAILABLE:
             contrast = float(jnp.mean(contrast_batch))
@@ -604,16 +603,10 @@ class UnifiedHeterodyneEngine:
             offset = float(np.mean(offset_batch))
 
         if validate_bounds:
-            contrast = float(
-                np.clip(contrast, *self.parameter_space.contrast_bounds)
-            )
-            offset = float(
-                np.clip(offset, *self.parameter_space.offset_bounds)
-            )
+            contrast = float(np.clip(contrast, *self.parameter_space.contrast_bounds))
+            offset = float(np.clip(offset, *self.parameter_space.offset_bounds))
 
-        logger.debug(
-            "Scaling parameters: contrast=%.4f, offset=%.4f", contrast, offset
-        )
+        logger.debug("Scaling parameters: contrast=%.4f, offset=%.4f", contrast, offset)
 
         return contrast, offset
 
@@ -684,9 +677,7 @@ class UnifiedHeterodyneEngine:
 
             if JAX_AVAILABLE:
                 chi_sq = jnp.sum(residuals**2)
-                nll = 0.5 * chi_sq + 0.5 * jnp.sum(
-                    jnp.log(2 * jnp.pi * sigma_flat ** 2)
-                )
+                nll = 0.5 * chi_sq + 0.5 * jnp.sum(jnp.log(2 * jnp.pi * sigma_flat**2))
                 return float(nll)
             else:
                 chi_sq = np.sum(np.asarray(residuals) ** 2)

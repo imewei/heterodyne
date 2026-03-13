@@ -60,13 +60,24 @@ class TestElementwiseMeshgridParity(unittest.TestCase):
 
     def _default_params(self):
         """Standard 14-param test vector."""
-        return jnp.array([
-            1e3, 1.0, 0.0,       # D0_ref, alpha_ref, D_offset_ref
-            5e2, 0.8, 0.0,       # D0_sample, alpha_sample, D_offset_sample
-            100.0, 0.5, 0.0,     # v0, beta, v_offset
-            0.5, -0.01, 50.0, 0.3,  # f0, f1, f2, f3
-            5.0,                  # phi0
-        ])
+        return jnp.array(
+            [
+                1e3,
+                1.0,
+                0.0,  # D0_ref, alpha_ref, D_offset_ref
+                5e2,
+                0.8,
+                0.0,  # D0_sample, alpha_sample, D_offset_sample
+                100.0,
+                0.5,
+                0.0,  # v0, beta, v_offset
+                0.5,
+                -0.01,
+                50.0,
+                0.3,  # f0, f1, f2, f3
+                5.0,  # phi0
+            ]
+        )
 
     def test_full_matrix_parity(self):
         """Element-wise c2 matches meshgrid c2 at all upper-triangle points."""
@@ -82,12 +93,16 @@ class TestElementwiseMeshgridParity(unittest.TestCase):
         contrast, offset = 0.5, 1.0
 
         # Meshgrid path: full N×N matrix
-        c2_meshgrid = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
+        c2_meshgrid = compute_c2_heterodyne(
+            params, t, q, dt, phi_angle, contrast, offset
+        )
 
         # Element-wise path: upper triangle
         n = len(t)
         sg = precompute_shard_grid_from_matrix(t, 0, n)
-        c2_elemwise = compute_c2_elementwise(params, sg, q, dt, phi_angle, contrast, offset)
+        c2_elemwise = compute_c2_elementwise(
+            params, sg, q, dt, phi_angle, contrast, offset
+        )
 
         # Extract upper triangle from meshgrid for comparison
         triu_i, triu_j = np.triu_indices(n, k=0)
@@ -95,8 +110,10 @@ class TestElementwiseMeshgridParity(unittest.TestCase):
         c2_elemwise_np = np.asarray(c2_elemwise)
 
         np.testing.assert_allclose(
-            c2_elemwise_np, c2_meshgrid_flat,
-            rtol=1e-10, atol=1e-12,
+            c2_elemwise_np,
+            c2_meshgrid_flat,
+            rtol=1e-10,
+            atol=1e-12,
             err_msg="Element-wise and meshgrid paths diverge!",
         )
 
@@ -124,13 +141,13 @@ class TestElementwiseMeshgridParity(unittest.TestCase):
 
         # Element-wise: same shard
         sg = precompute_shard_grid_from_matrix(t, shard_start, shard_end)
-        c2_elemwise = np.asarray(
-            compute_c2_elementwise(params, sg, q, dt, phi_angle)
-        )
+        c2_elemwise = np.asarray(compute_c2_elementwise(params, sg, q, dt, phi_angle))
 
         np.testing.assert_allclose(
-            c2_elemwise, c2_meshgrid_shard,
-            rtol=1e-10, atol=1e-12,
+            c2_elemwise,
+            c2_meshgrid_shard,
+            rtol=1e-10,
+            atol=1e-12,
         )
 
     def test_log_likelihood_parity(self):
@@ -149,12 +166,23 @@ class TestElementwiseMeshgridParity(unittest.TestCase):
 
         # Generate synthetic data from model
         from heterodyne.core.jax_backend import compute_c2_heterodyne
+
         c2_data = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
 
         # Meshgrid log-likelihood
-        ll_meshgrid = float(compute_log_likelihood(
-            params, t, q, dt, phi_angle, c2_data, sigma, contrast, offset,
-        ))
+        ll_meshgrid = float(
+            compute_log_likelihood(
+                params,
+                t,
+                q,
+                dt,
+                phi_angle,
+                c2_data,
+                sigma,
+                contrast,
+                offset,
+            )
+        )
 
         # Element-wise log-likelihood (upper triangle only)
         n = len(t)
@@ -162,9 +190,19 @@ class TestElementwiseMeshgridParity(unittest.TestCase):
         triu_i, triu_j = np.triu_indices(n, k=0)
         c2_flat = c2_data[triu_i, triu_j]
 
-        ll_elemwise = float(compute_log_likelihood_elementwise(
-            params, sg, c2_flat, sigma, q, dt, phi_angle, contrast, offset,
-        ))
+        ll_elemwise = float(
+            compute_log_likelihood_elementwise(
+                params,
+                sg,
+                c2_flat,
+                sigma,
+                q,
+                dt,
+                phi_angle,
+                contrast,
+                offset,
+            )
+        )
 
         # They won't be exactly equal because meshgrid uses full matrix
         # while element-wise uses only upper triangle. But the element-wise
@@ -190,14 +228,32 @@ class TestElementwiseMeshgridParity(unittest.TestCase):
 
         param_sets = [
             # Pure diffusion (no velocity, equal fractions)
-            jnp.array([1e3, 1.0, 0.0, 1e3, 1.0, 0.0,
-                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]),
+            jnp.array(
+                [1e3, 1.0, 0.0, 1e3, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]
+            ),
             # Strong velocity, asymmetric fractions
-            jnp.array([500, 0.5, 10.0, 200, 1.5, 5.0,
-                        500.0, 1.0, 50.0, 0.8, -0.05, 25.0, 0.1, 15.0]),
+            jnp.array(
+                [
+                    500,
+                    0.5,
+                    10.0,
+                    200,
+                    1.5,
+                    5.0,
+                    500.0,
+                    1.0,
+                    50.0,
+                    0.8,
+                    -0.05,
+                    25.0,
+                    0.1,
+                    15.0,
+                ]
+            ),
             # Near-zero transport (static limit)
-            jnp.array([1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]),
+            jnp.array(
+                [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]
+            ),
         ]
 
         for i, params in enumerate(param_sets):
@@ -208,7 +264,8 @@ class TestElementwiseMeshgridParity(unittest.TestCase):
                 np.testing.assert_allclose(
                     np.asarray(c2_elem),
                     np.asarray(c2_mesh[triu_i, triu_j]),
-                    rtol=1e-10, atol=1e-12,
+                    rtol=1e-10,
+                    atol=1e-12,
                     err_msg=f"Parity failed for param_set={i}",
                 )
 
@@ -252,7 +309,9 @@ class TestSharedPrimitives(unittest.TestCase):
         M = create_time_integral_matrix(cumsum)
 
         np.testing.assert_allclose(
-            np.asarray(M), -np.asarray(M.T), atol=1e-14,
+            np.asarray(M),
+            -np.asarray(M.T),
+            atol=1e-14,
         )
 
     def test_smooth_abs_gradient_at_zero(self):
@@ -312,7 +371,10 @@ class TestPrepareShards(unittest.TestCase):
 
         intervals = create_shard_grid(n, 4)
         shard_grids, c2_flats, sigma_flats = prepare_shards_elementwise(
-            c2, sigma, t, intervals,
+            c2,
+            sigma,
+            t,
+            intervals,
         )
 
         assert len(shard_grids) == len(intervals)
@@ -328,10 +390,24 @@ class TestPrepareShards(unittest.TestCase):
             prepare_shards_elementwise,
         )
 
-        params = jnp.array([
-            1e3, 1.0, 0.0, 5e2, 0.8, 0.0,
-            100.0, 0.5, 0.0, 0.5, -0.01, 50.0, 0.3, 5.0,
-        ])
+        params = jnp.array(
+            [
+                1e3,
+                1.0,
+                0.0,
+                5e2,
+                0.8,
+                0.0,
+                100.0,
+                0.5,
+                0.0,
+                0.5,
+                -0.01,
+                50.0,
+                0.3,
+                5.0,
+            ]
+        )
         t = jnp.linspace(0.0, 1.0, 20)
         q, dt, phi = 0.01, 0.01, 45.0
         c2_data = compute_c2_heterodyne(params, t, q, dt, phi)
@@ -339,11 +415,20 @@ class TestPrepareShards(unittest.TestCase):
 
         intervals = create_shard_grid(len(t), 3)
         sgs, c2_flats, sigma_flats = prepare_shards_elementwise(
-            c2_data, sigma, t, intervals,
+            c2_data,
+            sigma,
+            t,
+            intervals,
         )
 
         ll = compute_sharded_log_likelihood_elementwise(
-            params, sgs, c2_flats, sigma_flats, q, dt, phi,
+            params,
+            sgs,
+            c2_flats,
+            sigma_flats,
+            q,
+            dt,
+            phi,
         )
 
         # Perfect model → residuals ~0 → ll ~0

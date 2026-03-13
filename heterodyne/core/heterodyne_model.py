@@ -307,8 +307,7 @@ class HeterodyneModel:
         """
         c2_jax = jnp.asarray(c2_data)
         weights_jax = (
-            jnp.asarray(weights) if weights is not None
-            else jnp.ones_like(c2_jax)
+            jnp.asarray(weights) if weights is not None else jnp.ones_like(c2_jax)
         )
         t = self.t
         q = self.q

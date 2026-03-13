@@ -248,9 +248,7 @@ class TestHeterodyneModelComputeResiduals:
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    def test_compute_residuals_returns_flat_array(
-        self, model: HeterodyneModel
-    ) -> None:
+    def test_compute_residuals_returns_flat_array(self, model: HeterodyneModel) -> None:
         """compute_residuals returns flattened array."""
         c2_data = np.ones((50, 50))
         residuals = model.compute_residuals(c2_data, phi_angle=0.0)

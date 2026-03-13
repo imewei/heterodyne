@@ -170,14 +170,18 @@ class TestSolveLeastSquaresJAX:
         """Multiple angles processed simultaneously."""
         import jax.numpy as jnp
 
-        theory = jnp.array([
-            [1.0, 2.0, 3.0],
-            [1.0, 2.0, 3.0],
-        ])
-        data = jnp.array([
-            [1.5, 3.0, 4.5],  # contrast=1.5, offset=0
-            [2.0, 4.0, 6.0],  # contrast=2.0, offset=0
-        ])
+        theory = jnp.array(
+            [
+                [1.0, 2.0, 3.0],
+                [1.0, 2.0, 3.0],
+            ]
+        )
+        data = jnp.array(
+            [
+                [1.5, 3.0, 4.5],  # contrast=1.5, offset=0
+                [2.0, 4.0, 6.0],  # contrast=2.0, offset=0
+            ]
+        )
         contrast, offset = solve_least_squares_jax(theory, data)
         np.testing.assert_allclose(float(contrast[0]), 1.5, atol=1e-6)
         np.testing.assert_allclose(float(contrast[1]), 2.0, atol=1e-6)

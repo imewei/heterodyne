@@ -22,7 +22,6 @@ from heterodyne.core.model_mixins import (
     VelocityMixin,
 )
 
-
 # ---------------------------------------------------------------------------
 # Stub classes to host the mixins
 # ---------------------------------------------------------------------------
@@ -143,9 +142,7 @@ class TestTransportMixin:
         self, time_grid: jnp.ndarray, q: float, dt: float
     ) -> None:
         stub = TransportStub(time_grid, q, dt)
-        half_tr = np.asarray(
-            stub.compute_half_transport(D0=1e4, alpha=0.5, offset=0.0)
-        )
+        half_tr = np.asarray(stub.compute_half_transport(D0=1e4, alpha=0.5, offset=0.0))
         # exp(-0.5 * q^2 * integral) should be in (0, 1]
         assert np.all(half_tr > 0.0)
         assert np.all(half_tr <= 1.0 + 1e-10)
@@ -154,9 +151,7 @@ class TestTransportMixin:
         self, time_grid: jnp.ndarray, q: float, dt: float
     ) -> None:
         stub = TransportStub(time_grid, q, dt)
-        half_tr = np.asarray(
-            stub.compute_half_transport(D0=1e4, alpha=0.5, offset=0.0)
-        )
+        half_tr = np.asarray(stub.compute_half_transport(D0=1e4, alpha=0.5, offset=0.0))
         # Diagonal: integral = 0 => exp(0) = 1
         npt.assert_allclose(np.diag(half_tr), 1.0, atol=1e-4)
 
@@ -234,9 +229,7 @@ class TestFractionMixin:
             arr = np.asarray(mat)
             npt.assert_allclose(arr, arr.T, atol=1e-12)
 
-    def test_fraction_ref_plus_sample_consistent(
-        self, time_grid: jnp.ndarray
-    ) -> None:
+    def test_fraction_ref_plus_sample_consistent(self, time_grid: jnp.ndarray) -> None:
         stub = FractionStub(time_grid)
         f_s = 0.3
         f_sample = jnp.ones(len(time_grid)) * f_s

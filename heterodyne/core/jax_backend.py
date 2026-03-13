@@ -275,18 +275,16 @@ def compute_c2_heterodyne(
     f_cross_matrix = f_cross_vec[:, None] * f_cross_vec[None, :]
 
     # Reference term: f_ref_matrix² × half_tr_ref² (½×2 gives full q²∫J)
-    ref_term = f_ref_matrix ** 2 * half_tr_ref ** 2
+    ref_term = f_ref_matrix**2 * half_tr_ref**2
 
     # Sample term: f_sample_matrix² × half_tr_sample²
-    sample_term = f_sample_matrix ** 2 * half_tr_sample ** 2
+    sample_term = f_sample_matrix**2 * half_tr_sample**2
 
     # Cross term: 2 × f_cross × half_tr_ref × half_tr_sample × cos(phase)
-    cross_term = (
-        2.0 * f_cross_matrix * half_tr_ref * half_tr_sample * jnp.cos(phase)
-    )
+    cross_term = 2.0 * f_cross_matrix * half_tr_ref * half_tr_sample * jnp.cos(phase)
 
     # Normalization: f² = (f_s² + f_r²)_t1 * (f_s² + f_r²)_t2
-    norm_1 = f_sample ** 2 + f_ref ** 2
+    norm_1 = f_sample**2 + f_ref**2
     normalization = norm_1[:, None] * norm_1[None, :]
 
     # Full correlation: offset + contrast × [terms] / f²
@@ -480,6 +478,7 @@ def compute_multi_angle_residuals(
     Returns:
         Stacked flattened residuals, shape (n_phi × N × N,)
     """
+
     def single_angle_residual(
         phi: jnp.ndarray,
         c2_exp: jnp.ndarray,

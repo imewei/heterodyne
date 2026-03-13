@@ -61,13 +61,24 @@ class TestJaxBackend:
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
         # Default parameters
-        params = jnp.array([
-            1.0, 1.0, 0.0,  # D0_ref, alpha_ref, D_offset_ref
-            1.0, 1.0, 0.0,  # D0_sample, alpha_sample, D_offset_sample
-            0.0, 0.0, 0.0,  # v0, beta, v_offset
-            0.5, 0.0, 0.0, 0.0,  # f0, f1, f2, f3
-            0.0,  # phi0
-        ])
+        params = jnp.array(
+            [
+                1.0,
+                1.0,
+                0.0,  # D0_ref, alpha_ref, D_offset_ref
+                1.0,
+                1.0,
+                0.0,  # D0_sample, alpha_sample, D_offset_sample
+                0.0,
+                0.0,
+                0.0,  # v0, beta, v_offset
+                0.5,
+                0.0,
+                0.0,
+                0.0,  # f0, f1, f2, f3
+                0.0,  # phi0
+            ]
+        )
 
         t = jnp.arange(20) * 1.0
         q = 0.01
@@ -144,11 +155,13 @@ class TestNLSQConfig:
         """Test creating config from dictionary."""
         from heterodyne.optimization.nlsq.config import NLSQConfig
 
-        config = NLSQConfig.from_dict({
-            "max_iterations": 50,
-            "tolerance": 1e-6,
-            "multistart": True,
-        })
+        config = NLSQConfig.from_dict(
+            {
+                "max_iterations": 50,
+                "tolerance": 1e-6,
+                "multistart": True,
+            }
+        )
 
         assert config.max_iterations == 50
         assert config.tolerance == 1e-6

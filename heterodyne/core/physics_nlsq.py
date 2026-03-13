@@ -125,9 +125,18 @@ def make_residual_fn(
     @jax.jit
     def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
         return compute_flat_residuals(
-            params, t_jax, q, dt, phi_angle,
-            c2_flat, sqrt_w, contrast, offset,
-            triu_i_jax, triu_j_jax, n,
+            params,
+            t_jax,
+            q,
+            dt,
+            phi_angle,
+            c2_flat,
+            sqrt_w,
+            contrast,
+            offset,
+            triu_i_jax,
+            triu_j_jax,
+            n,
         )
 
     return residual_fn, n_residuals

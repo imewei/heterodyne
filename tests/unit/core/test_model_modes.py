@@ -103,7 +103,11 @@ class TestAnalysisModesRegistry:
     """ANALYSIS_MODES registry has the expected structure."""
 
     def test_registry_keys(self) -> None:
-        assert set(ANALYSIS_MODES.keys()) == {"static_ref", "static_both", "two_component"}
+        assert set(ANALYSIS_MODES.keys()) == {
+            "static_ref",
+            "static_both",
+            "two_component",
+        }
 
     def test_static_ref_length(self) -> None:
         assert len(ANALYSIS_MODES["static_ref"]) == 3
