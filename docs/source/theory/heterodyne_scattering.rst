@@ -62,7 +62,7 @@ where the cross-correlation amplitude :math:`A_{nm}` is:
    A_{nm}(t_1, t_2)
    \;=\; \exp\!\left(-\frac{q^2}{2}\int_{t_1}^{t_2}
      \left[J_n(t') + J_m(t')\right] dt'\right)
-   \cos\!\left(q\cos\varphi\int_{t_1}^{t_2}
+   \cos\!\left(q\cos(\varphi)\int_{t_1}^{t_2}
      \left[\langle v_n(t')\rangle
      - \langle v_m(t')\rangle\right] dt'\right)
 
@@ -102,8 +102,8 @@ The full two-time correlation is:
 
    c_2(q, t_1, t_2) \;=\; 1 + \frac{\beta}{f^2}
    \left[
-     x_r^2(t_1)\, x_r^2(t_2)\, A_{rr}
-     \;+\; x_s^2(t_1)\, x_s^2(t_2)\, A_{ss}
+     \bigl[x_r(t_1)\, x_r(t_2)\bigr]^2\, A_{rr}
+     \;+\; \bigl[x_s(t_1)\, x_s(t_2)\bigr]^2\, A_{ss}
      \;+\; 2\, x_r(t_1)\, x_r(t_2)\, x_s(t_1)\, x_s(t_2)\, A_{rs}
    \right]
 
@@ -115,7 +115,7 @@ with:
    A_{ss} &= \exp\!\left(-q^2 \int_{t_1}^{t_2} J_s(t')\, dt'\right), \\
    A_{rs} &= \exp\!\left(-\frac{q^2}{2}
               \int_{t_1}^{t_2}\left[J_r(t') + J_s(t')\right] dt'\right)
-              \cos\!\left(q\cos\varphi
+              \cos\!\left(q\cos(\varphi)
               \int_{t_1}^{t_2}\langle v(t')\rangle\, dt'\right)
 
 This expression contains three distinct physical contributions, described
@@ -128,7 +128,7 @@ Three-Term Structure
 
 .. math::
 
-   C_\mathrm{ref} \;=\; x_r^2(t_1)\, x_r^2(t_2)\;
+   C_\mathrm{ref} \;=\; \bigl[x_r(t_1)\, x_r(t_2)\bigr]^2\;
    \exp\!\left(-q^2 \int_{t_1}^{t_2} J_r(t')\, dt'\right)
 
 Describes the decorrelation of the static reference scattering due to its
@@ -139,7 +139,7 @@ with lag time.
 
 .. math::
 
-   C_\mathrm{sample} \;=\; x_s^2(t_1)\, x_s^2(t_2)\;
+   C_\mathrm{sample} \;=\; \bigl[x_s(t_1)\, x_s(t_2)\bigr]^2\;
    \exp\!\left(-q^2 \int_{t_1}^{t_2} J_s(t')\, dt'\right)
 
 Describes the decorrelation of the sample scattering. Like the reference
@@ -153,12 +153,12 @@ transport.
    C_\mathrm{cross} \;=\; 2\, x_r(t_1)\, x_r(t_2)\, x_s(t_1)\, x_s(t_2)\;
    \exp\!\left(-\frac{q^2}{2} \int_{t_1}^{t_2}
    \left[J_s(t') + J_r(t')\right] dt'\right)\;
-   \cos\!\left(q \cos\varphi \int_{t_1}^{t_2}
+   \cos\!\left(q \cos(\varphi) \int_{t_1}^{t_2}
    \langle v(t')\rangle\, dt'\right)
 
 This is the signature heterodyne term. The cosine factor produces
 oscillations whose frequency is proportional to
-:math:`q \cos\varphi \cdot \langle v \rangle` --- the projection of the
+:math:`q \cos(\varphi) \cdot \langle v \rangle` --- the projection of the
 sample velocity onto the scattering vector. The oscillation amplitude is
 modulated by the geometric mean of the transport decays from both
 components, and is maximized when the reference and sample fractions are
@@ -183,7 +183,7 @@ equilibrium sample fraction :math:`x \equiv I_s / (I_s + I_r)`:
      + 2\, x(1 - x)\,
        \exp\!\left(-\frac{q^2}{2}
          \int_0^{\tau} \left[J_r(t') + J_s(t')\right] dt'\right)
-       \cos\!\left(q \cos\varphi
+       \cos\!\left(q \cos(\varphi)
          \int_0^{\tau} \langle v(t')\rangle\, dt'\right)
    \right]
 
@@ -222,9 +222,9 @@ The flow angle :math:`\varphi` controls the projection of velocity onto
 the scattering direction:
 
 - :math:`\varphi = 0`: maximum velocity sensitivity
-  (:math:`\cos\varphi = 1`)
+  (:math:`\cos(\varphi) = 1`)
 - :math:`\varphi = 90^\circ`: zero velocity sensitivity
-  (:math:`\cos\varphi = 0`), reducing to a purely diffusive model
+  (:math:`\cos(\varphi) = 0`), reducing to a purely diffusive model
 
 By measuring at multiple detector angles :math:`\varphi`, the full
 velocity vector can be reconstructed. The implementation supports

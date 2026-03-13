@@ -17,20 +17,38 @@ where scattered light from a moving **sample** interferes with that from a stati
 **reference**, producing oscillations in the cross-correlation whose frequency encodes
 the sample velocity.
 
-### Two-Component Intensity Correlation
+### Two-Time Correlation (Eq. S-95)
 
-$$c_2(q, t_1, t_2) = \text{offset} + \text{contrast} \times \frac{C_\text{ref} + C_\text{sample} + C_\text{cross}}{f^2}$$
+$$c_2(\vec{q},\, t_1,\, t_2) = 1 + \frac{\beta}{f^2} \left[ C_\text{ref} + C_\text{sample} + C_\text{cross} \right]$$
 
 with three physical contributions:
 
-$$C_\text{ref} = x_r^2(t_1)\, x_r^2(t_2)\; \exp\!\left(-q^2 \int_{t_1}^{t_2} J_r(t')\, dt'\right)$$
+$$C_\text{ref} = \bigl[x_r(t_1)\, x_r(t_2)\bigr]^2 \exp\!\left(-q^2 \int_{t_1}^{t_2} J_r(t')\, dt'\right)$$
 
-$$C_\text{sample} = x_s^2(t_1)\, x_s^2(t_2)\; \exp\!\left(-q^2 \int_{t_1}^{t_2} J_s(t')\, dt'\right)$$
+$$C_\text{sample} = \bigl[x_s(t_1)\, x_s(t_2)\bigr]^2 \exp\!\left(-q^2 \int_{t_1}^{t_2} J_s(t')\, dt'\right)$$
 
-$$C_\text{cross} = 2\, x_r(t_1)\, x_r(t_2)\, x_s(t_1)\, x_s(t_2)\; \exp\!\left(-\frac{q^2}{2} \int_{t_1}^{t_2} \left[J_r(t') + J_s(t')\right] dt'\right) \cos\!\left(q \cos\varphi \int_{t_1}^{t_2} \langle v(t')\rangle\, dt'\right)$$
+$$C_\text{cross} = 2\, x_r(t_1)\, x_r(t_2)\, x_s(t_1)\, x_s(t_2) \; \exp\!\left(-\tfrac{1}{2}\, q^2 \int_{t_1}^{t_2} \bigl[J_s(t') + J_r(t')\bigr]\, dt'\right) \cos\!\left[q \cos(\varphi) \int_{t_1}^{t_2} \mathbb{E}[v]\, dt'\right]$$
 
-where $x_s$ is the sample fraction, $x_r = 1 - x_s$ is the reference fraction, and
-$f^2$ is a normalization factor ensuring $c_2(t, t) = 1 + \beta$ on the diagonal.
+$$f^2 = \bigl[x_s(t_1)^2 + x_r(t_1)^2\bigr]\bigl[x_s(t_2)^2 + x_r(t_2)^2\bigr]$$
+
+where $x_s(t)$ is the sample fraction, $x_r(t) = 1 - x_s(t)$ the reference fraction,
+$\beta$ the optical contrast, $\varphi$ the angle between velocity and $\vec{q}$, and
+$f^2$ a normalization ensuring $c_2(t, t) = 1 + \beta$ on the diagonal.
+
+### One-Time Equilibrium Form (Eq. S-98)
+
+When all parameters are time-independent and $J_n(t) = 6D_n$ (Wiener process), the
+two-time correlation reduces to a function of lag time $\tau = t_2 - t_1$ only:
+
+$$g_2(\vec{q},\, \tau) = 1 + \beta \left[ (1 - x)^2 e^{-6q^2 D_r \tau} + x^2 e^{-6q^2 D_s \tau} + 2x(1 - x)\, e^{-3q^2(D_r + D_s)\tau} \cos\!\bigl[q \cos(\varphi)\, \mathbb{E}[v]\, \tau\bigr] \right]$$
+
+where $x = x_s^2 / (x_s^2 + x_r^2)$ is the equilibrium sample intensity fraction.
+
+### Fitting Model
+
+The implementation wraps the correlation with per-angle scaling parameters:
+
+$$c_2^\text{model} = \text{offset} + \text{contrast} \times \frac{C_\text{ref} + C_\text{sample} + C_\text{cross}}{f^2}$$
 
 ### Rate Functions
 

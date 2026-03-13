@@ -209,7 +209,7 @@ The velocity enters the phase factor as:
 
 .. math::
 
-   \mathrm{phase}(t_1, t_2) \;=\; q \cos\varphi \int_{t_1}^{t_2} v(t')\, dt'
+   \mathrm{phase}(t_1, t_2) \;=\; q \cos(\varphi) \int_{t_1}^{t_2} v(t')\, dt'
 
 Both integrals are always evaluated numerically via ``trapezoid_cumsum``.
 No analytical antiderivatives are used.
