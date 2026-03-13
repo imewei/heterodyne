@@ -16,6 +16,7 @@ from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
 
 logger = get_logger(__name__)
 
@@ -120,7 +121,7 @@ def plot_weight_map(
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 7))
 
-    extent2: tuple[float, float, float, float] = (
+    extent: tuple[float, float, float, float] = (
         float(times[0]),
         float(times[-1]),
         float(times[-1]),
@@ -129,7 +130,7 @@ def plot_weight_map(
 
     im = ax.imshow(
         weights,
-        extent=extent2,
+        extent=extent,
         aspect="auto",
         cmap="viridis",
         origin="upper",
@@ -352,8 +353,9 @@ def plot_parameter_sensitivity(
     ax.set_title("Parameter Sensitivity")
     ax.grid(True, axis="y", alpha=0.3)
 
-    if hasattr(ax.figure, "tight_layout"):
-        ax.figure.tight_layout()
+    fig: Figure | None = ax.get_figure()  # type: ignore[assignment]
+    if fig is not None:
+        fig.tight_layout()
 
     return ax
 

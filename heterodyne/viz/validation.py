@@ -15,6 +15,7 @@ from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
 
     from heterodyne.data.quality_controller import QualityReport
     from heterodyne.optimization.nlsq.validation import ValidationReport
@@ -87,8 +88,9 @@ def plot_validation_report(
         f"Validation: {status}", fontsize=13, color=title_color, fontweight="bold"
     )
 
-    if hasattr(ax.figure, "tight_layout"):
-        ax.figure.tight_layout()
+    fig: Figure | None = ax.get_figure()  # type: ignore[assignment]
+    if fig is not None:
+        fig.tight_layout()
 
     return ax
 
@@ -147,8 +149,9 @@ def plot_bounds_check(
     ax.invert_yaxis()
     ax.grid(True, axis="x", alpha=0.3)
 
-    if hasattr(ax.figure, "tight_layout"):
-        ax.figure.tight_layout()
+    fig: Figure | None = ax.get_figure()  # type: ignore[assignment]
+    if fig is not None:
+        fig.tight_layout()
 
     return ax
 
@@ -208,7 +211,8 @@ def plot_quality_report(
         fontweight="bold",
     )
 
-    if hasattr(ax.figure, "tight_layout"):
-        ax.figure.tight_layout()
+    fig: Figure | None = ax.get_figure()  # type: ignore[assignment]
+    if fig is not None:
+        fig.tight_layout()
 
     return ax
