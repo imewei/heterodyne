@@ -71,7 +71,7 @@ def plot_correlation(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -139,7 +139,7 @@ def plot_g1_components(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -193,7 +193,7 @@ def plot_diagonal_decay(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -246,7 +246,7 @@ def plot_phi_dependence(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig

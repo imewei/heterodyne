@@ -374,6 +374,32 @@ class TestConfigManagerOptimization:
         manager = ConfigManager(minimal_config)
         assert manager.nlsq_config == {}
 
+    @pytest.mark.unit
+    def test_update_optimization_config_persists(self, full_config: dict) -> None:
+        """update_optimization_config writes through to stored config."""
+        manager = ConfigManager(full_config)
+        manager.update_optimization_config("cmc", "num_samples", 5000)
+        manager.update_optimization_config("nlsq", "multistart", True)
+
+        # Verify via properties (which return deep copies)
+        assert manager.cmc_config["num_samples"] == 5000
+        assert manager.nlsq_config["multistart"] is True
+        # Original key should still be present
+        assert manager.nlsq_config["max_iterations"] == 100
+
+    @pytest.mark.unit
+    def test_update_optimization_config_creates_sections(
+        self, minimal_config: dict
+    ) -> None:
+        """update_optimization_config creates missing optimization sections."""
+        manager = ConfigManager(minimal_config)
+        manager.update_optimization_config("cmc", "num_chains", 4)
+
+        assert manager.cmc_config["num_chains"] == 4
+        # get_config should reflect the change
+        raw = manager.get_config()
+        assert raw["optimization"]["cmc"]["num_chains"] == 4
+
 
 # ============================================================================
 # Property Tests - Output

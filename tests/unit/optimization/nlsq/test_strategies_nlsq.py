@@ -409,6 +409,38 @@ class TestChunkedStrategyNlsq:
         assert sr.strategy_name == "chunked"
         assert sr.result.success is True
 
+    def test_failure_path_marks_partial_failure(self) -> None:
+        """When compute_residuals raises, result.success is False."""
+        from heterodyne.optimization.nlsq.strategies.chunked import ChunkedStrategy
+
+        n_t = 5
+        model = _fake_model(n_params=3, n_t=n_t)
+        c2 = _fake_c2(n_t=n_t)
+        config = _fake_config(chunk_size=10)
+
+        mock_result = _fake_nlsq_result(n_params=3, n_data=c2.size)
+
+        with (
+            patch(
+                "heterodyne.optimization.nlsq.strategies.chunked.compute_residuals",
+                side_effect=RuntimeError("deliberate test failure"),
+            ),
+            patch(
+                "heterodyne.optimization.nlsq.strategies.chunked.compute_c2_heterodyne",
+                return_value=jnp.ones_like(jnp.asarray(c2)),
+            ),
+            patch(
+                "heterodyne.optimization.nlsq.strategies.chunked.curve_fit_large",
+                return_value=mock_result,
+            ),
+        ):
+            strategy = ChunkedStrategy(chunk_size=10)
+            sr = strategy.fit(model, c2, phi_angle=0.0, config=config)
+
+        assert sr.strategy_name == "chunked"
+        assert sr.result.success is False
+        assert sr.result.metadata["partial_failure"] is True
+
 
 # ---------------------------------------------------------------------------
 # OutOfCoreStrategy

@@ -55,12 +55,13 @@ def run_nlsq(
     """
     logger.info("Starting NLSQ analysis")
 
-    nlsq_config_dict = config_manager.nlsq_config
     if getattr(args, "multistart", False):
-        nlsq_config_dict["multistart"] = True
-        nlsq_config_dict["multistart_n"] = getattr(args, "multistart_n", 10)
+        config_manager.update_optimization_config("nlsq", "multistart", True)
+        config_manager.update_optimization_config(
+            "nlsq", "multistart_n", getattr(args, "multistart_n", 10)
+        )
 
-    nlsq_config = NLSQConfig.from_dict(nlsq_config_dict)
+    nlsq_config = NLSQConfig.from_dict(config_manager.nlsq_config)
     nlsq_config.verbose = getattr(args, "verbose", 1)
 
     results: list[NLSQResult] = []
@@ -131,13 +132,16 @@ def run_cmc(
     """
     logger.info("Starting CMC analysis")
 
-    cmc_config_dict = config_manager.cmc_config
     if getattr(args, "num_samples", None) is not None:
-        cmc_config_dict["num_samples"] = args.num_samples
+        config_manager.update_optimization_config(
+            "cmc", "num_samples", args.num_samples
+        )
     if getattr(args, "num_chains", None) is not None:
-        cmc_config_dict["num_chains"] = args.num_chains
+        config_manager.update_optimization_config(
+            "cmc", "num_chains", args.num_chains
+        )
 
-    cmc_config = CMCConfig.from_dict(cmc_config_dict)
+    cmc_config = CMCConfig.from_dict(config_manager.cmc_config)
 
     results: list[CMCResult] = []
 
