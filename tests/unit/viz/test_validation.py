@@ -204,9 +204,7 @@ class TestPlotQualityReport:
             _make_quality_metric("NaN fraction", "warning", "Some NaNs"),
             _make_quality_metric("Outlier count", "critical", "Too many"),
         ]
-        report = _make_quality_report(
-            metrics=metrics, overall_level_value="critical"
-        )
+        report = _make_quality_report(metrics=metrics, overall_level_value="critical")
         ax = plot_quality_report(report)  # type: ignore[arg-type]
         assert "CRITICAL" in ax.get_title()
         assert len(ax.patches) == 3
@@ -219,8 +217,6 @@ class TestPlotQualityReport:
 
     def test_overall_good(self) -> None:
         metrics = [_make_quality_metric("x", "good", "fine")]
-        report = _make_quality_report(
-            metrics=metrics, overall_level_value="good"
-        )
+        report = _make_quality_report(metrics=metrics, overall_level_value="good")
         ax = plot_quality_report(report)  # type: ignore[arg-type]
         assert "GOOD" in ax.get_title()

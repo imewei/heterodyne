@@ -6,11 +6,12 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
 
 from heterodyne.viz.mcmc_arviz import (
     _create_empty_figure,
@@ -139,7 +140,7 @@ class TestToInferenceData:
             "heterodyne.viz.mcmc_arviz.cmc_result_to_arviz",
             return_value=mock_idata,
             create=True,
-        ) as mock_fn:
+        ) as _mock_fn:
             # Patch at the import site
             with patch(
                 "heterodyne.optimization.cmc.results.cmc_result_to_arviz",
@@ -185,7 +186,7 @@ class TestPlotArvizTrace:
             ),
             patch("arviz.plot_trace", return_value=mock_axes),
         ):
-            fig = plot_arviz_trace(result, save_path=save_file)  # type: ignore[arg-type]
+            _fig = plot_arviz_trace(result, save_path=save_file)  # type: ignore[arg-type]
             assert save_file.exists()  # type: ignore[union-attr]
 
     def test_var_names_passed_through(self) -> None:
@@ -254,12 +255,12 @@ class TestPlotArvizPosterior:
                 "heterodyne.viz.mcmc_arviz.to_inference_data",
                 return_value=mock_idata,
             ),
-            patch("arviz.plot_posterior", return_value=mock_axes, create=True) as mock_plot,
+            patch(
+                "arviz.plot_posterior", return_value=mock_axes, create=True
+            ) as mock_plot,
         ):
             plot_arviz_posterior(result, hdi_prob=0.89)  # type: ignore[arg-type]
-            mock_plot.assert_called_once_with(
-                mock_idata, var_names=None, hdi_prob=0.89
-            )
+            mock_plot.assert_called_once_with(mock_idata, var_names=None, hdi_prob=0.89)
 
     def test_save_path(self, tmp_path: pytest.TempPathFactory) -> None:
         result = _make_cmc_result()

@@ -49,12 +49,32 @@ def plot_ess_evolution(
     width = 0.35
 
     if result.ess_bulk is not None:
-        ax.bar(x - width / 2, result.ess_bulk, width, label="ESS bulk", color="C0", alpha=0.8)
+        ax.bar(
+            x - width / 2,
+            result.ess_bulk,
+            width,
+            label="ESS bulk",
+            color="C0",
+            alpha=0.8,
+        )
 
     if result.ess_tail is not None:
-        ax.bar(x + width / 2, result.ess_tail, width, label="ESS tail", color="C1", alpha=0.8)
+        ax.bar(
+            x + width / 2,
+            result.ess_tail,
+            width,
+            label="ESS tail",
+            color="C1",
+            alpha=0.8,
+        )
 
-    ax.axhline(y=ESS_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Min recommended ({ESS_THRESHOLD})")
+    ax.axhline(
+        y=ESS_THRESHOLD,
+        color="red",
+        linestyle="--",
+        alpha=0.5,
+        label=f"Min recommended ({ESS_THRESHOLD})",
+    )
     ax.set_xticks(x)
     ax.set_xticklabels(result.parameter_names, rotation=45, ha="right", fontsize=8)
     ax.set_ylabel("Effective Sample Size")
@@ -94,15 +114,29 @@ def plot_adaptation_summary(
         x = np.arange(len(result.parameter_names))
         colors = ["red" if rh > RHAT_THRESHOLD else "C0" for rh in result.r_hat]
         ax_rhat.bar(x, result.r_hat, color=colors, alpha=0.8)
-        ax_rhat.axhline(y=RHAT_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Threshold ({RHAT_THRESHOLD})")
+        ax_rhat.axhline(
+            y=RHAT_THRESHOLD,
+            color="red",
+            linestyle="--",
+            alpha=0.5,
+            label=f"Threshold ({RHAT_THRESHOLD})",
+        )
         ax_rhat.set_xticks(x)
-        ax_rhat.set_xticklabels(result.parameter_names, rotation=45, ha="right", fontsize=8)
+        ax_rhat.set_xticklabels(
+            result.parameter_names, rotation=45, ha="right", fontsize=8
+        )
         ax_rhat.set_ylabel("R-hat")
         ax_rhat.set_title("R-hat by Parameter")
         ax_rhat.legend(fontsize=8)
     else:
-        ax_rhat.text(0.5, 0.5, "R-hat not available", ha="center", va="center",
-                     transform=ax_rhat.transAxes)
+        ax_rhat.text(
+            0.5,
+            0.5,
+            "R-hat not available",
+            ha="center",
+            va="center",
+            transform=ax_rhat.transAxes,
+        )
 
     # Panel 2: BFMI
     ax_bfmi = axes[1]
@@ -110,14 +144,26 @@ def plot_adaptation_summary(
         chain_idx = np.arange(len(result.bfmi))
         colors = ["red" if b < BFMI_THRESHOLD else "C0" for b in result.bfmi]
         ax_bfmi.bar(chain_idx, result.bfmi, color=colors, alpha=0.8)
-        ax_bfmi.axhline(y=BFMI_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Min threshold ({BFMI_THRESHOLD})")
+        ax_bfmi.axhline(
+            y=BFMI_THRESHOLD,
+            color="red",
+            linestyle="--",
+            alpha=0.5,
+            label=f"Min threshold ({BFMI_THRESHOLD})",
+        )
         ax_bfmi.set_xlabel("Chain")
         ax_bfmi.set_ylabel("BFMI")
         ax_bfmi.set_title("Bayesian Fraction of Missing Information")
         ax_bfmi.legend(fontsize=8)
     else:
-        ax_bfmi.text(0.5, 0.5, "BFMI not available", ha="center", va="center",
-                     transform=ax_bfmi.transAxes)
+        ax_bfmi.text(
+            0.5,
+            0.5,
+            "BFMI not available",
+            ha="center",
+            va="center",
+            transform=ax_bfmi.transAxes,
+        )
 
     fig.tight_layout()
 
@@ -151,7 +197,11 @@ def plot_divergence_scatter(
 
     divergent = result.metadata.get("divergent_transitions")
 
-    if divergent is not None and result.samples is not None and len(result.parameter_names) >= 2:
+    if (
+        divergent is not None
+        and result.samples is not None
+        and len(result.parameter_names) >= 2
+    ):
         divergent = np.asarray(divergent, dtype=bool)
         p1_name = result.parameter_names[0]
         p2_name = result.parameter_names[1]
@@ -163,10 +213,19 @@ def plot_divergence_scatter(
         s1, s2, divergent = s1[:n], s2[:n], divergent[:n]
 
         non_div = ~divergent
-        ax.scatter(s1[non_div], s2[non_div], alpha=0.1, s=1, color="C0", label="Non-divergent")
+        ax.scatter(
+            s1[non_div], s2[non_div], alpha=0.1, s=1, color="C0", label="Non-divergent"
+        )
         if np.any(divergent):
-            ax.scatter(s1[divergent], s2[divergent], alpha=0.8, s=10, color="red",
-                       marker="x", label=f"Divergent ({np.sum(divergent)})")
+            ax.scatter(
+                s1[divergent],
+                s2[divergent],
+                alpha=0.8,
+                s=10,
+                color="red",
+                marker="x",
+                label=f"Divergent ({np.sum(divergent)})",
+            )
 
         ax.set_xlabel(p1_name)
         ax.set_ylabel(p2_name)
@@ -177,21 +236,40 @@ def plot_divergence_scatter(
         if result.r_hat is not None:
             x = np.arange(len(result.parameter_names))
             scatter = ax.scatter(
-                x, result.posterior_mean,
-                c=result.r_hat, cmap="RdYlGn_r", s=80,
-                edgecolors="black", linewidths=0.5,
-                vmin=0.99, vmax=1.2,
+                x,
+                result.posterior_mean,
+                c=result.r_hat,
+                cmap="RdYlGn_r",
+                s=80,
+                edgecolors="black",
+                linewidths=0.5,
+                vmin=0.99,
+                vmax=1.2,
             )
-            ax.errorbar(x, result.posterior_mean, yerr=result.posterior_std,
-                        fmt="none", ecolor="gray", alpha=0.5)
+            ax.errorbar(
+                x,
+                result.posterior_mean,
+                yerr=result.posterior_std,
+                fmt="none",
+                ecolor="gray",
+                alpha=0.5,
+            )
             ax.set_xticks(x)
-            ax.set_xticklabels(result.parameter_names, rotation=45, ha="right", fontsize=8)
+            ax.set_xticklabels(
+                result.parameter_names, rotation=45, ha="right", fontsize=8
+            )
             plt.colorbar(scatter, ax=ax, label="R-hat")
             ax.set_ylabel("Posterior Mean")
             ax.set_title("Posterior Summary (colored by R-hat)")
         else:
-            ax.text(0.5, 0.5, "No divergence or diagnostic data available",
-                    ha="center", va="center", transform=ax.transAxes)
+            ax.text(
+                0.5,
+                0.5,
+                "No divergence or diagnostic data available",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
 
     fig.tight_layout()
 
@@ -295,15 +373,27 @@ def plot_convergence_diagnostics(
     ax_ess = axes[0, 0]
     if result.ess_bulk is not None:
         ax_ess.bar(x, result.ess_bulk, color="C0", alpha=0.8)
-        ax_ess.axhline(y=ESS_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Min recommended ({ESS_THRESHOLD})")
+        ax_ess.axhline(
+            y=ESS_THRESHOLD,
+            color="red",
+            linestyle="--",
+            alpha=0.5,
+            label=f"Min recommended ({ESS_THRESHOLD})",
+        )
         ax_ess.set_xticks(x)
         ax_ess.set_xticklabels(names, rotation=45, ha="right", fontsize=7)
         ax_ess.set_ylabel("ESS (bulk)")
         ax_ess.set_title("Effective Sample Size (bulk)")
         ax_ess.legend(fontsize=7)
     else:
-        ax_ess.text(0.5, 0.5, "ESS not available", ha="center", va="center",
-                    transform=ax_ess.transAxes)
+        ax_ess.text(
+            0.5,
+            0.5,
+            "ESS not available",
+            ha="center",
+            va="center",
+            transform=ax_ess.transAxes,
+        )
         ax_ess.set_title("Effective Sample Size (bulk)")
 
     # Panel (0,1): R-hat
@@ -311,31 +401,55 @@ def plot_convergence_diagnostics(
     if result.r_hat is not None:
         colors = ["red" if rh > RHAT_THRESHOLD else "C0" for rh in result.r_hat]
         ax_rhat.bar(x, result.r_hat, color=colors, alpha=0.8)
-        ax_rhat.axhline(y=RHAT_THRESHOLD, color="red", linestyle="--", alpha=0.5, label=f"Threshold ({RHAT_THRESHOLD})")
+        ax_rhat.axhline(
+            y=RHAT_THRESHOLD,
+            color="red",
+            linestyle="--",
+            alpha=0.5,
+            label=f"Threshold ({RHAT_THRESHOLD})",
+        )
         ax_rhat.set_xticks(x)
         ax_rhat.set_xticklabels(names, rotation=45, ha="right", fontsize=7)
         ax_rhat.set_ylabel("R-hat")
         ax_rhat.set_title("R-hat by Parameter")
         ax_rhat.legend(fontsize=7)
     else:
-        ax_rhat.text(0.5, 0.5, "R-hat not available", ha="center", va="center",
-                     transform=ax_rhat.transAxes)
+        ax_rhat.text(
+            0.5,
+            0.5,
+            "R-hat not available",
+            ha="center",
+            va="center",
+            transform=ax_rhat.transAxes,
+        )
         ax_rhat.set_title("R-hat by Parameter")
 
     # Panel (1,0): BFMI
     ax_bfmi = axes[1, 0]
     if result.bfmi is not None:
         chain_idx = np.arange(len(result.bfmi))
-        colors_bfmi = ["red" if b < 0.3 else "C0" for b in result.bfmi]
+        colors_bfmi = ["red" if b < BFMI_THRESHOLD else "C0" for b in result.bfmi]
         ax_bfmi.bar(chain_idx, result.bfmi, color=colors_bfmi, alpha=0.8)
-        ax_bfmi.axhline(y=0.3, color="red", linestyle="--", alpha=0.5, label="Min threshold (0.3)")
+        ax_bfmi.axhline(
+            y=BFMI_THRESHOLD,
+            color="red",
+            linestyle="--",
+            alpha=0.5,
+            label=f"Min threshold ({BFMI_THRESHOLD})",
+        )
         ax_bfmi.set_xlabel("Chain")
         ax_bfmi.set_ylabel("BFMI")
         ax_bfmi.set_title("Bayesian Fraction of Missing Information")
         ax_bfmi.legend(fontsize=7)
     else:
-        ax_bfmi.text(0.5, 0.5, "BFMI not available", ha="center", va="center",
-                     transform=ax_bfmi.transAxes)
+        ax_bfmi.text(
+            0.5,
+            0.5,
+            "BFMI not available",
+            ha="center",
+            va="center",
+            transform=ax_bfmi.transAxes,
+        )
         ax_bfmi.set_title("Bayesian Fraction of Missing Information")
 
     # Panel (1,1): Text summary
@@ -361,20 +475,41 @@ def plot_convergence_diagnostics(
 
     summary_lines = [
         f"Total divergences:  {total_div if total_div is not None else 'N/A'}",
-        f"Min ESS (bulk):     {min_ess:.1f}" if min_ess is not None else "Min ESS (bulk):     N/A",
-        f"Max R-hat:          {max_rhat:.4f}" if max_rhat is not None else "Max R-hat:          N/A",
-        f"Min BFMI:           {min_bfmi:.4f}" if min_bfmi is not None else "Min BFMI:           N/A",
+        f"Min ESS (bulk):     {min_ess:.1f}"
+        if min_ess is not None
+        else "Min ESS (bulk):     N/A",
+        f"Max R-hat:          {max_rhat:.4f}"
+        if max_rhat is not None
+        else "Max R-hat:          N/A",
+        f"Min BFMI:           {min_bfmi:.4f}"
+        if min_bfmi is not None
+        else "Min BFMI:           N/A",
     ]
 
     y_pos = 0.75
     for line in summary_lines:
-        ax_text.text(0.1, y_pos, line, transform=ax_text.transAxes,
-                     fontsize=11, fontfamily="monospace", verticalalignment="top")
+        ax_text.text(
+            0.1,
+            y_pos,
+            line,
+            transform=ax_text.transAxes,
+            fontsize=11,
+            fontfamily="monospace",
+            verticalalignment="top",
+        )
         y_pos -= 0.12
 
-    ax_text.text(0.1, y_pos, f"Assessment:         {assessment}",
-                 transform=ax_text.transAxes, fontsize=11, fontfamily="monospace",
-                 verticalalignment="top", color=assess_color, fontweight="bold")
+    ax_text.text(
+        0.1,
+        y_pos,
+        f"Assessment:         {assessment}",
+        transform=ax_text.transAxes,
+        fontsize=11,
+        fontfamily="monospace",
+        verticalalignment="top",
+        color=assess_color,
+        fontweight="bold",
+    )
 
     fig.tight_layout(rect=(0, 0, 1, 0.95))
 

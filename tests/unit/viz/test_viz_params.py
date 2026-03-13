@@ -1,4 +1,5 @@
 """Verify visualization modules use heterodyne parameter names."""
+
 from __future__ import annotations
 
 import pathlib
@@ -11,8 +12,12 @@ VIZ_DIR = pathlib.Path("heterodyne/viz")
 # Homodyne-only parameter names that should never appear in heterodyne viz.
 # These are unambiguous names that don't collide with matplotlib kwargs.
 HOMODYNE_ONLY_PARAMS = {
-    "gamma_dot_t0", "gamma_dot_t_offset", "gamma_dot_0",
-    "gamma_dot_offset", "gamma_dot", "shear_rate",
+    "gamma_dot_t0",
+    "gamma_dot_t_offset",
+    "gamma_dot_0",
+    "gamma_dot_offset",
+    "gamma_dot",
+    "shear_rate",
 }
 
 # Ambiguous names that are also common Python/matplotlib identifiers.

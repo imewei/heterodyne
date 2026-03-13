@@ -213,7 +213,10 @@ def plot_trace_posterior(
         flat_vals = vals.ravel()
         ax_hist.hist(flat_vals, bins=50, density=True, alpha=0.7, color="steelblue")
         ax_hist.axvline(
-            np.median(flat_vals), color="red", linestyle="--", linewidth=1.5,
+            np.median(flat_vals),
+            color="red",
+            linestyle="--",
+            linewidth=1.5,
             label=f"median={np.median(flat_vals):.4g}",
         )
         ax_hist.legend(fontsize=8)
@@ -254,9 +257,9 @@ def plot_pair_correlation(
             vals_j = samples[name_j].ravel()
             min_len = min(len(vals_i), len(vals_j))
             if min_len > 1:
-                corr_matrix[i, j] = np.corrcoef(
-                    vals_i[:min_len], vals_j[:min_len]
-                )[0, 1]
+                corr_matrix[i, j] = np.corrcoef(vals_i[:min_len], vals_j[:min_len])[
+                    0, 1
+                ]
             else:
                 corr_matrix[i, j] = 0.0
 
@@ -293,7 +296,9 @@ def plot_residual_histogram(
     flat = residuals.ravel()
     flat = flat[np.isfinite(flat)]
 
-    ax.hist(flat, bins=80, density=True, alpha=0.7, color="steelblue", label="Residuals")
+    ax.hist(
+        flat, bins=80, density=True, alpha=0.7, color="steelblue", label="Residuals"
+    )
 
     # Gaussian overlay
     mu, sigma = np.mean(flat), np.std(flat)

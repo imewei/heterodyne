@@ -23,9 +23,9 @@ logger = get_logger(__name__)
 
 # Traffic-light colour map for severity / quality levels
 _SEVERITY_COLORS: dict[str, str] = {
-    "info": "#4CAF50",      # green
-    "warning": "#FF9800",   # amber
-    "error": "#F44336",     # red
+    "info": "#4CAF50",  # green
+    "warning": "#FF9800",  # amber
+    "error": "#F44336",  # red
 }
 
 _QUALITY_COLORS: dict[str, str] = {
@@ -58,8 +58,13 @@ def plot_validation_report(
     issues = report.issues
     if not issues:
         ax.text(
-            0.5, 0.5, "No issues reported",
-            ha="center", va="center", transform=ax.transAxes, fontsize=12,
+            0.5,
+            0.5,
+            "No issues reported",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=12,
         )
         ax.set_title("Validation: PASS" if report.is_valid else "Validation: FAIL")
         ax.set_axis_off()
@@ -78,7 +83,9 @@ def plot_validation_report(
 
     status = "PASS" if report.is_valid else "FAIL"
     title_color = "#4CAF50" if report.is_valid else "#F44336"
-    ax.set_title(f"Validation: {status}", fontsize=13, color=title_color, fontweight="bold")
+    ax.set_title(
+        f"Validation: {status}", fontsize=13, color=title_color, fontweight="bold"
+    )
 
     ax.figure.tight_layout()
 
@@ -168,8 +175,13 @@ def plot_quality_report(
     metrics = quality_report.metrics
     if not metrics:
         ax.text(
-            0.5, 0.5, "No metrics reported",
-            ha="center", va="center", transform=ax.transAxes, fontsize=12,
+            0.5,
+            0.5,
+            "No metrics reported",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            fontsize=12,
         )
         ax.set_axis_off()
         return ax

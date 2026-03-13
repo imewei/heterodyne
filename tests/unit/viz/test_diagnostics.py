@@ -172,18 +172,14 @@ class TestPlotConvergenceTrace:
 
 
 class TestPlotTracePosterior:
-    def test_returns_figure_1d_samples(
-        self, samples_1d: dict[str, np.ndarray]
-    ) -> None:
+    def test_returns_figure_1d_samples(self, samples_1d: dict[str, np.ndarray]) -> None:
         fig = plot_trace_posterior(samples_1d)
         assert isinstance(fig, plt.Figure)
         # 3 params, 2 columns each
         axes = fig.get_axes()
         assert len(axes) == 6
 
-    def test_returns_figure_2d_samples(
-        self, samples_2d: dict[str, np.ndarray]
-    ) -> None:
+    def test_returns_figure_2d_samples(self, samples_2d: dict[str, np.ndarray]) -> None:
         fig = plot_trace_posterior(samples_2d)
         assert isinstance(fig, plt.Figure)
         axes = fig.get_axes()

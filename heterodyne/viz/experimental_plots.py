@@ -37,7 +37,7 @@ def plot_correlation(
     fig, ax = plt.subplots(figsize=(8, 7))
 
     if c2.size == 0:
-        ax.text(0.5, 0.5, "No data", ha='center', va='center', transform=ax.transAxes)
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
         ax.set_title(title)
         return fig
 
@@ -45,7 +45,7 @@ def plot_correlation(
         t = np.arange(c2.shape[0])
 
     if t.size == 0:
-        ax.text(0.5, 0.5, "No data", ha='center', va='center', transform=ax.transAxes)
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
         ax.set_title(title)
         return fig
 
@@ -54,11 +54,11 @@ def plot_correlation(
     im = ax.imshow(
         c2,
         extent=extent,
-        aspect='auto',
+        aspect="auto",
         cmap=cmap,
         vmin=vmin,
         vmax=vmax,
-        origin='upper',
+        origin="upper",
     )
 
     ax.set_xlabel("t₂", fontsize=12)
@@ -71,7 +71,7 @@ def plot_correlation(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -102,7 +102,7 @@ def plot_g1_components(
     fraction = np.asarray(model.compute_fraction(params))
 
     # Top left: g1 reference
-    axes[0, 0].semilogy(t, g1_ref, 'b-', lw=2, label='g₁ reference')
+    axes[0, 0].semilogy(t, g1_ref, "b-", lw=2, label="g₁ reference")
     axes[0, 0].set_xlabel("Time")
     axes[0, 0].set_ylabel("g₁")
     axes[0, 0].set_title("Reference Component")
@@ -110,7 +110,7 @@ def plot_g1_components(
     axes[0, 0].legend()
 
     # Top right: g1 sample
-    axes[0, 1].semilogy(t, g1_sample, 'r-', lw=2, label='g₁ sample')
+    axes[0, 1].semilogy(t, g1_sample, "r-", lw=2, label="g₁ sample")
     axes[0, 1].set_xlabel("Time")
     axes[0, 1].set_ylabel("g₁")
     axes[0, 1].set_title("Sample Component")
@@ -118,8 +118,8 @@ def plot_g1_components(
     axes[0, 1].legend()
 
     # Bottom left: both g1 together
-    axes[1, 0].semilogy(t, g1_ref, 'b-', lw=2, label='Reference')
-    axes[1, 0].semilogy(t, g1_sample, 'r-', lw=2, label='Sample')
+    axes[1, 0].semilogy(t, g1_ref, "b-", lw=2, label="Reference")
+    axes[1, 0].semilogy(t, g1_sample, "r-", lw=2, label="Sample")
     axes[1, 0].set_xlabel("Time")
     axes[1, 0].set_ylabel("g₁")
     axes[1, 0].set_title("g₁ Comparison")
@@ -127,8 +127,8 @@ def plot_g1_components(
     axes[1, 0].legend()
 
     # Bottom right: fraction
-    axes[1, 1].plot(t, fraction, 'g-', lw=2, label='f_sample')
-    axes[1, 1].plot(t, 1 - fraction, 'm--', lw=2, label='f_reference')
+    axes[1, 1].plot(t, fraction, "g-", lw=2, label="f_sample")
+    axes[1, 1].plot(t, 1 - fraction, "m--", lw=2, label="f_reference")
     axes[1, 1].set_xlabel("Time")
     axes[1, 1].set_ylabel("Fraction")
     axes[1, 1].set_title("Component Fractions")
@@ -139,7 +139,7 @@ def plot_g1_components(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -165,7 +165,7 @@ def plot_diagonal_decay(
     fig, ax = plt.subplots(figsize=(10, 6))
 
     if c2.size == 0:
-        ax.text(0.5, 0.5, "No data", ha='center', va='center', transform=ax.transAxes)
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
         ax.set_title("Diagonal (Autocorrelation)")
         return fig
 
@@ -173,16 +173,16 @@ def plot_diagonal_decay(
         t = np.arange(c2.shape[0])
 
     if t.size == 0:
-        ax.text(0.5, 0.5, "No data", ha='center', va='center', transform=ax.transAxes)
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
         ax.set_title("Diagonal (Autocorrelation)")
         return fig
 
     diag = np.diag(c2)
-    ax.plot(t, diag, 'bo-', markersize=3, label='Data', alpha=0.7)
+    ax.plot(t, diag, "bo-", markersize=3, label="Data", alpha=0.7)
 
     if fitted_c2 is not None:
         fitted_diag = np.diag(fitted_c2)
-        ax.plot(t, fitted_diag, 'r-', lw=2, label='Fit')
+        ax.plot(t, fitted_diag, "r-", lw=2, label="Fit")
 
     ax.set_xlabel("Time")
     ax.set_ylabel("c₂(t, t)")
@@ -193,7 +193,7 @@ def plot_diagonal_decay(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -227,7 +227,7 @@ def plot_phi_dependence(
     ax1 = axes[0]
     for i, phi in enumerate(phi_angles):
         c2_slice = c2_multi_phi[i, t_slice, :]
-        ax1.plot(c2_slice, label=f'φ={phi:.0f}°')
+        ax1.plot(c2_slice, label=f"φ={phi:.0f}°")
     ax1.set_xlabel("t₂ index")
     ax1.set_ylabel(f"c₂(t₁={t_slice}, t₂)")
     ax1.set_title("Correlation vs φ angle")
@@ -237,7 +237,7 @@ def plot_phi_dependence(
     # Right: diagonal mean vs phi
     ax2 = axes[1]
     diag_means = [np.mean(np.diag(c2_multi_phi[i])) for i in range(n_phi)]
-    ax2.plot(phi_angles, diag_means, 'o-', markersize=8)
+    ax2.plot(phi_angles, diag_means, "o-", markersize=8)
     ax2.set_xlabel("φ (degrees)")
     ax2.set_ylabel("Mean diagonal c₂")
     ax2.set_title("φ Dependence of Diagonal")
@@ -246,7 +246,7 @@ def plot_phi_dependence(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig

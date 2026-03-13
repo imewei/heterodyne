@@ -94,9 +94,7 @@ def render_residual_heatmap(
         return _ds_heatmap(
             residuals, times, width, height, cmap="RdBu_r", symmetric=True
         )
-    return _mpl_heatmap(
-        residuals, times, width, height, cmap="RdBu_r", symmetric=True
-    )
+    return _mpl_heatmap(residuals, times, width, height, cmap="RdBu_r", symmetric=True)
 
 
 def render_multi_angle_grid(
@@ -147,9 +145,7 @@ def render_multi_angle_grid(
     vmin = float(np.nanmin(c2_data))
     vmax = float(np.nanmax(c2_data))
 
-    for idx, (ax, phi) in enumerate(
-        zip(axes.flat, phi_angles, strict=False)
-    ):
+    for idx, (ax, phi) in enumerate(zip(axes.flat, phi_angles, strict=False)):
         if idx >= n_phi:
             break
         im = ax.imshow(

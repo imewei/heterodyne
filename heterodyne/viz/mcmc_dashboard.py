@@ -121,8 +121,7 @@ def _plot_rhat_panel(
             positions = np.arange(n_params)
 
             colors = [
-                "forestgreen" if v <= RHAT_THRESHOLD else "firebrick"
-                for v in r_hat
+                "forestgreen" if v <= RHAT_THRESHOLD else "firebrick" for v in r_hat
             ]
             ax.bar(positions, r_hat, color=colors, alpha=0.8, edgecolor="gray")
             ax.axhline(
@@ -157,10 +156,7 @@ def _plot_ess_panel(
             ess = np.asarray(result.ess_bulk)
             positions = np.arange(n_params)
 
-            colors = [
-                "steelblue" if v >= ESS_THRESHOLD else "orange"
-                for v in ess
-            ]
+            colors = ["steelblue" if v >= ESS_THRESHOLD else "orange" for v in ess]
             ax.bar(positions, ess, color=colors, alpha=0.8, edgecolor="gray")
             ax.axhline(
                 y=ESS_THRESHOLD,
@@ -273,5 +269,3 @@ def _placeholder(ax: Any, message: str) -> None:
         transform=ax.transAxes,
         fontsize=9,
     )
-
-

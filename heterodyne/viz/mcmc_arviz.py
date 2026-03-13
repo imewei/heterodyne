@@ -24,6 +24,7 @@ def _has_arviz() -> bool:
     """Check if ArviZ is available."""
     try:
         import arviz  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -45,6 +46,7 @@ def to_inference_data(cmc_result: CMCResult) -> Any:
         ValueError: If samples are empty.
     """
     from heterodyne.optimization.cmc.results import cmc_result_to_arviz
+
     return cmc_result_to_arviz(cmc_result)
 
 
@@ -66,6 +68,7 @@ def plot_arviz_trace(
     if not _has_arviz():
         logger.warning("ArviZ not installed; falling back to basic trace plot")
         from heterodyne.viz.mcmc_plots import plot_trace
+
         return plot_trace(result, save_path=save_path)
 
     import arviz as az
@@ -104,6 +107,7 @@ def plot_arviz_posterior(
     if not _has_arviz():
         logger.warning("ArviZ not installed; falling back to basic posterior plot")
         from heterodyne.viz.mcmc_plots import plot_posterior
+
         return plot_posterior(result, save_path=save_path)
 
     import arviz as az

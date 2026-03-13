@@ -44,15 +44,22 @@ def plot_nlsq_vs_cmc(
     """
     # Find common parameters
     common_params = [
-        name for name in cmc_result.parameter_names
+        name
+        for name in cmc_result.parameter_names
         if name in nlsq_result.parameter_names
     ]
 
     if not common_params:
         logger.warning("No common parameters between NLSQ and CMC results")
         fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, "No common parameters", ha="center", va="center",
-                transform=ax.transAxes)
+        ax.text(
+            0.5,
+            0.5,
+            "No common parameters",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
         return fig
 
     n_params = len(common_params)
@@ -73,7 +80,9 @@ def plot_nlsq_vs_cmc(
         else:
             # No samples: draw a Gaussian approximation
             x = np.linspace(cmc_mean - 3 * cmc_std, cmc_mean + 3 * cmc_std, 100)
-            pdf = np.exp(-0.5 * ((x - cmc_mean) / cmc_std) ** 2) / (cmc_std * np.sqrt(2 * np.pi))
+            pdf = np.exp(-0.5 * ((x - cmc_mean) / cmc_std) ** 2) / (
+                cmc_std * np.sqrt(2 * np.pi)
+            )
             ax.fill_betweenx(x, 0, pdf, alpha=0.3, color="C0", label="CMC posterior")
 
         # NLSQ point estimate
@@ -81,8 +90,14 @@ def plot_nlsq_vs_cmc(
         nlsq_unc = nlsq_result.get_uncertainty(name)
         yerr = nlsq_unc if nlsq_unc is not None else 0
         ax.errorbar(
-            0, nlsq_val, yerr=yerr, fmt="ro", markersize=8, capsize=5,
-            label="NLSQ", zorder=10,
+            0,
+            nlsq_val,
+            yerr=yerr,
+            fmt="ro",
+            markersize=8,
+            capsize=5,
+            label="NLSQ",
+            zorder=10,
         )
 
         ax.set_title(name, fontsize=9)
@@ -119,8 +134,14 @@ def plot_multi_angle_comparison(
     """
     if not results_by_phi:
         fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, "No results provided", ha="center", va="center",
-                transform=ax.transAxes)
+        ax.text(
+            0.5,
+            0.5,
+            "No results provided",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
         return fig
 
     phi_angles = sorted(results_by_phi.keys())
@@ -131,7 +152,9 @@ def plot_multi_angle_comparison(
     n_angles = len(phi_angles)
 
     fig, axes = plt.subplots(
-        n_params, 1, figsize=(max(6, 1.5 * n_angles), 2.5 * n_params),
+        n_params,
+        1,
+        figsize=(max(6, 1.5 * n_angles), 2.5 * n_params),
         squeeze=False,
     )
 
@@ -150,8 +173,12 @@ def plot_multi_angle_comparison(
         stds_arr = np.array(stds)
 
         ax.errorbar(
-            phi_angles, means_arr, yerr=stds_arr,
-            fmt="o-", capsize=4, markersize=5,
+            phi_angles,
+            means_arr,
+            yerr=stds_arr,
+            fmt="o-",
+            capsize=4,
+            markersize=5,
         )
         ax.set_ylabel(name, fontsize=9)
         ax.tick_params(labelsize=8)

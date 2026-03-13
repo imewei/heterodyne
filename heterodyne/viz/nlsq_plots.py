@@ -101,8 +101,8 @@ def plot_nlsq_fit(
     im0 = axes[0].imshow(
         c2_data,
         extent=[t[0], t[-1], t[-1], t[0]],
-        aspect='auto',
-        cmap='viridis',
+        aspect="auto",
+        cmap="viridis",
     )
     axes[0].set_title("Experimental Data")
     axes[0].set_xlabel("t₂")
@@ -114,15 +114,15 @@ def plot_nlsq_fit(
         im1 = axes[1].imshow(
             result.fitted_correlation,
             extent=[t[0], t[-1], t[-1], t[0]],
-            aspect='auto',
-            cmap='viridis',
+            aspect="auto",
+            cmap="viridis",
         )
         axes[1].set_title("Fitted Model")
         axes[1].set_xlabel("t₂")
         axes[1].set_ylabel("t₁")
         plt.colorbar(im1, ax=axes[1], label="c₂")
     else:
-        axes[1].text(0.5, 0.5, "No fitted correlation", ha='center', va='center')
+        axes[1].text(0.5, 0.5, "No fitted correlation", ha="center", va="center")
         axes[1].set_title("Fitted Model")
 
     # Residual plot
@@ -135,8 +135,8 @@ def plot_nlsq_fit(
         im2 = axes[2].imshow(
             residual_2d,
             extent=[t[0], t[-1], t[-1], t[0]],
-            aspect='auto',
-            cmap='RdBu_r',
+            aspect="auto",
+            cmap="RdBu_r",
             vmin=-vmax,
             vmax=vmax,
         )
@@ -145,18 +145,18 @@ def plot_nlsq_fit(
         axes[2].set_ylabel("t₁")
         plt.colorbar(im2, ax=axes[2], label="Residual")
     else:
-        axes[2].text(0.5, 0.5, "No residuals", ha='center', va='center')
+        axes[2].text(0.5, 0.5, "No residuals", ha="center", va="center")
         axes[2].set_title("Residuals")
 
     # Add fit statistics
     chi2 = result.reduced_chi_squared
     stats_text = f"χ²_red = {chi2:.3f}" if chi2 is not None else ""
-    fig.suptitle(f"NLSQ Fit Results  {stats_text}", fontsize=12, fontweight='bold')
+    fig.suptitle(f"NLSQ Fit Results  {stats_text}", fontsize=12, fontweight="bold")
 
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -198,8 +198,8 @@ def plot_residual_map(
     im = axes[0, 0].imshow(
         residuals,
         extent=[t[0], t[-1], t[-1], t[0]],
-        aspect='auto',
-        cmap='RdBu_r',
+        aspect="auto",
+        cmap="RdBu_r",
         vmin=-vmax,
         vmax=vmax,
     )
@@ -217,15 +217,20 @@ def plot_residual_map(
     # Add normal distribution overlay
     mu, sigma = np.nanmean(residuals), np.nanstd(residuals)
     if sigma > 0:
-        x = np.linspace(mu - 4*sigma, mu + 4*sigma, 100)
-        axes[0, 1].plot(x, np.exp(-(x-mu)**2/(2*sigma**2))/(sigma*np.sqrt(2*np.pi)),
-                        'r-', lw=2, label=f'Normal(μ={mu:.2e}, σ={sigma:.2e})')
+        x = np.linspace(mu - 4 * sigma, mu + 4 * sigma, 100)
+        axes[0, 1].plot(
+            x,
+            np.exp(-((x - mu) ** 2) / (2 * sigma**2)) / (sigma * np.sqrt(2 * np.pi)),
+            "r-",
+            lw=2,
+            label=f"Normal(μ={mu:.2e}, σ={sigma:.2e})",
+        )
     axes[0, 1].legend()
 
     # Residual along diagonal
     diag_residuals = np.diag(residuals)
-    axes[1, 0].plot(t, diag_residuals, 'b-', lw=1)
-    axes[1, 0].axhline(0, color='k', linestyle='--', alpha=0.5)
+    axes[1, 0].plot(t, diag_residuals, "b-", lw=1)
+    axes[1, 0].axhline(0, color="k", linestyle="--", alpha=0.5)
     axes[1, 0].set_xlabel("Time")
     axes[1, 0].set_ylabel("Residual")
     axes[1, 0].set_title("Diagonal Residuals")
@@ -237,7 +242,7 @@ def plot_residual_map(
         alpha=0.1,
         s=1,
     )
-    axes[1, 1].axhline(0, color='r', linestyle='--')
+    axes[1, 1].axhline(0, color="r", linestyle="--")
     axes[1, 1].set_xlabel("Fitted Value")
     axes[1, 1].set_ylabel("Residual")
     axes[1, 1].set_title("Residuals vs Fitted")
@@ -245,7 +250,7 @@ def plot_residual_map(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -277,23 +282,26 @@ def plot_parameter_uncertainties(
         errors = np.zeros(n_params)
 
     # Plot as errorbar
-    ax.errorbar(x, params, yerr=errors, fmt='o', capsize=5, markersize=8)
+    ax.errorbar(x, params, yerr=errors, fmt="o", capsize=5, markersize=8)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(result.parameter_names, rotation=45, ha='right')
+    ax.set_xticklabels(result.parameter_names, rotation=45, ha="right")
     ax.set_ylabel("Parameter Value")
     ax.set_title("Fitted Parameters with Uncertainties")
     ax.grid(True, alpha=0.3)
 
     # Use log scale if values span many orders of magnitude
     nonzero_params = params[params != 0]
-    if len(nonzero_params) > 0 and np.max(np.abs(params)) / np.min(np.abs(nonzero_params)) > 100:
-        ax.set_yscale('symlog')
+    if (
+        len(nonzero_params) > 0
+        and np.max(np.abs(params)) / np.min(np.abs(nonzero_params)) > 100
+    ):
+        ax.set_yscale("symlog")
 
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -553,10 +561,12 @@ def plot_parameter_evolution(
     for p_idx, pname in enumerate(param_names):
         ax: Axes = axes_flat[p_idx]
 
-        param_vals = np.array([
-            float(np.asarray(r["params"])[p_idx]) if "params" in r else np.nan
-            for r in history
-        ])
+        param_vals = np.array(
+            [
+                float(np.asarray(r["params"])[p_idx]) if "params" in r else np.nan
+                for r in history
+            ]
+        )
 
         # Best-so-far trajectory
         best_so_far = np.full(n_attempts, np.nan)
@@ -657,11 +667,12 @@ def plot_scaling_comparison(
     phi_angles = np.asarray(phi_angles)
 
     n_angles = len(phi_angles)
-    for arr, name in ((solver_scaling, "solver_scaling"), (lstsq_scaling, "lstsq_scaling")):
+    for arr, name in (
+        (solver_scaling, "solver_scaling"),
+        (lstsq_scaling, "lstsq_scaling"),
+    ):
         if arr.shape != (n_angles, 2):
-            raise ValueError(
-                f"{name} must have shape ({n_angles}, 2), got {arr.shape}"
-            )
+            raise ValueError(f"{name} must have shape ({n_angles}, 2), got {arr.shape}")
 
     fig, axes = plt.subplots(1, 2, figsize=figsize)
     x = np.arange(n_angles)
@@ -672,18 +683,36 @@ def plot_scaling_comparison(
         solver_vals = solver_scaling[:, col_idx]
         lstsq_vals = lstsq_scaling[:, col_idx]
 
-        ax.bar(x - width / 2, solver_vals, width, label="Solver", alpha=0.75, color="steelblue")
-        ax.bar(x + width / 2, lstsq_vals, width, label="Least-squares", alpha=0.75, color="orange")
+        ax.bar(
+            x - width / 2,
+            solver_vals,
+            width,
+            label="Solver",
+            alpha=0.75,
+            color="steelblue",
+        )
+        ax.bar(
+            x + width / 2,
+            lstsq_vals,
+            width,
+            label="Least-squares",
+            alpha=0.75,
+            color="orange",
+        )
 
         ax.set_xticks(x)
-        ax.set_xticklabels([f"{p:.1f}°" for p in phi_angles], rotation=45, ha="right", fontsize=8)
+        ax.set_xticklabels(
+            [f"{p:.1f}°" for p in phi_angles], rotation=45, ha="right", fontsize=8
+        )
         ax.set_xlabel("phi angle")
         ax.set_ylabel(label)
         ax.set_title(f"{label} — solver vs least-squares", fontweight="bold")
         ax.legend(fontsize=8)
         ax.grid(True, axis="y", alpha=0.3)
 
-    fig.suptitle("Scaling parameter comparison per angle", fontsize=12, fontweight="bold")
+    fig.suptitle(
+        "Scaling parameter comparison per angle", fontsize=12, fontweight="bold"
+    )
     plt.tight_layout()
     _save_fig(fig, save_path, dpi=dpi)
     return fig
@@ -751,10 +780,18 @@ def plot_chi_squared_landscape(
 
     # Delta chi2 = 1 band
     chi2_min = float(np.nanmin(chi2_values))
-    ax.axhline(chi2_min + 1, color="green", linestyle="--", lw=1.5, label="χ²_min + 1 (68% CI)")
+    ax.axhline(
+        chi2_min + 1, color="green", linestyle="--", lw=1.5, label="χ²_min + 1 (68% CI)"
+    )
 
     if best_value is not None:
-        ax.axvline(best_value, color="orange", linestyle=":", lw=2, label=f"Best fit = {best_value:.4g}")
+        ax.axvline(
+            best_value,
+            color="orange",
+            linestyle=":",
+            lw=2,
+            label=f"Best fit = {best_value:.4g}",
+        )
 
     ax.set_xlabel(param_name)
     ax.set_ylabel("Reduced χ²")
@@ -818,9 +855,17 @@ def plot_multistart_summary(
     ax0: Axes = axes[0]
     if len(finite_losses) > 0:
         bins = min(30, max(5, len(finite_losses) // 2))
-        ax0.hist(finite_losses, bins=bins, color="steelblue", alpha=0.75, edgecolor="white")
+        ax0.hist(
+            finite_losses, bins=bins, color="steelblue", alpha=0.75, edgecolor="white"
+        )
         best_loss = float(np.nanmin(finite_losses))
-        ax0.axvline(best_loss, color="red", lw=2, linestyle="--", label=f"Best = {best_loss:.4g}")
+        ax0.axvline(
+            best_loss,
+            color="red",
+            lw=2,
+            linestyle="--",
+            label=f"Best = {best_loss:.4g}",
+        )
         ax0.legend(fontsize=8)
     ax0.set_xlabel("Final loss")
     ax0.set_ylabel("Count")
@@ -831,14 +876,26 @@ def plot_multistart_summary(
     ax1: Axes = axes[1]
     if len(finite_losses) > 0:
         sorted_losses = np.sort(finite_losses)
-        ax1.plot(np.arange(1, len(sorted_losses) + 1), sorted_losses, "o-", ms=4, color="steelblue")
+        ax1.plot(
+            np.arange(1, len(sorted_losses) + 1),
+            sorted_losses,
+            "o-",
+            ms=4,
+            color="steelblue",
+        )
         ax1.set_xlabel("Rank (1 = best)")
         ax1.set_ylabel("Loss")
         ax1.set_title("Sorted loss (rank plot)", fontweight="bold")
         ax1.grid(True, alpha=0.3)
     else:
-        ax1.text(0.5, 0.5, "No finite losses", ha="center", va="center",
-                 transform=ax1.transAxes)
+        ax1.text(
+            0.5,
+            0.5,
+            "No finite losses",
+            ha="center",
+            va="center",
+            transform=ax1.transAxes,
+        )
 
     # Panel 3: convergence pie
     ax2: Axes = axes[2]
@@ -849,7 +906,11 @@ def plot_multistart_summary(
             f"Not converged\n({n_not_converged})",
         ]
         pie_colors = ["green", "tomato"]
-        non_zero = [(v, lab, c) for v, lab, c in zip(pie_vals, pie_labels, pie_colors, strict=True) if v > 0]
+        non_zero = [
+            (v, lab, c)
+            for v, lab, c in zip(pie_vals, pie_labels, pie_colors, strict=True)
+            if v > 0
+        ]
         if non_zero:
             nz_vals, nz_labels, nz_colors = zip(*non_zero, strict=True)
             ax2.pie(

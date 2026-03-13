@@ -77,7 +77,7 @@ def plot_posterior(
     """
     if result.samples is None:
         fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, "No samples available", ha='center', va='center')
+        ax.text(0.5, 0.5, "No samples available", ha="center", va="center")
         return fig
 
     if params is None:
@@ -86,7 +86,7 @@ def plot_posterior(
     n_params = len(params)
     if n_params == 0:
         fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, "No parameters to plot", ha='center', va='center')
+        ax.text(0.5, 0.5, "No parameters to plot", ha="center", va="center")
         return fig
 
     ncols = min(3, n_params)
@@ -104,30 +104,30 @@ def plot_posterior(
         ax = axes[i]
 
         if name not in result.samples:
-            ax.text(0.5, 0.5, f"{name}: No samples", ha='center', va='center')
+            ax.text(0.5, 0.5, f"{name}: No samples", ha="center", va="center")
             continue
 
         samples = result.samples[name].ravel()
 
         # Histogram
-        ax.hist(samples, bins=50, density=True, alpha=0.7, color='steelblue')
+        ax.hist(samples, bins=50, density=True, alpha=0.7, color="steelblue")
 
         # Add mean and credible interval lines
         idx = result.parameter_names.index(name)
         mean = result.posterior_mean[idx]
         std = result.posterior_std[idx]
 
-        ax.axvline(mean, color='red', linestyle='-', lw=2, label=f'Mean: {mean:.3e}')
-        ax.axvline(mean - std, color='red', linestyle='--', alpha=0.5)
-        ax.axvline(mean + std, color='red', linestyle='--', alpha=0.5)
+        ax.axvline(mean, color="red", linestyle="-", lw=2, label=f"Mean: {mean:.3e}")
+        ax.axvline(mean - std, color="red", linestyle="--", alpha=0.5)
+        ax.axvline(mean + std, color="red", linestyle="--", alpha=0.5)
 
         # Credible interval
         if name in result.credible_intervals:
             ci = result.credible_intervals[name]
             if "2.5%" in ci:
-                ax.axvline(ci["2.5%"], color='green', linestyle=':', alpha=0.7)
+                ax.axvline(ci["2.5%"], color="green", linestyle=":", alpha=0.7)
             if "97.5%" in ci:
-                ax.axvline(ci["97.5%"], color='green', linestyle=':', alpha=0.7)
+                ax.axvline(ci["97.5%"], color="green", linestyle=":", alpha=0.7)
 
         ax.set_xlabel(name)
         ax.set_ylabel("Density")
@@ -144,7 +144,7 @@ def plot_posterior(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -167,7 +167,7 @@ def plot_trace(
     """
     if result.samples is None:
         fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, "No samples available", ha='center', va='center')
+        ax.text(0.5, 0.5, "No samples available", ha="center", va="center")
         return fig
 
     if params is None:
@@ -176,7 +176,7 @@ def plot_trace(
     n_params = len(params)
     if n_params == 0:
         fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, "No parameters to plot", ha='center', va='center')
+        ax.text(0.5, 0.5, "No parameters to plot", ha="center", va="center")
         return fig
 
     fig, axes = plt.subplots(n_params, 2, figsize=(12, 3 * n_params))
@@ -210,7 +210,7 @@ def plot_trace(
         # Add statistics
         idx = result.parameter_names.index(name)
         mean = result.posterior_mean[idx]
-        ax_hist.axvline(mean, color='red', linestyle='-', lw=2)
+        ax_hist.axvline(mean, color="red", linestyle="-", lw=2)
 
         ax_hist.set_xlabel(name)
         ax_hist.set_ylabel("Density")
@@ -219,7 +219,7 @@ def plot_trace(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -242,7 +242,7 @@ def plot_corner(
     """
     if result.samples is None:
         fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, "No samples available", ha='center', va='center')
+        ax.text(0.5, 0.5, "No samples available", ha="center", va="center")
         return fig
 
     if params is None:
@@ -251,7 +251,7 @@ def plot_corner(
     n_params = len(params)
     if n_params == 0:
         fig, ax = plt.subplots()
-        ax.text(0.5, 0.5, "No parameters to plot", ha='center', va='center')
+        ax.text(0.5, 0.5, "No parameters to plot", ha="center", va="center")
         return fig
 
     fig, axes = plt.subplots(n_params, n_params, figsize=(2 * n_params, 2 * n_params))
@@ -268,7 +268,9 @@ def plot_corner(
             elif i == j:
                 # Diagonal: histogram
                 if name_i in result.samples:
-                    ax.hist(result.samples[name_i].ravel(), bins=30, density=True, alpha=0.7)
+                    ax.hist(
+                        result.samples[name_i].ravel(), bins=30, density=True, alpha=0.7
+                    )
                 ax.set_yticks([])
             else:
                 # Lower triangle: scatter/contour
@@ -289,7 +291,7 @@ def plot_corner(
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return fig
@@ -368,7 +370,9 @@ def plot_forest(
             chains = [arr.ravel()]
 
         colors = plt.colormaps["tab10"](np.linspace(0, 0.9, len(chains)))
-        offsets = np.linspace(-0.15 * (len(chains) - 1), 0.15 * (len(chains) - 1), len(chains))
+        offsets = np.linspace(
+            -0.15 * (len(chains) - 1), 0.15 * (len(chains) - 1), len(chains)
+        )
 
         for chain_idx, (chain_samples, color, offset) in enumerate(
             zip(chains, colors, offsets, strict=True)
@@ -379,7 +383,12 @@ def plot_forest(
 
             ax.plot([lo, hi], [yi + offset, yi + offset], color=color, lw=3, alpha=0.7)
             ax.plot(
-                mean, yi + offset, "o", color=color, ms=6, zorder=5,
+                mean,
+                yi + offset,
+                "o",
+                color=color,
+                ms=6,
+                zorder=5,
                 label=f"Chain {chain_idx}" if yi == 0 else "",
             )
 
@@ -426,7 +435,9 @@ def plot_energy(
         Matplotlib figure.
     """
     if "energy" not in samples:
-        return _empty_figure("'energy' key not found in samples.\nRun NUTS with energy tracking enabled.")
+        return _empty_figure(
+            "'energy' key not found in samples.\nRun NUTS with energy tracking enabled."
+        )
 
     energy = np.asarray(samples["energy"]).ravel()
     energy_diff = np.diff(energy)
@@ -454,12 +465,18 @@ def plot_energy(
 
     ax.set_xlabel("Energy")
     ax.set_ylabel("Density")
-    ax.set_title("Energy diagnostic (NUTS)\nOverlap indicates good mixing", fontweight="bold")
+    ax.set_title(
+        "Energy diagnostic (NUTS)\nOverlap indicates good mixing", fontweight="bold"
+    )
     ax.legend()
     ax.grid(True, alpha=0.3)
 
     # Annotate with BFMI approximation
-    bfmi = float(np.var(energy_diff) / np.var(energy)) if np.var(energy) > 0 else float("nan")
+    bfmi = (
+        float(np.var(energy_diff) / np.var(energy))
+        if np.var(energy) > 0
+        else float("nan")
+    )
     bfmi_color = "green" if bfmi >= 0.3 else "red"
     ax.text(
         0.97,
@@ -541,10 +558,12 @@ def plot_autocorrelation(
             continue
 
         lags = np.arange(effective_max_lag + 1)
-        acf = np.array([
-            float(np.mean(arr_centered[: n - lag] * arr_centered[lag:])) / var
-            for lag in lags
-        ])
+        acf = np.array(
+            [
+                float(np.mean(arr_centered[: n - lag] * arr_centered[lag:])) / var
+                for lag in lags
+            ]
+        )
 
         ax.bar(lags, acf, color="steelblue", alpha=0.7, width=0.8)
         # 95% significance bands: ±1.96 / sqrt(n)
@@ -675,7 +694,9 @@ def plot_rank_histogram(
     for idx in range(n_params, len(axes_flat)):
         axes_flat[idx].set_visible(False)
 
-    fig.suptitle("Rank Histograms (chain mixing diagnostic)", fontsize=13, fontweight="bold")
+    fig.suptitle(
+        "Rank Histograms (chain mixing diagnostic)", fontsize=13, fontweight="bold"
+    )
     plt.tight_layout()
     _save_fig(fig, save_path, dpi=dpi)
     return fig
@@ -743,13 +764,17 @@ def plot_posterior_predictive(
     vmin = float(np.nanpercentile(c2_obs, 1))
     vmax = float(np.nanpercentile(c2_obs, 99))
 
-    im0 = axes[0].imshow(c2_obs, extent=t_extent, aspect="auto", cmap=cmap_data, vmin=vmin, vmax=vmax)
+    im0 = axes[0].imshow(
+        c2_obs, extent=t_extent, aspect="auto", cmap=cmap_data, vmin=vmin, vmax=vmax
+    )
     axes[0].set_title("Observed c₂")
     axes[0].set_xlabel("t₂")
     axes[0].set_ylabel("t₁")
     plt.colorbar(im0, ax=axes[0], shrink=0.8)
 
-    im1 = axes[1].imshow(c2_mean, extent=t_extent, aspect="auto", cmap=cmap_data, vmin=vmin, vmax=vmax)
+    im1 = axes[1].imshow(
+        c2_mean, extent=t_extent, aspect="auto", cmap=cmap_data, vmin=vmin, vmax=vmax
+    )
     axes[1].set_title("Posterior predictive mean")
     axes[1].set_xlabel("t₂")
     axes[1].set_ylabel("t₁")
@@ -778,7 +803,14 @@ def plot_posterior_predictive(
             diag = np.diag(c2_pred[draw_idx])
             ax_diag.plot(times, diag, color="steelblue", alpha=0.15, lw=0.8)
         ax_diag.plot(times, np.diag(c2_obs), color="black", lw=2, label="Observed")
-        ax_diag.plot(times, np.diag(c2_mean), color="red", lw=2, linestyle="--", label="Pred. mean")
+        ax_diag.plot(
+            times,
+            np.diag(c2_mean),
+            color="red",
+            lw=2,
+            linestyle="--",
+            label="Pred. mean",
+        )
         ax_diag.set_xlabel("Time")
         ax_diag.set_ylabel("c₂(t, t)")
         ax_diag.set_title(f"Diagonal slices ({n_draw} draws)")
@@ -941,12 +973,24 @@ def plot_divergence_scatter(
         ax: Axes = axes_flat[ax_idx]
 
         if px not in samples:
-            ax.text(0.5, 0.5, f"Missing: {px}", ha="center", va="center",
-                    transform=ax.transAxes)
+            ax.text(
+                0.5,
+                0.5,
+                f"Missing: {px}",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
             continue
         if py not in samples:
-            ax.text(0.5, 0.5, f"Missing: {py}", ha="center", va="center",
-                    transform=ax.transAxes)
+            ax.text(
+                0.5,
+                0.5,
+                f"Missing: {py}",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
             continue
 
         x = np.asarray(samples[px]).ravel()
@@ -959,12 +1003,23 @@ def plot_divergence_scatter(
             )
 
         non_div = ~div_mask
-        ax.scatter(x[non_div], y[non_div], s=2, alpha=0.3, color="lightgrey", label="Non-divergent")
+        ax.scatter(
+            x[non_div],
+            y[non_div],
+            s=2,
+            alpha=0.3,
+            color="lightgrey",
+            label="Non-divergent",
+        )
         n_div = int(div_mask.sum())
         if n_div > 0:
             ax.scatter(
-                x[div_mask], y[div_mask],
-                s=20, alpha=0.8, color="red", zorder=5,
+                x[div_mask],
+                y[div_mask],
+                s=20,
+                alpha=0.8,
+                color="red",
+                zorder=5,
                 label=f"Divergent ({n_div})",
             )
 
@@ -980,7 +1035,7 @@ def plot_divergence_scatter(
     n_div_total = int(div_mask.sum())
     n_total = len(div_mask)
     fig.suptitle(
-        f"Divergent transitions  [{n_div_total}/{n_total} = {100*n_div_total/max(n_total,1):.1f}%]",
+        f"Divergent transitions  [{n_div_total}/{n_total} = {100 * n_div_total / max(n_total, 1):.1f}%]",
         fontsize=13,
         fontweight="bold",
     )

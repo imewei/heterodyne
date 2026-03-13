@@ -166,7 +166,9 @@ def _format_cmc_table(result: CMCResult, config: ReportConfig) -> str:
 
     lines.append("")
     lines.append(f"Convergence: {'PASSED' if result.convergence_passed else 'FAILED'}")
-    lines.append(f"Chains: {result.num_chains} | Samples: {result.num_samples} | Warmup: {result.num_warmup}")
+    lines.append(
+        f"Chains: {result.num_chains} | Samples: {result.num_samples} | Warmup: {result.num_warmup}"
+    )
 
     return "\n".join(lines) + "\n"
 
