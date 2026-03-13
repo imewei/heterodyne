@@ -860,10 +860,11 @@ def _perturb_init_params(
     """
     perturbed: dict[str, jnp.ndarray] = {}
     rng_key = jax.random.PRNGKey(seed)
+    param_names = list(init_params.keys())
+    subkeys = jax.random.split(rng_key, num=len(param_names))
 
-    for name, value in init_params.items():
-        rng_key, subkey = jax.random.split(rng_key)
-
+    for i, name in enumerate(param_names):
+        value = init_params[name]
         # Ensure shape (num_chains,)
         base = jnp.broadcast_to(jnp.asarray(value), (num_chains,))
 
@@ -871,7 +872,7 @@ def _perturb_init_params(
         noise = (
             perturbation_scale
             * magnitude
-            * jax.random.normal(subkey, shape=(num_chains,))
+            * jax.random.normal(subkeys[i], shape=(num_chains,))
         )
         perturbed[name] = base + noise
 
