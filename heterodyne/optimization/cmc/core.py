@@ -96,6 +96,16 @@ def fit_cmc_jax(
     space = model.param_manager.space
     varying_names = model.param_manager.varying_names
 
+    # Read fitted contrast/offset from model scaling (angle_idx=0 for per-angle CMC).
+    # After NLSQ, model.scaling holds the fitted values; passing 1.0 defaults would
+    # silently use the wrong scaling and bias the entire posterior.
+    contrast, offset = model.scaling.get_for_angle(0)
+    logger.info(
+        "[CMC] Using contrast=%.4f, offset=%.4f from model scaling",
+        contrast,
+        offset,
+    )
+
     logger.info("[CMC] Sampling %d parameters: %s", len(varying_names), varying_names)
 
     # Validate NLSQ warm-start
@@ -200,6 +210,8 @@ def fit_cmc_jax(
             nlsq_result=nlsq_result,
             reparam_config=reparam_config,
             scalings=scalings,
+            contrast=contrast,
+            offset=offset,
         )
     else:
         numpyro_model = get_heterodyne_model(
@@ -210,6 +222,8 @@ def fit_cmc_jax(
             c2_data=c2_jax,
             sigma=sigma_jax,
             space=space,
+            contrast=contrast,
+            offset=offset,
         )
 
     # --- Phase 3: sampling ---
