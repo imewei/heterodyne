@@ -282,18 +282,12 @@ class ReducedModel(HeterodyneModelBase):
             "_template",
             jnp.array([self._FULL_DEFAULTS[name] for name in ALL_PARAM_NAMES]),
         )
-        object.__setattr__(
-            self,
-            "_active_indices",
-            tuple(ALL_PARAM_NAMES.index(name) for name in self._active_params),
-        )
+        idx_list = [ALL_PARAM_NAMES.index(name) for name in self._active_params]
+        object.__setattr__(self, "_active_indices", tuple(idx_list))
         object.__setattr__(
             self,
             "_active_indices_array",
-            jnp.array(
-                [ALL_PARAM_NAMES.index(name) for name in self._active_params],
-                dtype=jnp.int32,
-            ),
+            jnp.array(idx_list, dtype=jnp.int32),
         )
 
     @property

@@ -11,6 +11,7 @@ needed by the NLSQ strategies.
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING, Any
@@ -195,9 +196,9 @@ def make_varying_residual_fn(
 # Storing the *original* residual_fn alongside the compiled version keeps
 # it alive, preventing Python from recycling its ``id()`` for a different
 # object (which would silently return a stale compiled Jacobian).
-# Bounded to _JAC_CACHE_MAX entries; oldest entries are evicted first.
+# Bounded to _JAC_CACHE_MAX entries; least-recently-used entries evicted first.
 _JAC_CACHE_MAX = 8
-_jac_fn_cache: dict[int, tuple[Any, Any]] = {}
+_jac_fn_cache: OrderedDict[int, tuple[Any, Any]] = OrderedDict()
 
 
 def compute_nlsq_jacobian(
@@ -225,14 +226,16 @@ def compute_nlsq_jacobian(
     """
     fn_id = id(residual_fn)
     entry = _jac_fn_cache.get(fn_id)
-    if entry is None or entry[0] is not residual_fn:
+    if entry is not None and entry[0] is residual_fn:
+        # Cache hit — move to end for LRU ordering
+        _jac_fn_cache.move_to_end(fn_id)
+        compiled = entry[1]
+    else:
         # jacfwd does n_params JVP passes; far cheaper than n_residuals VJPs.
         compiled = jax.jit(jax.jacfwd(residual_fn))
-        # Evict oldest entry if cache is full
+        # Evict LRU entry if cache is full
         if len(_jac_fn_cache) >= _JAC_CACHE_MAX:
-            _jac_fn_cache.pop(next(iter(_jac_fn_cache)))
+            _jac_fn_cache.popitem(last=False)
         _jac_fn_cache[fn_id] = (residual_fn, compiled)
-    else:
-        compiled = entry[1]
     jac = compiled(jnp.asarray(params))
     return np.asarray(jac)

@@ -134,14 +134,16 @@ class ParameterManager:
     def get_full_values(self) -> np.ndarray:
         """Get all 14 parameter values.
 
-        Returns a cached copy; the caller must not mutate the returned array.
+        Returns a read-only cached array (``writeable=False``).
         Use ``.copy()`` if mutation is required.
 
         Returns:
             Array of shape (14,).
         """
         if self._full_values_cache is None:
-            self._full_values_cache = self.space.get_initial_array()
+            arr = self.space.get_initial_array()
+            arr.flags.writeable = False
+            self._full_values_cache = arr
         return self._full_values_cache
 
     def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:

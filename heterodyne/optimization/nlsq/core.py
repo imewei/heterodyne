@@ -329,8 +329,8 @@ def _fit_joint_multi_phi(
     )  # (n_phi, N, N)
     phi_angles_jax = jnp.asarray(phi_angles, dtype=jnp.float64)  # (n_phi,)
 
-    fixed_values = param_manager.get_full_values().copy()
-    varying_indices = param_manager.varying_indices
+    fixed_values_jax = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
+    varying_indices_jax = jnp.array(param_manager.varying_indices, dtype=jnp.int32)
 
     def joint_residual_fn(x: np.ndarray) -> np.ndarray:
         """Compute concatenated residuals across all angles via vmap.
@@ -346,11 +346,9 @@ def _fit_joint_multi_phi(
         physics_varying = x[:n_physics_varying]
         fourier_coeffs = x[n_physics_varying:]
 
-        # Reconstruct full physics parameter array
-        full_params = fixed_values.copy()
-        for j, idx in enumerate(varying_indices):
-            full_params[idx] = physics_varying[j]
-        full_jax = jnp.asarray(full_params, dtype=jnp.float64)
+        # Reconstruct full physics parameter array (immutable JAX scatter)
+        varying_jax = jnp.asarray(physics_varying, dtype=jnp.float64)
+        full_jax = fixed_values_jax.at[varying_indices_jax].set(varying_jax)
 
         # Convert Fourier coefficients → per-angle contrast/offset
         contrast_arr, offset_arr = fourier.fourier_to_per_angle(fourier_coeffs)
