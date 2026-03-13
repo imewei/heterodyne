@@ -454,7 +454,9 @@ def configure_jax_cpu(
     # Configure XLA — strip any previous device-count flag before setting new one
     new_flags = get_jax_cpu_flags(cpu_info, num_devices)
     existing_flags = os.environ.get("XLA_FLAGS", "")
-    cleaned = re.sub(r"--xla_force_host_platform_device_count=\d+", "", existing_flags).strip()
+    cleaned = re.sub(
+        r"--xla_force_host_platform_device_count=\d+", "", existing_flags
+    ).strip()
     xla_flags = f"{cleaned} {new_flags}".strip() if cleaned else new_flags
     os.environ["XLA_FLAGS"] = xla_flags
     env_vars["XLA_FLAGS"] = xla_flags

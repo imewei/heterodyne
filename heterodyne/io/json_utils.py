@@ -25,9 +25,7 @@ def _sanitize_float(value: float) -> float | None:
         ValueError: If value is NaN or Inf
     """
     if math.isnan(value) or math.isinf(value):
-        raise ValueError(
-            f"Cannot serialize non-finite float to JSON: {value!r}"
-        )
+        raise ValueError(f"Cannot serialize non-finite float to JSON: {value!r}")
     return value
 
 

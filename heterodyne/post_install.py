@@ -479,9 +479,13 @@ def interactive_setup() -> None:
         if success:
             print("Shell completion installed successfully!")
             if shell == "zsh":
-                print("Add to ~/.zshrc: source $VIRTUAL_ENV/etc/zsh/heterodyne-completion.zsh")
+                print(
+                    "Add to ~/.zshrc: source $VIRTUAL_ENV/etc/zsh/heterodyne-completion.zsh"
+                )
             elif shell == "bash":
-                print("Add to ~/.bashrc: source $VIRTUAL_ENV/etc/bash_completion.d/heterodyne")
+                print(
+                    "Add to ~/.bashrc: source $VIRTUAL_ENV/etc/bash_completion.d/heterodyne"
+                )
         else:
             print("Shell completion installation failed.")
     print()
@@ -509,7 +513,9 @@ def interactive_setup() -> None:
         print(f"XLA mode set to '{mode}'")
 
     # Install XLA activation
-    response = input("\nAdd XLA config to venv activate script? [Y/n]: ").strip().lower()
+    response = (
+        input("\nAdd XLA config to venv activate script? [Y/n]: ").strip().lower()
+    )
     if response != "n":
         success = install_xla_activation(shell, mode, verbose=True)
         if success:
@@ -538,12 +544,14 @@ Examples:
 """,
     )
     parser.add_argument(
-        "--interactive", "-i",
+        "--interactive",
+        "-i",
         action="store_true",
         help="Run interactive setup (default if no options)",
     )
     parser.add_argument(
-        "--shell", "-s",
+        "--shell",
+        "-s",
         choices=["bash", "zsh", "fish"],
         help="Shell type for completion installation",
     )
@@ -564,7 +572,8 @@ Examples:
         help="XLA configuration mode (default: auto)",
     )
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Verbose output",
     )
@@ -573,9 +582,7 @@ Examples:
 
     # Run interactive setup if no specific options given
     if args.interactive or (
-        not args.no_completion
-        and not args.no_xla
-        and not args.shell
+        not args.no_completion and not args.no_xla and not args.shell
     ):
         interactive_setup()
         return 0

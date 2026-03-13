@@ -1095,9 +1095,7 @@ def log_calls(
                 func_name = f"{func.__module__}.{func.__qualname__}"
                 if include_args:
                     args_str = ", ".join([repr(arg) for arg in args])
-                    kwargs_str = ", ".join(
-                        [f"{k}={v!r}" for k, v in kwargs.items()]
-                    )
+                    kwargs_str = ", ".join([f"{k}={v!r}" for k, v in kwargs.items()])
                     all_args = ", ".join(filter(None, [args_str, kwargs_str]))
                     resolved_logger.log(level, "Calling %s(%s)", func_name, all_args)
                 else:
@@ -1293,7 +1291,9 @@ class ConvergenceLogger:
             status = "PASS" if value >= threshold else "WARN"
         else:
             status = "PASS" if value <= threshold else "WARN"
-        self.logger.info("[%s] %s: %.4f (threshold: %.4f)", status, metric_name, value, threshold)
+        self.logger.info(
+            "[%s] %s: %.4f (threshold: %.4f)", status, metric_name, value, threshold
+        )
 
 
 # Configure default logging on import

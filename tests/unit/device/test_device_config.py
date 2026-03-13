@@ -6,14 +6,13 @@ and device setup using mocks for all system-level and hardware calls.
 
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from heterodyne.device.config import (
-    CMCBackend,
     ClusterType,
+    CMCBackend,
     HardwareConfig,
     _recommend_backend,
     configure_optimal_device,
@@ -25,10 +24,10 @@ from heterodyne.device.config import (
 )
 from heterodyne.device.cpu import CPUInfo
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def basic_cpu() -> CPUInfo:
@@ -49,8 +48,15 @@ def small_cpu() -> CPUInfo:
 def _clean_cluster_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Remove all cluster-related env vars."""
     for key in [
-        "PBS_JOBID", "PBS_NODEFILE", "PBS_ENVIRONMENT", "PBS_NCPUS", "NCPUS",
-        "SLURM_JOB_ID", "SLURM_NODELIST", "SLURM_CLUSTER_NAME", "SLURM_CPUS_PER_TASK",
+        "PBS_JOBID",
+        "PBS_NODEFILE",
+        "PBS_ENVIRONMENT",
+        "PBS_NCPUS",
+        "NCPUS",
+        "SLURM_JOB_ID",
+        "SLURM_NODELIST",
+        "SLURM_CLUSTER_NAME",
+        "SLURM_CPUS_PER_TASK",
     ]:
         monkeypatch.delenv(key, raising=False)
 
@@ -58,6 +64,7 @@ def _clean_cluster_env(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 # ClusterType / CMCBackend enums
 # ---------------------------------------------------------------------------
+
 
 class TestEnums:
     def test_cluster_type_values(self) -> None:
@@ -75,6 +82,7 @@ class TestEnums:
 # ---------------------------------------------------------------------------
 # detect_cluster_type
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.usefixtures("_clean_cluster_env")
 class TestDetectClusterType:
@@ -105,7 +113,9 @@ class TestDetectClusterType:
         monkeypatch.setenv("SLURM_CLUSTER_NAME", "hpc_cluster")
         assert detect_cluster_type() == ClusterType.SLURM
 
-    def test_pbs_takes_precedence_over_slurm(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_pbs_takes_precedence_over_slurm(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """PBS is checked first, so if both are set PBS wins."""
         monkeypatch.setenv("PBS_JOBID", "111")
         monkeypatch.setenv("SLURM_JOB_ID", "222")
@@ -115,6 +125,7 @@ class TestDetectClusterType:
 # ---------------------------------------------------------------------------
 # get_available_memory
 # ---------------------------------------------------------------------------
+
 
 class TestGetAvailableMemory:
     def test_with_psutil(self) -> None:
@@ -153,10 +164,14 @@ class TestGetAvailableMemory:
 # _recommend_backend
 # ---------------------------------------------------------------------------
 
+
 class TestRecommendBackend:
     def test_pbs_cluster(self, basic_cpu: CPUInfo) -> None:
         backend, chains, max_p = _recommend_backend(
-            basic_cpu, ClusterType.PBS, available_cores=8, memory_gb=32.0,
+            basic_cpu,
+            ClusterType.PBS,
+            available_cores=8,
+            memory_gb=32.0,
         )
         assert backend == CMCBackend.PBS
         assert chains <= 8
@@ -164,21 +179,32 @@ class TestRecommendBackend:
 
     def test_slurm_cluster(self, basic_cpu: CPUInfo) -> None:
         backend, chains, max_p = _recommend_backend(
-            basic_cpu, ClusterType.SLURM, available_cores=8, memory_gb=32.0,
+            basic_cpu,
+            ClusterType.SLURM,
+            available_cores=8,
+            memory_gb=32.0,
         )
         assert backend == CMCBackend.SLURM
         assert chains <= 8
 
     def test_standalone_4plus_cores_uses_pjit(self, basic_cpu: CPUInfo) -> None:
         backend, chains, max_p = _recommend_backend(
-            basic_cpu, ClusterType.STANDALONE, available_cores=8, memory_gb=32.0,
+            basic_cpu,
+            ClusterType.STANDALONE,
+            available_cores=8,
+            memory_gb=32.0,
         )
         assert backend == CMCBackend.PJIT
         assert chains >= 4
 
-    def test_standalone_few_cores_uses_multiprocessing(self, small_cpu: CPUInfo) -> None:
+    def test_standalone_few_cores_uses_multiprocessing(
+        self, small_cpu: CPUInfo
+    ) -> None:
         backend, chains, max_p = _recommend_backend(
-            small_cpu, ClusterType.STANDALONE, available_cores=2, memory_gb=16.0,
+            small_cpu,
+            ClusterType.STANDALONE,
+            available_cores=2,
+            memory_gb=16.0,
         )
         assert backend == CMCBackend.MULTIPROCESSING
         assert chains >= 2  # At least 2 for diagnostics
@@ -186,21 +212,30 @@ class TestRecommendBackend:
     def test_memory_limited_chains(self, basic_cpu: CPUInfo) -> None:
         """With very little memory, chains should be capped."""
         backend, chains, max_p = _recommend_backend(
-            basic_cpu, ClusterType.STANDALONE, available_cores=8, memory_gb=3.5,
+            basic_cpu,
+            ClusterType.STANDALONE,
+            available_cores=8,
+            memory_gb=3.5,
         )
         # 3.5 GB / 3.0 GB per chain = 1 chain by memory
         assert max_p <= 2
 
     def test_pbs_memory_limited(self, basic_cpu: CPUInfo) -> None:
         backend, chains, _ = _recommend_backend(
-            basic_cpu, ClusterType.PBS, available_cores=8, memory_gb=4.0,
+            basic_cpu,
+            ClusterType.PBS,
+            available_cores=8,
+            memory_gb=4.0,
         )
         assert chains == 1  # 4.0 / 3.0 = 1
 
     def test_single_core_standalone(self) -> None:
         cpu = CPUInfo(physical_cores=1, logical_cores=1)
         backend, chains, max_p = _recommend_backend(
-            cpu, ClusterType.STANDALONE, available_cores=1, memory_gb=16.0,
+            cpu,
+            ClusterType.STANDALONE,
+            available_cores=1,
+            memory_gb=16.0,
         )
         assert backend == CMCBackend.MULTIPROCESSING
         assert chains >= 2  # min 2 for diagnostics
@@ -208,7 +243,10 @@ class TestRecommendBackend:
 
     def test_large_cluster_caps_at_8_chains(self, large_cpu: CPUInfo) -> None:
         backend, chains, max_p = _recommend_backend(
-            large_cpu, ClusterType.STANDALONE, available_cores=32, memory_gb=256.0,
+            large_cpu,
+            ClusterType.STANDALONE,
+            available_cores=32,
+            memory_gb=256.0,
         )
         assert max_p <= 8
 
@@ -216,6 +254,7 @@ class TestRecommendBackend:
 # ---------------------------------------------------------------------------
 # detect_hardware
 # ---------------------------------------------------------------------------
+
 
 class TestDetectHardware:
     @pytest.mark.usefixtures("_clean_cluster_env")
@@ -232,7 +271,9 @@ class TestDetectHardware:
 
     @pytest.mark.usefixtures("_clean_cluster_env")
     def test_pbs_with_ncpus(
-        self, basic_cpu: CPUInfo, monkeypatch: pytest.MonkeyPatch,
+        self,
+        basic_cpu: CPUInfo,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setenv("PBS_JOBID", "42")
         monkeypatch.setenv("PBS_NCPUS", "24")
@@ -246,7 +287,9 @@ class TestDetectHardware:
 
     @pytest.mark.usefixtures("_clean_cluster_env")
     def test_pbs_invalid_ncpus_falls_back(
-        self, basic_cpu: CPUInfo, monkeypatch: pytest.MonkeyPatch,
+        self,
+        basic_cpu: CPUInfo,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setenv("PBS_JOBID", "42")
         monkeypatch.setenv("PBS_NCPUS", "not_a_number")
@@ -259,7 +302,9 @@ class TestDetectHardware:
 
     @pytest.mark.usefixtures("_clean_cluster_env")
     def test_slurm_cpus_per_task(
-        self, basic_cpu: CPUInfo, monkeypatch: pytest.MonkeyPatch,
+        self,
+        basic_cpu: CPUInfo,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setenv("SLURM_JOB_ID", "99")
         monkeypatch.setenv("SLURM_CPUS_PER_TASK", "16")
@@ -273,7 +318,9 @@ class TestDetectHardware:
 
     @pytest.mark.usefixtures("_clean_cluster_env")
     def test_slurm_invalid_cpus_falls_back(
-        self, basic_cpu: CPUInfo, monkeypatch: pytest.MonkeyPatch,
+        self,
+        basic_cpu: CPUInfo,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setenv("SLURM_JOB_ID", "99")
         monkeypatch.setenv("SLURM_CPUS_PER_TASK", "bad")
@@ -286,7 +333,9 @@ class TestDetectHardware:
 
     @pytest.mark.usefixtures("_clean_cluster_env")
     def test_slurm_no_cpus_per_task(
-        self, basic_cpu: CPUInfo, monkeypatch: pytest.MonkeyPatch,
+        self,
+        basic_cpu: CPUInfo,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setenv("SLURM_JOB_ID", "99")
         with (
@@ -298,7 +347,9 @@ class TestDetectHardware:
 
     @pytest.mark.usefixtures("_clean_cluster_env")
     def test_pbs_ncpus_fallback_var(
-        self, basic_cpu: CPUInfo, monkeypatch: pytest.MonkeyPatch,
+        self,
+        basic_cpu: CPUInfo,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """NCPUS (without PBS_ prefix) should also work."""
         monkeypatch.setenv("PBS_JOBID", "42")
@@ -314,6 +365,7 @@ class TestDetectHardware:
 # ---------------------------------------------------------------------------
 # get_backend_name
 # ---------------------------------------------------------------------------
+
 
 class TestGetBackendName:
     def test_pjit(self) -> None:
@@ -333,10 +385,13 @@ class TestGetBackendName:
 # configure_optimal_device
 # ---------------------------------------------------------------------------
 
+
 class TestConfigureOptimalDevice:
     @pytest.fixture(autouse=True)
     def _mock_hardware(
-        self, basic_cpu: CPUInfo, monkeypatch: pytest.MonkeyPatch,
+        self,
+        basic_cpu: CPUInfo,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Mock detect_hardware and configure_jax_cpu for all tests."""
         self._hw = HardwareConfig(
@@ -353,13 +408,13 @@ class TestConfigureOptimalDevice:
         )
         self._configure_calls: list[tuple[CPUInfo, int | None]] = []
 
-        def mock_configure(cpu_info: CPUInfo, num_devices: int | None = None) -> dict[str, str]:
+        def mock_configure(
+            cpu_info: CPUInfo, num_devices: int | None = None
+        ) -> dict[str, str]:
             self._configure_calls.append((cpu_info, num_devices))
             return {}
 
-        monkeypatch.setattr(
-            "heterodyne.device.cpu.configure_jax_cpu", mock_configure
-        )
+        monkeypatch.setattr("heterodyne.device.cpu.configure_jax_cpu", mock_configure)
 
     def test_auto_mode(self) -> None:
         hw = configure_optimal_device(mode="auto")
@@ -401,6 +456,7 @@ class TestConfigureOptimalDevice:
 # ---------------------------------------------------------------------------
 # get_device_status
 # ---------------------------------------------------------------------------
+
 
 class TestGetDeviceStatus:
     def test_returns_all_sections(self, basic_cpu: CPUInfo) -> None:
@@ -480,6 +536,7 @@ class TestGetDeviceStatus:
 # ---------------------------------------------------------------------------
 # HardwareConfig dataclass
 # ---------------------------------------------------------------------------
+
 
 class TestHardwareConfig:
     def test_construction(self, basic_cpu: CPUInfo) -> None:

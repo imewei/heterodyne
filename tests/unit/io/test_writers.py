@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pytest
@@ -24,7 +22,6 @@ from heterodyne.io.nlsq_writers import (
 )
 from heterodyne.optimization.cmc.results import CMCResult
 from heterodyne.optimization.nlsq.results import NLSQResult
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -231,7 +228,9 @@ class TestNlsqNpzRoundTrip:
         assert saved.suffix == ".npz"
 
         loaded = load_nlsq_npz_file(saved)
-        np.testing.assert_array_almost_equal(loaded.parameters, nlsq_result_full.parameters)
+        np.testing.assert_array_almost_equal(
+            loaded.parameters, nlsq_result_full.parameters
+        )
         assert loaded.parameter_names == nlsq_result_full.parameter_names
         assert loaded.success is True
         assert loaded.final_cost == pytest.approx(0.0025)
@@ -244,9 +243,7 @@ class TestNlsqNpzRoundTrip:
         np.testing.assert_array_almost_equal(
             loaded.residuals, nlsq_result_full.residuals
         )
-        np.testing.assert_array_almost_equal(
-            loaded.jacobian, nlsq_result_full.jacobian
-        )
+        np.testing.assert_array_almost_equal(loaded.jacobian, nlsq_result_full.jacobian)
         np.testing.assert_array_almost_equal(
             loaded.fitted_correlation, nlsq_result_full.fitted_correlation
         )
@@ -266,7 +263,9 @@ class TestNlsqNpzRoundTrip:
         assert loaded.uncertainties is None
         assert loaded.covariance is None
 
-    def test_adds_npz_suffix(self, tmp_path: Path, nlsq_result_minimal: NLSQResult) -> None:
+    def test_adds_npz_suffix(
+        self, tmp_path: Path, nlsq_result_minimal: NLSQResult
+    ) -> None:
         path = tmp_path / "no_ext"
         saved = save_nlsq_npz_file(nlsq_result_minimal, path)
         assert saved.suffix == ".npz"
@@ -372,9 +371,7 @@ class TestSaveMcmcResults:
         assert paths["diagnostics"].exists()
         assert paths["samples"].exists()
 
-    def test_summary_contents(
-        self, tmp_path: Path, cmc_result_full: CMCResult
-    ) -> None:
+    def test_summary_contents(self, tmp_path: Path, cmc_result_full: CMCResult) -> None:
         paths = save_mcmc_results(cmc_result_full, tmp_path)
         data = load_json(paths["summary"])
         assert data["parameter_names"] == ["D0", "alpha", "v0"]
@@ -383,9 +380,7 @@ class TestSaveMcmcResults:
         assert data["map_estimate"] is not None
         assert "timestamp" in data
 
-    def test_custom_prefix(
-        self, tmp_path: Path, cmc_result_minimal: CMCResult
-    ) -> None:
+    def test_custom_prefix(self, tmp_path: Path, cmc_result_minimal: CMCResult) -> None:
         paths = save_mcmc_results(cmc_result_minimal, tmp_path, prefix="cmc_run")
         assert paths["summary"].name == "cmc_run_summary.json"
         assert paths["diagnostics"].name == "cmc_run_diagnostics.json"
@@ -415,9 +410,7 @@ class TestSaveMcmcResults:
 class TestSaveMcmcDiagnostics:
     """Tests for save_mcmc_diagnostics."""
 
-    def test_full_diagnostics(
-        self, tmp_path: Path, cmc_result_full: CMCResult
-    ) -> None:
+    def test_full_diagnostics(self, tmp_path: Path, cmc_result_full: CMCResult) -> None:
         path = tmp_path / "diag.json"
         save_mcmc_diagnostics(cmc_result_full, path)
         data = load_json(path)
@@ -461,7 +454,9 @@ class TestSaveMcmcDiagnostics:
         self, tmp_path: Path, cmc_result_full: CMCResult
     ) -> None:
         path = tmp_path / "diag_custom.json"
-        save_mcmc_diagnostics(cmc_result_full, path, r_hat_threshold=1.005, min_bfmi=0.95)
+        save_mcmc_diagnostics(
+            cmc_result_full, path, r_hat_threshold=1.005, min_bfmi=0.95
+        )
         data = load_json(path)
         # With strict threshold of 1.005, some params should fail
         assert data["r_hat_threshold"] == 1.005
@@ -478,9 +473,7 @@ class TestSaveMcmcDiagnostics:
         assert "min_ess_bulk" not in data
         assert "bfmi" not in data
 
-    def test_sampling_info(
-        self, tmp_path: Path, cmc_result_full: CMCResult
-    ) -> None:
+    def test_sampling_info(self, tmp_path: Path, cmc_result_full: CMCResult) -> None:
         path = tmp_path / "diag.json"
         save_mcmc_diagnostics(cmc_result_full, path)
         data = load_json(path)
@@ -506,9 +499,7 @@ class TestSaveMcmcDiagnostics:
 class TestSavePosteriorSamples:
     """Tests for _save_posterior_samples."""
 
-    def test_saves_samples(
-        self, tmp_path: Path, cmc_result_full: CMCResult
-    ) -> None:
+    def test_saves_samples(self, tmp_path: Path, cmc_result_full: CMCResult) -> None:
         path = tmp_path / "samples.npz"
         _save_posterior_samples(cmc_result_full, path)
         assert path.exists()
@@ -523,9 +514,7 @@ class TestSavePosteriorSamples:
         assert "ess_bulk" in data
         assert "ess_tail" in data
 
-    def test_no_samples(
-        self, tmp_path: Path, cmc_result_minimal: CMCResult
-    ) -> None:
+    def test_no_samples(self, tmp_path: Path, cmc_result_minimal: CMCResult) -> None:
         path = tmp_path / "no_samples.npz"
         _save_posterior_samples(cmc_result_minimal, path)
         data = np.load(path)

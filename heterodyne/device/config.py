@@ -62,8 +62,7 @@ def detect_cluster_type() -> ClusterType:
     """
     # Check for PBS
     if any(
-        key in os.environ
-        for key in ["PBS_JOBID", "PBS_NODEFILE", "PBS_ENVIRONMENT"]
+        key in os.environ for key in ["PBS_JOBID", "PBS_NODEFILE", "PBS_ENVIRONMENT"]
     ):
         return ClusterType.PBS
 
@@ -198,7 +197,9 @@ def _recommend_backend(
         return (CMCBackend.MULTIPROCESSING, chains, max_parallel)
 
 
-def get_backend_name(backend: CMCBackend) -> Literal["pjit", "multiprocessing", "pbs", "slurm"]:
+def get_backend_name(
+    backend: CMCBackend,
+) -> Literal["pjit", "multiprocessing", "pbs", "slurm"]:
     """Get the string name of a CMC backend for configuration.
 
     Args:

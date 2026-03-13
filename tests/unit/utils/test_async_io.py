@@ -9,14 +9,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
 
 import numpy as np
 import numpy.testing as npt
 import pytest
 
 from heterodyne.utils.async_io import AsyncWriter, PrefetchLoader
-
 
 # ---------------------------------------------------------------------------
 # PrefetchLoader

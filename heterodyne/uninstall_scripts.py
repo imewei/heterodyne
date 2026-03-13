@@ -114,7 +114,9 @@ def find_cleanup_targets() -> list[CleanupTarget]:
                 )
 
     # User-level completion directories
-    local_bash = home / ".local" / "share" / "bash-completion" / "completions" / "heterodyne"
+    local_bash = (
+        home / ".local" / "share" / "bash-completion" / "completions" / "heterodyne"
+    )
     targets.append(
         CleanupTarget(
             path=local_bash,
@@ -373,22 +375,26 @@ Examples:
 """,
     )
     parser.add_argument(
-        "--dry-run", "-n",
+        "--dry-run",
+        "-n",
         action="store_true",
         help="Show what would be removed without removing",
     )
     parser.add_argument(
-        "--force", "-f",
+        "--force",
+        "-f",
         action="store_true",
         help="Remove without confirmation",
     )
     parser.add_argument(
-        "--interactive", "-i",
+        "--interactive",
+        "-i",
         action="store_true",
         help="Interactive cleanup (default)",
     )
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Verbose output",
     )

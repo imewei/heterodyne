@@ -64,7 +64,9 @@ class PrefetchLoader[T]:
             raise ValueError(f"max_prefetch must be >= 1, got {max_prefetch}")
         self._iterable = iterable
         self._queue: queue.Queue[Any] = queue.Queue(maxsize=max_prefetch)
-        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="prefetch")
+        self._executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="prefetch"
+        )
         self._future: Future[None] | None = None
         self._started = False
 
@@ -148,7 +150,9 @@ class AsyncWriter:
         if max_pending < 1:
             raise ValueError(f"max_pending must be >= 1, got {max_pending}")
         self._semaphore = threading.Semaphore(max_pending)
-        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="async_writer")
+        self._executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="async_writer"
+        )
         self._closed = False
 
     # ------------------------------------------------------------------
@@ -247,4 +251,6 @@ class AsyncWriter:
 
     def _check_open(self) -> None:
         if self._closed:
-            raise RuntimeError("AsyncWriter has been shut down and cannot accept new writes.")
+            raise RuntimeError(
+                "AsyncWriter has been shut down and cannot accept new writes."
+            )

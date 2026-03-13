@@ -26,10 +26,10 @@ from heterodyne.device.cpu import (
     get_optimal_batch_size,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def basic_cpu() -> CPUInfo:
@@ -101,6 +101,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 # _safe_int
 # ---------------------------------------------------------------------------
 
+
 class TestSafeInt:
     def test_plain_number(self) -> None:
         assert _safe_int("8") == 8
@@ -118,6 +119,7 @@ class TestSafeInt:
 # ---------------------------------------------------------------------------
 # _parse_lscpu
 # ---------------------------------------------------------------------------
+
 
 class TestParseLscpu:
     LSCPU_OUTPUT = (
@@ -187,6 +189,7 @@ class TestParseLscpu:
 # _detect_linux_cpu
 # ---------------------------------------------------------------------------
 
+
 class TestDetectLinuxCpu:
     CPUINFO_CONTENT = (
         "vendor_id\t: GenuineIntel\n"
@@ -225,8 +228,11 @@ class TestDetectLinuxCpu:
     @patch("heterodyne.device.cpu.subprocess.run", side_effect=FileNotFoundError)
     @patch("builtins.open", side_effect=OSError)
     def test_fallback_when_commands_fail(
-        self, mock_open_fn: MagicMock, mock_run: MagicMock,
-        mock_cpu_count: MagicMock, mock_machine: MagicMock,
+        self,
+        mock_open_fn: MagicMock,
+        mock_run: MagicMock,
+        mock_cpu_count: MagicMock,
+        mock_machine: MagicMock,
     ) -> None:
         info = _detect_linux_cpu()
         assert info.physical_cores == 4
@@ -238,8 +244,11 @@ class TestDetectLinuxCpu:
     @patch("heterodyne.device.cpu.subprocess.run", side_effect=FileNotFoundError)
     @patch("builtins.open", side_effect=OSError)
     def test_cpu_count_none_defaults_to_1(
-        self, mock_open_fn: MagicMock, mock_run: MagicMock,
-        mock_cpu_count: MagicMock, mock_machine: MagicMock,
+        self,
+        mock_open_fn: MagicMock,
+        mock_run: MagicMock,
+        mock_cpu_count: MagicMock,
+        mock_machine: MagicMock,
     ) -> None:
         info = _detect_linux_cpu()
         assert info.physical_cores == 1
@@ -247,11 +256,17 @@ class TestDetectLinuxCpu:
 
     @patch("heterodyne.device.cpu.platform.machine", return_value="x86_64")
     @patch("heterodyne.device.cpu.os.cpu_count", return_value=8)
-    @patch("heterodyne.device.cpu.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="lscpu", timeout=5))
+    @patch(
+        "heterodyne.device.cpu.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="lscpu", timeout=5),
+    )
     @patch("builtins.open", side_effect=OSError)
     def test_lscpu_timeout(
-        self, mock_open_fn: MagicMock, mock_run: MagicMock,
-        mock_cpu_count: MagicMock, mock_machine: MagicMock,
+        self,
+        mock_open_fn: MagicMock,
+        mock_run: MagicMock,
+        mock_cpu_count: MagicMock,
+        mock_machine: MagicMock,
     ) -> None:
         info = _detect_linux_cpu()
         # Falls back to os.cpu_count
@@ -262,10 +277,15 @@ class TestDetectLinuxCpu:
     @patch("heterodyne.device.cpu.subprocess.run")
     @patch(
         "builtins.open",
-        mock_open(read_data="vendor_id\t: AuthenticAMD\nmodel name\t: AMD EPYC\nflags\t\t: avx avx2\n"),
+        mock_open(
+            read_data="vendor_id\t: AuthenticAMD\nmodel name\t: AMD EPYC\nflags\t\t: avx avx2\n"
+        ),
     )
     def test_amd_vendor_detection(
-        self, mock_run: MagicMock, mock_cpu_count: MagicMock, mock_machine: MagicMock,
+        self,
+        mock_run: MagicMock,
+        mock_cpu_count: MagicMock,
+        mock_machine: MagicMock,
     ) -> None:
         mock_run.return_value = MagicMock(returncode=1, stdout="")
         info = _detect_linux_cpu()
@@ -277,12 +297,16 @@ class TestDetectLinuxCpu:
 # _detect_macos_cpu
 # ---------------------------------------------------------------------------
 
+
 class TestDetectMacosCpu:
     @patch("heterodyne.device.cpu.platform.machine", return_value="arm64")
     @patch("heterodyne.device.cpu.os.cpu_count", return_value=10)
     @patch("heterodyne.device.cpu.subprocess.run")
     def test_apple_silicon(
-        self, mock_run: MagicMock, mock_cpu_count: MagicMock, mock_machine: MagicMock,
+        self,
+        mock_run: MagicMock,
+        mock_cpu_count: MagicMock,
+        mock_machine: MagicMock,
     ) -> None:
         def sysctl_side_effect(args: list[str], **kwargs: object) -> MagicMock:
             key = args[2]
@@ -308,7 +332,10 @@ class TestDetectMacosCpu:
     @patch("heterodyne.device.cpu.os.cpu_count", return_value=12)
     @patch("heterodyne.device.cpu.subprocess.run")
     def test_intel_mac(
-        self, mock_run: MagicMock, mock_cpu_count: MagicMock, mock_machine: MagicMock,
+        self,
+        mock_run: MagicMock,
+        mock_cpu_count: MagicMock,
+        mock_machine: MagicMock,
     ) -> None:
         def sysctl_side_effect(args: list[str], **kwargs: object) -> MagicMock:
             key = args[2]
@@ -338,7 +365,10 @@ class TestDetectMacosCpu:
     @patch("heterodyne.device.cpu.os.cpu_count", return_value=4)
     @patch("heterodyne.device.cpu.subprocess.run", side_effect=FileNotFoundError)
     def test_sysctl_not_found(
-        self, mock_run: MagicMock, mock_cpu_count: MagicMock, mock_machine: MagicMock,
+        self,
+        mock_run: MagicMock,
+        mock_cpu_count: MagicMock,
+        mock_machine: MagicMock,
     ) -> None:
         info = _detect_macos_cpu()
         # Falls back to os.cpu_count
@@ -349,6 +379,7 @@ class TestDetectMacosCpu:
 # ---------------------------------------------------------------------------
 # _detect_fallback_cpu
 # ---------------------------------------------------------------------------
+
 
 class TestDetectFallbackCpu:
     @patch("heterodyne.device.cpu.platform.machine", return_value="x86_64")
@@ -362,7 +393,9 @@ class TestDetectFallbackCpu:
 
     @patch("heterodyne.device.cpu.platform.machine", return_value="aarch64")
     @patch("heterodyne.device.cpu.os.cpu_count", return_value=None)
-    def test_cpu_count_none(self, mock_count: MagicMock, mock_machine: MagicMock) -> None:
+    def test_cpu_count_none(
+        self, mock_count: MagicMock, mock_machine: MagicMock
+    ) -> None:
         info = _detect_fallback_cpu()
         assert info.physical_cores == 1
         assert info.logical_cores == 1
@@ -371,6 +404,7 @@ class TestDetectFallbackCpu:
 # ---------------------------------------------------------------------------
 # detect_cpu_info  (dispatcher)
 # ---------------------------------------------------------------------------
+
 
 class TestDetectCpuInfo:
     @patch("heterodyne.device.cpu.platform.system", return_value="Linux")
@@ -393,13 +427,14 @@ class TestDetectCpuInfo:
     @patch("heterodyne.device.cpu._detect_fallback_cpu")
     def test_dispatches_windows(self, mock_fn: MagicMock, mock_sys: MagicMock) -> None:
         mock_fn.return_value = CPUInfo(physical_cores=4, logical_cores=8)
-        info = detect_cpu_info()
+        _info = detect_cpu_info()
         mock_fn.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
 # configure_cpu_hpc
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.usefixtures("_clean_env")
 class TestConfigureCpuHpc:
@@ -459,6 +494,7 @@ class TestConfigureCpuHpc:
 # get_jax_cpu_flags
 # ---------------------------------------------------------------------------
 
+
 class TestGetJaxCpuFlags:
     def test_device_count_equals_physical_cores(self, basic_cpu: CPUInfo) -> None:
         flags = get_jax_cpu_flags(basic_cpu)
@@ -490,6 +526,7 @@ class TestGetJaxCpuFlags:
 # ---------------------------------------------------------------------------
 # configure_jax_cpu
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.usefixtures("_clean_env")
 class TestConfigureJaxCpu:
@@ -534,6 +571,7 @@ class TestConfigureJaxCpu:
 # get_optimal_batch_size
 # ---------------------------------------------------------------------------
 
+
 class TestGetOptimalBatchSize:
     def test_returns_power_of_two(self, basic_cpu: CPUInfo) -> None:
         batch = get_optimal_batch_size(basic_cpu, data_size=1000)
@@ -573,6 +611,7 @@ class TestGetOptimalBatchSize:
 # ---------------------------------------------------------------------------
 # CPUInfo dataclass
 # ---------------------------------------------------------------------------
+
 
 class TestCPUInfoDataclass:
     def test_defaults(self) -> None:

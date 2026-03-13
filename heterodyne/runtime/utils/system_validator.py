@@ -225,9 +225,9 @@ class SystemValidator:
 
             # Parse version (strip pre-release suffixes like dev, rc, etc.)
             major, minor, *_ = version.split(".")
-            major_match = re.match(r'(\d+)', major)
+            major_match = re.match(r"(\d+)", major)
             minor_clean = minor.split("+")[0].split("rc")[0]
-            minor_match = re.match(r'(\d+)', minor_clean)
+            minor_match = re.match(r"(\d+)", minor_clean)
             major = int(major_match.group(1)) if major_match else 0
             minor = int(minor_match.group(1)) if minor_match else 0
 
@@ -348,7 +348,7 @@ class SystemValidator:
                     blas_name = blas_info.get("name", "unknown")
                 else:
                     blas_name = "unknown"
-            except Exception:
+            except (AttributeError, KeyError, TypeError):
                 blas_name = "unknown"
 
             details = {
@@ -357,7 +357,7 @@ class SystemValidator:
             }
 
             # Check version (numpy 2.x required, strip pre-release suffixes)
-            major_match = re.match(r'(\d+)', version.split(".")[0])
+            major_match = re.match(r"(\d+)", version.split(".")[0])
             major = int(major_match.group(1)) if major_match else 0
             if major >= 2:
                 return ValidationResult(
@@ -399,8 +399,8 @@ class SystemValidator:
 
             # Check version (0.19+ required, strip pre-release suffixes)
             parts = version.split(".")[:2]
-            major_match = re.match(r'(\d+)', parts[0])
-            minor_match = re.match(r'(\d+)', parts[1])
+            major_match = re.match(r"(\d+)", parts[0])
+            minor_match = re.match(r"(\d+)", parts[1])
             major = int(major_match.group(1)) if major_match else 0
             minor = int(minor_match.group(1)) if minor_match else 0
             if (major, minor) >= (0, 19):
@@ -487,21 +487,16 @@ def main() -> int:
         description="Validate heterodyne installation and configuration"
     )
     parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Show detailed output"
+        "-v", "--verbose", action="store_true", help="Show detailed output"
     )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output results as JSON"
-    )
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
     args = parser.parse_args()
 
     results = run_validation(verbose=args.verbose and not args.json)
 
     if args.json:
         import json
+
         output = [
             {
                 "name": r.name,
@@ -518,7 +513,7 @@ def main() -> int:
         # Summary
         passed = sum(1 for r in results if r.success)
         total = len(results)
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"Validation complete: {passed}/{total} tests passed")
 
         # Show remediations for failures

@@ -52,7 +52,9 @@ def save_mcmc_results(
             "posterior_mean": json_safe(result.posterior_mean),
             "posterior_std": json_safe(result.posterior_std),
             "credible_intervals": json_safe(result.credible_intervals),
-            "map_estimate": json_safe(result.map_estimate) if result.map_estimate is not None else None,
+            "map_estimate": json_safe(result.map_estimate)
+            if result.map_estimate is not None
+            else None,
             "timestamp": datetime.now().isoformat(),
             "num_samples": result.num_samples,
             "num_chains": result.num_chains,
@@ -126,9 +128,7 @@ def save_mcmc_diagnostics(
     if result.r_hat is not None:
         diagnostics["max_r_hat"] = float(np.max(result.r_hat))
         diagnostics["r_hat_threshold"] = r_hat_threshold
-        diagnostics["all_r_hat_passed"] = bool(
-            np.all(result.r_hat < r_hat_threshold)
-        )
+        diagnostics["all_r_hat_passed"] = bool(np.all(result.r_hat < r_hat_threshold))
 
     if result.ess_bulk is not None:
         diagnostics["min_ess_bulk"] = float(np.min(result.ess_bulk))
@@ -221,15 +221,19 @@ def format_mcmc_summary(result: CMCResult) -> str:
             f"{name:20s} {mean:12.4e} {std:10.2e} {ci_low:12.4e} {ci_high:12.4e} {r_hat_str:>8s}"
         )
 
-    lines.extend([
-        "-" * 70,
-        "",
-        "Diagnostics:",
-    ])
+    lines.extend(
+        [
+            "-" * 70,
+            "",
+            "Diagnostics:",
+        ]
+    )
 
     if result.r_hat is not None:
         max_rhat = np.max(result.r_hat)
-        lines.append(f"  Max R-hat: {max_rhat:.4f} {'(PASS)' if max_rhat < 1.1 else '(WARN)'}")
+        lines.append(
+            f"  Max R-hat: {max_rhat:.4f} {'(PASS)' if max_rhat < 1.1 else '(WARN)'}"
+        )
 
     if result.ess_bulk is not None:
         min_ess = np.min(result.ess_bulk)
@@ -237,7 +241,9 @@ def format_mcmc_summary(result: CMCResult) -> str:
 
     if result.bfmi is not None:
         min_bfmi = np.min(result.bfmi)
-        lines.append(f"  Min BFMI: {min_bfmi:.3f} {'(PASS)' if min_bfmi > 0.3 else '(WARN)'}")
+        lines.append(
+            f"  Min BFMI: {min_bfmi:.3f} {'(PASS)' if min_bfmi > 0.3 else '(WARN)'}"
+        )
 
     if result.wall_time_seconds is not None:
         lines.append(f"  Wall time: {result.wall_time_seconds:.1f} s")

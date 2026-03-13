@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import json
-import math
 from datetime import datetime
 from pathlib import Path
-from typing import Any
-from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -19,7 +16,6 @@ from heterodyne.io.json_utils import (
     load_json,
     save_json,
 )
-
 
 # ---------------------------------------------------------------------------
 # _sanitize_float

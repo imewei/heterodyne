@@ -9,7 +9,6 @@ ConvergenceLogger, with_context, configure_from_dict, PhaseContext.
 from __future__ import annotations
 
 import logging
-import math
 import tempfile
 import time
 from pathlib import Path
@@ -36,7 +35,6 @@ from heterodyne.utils.logging import (
     log_phase,
     with_context,
 )
-
 
 # ============================================================================
 # _resolve_level
@@ -72,7 +70,9 @@ class TestResolveLevel:
 class TestColorFormatter:
     """Tests for _ColorFormatter."""
 
-    def _make_record(self, level: int = logging.INFO, msg: str = "test") -> logging.LogRecord:
+    def _make_record(
+        self, level: int = logging.INFO, msg: str = "test"
+    ) -> logging.LogRecord:
         return logging.LogRecord(
             name="test",
             level=level,
@@ -84,7 +84,9 @@ class TestColorFormatter:
         )
 
     def test_color_enabled_adds_ansi(self) -> None:
-        fmt = _ColorFormatter(fmt="%(levelname)s %(message)s", datefmt=None, use_color=True)
+        fmt = _ColorFormatter(
+            fmt="%(levelname)s %(message)s", datefmt=None, use_color=True
+        )
         record = self._make_record(logging.ERROR, "boom")
         output = fmt.format(record)
         assert "\033[31m" in output  # Red for ERROR
@@ -93,7 +95,9 @@ class TestColorFormatter:
         assert record.levelname == "ERROR"
 
     def test_color_disabled_no_ansi(self) -> None:
-        fmt = _ColorFormatter(fmt="%(levelname)s %(message)s", datefmt=None, use_color=False)
+        fmt = _ColorFormatter(
+            fmt="%(levelname)s %(message)s", datefmt=None, use_color=False
+        )
         record = self._make_record(logging.INFO, "hello")
         output = fmt.format(record)
         assert "\033[" not in output
@@ -171,12 +175,14 @@ class TestLogConfiguration:
         assert config.file_rotation_mb == 10
 
     def test_from_dict_custom(self) -> None:
-        config = LogConfiguration.from_dict({
-            "console_level": "DEBUG",
-            "console_colors": True,
-            "file_enabled": False,
-            "module_overrides": {"jax": "ERROR"},
-        })
+        config = LogConfiguration.from_dict(
+            {
+                "console_level": "DEBUG",
+                "console_colors": True,
+                "file_enabled": False,
+                "module_overrides": {"jax": "ERROR"},
+            }
+        )
         assert config.console_level == "DEBUG"
         assert config.console_colors is True
         assert config.file_enabled is False
@@ -744,7 +750,9 @@ class TestLogException:
         try:
             raise ValueError("warn-level")
         except ValueError as e:
-            log_exception(mock_logger, e, level=logging.WARNING, include_traceback=False)
+            log_exception(
+                mock_logger, e, level=logging.WARNING, include_traceback=False
+            )
 
         assert mock_logger.log.call_args[0][0] == logging.WARNING
 
@@ -844,10 +852,7 @@ class TestLogCalls:
         assert result == 42
         # Only entry/exit check calls, no actual log.
         # The decorator should still work even if logging disabled
-        assert not any(
-            c[0][0] == logging.DEBUG
-            for c in mock_logger.log.call_args_list
-        )
+        assert not any(c[0][0] == logging.DEBUG for c in mock_logger.log.call_args_list)
 
     def test_exception_when_logging_disabled(self) -> None:
         mock_logger = MagicMock()
@@ -886,8 +891,7 @@ class TestLogPerformance:
         assert result == 1
         # Should NOT log since duration < threshold
         perf_calls = [
-            c for c in mock_logger.log.call_args_list
-            if c[0][0] == logging.INFO
+            c for c in mock_logger.log.call_args_list if c[0][0] == logging.INFO
         ]
         assert len(perf_calls) == 0
 
@@ -900,8 +904,7 @@ class TestLogPerformance:
 
         any_func()
         perf_calls = [
-            c for c in mock_logger.log.call_args_list
-            if c[0][0] == logging.INFO
+            c for c in mock_logger.log.call_args_list if c[0][0] == logging.INFO
         ]
         assert len(perf_calls) >= 1
         assert "Performance:" in str(perf_calls[0])
@@ -917,8 +920,7 @@ class TestLogPerformance:
             fail_func()
 
         error_calls = [
-            c for c in mock_logger.log.call_args_list
-            if c[0][0] == logging.ERROR
+            c for c in mock_logger.log.call_args_list if c[0][0] == logging.ERROR
         ]
         assert len(error_calls) >= 1
         assert "failed after" in str(error_calls[0])

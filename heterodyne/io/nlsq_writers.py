@@ -41,7 +41,9 @@ def save_nlsq_json_files(
     # Parameters file
     params_data = {
         "parameters": json_safe(result.parameters),
-        "uncertainties": json_safe(result.uncertainties) if result.uncertainties is not None else None,
+        "uncertainties": json_safe(result.uncertainties)
+        if result.uncertainties is not None
+        else None,
         "parameter_names": result.parameter_names,
         "timestamp": datetime.now().isoformat(),
     }
@@ -55,8 +57,12 @@ def save_nlsq_json_files(
         "message": result.message,
         "n_iterations": result.n_iterations,
         "n_function_evals": result.n_function_evals,
-        "final_cost": float(result.final_cost) if result.final_cost is not None else None,
-        "reduced_chi_squared": float(result.reduced_chi_squared) if result.reduced_chi_squared is not None else None,
+        "final_cost": float(result.final_cost)
+        if result.final_cost is not None
+        else None,
+        "reduced_chi_squared": float(result.reduced_chi_squared)
+        if result.reduced_chi_squared is not None
+        else None,
         "convergence_reason": result.convergence_reason,
         "wall_time_seconds": result.wall_time_seconds,
     }
@@ -95,7 +101,9 @@ def save_nlsq_npz_file(
         "parameters": np.asarray(result.parameters),
         "parameter_names": np.array(result.parameter_names, dtype="U64"),
         "success": np.array(result.success),
-        "final_cost": np.array(result.final_cost if result.final_cost is not None else np.nan),
+        "final_cost": np.array(
+            result.final_cost if result.final_cost is not None else np.nan
+        ),
     }
 
     if result.uncertainties is not None:
@@ -144,7 +152,9 @@ def load_nlsq_npz_file(path: Path | str) -> NLSQResult:
     covariance = data["covariance"] if "covariance" in data else None
     residuals = data["residuals"] if "residuals" in data else None
     jacobian = data["jacobian"] if "jacobian" in data else None
-    fitted_correlation = data["fitted_correlation"] if "fitted_correlation" in data else None
+    fitted_correlation = (
+        data["fitted_correlation"] if "fitted_correlation" in data else None
+    )
 
     return NLSQResult(
         parameters=parameters,
@@ -188,13 +198,15 @@ def format_nlsq_summary(result: NLSQResult) -> str:
         else:
             lines.append(f"  {name:20s}: {value:12.6e}")
 
-    lines.extend([
-        "",
-        "Fit Statistics:",
-        "-" * 40,
-        f"  Iterations:          {result.n_iterations}",
-        f"  Function evaluations: {result.n_function_evals}",
-    ])
+    lines.extend(
+        [
+            "",
+            "Fit Statistics:",
+            "-" * 40,
+            f"  Iterations:          {result.n_iterations}",
+            f"  Function evaluations: {result.n_function_evals}",
+        ]
+    )
 
     if result.final_cost is not None:
         lines.append(f"  Final cost:          {result.final_cost:.6e}")
