@@ -1,6 +1,6 @@
 # Enable float64 for JAX before any imports - required for scientific computing precision
 # This must be set before JAX is imported
-# ruff: noqa: E402, I001
+# ruff: noqa: E402
 from __future__ import annotations
 
 import os
@@ -108,7 +108,7 @@ def __getattr__(name: str) -> object:
 
     # Check module availability flags
     if name in _MODULE_FLAGS:
-        module_path, description = _MODULE_FLAGS[name]
+        module_path, _description = _MODULE_FLAGS[name]
         import importlib
 
         try:
