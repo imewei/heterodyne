@@ -142,14 +142,13 @@ def precompute_shard_grid_from_matrix(
 # ---------------------------------------------------------------------------
 
 
-@jax.jit
 def compute_transport_elementwise(
     shard_grid: ShardGrid,
-    D0: float,
-    alpha: float,
-    offset: float,
-    q: float,
-    dt: float,
+    D0: float | jnp.ndarray,
+    alpha: float | jnp.ndarray,
+    offset: float | jnp.ndarray,
+    q: float | jnp.ndarray,
+    dt: float | jnp.ndarray,
 ) -> jnp.ndarray:
     """Element-wise half-transport: exp(-½q²|∫J dt|) at paired indices.
 
@@ -180,13 +179,12 @@ def compute_transport_elementwise(
     return jnp.exp(jnp.clip(log_ht, -700.0, 0.0))
 
 
-@jax.jit
 def compute_velocity_elementwise(
     shard_grid: ShardGrid,
-    v0: float,
-    beta: float,
-    v_offset: float,
-    dt: float,
+    v0: float | jnp.ndarray,
+    beta: float | jnp.ndarray,
+    v_offset: float | jnp.ndarray,
+    dt: float | jnp.ndarray,
 ) -> jnp.ndarray:
     """Element-wise velocity integral at paired indices.
 

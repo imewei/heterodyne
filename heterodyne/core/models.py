@@ -287,6 +287,14 @@ class ReducedModel(HeterodyneModelBase):
             "_active_indices",
             tuple(ALL_PARAM_NAMES.index(name) for name in self._active_params),
         )
+        object.__setattr__(
+            self,
+            "_active_indices_array",
+            jnp.array(
+                [ALL_PARAM_NAMES.index(name) for name in self._active_params],
+                dtype=jnp.int32,
+            ),
+        )
 
     @property
     def n_params(self) -> int:
@@ -314,10 +322,7 @@ class ReducedModel(HeterodyneModelBase):
         Returns:
             Full parameter array, shape (14,)
         """
-        template: jnp.ndarray = self._template  # type: ignore[attr-defined]
-        for i, idx in enumerate(self._active_indices):  # type: ignore[attr-defined]
-            template = template.at[idx].set(params[i])
-        return template
+        return self._template.at[self._active_indices_array].set(params)  # type: ignore[attr-defined,no-any-return]
 
     def compute_correlation(
         self,

@@ -162,7 +162,6 @@ def symmetrize(matrix: jnp.ndarray | np.ndarray) -> jnp.ndarray:
 # ---------------------------------------------------------------------------
 
 
-@jax.jit
 def smooth_abs(x: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
     """Gradient-safe absolute value: sqrt(x² + ε).
 
@@ -181,8 +180,7 @@ def smooth_abs(x: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
     return jnp.sqrt(x**2 + eps)
 
 
-@jax.jit
-def trapezoid_cumsum(f: jnp.ndarray, dt: float) -> jnp.ndarray:
+def trapezoid_cumsum(f: jnp.ndarray, dt: float | jnp.ndarray) -> jnp.ndarray:
     """Trapezoidal cumulative integral with O(dt²) accuracy.
 
     Computes cumsum[0] = 0, cumsum[k] = Σ_{i=0}^{k-1} (f[i]+f[i+1])/2 × dt.
@@ -202,7 +200,6 @@ def trapezoid_cumsum(f: jnp.ndarray, dt: float) -> jnp.ndarray:
     return jnp.concatenate([jnp.zeros(1), jnp.cumsum(midpoints) * dt])
 
 
-@jax.jit
 def create_time_integral_matrix(cumsum_values: jnp.ndarray) -> jnp.ndarray:
     """Build N×N integral matrix from cumulative sums (NLSQ meshgrid path).
 
@@ -221,12 +218,11 @@ def create_time_integral_matrix(cumsum_values: jnp.ndarray) -> jnp.ndarray:
     return cumsum_values[None, :] - cumsum_values[:, None]
 
 
-@jax.jit
 def compute_transport_rate(
     t: jnp.ndarray,
-    D0: float,
-    alpha: float,
-    offset: float,
+    D0: float | jnp.ndarray,
+    alpha: float | jnp.ndarray,
+    offset: float | jnp.ndarray,
 ) -> jnp.ndarray:
     """Transport rate function J(t) = D0·t^α + offset.
 
@@ -254,12 +250,11 @@ def compute_transport_rate(
     return jnp.maximum(rate, 0.0)
 
 
-@jax.jit
 def compute_velocity_rate(
     t: jnp.ndarray,
-    v0: float,
-    beta: float,
-    v_offset: float,
+    v0: float | jnp.ndarray,
+    beta: float | jnp.ndarray,
+    v_offset: float | jnp.ndarray,
 ) -> jnp.ndarray:
     """Velocity rate function v(t) = v0·t^β + v_offset.
 

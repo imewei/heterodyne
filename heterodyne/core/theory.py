@@ -22,6 +22,7 @@ from __future__ import annotations
 import jax.numpy as jnp
 import numpy as np
 
+from heterodyne.core.jax_backend import batch_chi_squared
 from heterodyne.core.physics_utils import (
     create_time_integral_matrix,
     smooth_abs,
@@ -373,12 +374,20 @@ class TheoryEngine:
                 f"Expected {self.n_params} params per set, got {params_batch.shape[1]}"
             )
 
-        results = np.empty(params_batch.shape[0])
-        for i, params in enumerate(params_batch):
-            results[i] = self.compute_chi_squared(
-                jnp.array(params), c2_data, phi_angle, weights, contrast, offset
+        w = jnp.ones_like(c2_data) if weights is None else jnp.asarray(weights)
+        return np.asarray(
+            batch_chi_squared(
+                jnp.asarray(params_batch),
+                self.t,
+                self.q,
+                self.dt,
+                phi_angle,
+                c2_data,
+                w,
+                contrast,
+                offset,
             )
-        return results
+        )
 
     def estimate_computation_cost(
         self,
