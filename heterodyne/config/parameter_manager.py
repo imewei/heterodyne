@@ -49,11 +49,21 @@ class ParameterManager:
     space: ParameterSpace = field(default_factory=ParameterSpace)
 
     # Performance caching — populated lazily via __post_init__
-    _bounds_cache: dict[str, list[BoundDict]] = field(
+    _bounds_cache: dict[frozenset[str], list[BoundDict]] = field(
         default_factory=dict, init=False, repr=False
     )
     _active_params_cache: list[str] | None = field(default=None, init=False, repr=False)
     _cache_enabled: bool = field(default=True, init=False, repr=False)
+
+    # B006: cached index lists (invalidated by set_vary)
+    _varying_indices_cache: list[int] | None = field(
+        default=None, init=False, repr=False
+    )
+    _fixed_indices_cache: list[int] | None = field(default=None, init=False, repr=False)
+    _varying_names_cache: list[str] | None = field(default=None, init=False, repr=False)
+
+    # B007: cached full-values array (invalidated by update_values)
+    _full_values_cache: np.ndarray | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Build default bounds lookup from the registry."""
@@ -86,25 +96,31 @@ class ParameterManager:
     @property
     def varying_names(self) -> list[str]:
         """Names of varying physics parameters (excludes scaling)."""
-        return self.space.varying_physics_names
+        if self._varying_names_cache is None:
+            self._varying_names_cache = self.space.varying_physics_names
+        return list(self._varying_names_cache)
 
     @property
     def varying_indices(self) -> list[int]:
         """Indices of varying parameters in the 14-element physics array."""
-        return [
-            i
-            for i, name in enumerate(ALL_PARAM_NAMES)
-            if self.space.vary.get(name, False)
-        ]
+        if self._varying_indices_cache is None:
+            self._varying_indices_cache = [
+                i
+                for i, name in enumerate(ALL_PARAM_NAMES)
+                if self.space.vary.get(name, False)
+            ]
+        return list(self._varying_indices_cache)
 
     @property
     def fixed_indices(self) -> list[int]:
         """Indices of fixed parameters in the 14-element physics array."""
-        return [
-            i
-            for i, name in enumerate(ALL_PARAM_NAMES)
-            if not self.space.vary.get(name, False)
-        ]
+        if self._fixed_indices_cache is None:
+            self._fixed_indices_cache = [
+                i
+                for i, name in enumerate(ALL_PARAM_NAMES)
+                if not self.space.vary.get(name, False)
+            ]
+        return list(self._fixed_indices_cache)
 
     def get_initial_values(self) -> np.ndarray:
         """Get initial parameter values for optimization.
@@ -118,10 +134,15 @@ class ParameterManager:
     def get_full_values(self) -> np.ndarray:
         """Get all 14 parameter values.
 
+        Returns a cached copy; the caller must not mutate the returned array.
+        Use ``.copy()`` if mutation is required.
+
         Returns:
             Array of shape (14,).
         """
-        return self.space.get_initial_array()
+        if self._full_values_cache is None:
+            self._full_values_cache = self.space.get_initial_array()
+        return self._full_values_cache
 
     def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:
         """Get bounds for varying physics parameters.
@@ -147,7 +168,7 @@ class ParameterManager:
         Returns:
             Array of shape (14,).
         """
-        full = self.space.get_initial_array().copy()
+        full = self.get_full_values().copy()
         for i, idx in enumerate(self.varying_indices):
             full[idx] = float(varying_params[i])
         return full
@@ -174,6 +195,8 @@ class ParameterManager:
         else:
             params_dict = self.space.array_to_dict(np.asarray(params))
             self.space.update_from_dict(params_dict)
+        # Invalidate full-values cache — values have changed
+        self._full_values_cache = None
 
     def get_parameter_dict(self) -> dict[str, float]:
         """Get current parameter values as dictionary."""
@@ -191,8 +214,11 @@ class ParameterManager:
         if name not in ALL_PARAM_NAMES_WITH_SCALING:
             raise ValueError(f"Unknown parameter: {name}")
         self.space.vary[name] = vary
-        # Varying status change affects active/fixed caches
+        # Varying status change affects active/fixed and index caches
         self._active_params_cache = None
+        self._varying_names_cache = None
+        self._varying_indices_cache = None
+        self._fixed_indices_cache = None
 
     def set_bounds(self, name: str, lower: float, upper: float) -> None:
         """Set bounds for a parameter.
@@ -281,7 +307,7 @@ class ParameterManager:
         if parameter_names is None:
             parameter_names = list(ALL_PARAM_NAMES_WITH_SCALING)
 
-        cache_key = str(sorted(parameter_names))
+        cache_key = frozenset(parameter_names)
 
         if self._cache_enabled and cache_key in self._bounds_cache:
             logger.debug(

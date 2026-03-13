@@ -157,7 +157,7 @@ class TestValidatePhysics:
         self, param_manager: ParameterManager
     ) -> None:
         """validate_physics catches negative diffusion coefficients."""
-        params = param_manager.get_full_values()
+        params = param_manager.get_full_values().copy()
         params[0] = -1.0  # D0_ref
         violations = param_manager.validate_physics(params)
         assert any("D0_ref" in v and "non-negative" in v for v in violations)
@@ -166,7 +166,7 @@ class TestValidatePhysics:
         self, param_manager: ParameterManager
     ) -> None:
         """validate_physics catches fraction params outside [0, 1]."""
-        params = param_manager.get_full_values()
+        params = param_manager.get_full_values().copy()
         params[9] = 1.5  # f0 > 1
         violations = param_manager.validate_physics(params)
         assert any("f0" in v for v in violations)
@@ -175,7 +175,7 @@ class TestValidatePhysics:
         self, param_manager: ParameterManager
     ) -> None:
         """validate_physics warns about extreme alpha values."""
-        params = param_manager.get_full_values()
+        params = param_manager.get_full_values().copy()
         params[1] = 3.0  # alpha_ref > 2
         violations = param_manager.validate_physics(params)
         assert any("alpha_ref" in v and "unusual magnitude" in v for v in violations)
