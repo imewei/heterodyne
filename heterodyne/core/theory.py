@@ -185,9 +185,11 @@ def compute_velocity_field(
         Velocity array, shape (N,)
     """
     t = jnp.asarray(t)
-    # Use t > 1e-10 threshold consistent with compute_velocity_rate in physics_utils.py
+    # Use jnp.where for gradient safety (not jnp.maximum which zeros gradient).
+    # Zeroing guard uses t > 0 consistent with compute_transport_coefficient
+    # and compute_velocity_rate in physics_utils.py.
     t_safe = jnp.where(t > 1e-10, t, 1e-10)
-    t_power = jnp.where(t > 1e-10, jnp.power(t_safe, beta), 0.0)
+    t_power = jnp.where(t > 0, jnp.power(t_safe, beta), 0.0)
     return v0 * t_power + v_offset
 
 
