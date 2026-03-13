@@ -50,7 +50,7 @@ initial point for the sampler:
 
    from heterodyne.data.xpcs_loader import XPCSDataLoader
    from heterodyne.optimization.nlsq.core import fit_nlsq_jax
-   from heterodyne.optimization.cmc.runner import run_cmc
+   from heterodyne.optimization.cmc.core import fit_cmc_jax
 
    # 1. Load data
    loader = XPCSDataLoader("experiment.hdf5")
@@ -59,25 +59,12 @@ initial point for the sampler:
    # 2. NLSQ warm-start
    nlsq_result = fit_nlsq_jax(data=data, method="trf")
 
-   # 3. CMC posterior sampling
-   cmc_result = run_cmc(
+   # 3. CMC posterior sampling (with NLSQ warm-start)
+   cmc_result = fit_cmc_jax(
        data=data,
-       init_params=nlsq_result.x,
-       num_warmup=500,
-       num_samples=1000,
-       num_chains=4,
-       target_accept_prob=0.8,
+       config=config,
+       nlsq_result=nlsq_result,
    )
-
-   # 4. Diagnostics (ArviZ)
-   import arviz as az
-
-   idata = cmc_result.to_arviz()
-   summary = az.summary(idata, var_names=cmc_result.parameter_names)
-   print(summary)
-
-   # Check convergence
-   assert summary["r_hat"].max() < 1.01, "Chains have not converged"
 
 From the command line, the full NLSQ-then-CMC pipeline runs as:
 
@@ -94,12 +81,10 @@ reparameterization mode performs a joint fit across all angles:
 
 .. code-block:: python
 
-   from heterodyne.core.fourier_reparam import (
-       FourierReparamConfig,
-       fit_nlsq_multi_phi,
-   )
+   from heterodyne.optimization.nlsq.fourier_reparam import FourierReparamConfig
+   from heterodyne.optimization.nlsq.core import fit_nlsq_multi_phi
 
-   config = FourierReparamConfig(
+   fourier_config = FourierReparamConfig(
        per_angle_mode="fourier",  # "independent", "fourier", or "auto"
        fourier_order=2,
    )
@@ -107,7 +92,7 @@ reparameterization mode performs a joint fit across all angles:
    result = fit_nlsq_multi_phi(
        data_list=multi_angle_data,   # List of datasets, one per angle
        phi_values=phi_angles,        # Array of azimuthal angles
-       config=config,
+       config=fourier_config,
    )
 
    # The result parameter vector contains:

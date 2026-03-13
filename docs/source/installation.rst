@@ -15,7 +15,7 @@ Requirements
      - >= 3.12
      - Runtime (tested with 3.12.x and 3.13.x)
    * - JAX
-     - >= 0.8.3
+     - >= 0.8.2
      - JIT-compiled numerical kernels (CPU-only)
    * - NumPy
      - >= 2.3

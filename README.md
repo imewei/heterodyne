@@ -147,12 +147,13 @@ heterodyne --method cmc --config config.yaml
 ### Python API
 
 ```python
-from heterodyne.optimization import fit_nlsq_jax
-from heterodyne.optimization.cmc import fit_cmc_jax
 from heterodyne.data import load_xpcs_data
 from heterodyne.config import ConfigManager
+from heterodyne.optimization import fit_nlsq_jax
+from heterodyne.optimization.cmc import fit_cmc_jax
 
-data = load_xpcs_data("config.yaml")
+# Load data and config
+data = load_xpcs_data("experiment.hdf5")
 config = ConfigManager("config.yaml")
 
 # NLSQ trust-region optimization

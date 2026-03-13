@@ -6,15 +6,6 @@ subsystem.  These documents describe internal design decisions, data
 structures, and algorithmic details beyond what is covered in the
 :doc:`/developer/architecture` overview.
 
-.. toctree::
-   :maxdepth: 1
-
-   heterodyne-architecture-overview
-   physical-model-architecture
-   nlsq-fitting-architecture
-   cmc-fitting-architecture
-   data-handler-architecture
-
 Subsystem Summaries
 -------------------
 

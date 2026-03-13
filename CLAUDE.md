@@ -71,14 +71,14 @@ Both paths share primitives from `core/physics_utils.py` (trapezoid_cumsum, rate
 | Two-path integrals | `core/jax_backend.py` (meshgrid), `core/physics_cmc.py` (element-wise), `core/physics_nlsq.py` (NLSQ adapters) |
 | Parameter system | `config/parameter_registry.py` (registry), `core/models.py` (ParameterInfo/ParameterSpace) |
 | Model wrapper | `core/heterodyne_model.py` (HeterodyneModel + ParameterManager) |
-| Scaling modes | `core/scaling_utils.py`, `nlsq/fourier_reparam.py` |
-| NLSQ fitting | `nlsq/core.py` (fit_nlsq_jax), `nlsq/adapter.py` (NLSQAdapter entry) |
-| NLSQ strategies | `nlsq/strategies/stratified_ls.py`, `hybrid_streaming.py`, `out_of_core.py` |
-| NLSQ config | `nlsq/config.py`, `nlsq/fallback_chain.py`, `nlsq/recovery.py` |
-| CMA-ES | `nlsq/cmaes_wrapper.py` |
-| CMC fitting | `cmc/core.py` (fit_cmc_jax), `cmc/model.py`, `cmc/sampler.py` |
-| CMC priors | `cmc/priors.py`, `cmc/reparameterization.py` |
-| CMC config | `cmc/config.py` |
+| Scaling modes | `core/scaling_utils.py`, `optimization/nlsq/fourier_reparam.py` |
+| NLSQ fitting | `optimization/nlsq/core.py` (fit_nlsq_jax), `optimization/nlsq/adapter.py` (NLSQAdapter entry) |
+| NLSQ strategies | `optimization/nlsq/strategies/stratified_ls.py`, `hybrid_streaming.py`, `out_of_core.py` |
+| NLSQ config | `optimization/nlsq/config.py`, `optimization/nlsq/fallback_chain.py`, `optimization/nlsq/recovery.py` |
+| CMA-ES | `optimization/nlsq/cmaes_wrapper.py` |
+| CMC fitting | `optimization/cmc/core.py` (fit_cmc_jax), `optimization/cmc/model.py`, `optimization/cmc/sampler.py` |
+| CMC priors | `optimization/cmc/priors.py`, `optimization/cmc/reparameterization.py` |
+| CMC config | `optimization/cmc/config.py` |
 | CLI dispatch | `cli/commands.py` (orchestrator), `cli/optimization_runner.py` |
 | MCMC viz | `viz/mcmc_diagnostics.py`, `viz/mcmc_dashboard.py`, `viz/mcmc_arviz.py` |
 | Add physics param | `config/parameter_registry.py`, `core/physics.py`, `core/models.py` |
