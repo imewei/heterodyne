@@ -8,6 +8,7 @@ within a single strategy.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -215,29 +216,26 @@ def execute_with_recovery(
                 perturb_scale,
             )
         elif attempt == 2:
-            # Tolerance relaxation
+            # Tolerance relaxation — use a shallow copy so the caller's config
+            # is never mutated.  copy.copy() works for dataclasses, SimpleNamespace,
+            # and any other attribute-bearing object.
             action = "relax_tolerance"
-            # Create a modified config with relaxed tolerances
-            # We can't modify frozen config, so we modify the mutable fields
-            current_config = config
+            current_config = copy.copy(config)
             current_config.ftol = config.ftol * 10
             current_config.xtol = config.xtol * 10
             current_config.gtol = config.gtol * 10
             logger.info("Recovery attempt %d: relaxing tolerances by 10x", attempt)
         else:
-            # Method switching
+            # Method switching — same shallow-copy pattern
             action = "switch_method"
             method_cycle: dict[str, Literal["trf", "dogbox", "lm"]] = {
                 "trf": "dogbox",
                 "dogbox": "trf",
                 "lm": "trf",
             }
-            current_config = config
             fallback_method: Literal["trf", "dogbox", "lm"] = "trf"
-            current_config.method = method_cycle.get(
-                config.method,
-                fallback_method,
-            )
+            current_config = copy.copy(config)
+            current_config.method = method_cycle.get(config.method, fallback_method)
             logger.info(
                 "Recovery attempt %d: switching method to %s",
                 attempt,
