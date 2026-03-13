@@ -549,6 +549,7 @@ class ChunkedStrategy:
                 exc,
             )
             n_total = sum(s.stop - s.start for s in chunk_slices)
+            partial_failures.append(-1)  # Mark failure so had_partial_failure=True
             if last_good is not None:
                 return last_good.copy()
             return np.zeros(n_total, dtype=np.float64)
