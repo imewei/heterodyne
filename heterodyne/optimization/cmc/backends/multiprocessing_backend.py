@@ -872,7 +872,7 @@ def _run_shard_worker(
             },
         }
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — top-level worker; must convert any crash to result dict
         import traceback as _tb
 
         duration = time.perf_counter() - start_time
@@ -979,7 +979,7 @@ def _run_shard_worker_with_queue(
             rng_key_tuple=rng_key_tuple,
         )
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — top-level worker; must convert any crash to result dict
         import traceback as _tb
 
         result = {
@@ -1443,7 +1443,7 @@ class MultiprocessingBackend(CMCBackend):
                     "init_vals", initial_values
                 )
             shared_shard_refs = shared_mgr.create_shared_shard_arrays(shard_data_list)
-        except Exception:
+        except Exception:  # noqa: BLE001 — cleanup-and-reraise; must run shared_mgr.cleanup() on any failure
             shared_mgr.cleanup()
             self._shared_mgr = None
             raise
@@ -1554,7 +1554,7 @@ class MultiprocessingBackend(CMCBackend):
                         message: dict[str, Any] = result_queue.get_nowait()
                     except queue.Empty:
                         break
-                    except Exception as _qexc:
+                    except Exception as _qexc:  # noqa: BLE001 — best-effort queue drain; any IPC error breaks the loop
                         run_logger.warning("Queue read error: %s", _qexc)
                         break
 
@@ -1959,7 +1959,7 @@ class MultiprocessingBackend(CMCBackend):
             if initial_values is not None:
                 iv_ref = mgr.create_shared_dict("init_vals", initial_values)
             shard_refs = mgr.create_shared_shard_arrays(shard_data_list)
-        except Exception:
+        except Exception:  # noqa: BLE001 — cleanup-and-reraise; must run mgr.cleanup() on any failure
             mgr.cleanup()
             raise
 
