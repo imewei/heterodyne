@@ -12,27 +12,88 @@ transport properties in flowing soft matter systems.
 
 ## Heterodyne Model
 
-$$c_1(\phi, t_1, t_2) = \text{offset} + \text{contrast} \times \exp\left(-\tfrac{1}{2} q^2 \int_{t_1}^{t_2} J(t')\ dt'\right) \times \cos\left(q \cos(\phi) \int_{t_1}^{t_2} v(t')\ dt'\right)$$
+The package implements a two-component scattering model (PNAS 2025 SI Eqs. S-77–S-98)
+where scattered light from a moving **sample** interferes with that from a static
+**reference**, producing oscillations in the cross-correlation whose frequency encodes
+the sample velocity.
 
-$$J(t) = D_{0} \cdot t^{\alpha} + D_{\text{offset}} \qquad v(t) = v_0 \cdot \sigma(t; t_0) + v_{\text{offset}}$$
+### Two-Component Intensity Correlation
 
-The two-component model tracks reference and sample independently, each with their own
-diffusion coefficient, anomalous exponent, onset time, and width parameter. All time integrals
-are evaluated numerically via cumulative trapezoid on the discrete time grid.
+$$c_2(q, t_1, t_2) = \text{offset} + \text{contrast} \times \frac{C_\text{ref} + C_\text{sample} + C_\text{cross}}{f^2}$$
+
+with three physical contributions:
+
+$$C_\text{ref} = x_r^2(t_1)\, x_r^2(t_2)\; \exp\!\left(-q^2 \int_{t_1}^{t_2} J_r(t')\, dt'\right)$$
+
+$$C_\text{sample} = x_s^2(t_1)\, x_s^2(t_2)\; \exp\!\left(-q^2 \int_{t_1}^{t_2} J_s(t')\, dt'\right)$$
+
+$$C_\text{cross} = 2\, x_r(t_1)\, x_r(t_2)\, x_s(t_1)\, x_s(t_2)\; \exp\!\left(-\frac{q^2}{2} \int_{t_1}^{t_2} \left[J_r(t') + J_s(t')\right] dt'\right) \cos\!\left(q \cos\varphi \int_{t_1}^{t_2} \langle v(t')\rangle\, dt'\right)$$
+
+where $x_s$ is the sample fraction, $x_r = 1 - x_s$ is the reference fraction, and
+$f^2$ is a normalization factor ensuring $c_2(t, t) = 1 + \beta$ on the diagonal.
+
+### Rate Functions
+
+Each component has its own power-law transport coefficient, and the sample has an
+additional velocity rate:
+
+$$J(t) = D_0\, t^\alpha + D_\text{offset} \qquad\qquad v(t) = v_0\, t^\beta + v_\text{offset}$$
+
+All time integrals are evaluated **numerically** via cumulative trapezoid — no analytical
+antiderivatives are ever used, ensuring correctness for the general power-law form.
+
+### Parameters
+
+The model has 14 physics parameters organized into five groups, plus 2 per-angle scaling
+parameters:
+
+**Reference transport** — $J_r(t) = D_{0,r}\, t^{\alpha_r} + D_{\text{offset},r}$
 
 | Parameter | Description | Default | Units |
 |-----------|-------------|---------|-------|
-| D0_ref, D0_sample | Diffusion coefficients | 1e4 | Å²/s^α |
-| alpha_ref, alpha_sample | Anomalous exponents | 0.0 | — |
-| D_offset_ref, D_offset_sample | Diffusion offsets | 0.0 | Å² |
-| v0 | Velocity amplitude | 1e3 | Å/s |
-| v_offset | Velocity offset | 0.0 | Å/s |
-| t0_ref, t0_sample | Onset times | varies | s |
-| sigma_ref, sigma_sample | Width parameters | varies | s |
-| q_power_ref, q_power_sample | q-dependence exponents | 2.0 | — |
+| `D0_ref` | Reference diffusion prefactor | 1e4 | Å²/s^α |
+| `alpha_ref` | Reference transport exponent | 0.0 | — |
+| `D_offset_ref` | Reference transport rate offset | 0.0 | Å²/s |
 
-Per-angle contrast and offset (2 scaling parameters) are added automatically based on the
-number of azimuthal angles. Total: 14 physics + 2 scaling parameters per angle.
+**Sample transport** — $J_s(t) = D_{0,s}\, t^{\alpha_s} + D_{\text{offset},s}$
+
+| Parameter | Description | Default | Units |
+|-----------|-------------|---------|-------|
+| `D0_sample` | Sample diffusion prefactor | 1e4 | Å²/s^α |
+| `alpha_sample` | Sample transport exponent | 0.0 | — |
+| `D_offset_sample` | Sample transport rate offset | 0.0 | Å²/s |
+
+**Velocity** — $v(t) = v_0\, t^\beta + v_\text{offset}$
+
+| Parameter | Description | Default | Units |
+|-----------|-------------|---------|-------|
+| `v0` | Velocity prefactor | 1e3 | Å/s^β |
+| `beta` | Velocity exponent (0 = constant velocity) | 0.0 | — |
+| `v_offset` | Velocity offset (negative for reversal) | 0.0 | Å/s |
+
+**Sample fraction** — $f_s(t) = \text{clip}(f_0 \exp(f_1 (t - f_2)) + f_3,\; 0,\; 1)$
+
+| Parameter | Description | Default | Units |
+|-----------|-------------|---------|-------|
+| `f0` | Fraction amplitude | 0.5 | — |
+| `f1` | Exponential rate (0 = constant fraction) | 0.0 | s⁻¹ |
+| `f2` | Time shift | 0.0 | s |
+| `f3` | Baseline offset | 0.0 | — |
+
+**Flow angle**
+
+| Parameter | Description | Default | Units |
+|-----------|-------------|---------|-------|
+| `phi0` | Flow angle offset relative to q-vector | 0.0 | degrees |
+
+**Per-angle scaling** (2 parameters per detector angle)
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `contrast` | Optical contrast β (speckle contrast) | 0.5 |
+| `offset` | Baseline offset | 1.0 |
+
+Total: **14 physics + 2 scaling parameters per angle**.
 
 ## Installation
 
