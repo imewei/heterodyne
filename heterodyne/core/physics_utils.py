@@ -56,7 +56,10 @@ def safe_power(base: jnp.ndarray | np.ndarray, exponent: float) -> jnp.ndarray:
         Safe power result, same shape as base
     """
     base = jnp.asarray(base)
-    base_safe = jnp.maximum(base, 1e-30)
+    # Use jnp.where instead of jnp.maximum to preserve gradients below the
+    # floor: jnp.maximum zeros the gradient when base < 1e-30, which stalls
+    # the NLSQ Jacobian and NUTS leapfrog steps.
+    base_safe = jnp.where(base > 1e-30, base, 1e-30)
     result = jnp.power(base_safe, exponent)
     return jnp.where(base > 0, result, 0.0)
 
@@ -97,7 +100,9 @@ def safe_log(x: jnp.ndarray | np.ndarray, floor: float = 1e-30) -> jnp.ndarray:
         log(max(x, floor)), same shape as x
     """
     x = jnp.asarray(x)
-    return jnp.log(jnp.maximum(x, floor))
+    # Use jnp.where to preserve gradients: jnp.maximum zeros the gradient
+    # when x < floor, stalling log-space parameter updates.
+    return jnp.log(jnp.where(x > floor, x, floor))
 
 
 def safe_sqrt(x: jnp.ndarray | np.ndarray) -> jnp.ndarray:
@@ -110,7 +115,9 @@ def safe_sqrt(x: jnp.ndarray | np.ndarray) -> jnp.ndarray:
         sqrt(max(x, 0)), same shape as x
     """
     x = jnp.asarray(x)
-    return jnp.sqrt(jnp.maximum(x, 0.0))
+    # Use jnp.where to preserve gradients: jnp.maximum zeros the gradient
+    # when x < 0, which would stall the Jacobian at the sqrt floor.
+    return jnp.sqrt(jnp.where(x > 0.0, x, 0.0))
 
 
 def compute_relative_difference(
@@ -232,9 +239,15 @@ def compute_transport_rate(
     Returns:
         Rate values, shape (N,), floored at 0.
     """
-    t_safe = jnp.maximum(t, 1e-10)
+    # t_safe: prevent NaN in jnp.power when t=0 with negative alpha.
+    # t is a data array (not a parameter), so jnp.where here does not affect
+    # the parameter gradient; the outer jnp.where(t > 0) handles t=0 exactly.
+    t_safe = jnp.where(t > 1e-10, t, 1e-10)
     t_power = jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0)
     rate = D0 * t_power + offset
+    # Physical positivity floor: jnp.maximum is correct here because the
+    # subgradient at rate=0 is 1 (gradient of D_offset passes through), while
+    # jnp.where(rate > 0.0, rate, 0.0) would block it with strict inequality.
     return jnp.maximum(rate, 0.0)
 
 
@@ -260,7 +273,9 @@ def compute_velocity_rate(
     Returns:
         Velocity values, shape (N,).
     """
-    t_safe = jnp.maximum(t, 1e-10)
+    # Use jnp.where instead of jnp.maximum to preserve gradients below the
+    # t=0 floor (jnp.maximum zeros the gradient there).
+    t_safe = jnp.where(t > 1e-10, t, 1e-10)
     t_power = jnp.where(t > 0, jnp.power(t_safe, beta), 0.0)
     return v0 * t_power + v_offset
 

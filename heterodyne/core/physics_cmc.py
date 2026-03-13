@@ -307,7 +307,10 @@ def compute_c2_elementwise(
     # Normalization: (f_s² + f_r²)_t1 × (f_s² + f_r²)_t2
     norm_1 = f_sample_1**2 + f_ref_1**2
     norm_2 = f_sample_2**2 + f_ref_2**2
-    normalization = jnp.maximum(norm_1 * norm_2, 1e-10)
+    # Use jnp.where to preserve gradients: jnp.maximum zeros the gradient
+    # when normalization < 1e-10, stalling the NUTS leapfrog integrator.
+    _norm_prod = norm_1 * norm_2
+    normalization = jnp.where(_norm_prod > 1e-10, _norm_prod, 1e-10)
 
     c2 = offset + contrast * (ref_term + sample_term + cross_term) / normalization
     return c2

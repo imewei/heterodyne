@@ -67,7 +67,9 @@ def compute_transport_jit(
     Returns:
         Transport coefficient array
     """
-    t_safe = jnp.maximum(t, 1e-10)
+    # Use jnp.where instead of jnp.maximum to preserve gradients at the t=0
+    # floor (jnp.maximum zeros the gradient when t < 1e-10).
+    t_safe = jnp.where(t > 1e-10, t, 1e-10)
     t_power = jnp.power(t_safe, alpha)
     t_power = jnp.where(t > 0, t_power, 0.0)
     return D0 * t_power + offset
@@ -288,8 +290,10 @@ def compute_c2_heterodyne(
     normalization = norm_1[:, None] * norm_1[None, :]
 
     # Full correlation: offset + contrast × [terms] / f²
-    c2 = offset + contrast * (ref_term + sample_term + cross_term) / jnp.maximum(
-        normalization, 1e-10
+    # Use jnp.where to preserve gradients: jnp.maximum zeros the gradient
+    # when normalization < 1e-10, which would stall the NLSQ Jacobian.
+    c2 = offset + contrast * (ref_term + sample_term + cross_term) / jnp.where(
+        normalization > 1e-10, normalization, 1e-10
     )
 
     return c2

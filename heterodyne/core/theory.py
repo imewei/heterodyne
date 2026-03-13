@@ -51,8 +51,10 @@ def compute_transport_coefficient(
     """
     t = jnp.asarray(t)
 
-    # Handle t=0 singularity for negative alpha (matches jax_backend pattern)
-    t_safe = jnp.maximum(t, 1e-10)
+    # Handle t=0 singularity for negative alpha (matches jax_backend pattern).
+    # Use jnp.where instead of jnp.maximum to preserve gradients at the floor
+    # (jnp.maximum zeros the gradient when t < 1e-10).
+    t_safe = jnp.where(t > 1e-10, t, 1e-10)
 
     # Compute t^alpha
     t_power = jnp.power(t_safe, alpha)
@@ -157,6 +159,9 @@ def compute_transport_integral_matrix(
         Transport integral matrix, shape (N, N), non-negative and symmetric
     """
     J_rate = compute_transport_coefficient(t, D0, alpha, offset)
+    # Physical positivity floor: jnp.maximum is correct here because the
+    # subgradient at J_rate=0 is 1 (gradient of offset passes through), while
+    # jnp.where(J_rate > 0.0, J_rate, 0.0) would block it at the boundary.
     J_rate = jnp.maximum(J_rate, 0.0)
     integral_matrix = compute_time_integral_matrix(J_rate, dt)
     return smooth_abs(integral_matrix)
