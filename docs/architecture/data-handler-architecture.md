@@ -14,16 +14,18 @@ large datasets.
 
 ```
 data/
-├── xpcs_loader.py       # XPCSDataLoader, XPCSData, load_xpcs_data()
-├── angle_filtering.py   # filter_by_angle_range(), select_single_angle()
-├── preprocessing.py     # PreprocessingPipeline, PreprocessingResult
-├── memory_manager.py    # MemoryManager, MemoryBudget
-├── types.py             # AngleRange dataclass
-├── config.py            # DataConfig dataclass
-├── validators.py        # Shape, dtype, finiteness checks
+├── xpcs_loader.py        # XPCSDataLoader, XPCSData, load_xpcs_data()
+├── angle_filtering.py    # filter_by_angle_range(), select_single_angle()
+├── phi_filtering.py      # Phi-angle filtering utilities
+├── preprocessing.py      # PreprocessingPipeline, PreprocessingResult
+├── memory_manager.py     # MemoryManager, MemoryBudget
+├── types.py              # AngleRange dataclass
+├── config.py             # DataConfig dataclass
+├── validation.py         # Data validation rules and checks
+├── validators.py         # Shape, dtype, finiteness checks
 ├── quality_controller.py # Data quality scoring
-├── filtering_utils.py   # NaN masking helpers
-├── optimization.py      # Chunk-size optimization utilities
+├── filtering_utils.py    # NaN masking helpers
+├── optimization.py       # Chunk-size optimization utilities
 └── performance_engine.py # Profiling and throughput instrumentation
 ```
 

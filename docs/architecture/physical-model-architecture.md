@@ -34,10 +34,10 @@ from the 14 physics parameters.
 |---|---|---|---|---|---|
 | 0 | D0_ref | reference | Diffusion prefactor (reference) | Å²/s^α | 1e4 |
 | 1 | alpha_ref | reference | Transport exponent (reference) | — | 0.0 |
-| 2 | D_offset_ref | reference | Transport rate offset (reference) | Å² | 0.0 |
+| 2 | D_offset_ref | reference | Transport rate offset (reference) | Å²/s | 0.0 |
 | 3 | D0_sample | sample | Diffusion prefactor (sample) | Å²/s^α | 1e4 |
 | 4 | alpha_sample | sample | Transport exponent (sample) | — | 0.0 |
-| 5 | D_offset_sample | sample | Transport rate offset (sample) | Å² | 0.0 |
+| 5 | D_offset_sample | sample | Transport rate offset (sample) | Å²/s | 0.0 |
 | 6 | v0 | velocity | Velocity prefactor | Å/s^β | 1e3 |
 | 7 | beta | velocity | Velocity exponent | — | 0.0 |
 | 8 | v_offset | velocity | Velocity offset | Å/s | 0.0 |
@@ -158,10 +158,100 @@ full 14-element array before calling `compute_c2_heterodyne`, using JAX
 
 ---
 
+## Two-Path Integral Architecture
+
+The physics model is evaluated via two distinct computational paths, both
+producing identical c2 values but optimized for different use cases:
+
+### Meshgrid Path (NLSQ)
+
+**Module:** `core/jax_backend.py` — `compute_c2_heterodyne()`
+
+Builds full N×N time-integral matrices via `trapezoid_cumsum()` →
+`create_time_integral_matrix()`. Returns the complete c2 correlation matrix.
+
+- **Memory:** O(N²) — allocates N×N arrays for transport integrals, velocity
+  integrals, fraction products, and the final c2 matrix.
+- **Use case:** NLSQ fitting where the full matrix is needed for residual
+  computation and Jacobian evaluation via `jax.jacobian`.
+- **Upper-triangle optimization:** `physics_nlsq.py` provides
+  `compute_flat_residuals()` which extracts only the upper triangle of the
+  symmetric c2 matrix, halving the residual vector size.
+
+### Element-Wise Path (CMC)
+
+**Module:** `core/physics_cmc.py` — `compute_c2_elementwise()`
+
+Uses a pre-computed `ShardGrid` (NamedTuple with `time_grid`, `idx1`, `idx2`,
+`n_pairs`) to evaluate c2 at specific (t1, t2) pairs without building the full
+N×N matrix.
+
+- **Memory:** O(n_pairs) — only stores values at the requested pair indices.
+- **Use case:** NUTS sampling where the model is evaluated thousands of times
+  per chain. The ShardGrid is built once (outside the NUTS loop) via
+  `precompute_shard_grid()`, and only the O(G) cumsum computation (where G is
+  the time grid size) is repeated on each leapfrog step.
+- **Speedup:** 2–5× CMC wall time reduction by avoiding repeated searchsorted
+  and singularity-floor computation inside the NUTS hot loop.
+
+### Shared Primitives
+
+Both paths share core functions from `core/physics_utils.py`:
+
+| Function | Description |
+|----------|-------------|
+| `trapezoid_cumsum(f, dt)` | Trapezoidal cumulative integral; O(dt²) accuracy |
+| `create_time_integral_matrix(cumsum)` | Signed N×N difference matrix from cumsum |
+| `smooth_abs(x, eps=1e-12)` | Gradient-safe `√(x² + ε)` for transport integrals |
+| `compute_transport_rate(t, D0, alpha, offset)` | Power-law rate J(t) = D₀·t^α + offset |
+| `compute_velocity_rate(t, v0, beta, v_offset)` | Power-law velocity v(t) = v₀·t^β + v_offset |
+
+---
+
+## Numerical Safety
+
+### Log-Space Transport Clipping
+
+The half-transport computation uses log-space clipping to prevent underflow
+without introducing artificial plateaus:
+
+```python
+log_half_tr = -0.5 * q**2 * J_integral
+log_half_tr_clipped = clip(log_half_tr, -700.0, 0.0)
+half_tr = exp(log_half_tr_clipped)
+```
+
+Value-space clipping (`max(exp(...), floor)`) creates flat regions where the
+gradient is zero, stalling NLSQ Jacobian computation and NUTS leapfrog steps.
+
+### Gradient-Safe Floors
+
+All floors use `jnp.where(x > eps, x, eps)` instead of `jnp.maximum(x, eps)`.
+`jnp.maximum` zeros the gradient below the floor, while `jnp.where` preserves
+gradient flow through both branches.
+
+### Velocity Sign Preservation
+
+Unlike transport integrals (which take absolute value via `smooth_abs`),
+velocity integrals are **signed**: `v_integral[i,j] = cumsum[j] - cumsum[i]`.
+The sign enters the cross-term phase factor `cos(q · cos(φ) · v_integral)`,
+where negative velocity represents reversed flow direction.
+
+### Fraction Normalization Floor
+
+The normalization denominator `f² = (f_s² + f_ref²)₁ × (f_s² + f_ref²)₂`
+is floored at 1e-10 via `jnp.where` to prevent division by zero when one
+component dominates completely.
+
+---
+
 ## JAX Compatibility
 
 All production physics functions (`compute_c2_heterodyne`,
-`compute_transport_integral_matrix`, `compute_velocity_integral_matrix`,
-`compute_fraction_jit`) are decorated with `@jax.jit` and contain no Python
-control flow that depends on array values. They are safe for `jax.grad` and
-`jax.jacobian`, which the NLSQ stage uses to compute the analytic Jacobian.
+`compute_c2_elementwise`, `compute_transport_integral_matrix`,
+`compute_velocity_integral_matrix`, `compute_fraction_jit`) are JIT-compatible
+and contain no Python control flow that depends on array values. They are safe
+for `jax.grad` and `jax.jacobian`, which the NLSQ stage uses to compute the
+analytic Jacobian. The element-wise path functions are additionally safe for
+use inside NumPyro's NUTS sampler, which requires full differentiability of the
+log-likelihood with respect to all sampled parameters.
