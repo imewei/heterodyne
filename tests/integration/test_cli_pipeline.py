@@ -9,9 +9,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-import numpy as np
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Import smoke tests
@@ -134,9 +132,7 @@ class TestCreateParser:
         cfg = tmp_path / "cfg.yaml"
         cfg.touch()
         out = tmp_path / "results"
-        args = self.parser.parse_args(
-            ["--config", str(cfg), "--output", str(out)]
-        )
+        args = self.parser.parse_args(["--config", str(cfg), "--output", str(out)])
         assert isinstance(args.output, Path)
 
 
@@ -150,9 +146,7 @@ class TestValidateArgs:
         from heterodyne.cli.args_parser import create_parser, validate_args
 
         parser = create_parser()
-        args = parser.parse_args(
-            ["--config", "/nonexistent/path/cfg.yaml"]
-        )
+        args = parser.parse_args(["--config", "/nonexistent/path/cfg.yaml"])
         with pytest.raises(FileNotFoundError):
             validate_args(args)
 

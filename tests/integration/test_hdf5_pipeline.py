@@ -12,9 +12,7 @@ cascade silently into fitting and inference if not caught early:
 
 from __future__ import annotations
 
-import hashlib
 import json
-import struct
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -35,6 +33,7 @@ from heterodyne.optimization.checkpoint_manager import (
     CheckpointData,
     CheckpointManager,
 )
+from heterodyne.utils.path_validation import PathValidationError
 
 if TYPE_CHECKING:
     pass
@@ -155,7 +154,7 @@ class TestDataLoading:
     def test_load_missing_file_raises(self, tmp_path: Path) -> None:
         """Missing file must raise, not return empty data."""
         missing = tmp_path / "does_not_exist.h5"
-        with pytest.raises(Exception):
+        with pytest.raises((FileNotFoundError, OSError, PathValidationError)):
             load_xpcs_data(missing)
 
     def test_load_missing_c2_key_raises(self, tmp_path: Path) -> None:
@@ -345,10 +344,14 @@ class TestCheckpointIO:
 
         # Save two good checkpoints
         good1 = CheckpointData(
-            parameters=np.array([1.0]), cost=0.1, iteration=0,
+            parameters=np.array([1.0]),
+            cost=0.1,
+            iteration=0,
         )
         good2 = CheckpointData(
-            parameters=np.array([2.0]), cost=0.2, iteration=1,
+            parameters=np.array([2.0]),
+            cost=0.2,
+            iteration=1,
         )
         mgr.save(good1)
         path2 = mgr.save(good2)
@@ -376,7 +379,9 @@ class TestCheckpointIO:
 
         for i in range(5):
             ckpt = CheckpointData(
-                parameters=np.array([float(i)]), cost=float(i), iteration=i,
+                parameters=np.array([float(i)]),
+                cost=float(i),
+                iteration=i,
             )
             mgr.save(ckpt)
 
@@ -405,7 +410,9 @@ class TestCheckpointIO:
         mgr = CheckpointManager(ckpt_dir)
 
         ckpt = CheckpointData(
-            parameters=np.array([1.0, 2.0]), cost=0.5, iteration=0,
+            parameters=np.array([1.0, 2.0]),
+            cost=0.5,
+            iteration=0,
         )
         mgr.save(ckpt)
 

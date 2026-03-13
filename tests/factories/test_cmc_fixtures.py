@@ -72,9 +72,7 @@ def make_nlsq_result(
 
     # Use registry defaults for the first n_params physics parameters
     names = list(ALL_PARAM_NAMES[:n_params])
-    values = np.array(
-        [DEFAULT_REGISTRY[n].default for n in names], dtype=np.float64
-    )
+    values = np.array([DEFAULT_REGISTRY[n].default for n in names], dtype=np.float64)
     uncertainties = np.maximum(np.abs(values) * 0.1, 1e-6)
 
     defaults: dict[str, Any] = {
@@ -161,15 +159,9 @@ def make_model_mock(n_params: int = 14) -> MagicMock:
     from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
 
     names = list(ALL_PARAM_NAMES[:n_params])
-    values = np.array(
-        [DEFAULT_REGISTRY[n].default for n in names], dtype=np.float64
-    )
-    lower = np.array(
-        [DEFAULT_REGISTRY[n].min_bound for n in names], dtype=np.float64
-    )
-    upper = np.array(
-        [DEFAULT_REGISTRY[n].max_bound for n in names], dtype=np.float64
-    )
+    values = np.array([DEFAULT_REGISTRY[n].default for n in names], dtype=np.float64)
+    lower = np.array([DEFAULT_REGISTRY[n].min_bound for n in names], dtype=np.float64)
+    upper = np.array([DEFAULT_REGISTRY[n].max_bound for n in names], dtype=np.float64)
 
     param_manager = MagicMock()
     param_manager.varying_names = names

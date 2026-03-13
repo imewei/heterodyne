@@ -17,13 +17,12 @@ from __future__ import annotations
 
 import jax.numpy as jnp
 import numpy as np
-import numpy.testing as npt
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_small_model(n_times: int = 16):
     """Create a minimal HeterodyneModel for fast pipeline tests."""
@@ -37,14 +36,20 @@ def _make_small_model(n_times: int = 16):
     return HeterodyneModel.from_config(config)
 
 
-def _make_synthetic_c2(model, phi_angle: float = 0.0, noise_scale: float = 0.01, seed: int = 42):
+def _make_synthetic_c2(
+    model, phi_angle: float = 0.0, noise_scale: float = 0.01, seed: int = 42
+):
     """Generate synthetic correlation matrix with small additive noise."""
     import jax
 
     c2_clean = model.compute_correlation(phi_angle=phi_angle)
     c2_clean = jnp.asarray(c2_clean)
     key = jax.random.PRNGKey(seed)
-    noise = jax.random.normal(key, shape=c2_clean.shape) * noise_scale * jnp.max(jnp.abs(c2_clean))
+    noise = (
+        jax.random.normal(key, shape=c2_clean.shape)
+        * noise_scale
+        * jnp.max(jnp.abs(c2_clean))
+    )
     return np.asarray(c2_clean + noise)
 
 
@@ -126,7 +131,10 @@ class TestNLSQToCMCWarmStart:
         c2_data = _make_synthetic_c2(model)
 
         nlsq_config = NLSQConfig(
-            max_iterations=20, tolerance=1e-4, method="trf", verbose=0,
+            max_iterations=20,
+            tolerance=1e-4,
+            method="trf",
+            verbose=0,
         )
         nlsq_result = fit_nlsq_jax(
             model=model,
@@ -251,7 +259,10 @@ class TestFullPipelineEndToEnd:
 
         # Step 3: NLSQ fit
         nlsq_config = NLSQConfig(
-            max_iterations=30, tolerance=1e-4, method="trf", verbose=0,
+            max_iterations=30,
+            tolerance=1e-4,
+            method="trf",
+            verbose=0,
         )
         nlsq_result = fit_nlsq_jax(
             model=model,
@@ -318,7 +329,9 @@ class TestFullPipelineEndToEnd:
             model=model,
             c2_data=c2_data,
             phi_angle=0.0,
-            config=NLSQConfig(max_iterations=20, tolerance=1e-4, method="trf", verbose=0),
+            config=NLSQConfig(
+                max_iterations=20, tolerance=1e-4, method="trf", verbose=0
+            ),
             use_nlsq_library=False,
         )
 
@@ -327,9 +340,14 @@ class TestFullPipelineEndToEnd:
             c2_data=c2_data,
             phi_angle=0.0,
             config=CMCConfig(
-                num_warmup=10, num_samples=20, num_chains=1, seed=42,
-                use_nlsq_warmstart=True, chain_method="sequential",
-                enable_checkpoints=False, adaptive_sampling=False,
+                num_warmup=10,
+                num_samples=20,
+                num_chains=1,
+                seed=42,
+                use_nlsq_warmstart=True,
+                chain_method="sequential",
+                enable_checkpoints=False,
+                adaptive_sampling=False,
             ),
             nlsq_result=nlsq_result,
         )

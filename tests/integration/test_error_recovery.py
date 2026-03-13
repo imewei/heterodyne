@@ -12,7 +12,6 @@ class covers a specific layer of the recovery stack:
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -29,9 +28,7 @@ from heterodyne.optimization.nlsq.fallback_chain import (
     execute_optimization_with_fallback,
     get_fallback_strategy,
 )
-from heterodyne.optimization.nlsq.memory import NLSQStrategy
 from heterodyne.optimization.nlsq.results import NLSQResult
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -127,7 +124,8 @@ class TestFallbackChainRecovery:
         """MemoryError from LARGE strategy triggers fallback to STREAMING."""
         error = MemoryError("unable to allocate array")
         next_strategy = get_fallback_strategy(
-            OptimizationStrategy.LARGE, error=error,
+            OptimizationStrategy.LARGE,
+            error=error,
         )
         assert next_strategy == OptimizationStrategy.STREAMING
 
@@ -135,7 +133,8 @@ class TestFallbackChainRecovery:
         """RuntimeError from STREAMING triggers step to LARGE."""
         error = RuntimeError("solver diverged")
         next_strategy = get_fallback_strategy(
-            OptimizationStrategy.STREAMING, error=error,
+            OptimizationStrategy.STREAMING,
+            error=error,
         )
         assert next_strategy == OptimizationStrategy.LARGE
 
@@ -156,7 +155,9 @@ class TestFallbackChainRecovery:
             "heterodyne.optimization.nlsq.fallback_chain._run_strategy",
             side_effect=RuntimeError("boom"),
         ):
-            with pytest.raises(RuntimeError, match="All optimization strategies failed"):
+            with pytest.raises(
+                RuntimeError, match="All optimization strategies failed"
+            ):
                 execute_optimization_with_fallback(
                     model=mock_model,
                     c2_data=np.zeros((10, 10)),
@@ -169,7 +170,8 @@ class TestFallbackChainRecovery:
         """get_fallback_strategy returns None when STANDARD (last tier) fails."""
         error = RuntimeError("generic error")
         next_strategy = get_fallback_strategy(
-            OptimizationStrategy.STANDARD, error=error,
+            OptimizationStrategy.STANDARD,
+            error=error,
         )
         assert next_strategy is None
 

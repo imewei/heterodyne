@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 # Pytest Markers Registration
 # ============================================================================
 
+
 def pytest_configure(config: pytest.Config) -> None:
     """Register custom markers."""
     config.addinivalue_line("markers", "unit: fast unit tests")
@@ -38,6 +39,7 @@ def pytest_configure(config: pytest.Config) -> None:
 # ============================================================================
 # JAX Configuration Fixtures
 # ============================================================================
+
 
 @pytest.fixture(scope="session")
 def ensure_jax_float64() -> bool:
@@ -78,6 +80,7 @@ def jax_rng_key() -> jax.Array:
 # Model Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def base_model_config() -> dict:
     """Base configuration dictionary for HeterodyneModel.
@@ -107,6 +110,7 @@ def heterodyne_model(base_model_config: dict) -> HeterodyneModel:
         Configured HeterodyneModel instance
     """
     from heterodyne import HeterodyneModel
+
     return HeterodyneModel.from_config(base_model_config)
 
 
@@ -137,12 +141,14 @@ def small_heterodyne_model(small_model_config: dict) -> HeterodyneModel:
         Small HeterodyneModel with 20 time points
     """
     from heterodyne import HeterodyneModel
+
     return HeterodyneModel.from_config(small_model_config)
 
 
 # ============================================================================
 # Synthetic Data Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def synthetic_c2_clean(heterodyne_model: HeterodyneModel) -> np.ndarray:
@@ -210,6 +216,7 @@ def small_c2_data(
 # NLSQ Configuration Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def nlsq_config() -> NLSQConfig:
     """Standard NLSQ configuration.
@@ -218,6 +225,7 @@ def nlsq_config() -> NLSQConfig:
         Default NLSQConfig suitable for integration tests
     """
     from heterodyne import NLSQConfig
+
     return NLSQConfig(
         max_iterations=50,
         tolerance=1e-6,
@@ -234,6 +242,7 @@ def fast_nlsq_config() -> NLSQConfig:
         NLSQConfig with minimal iterations for speed
     """
     from heterodyne import NLSQConfig
+
     return NLSQConfig(
         max_iterations=10,
         tolerance=1e-4,
@@ -246,6 +255,7 @@ def fast_nlsq_config() -> NLSQConfig:
 # CMC Configuration Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def cmc_config_1chain() -> CMCConfig:
     """CMC configuration with single chain (fastest).
@@ -254,6 +264,7 @@ def cmc_config_1chain() -> CMCConfig:
         CMCConfig with 1 chain, minimal samples
     """
     from heterodyne import CMCConfig
+
     return CMCConfig(
         num_chains=1,
         num_warmup=100,
@@ -271,6 +282,7 @@ def cmc_config_2chains() -> CMCConfig:
         CMCConfig with 2 chains for testing multi-chain behavior
     """
     from heterodyne import CMCConfig
+
     return CMCConfig(
         num_chains=2,
         num_warmup=100,
@@ -288,6 +300,7 @@ def cmc_config_4chains() -> CMCConfig:
         CMCConfig with 4 chains for full convergence testing
     """
     from heterodyne import CMCConfig
+
     return CMCConfig(
         num_chains=4,
         num_warmup=200,

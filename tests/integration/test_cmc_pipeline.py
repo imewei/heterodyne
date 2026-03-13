@@ -125,7 +125,9 @@ class TestPriorToInitPipeline:
         # should appear in init_values
         for name in names:
             if name in priors:
-                assert name in init_values, f"'{name}' in priors but missing from init_values"
+                assert name in init_values, (
+                    f"'{name}' in priors but missing from init_values"
+                )
 
     def test_init_values_consistent_with_names(self) -> None:
         """init_values only contains names returned by get_param_names_in_order."""
@@ -185,7 +187,7 @@ class TestDiagnosticsPipeline:
         # Precision analysis
         precision = compute_precision_analysis(posterior)
         assert len(precision) == len(names)
-        for name, metrics in precision.items():
+        for _name, metrics in precision.items():
             assert "mean" in metrics
             assert "std" in metrics
             assert "cv" in metrics
@@ -195,7 +197,7 @@ class TestDiagnosticsPipeline:
         nlsq_estimates = {name: precision[name]["mean"] for name in precision}
         comparison = compute_nlsq_comparison_metrics(posterior, nlsq_estimates)
         assert len(comparison) == len(names)
-        for name, metrics in comparison.items():
+        for _name, metrics in comparison.items():
             # z_score should be near zero because nlsq_value == posterior_mean
             assert metrics["z_score"] == pytest.approx(0.0, abs=0.5)
             # nlsq_value at the mean is inside the HDI

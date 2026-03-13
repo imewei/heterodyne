@@ -29,10 +29,10 @@ from heterodyne.optimization.cmc.reparameterization import (
     transform_to_sampling_space,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_physics_params() -> dict[str, float]:
     """Create a representative set of physics-space parameter values."""
@@ -94,7 +94,9 @@ class TestRoundTripAllPairs:
         ids=["D_ref", "D_sample", "velocity"],
     )
     def test_round_trip_single_pair(
-        self, prefactor: str, exponent: str,
+        self,
+        prefactor: str,
+        exponent: str,
     ) -> None:
         """Forward then inverse transform recovers original prefactor."""
         t_ref = 10.0
@@ -107,11 +109,13 @@ class TestRoundTripAllPairs:
         log_at_tref = log_a0 + alpha_original * log_tref
 
         # Inverse: log-space -> physics via JAX
-        a0_recovered = float(reparam_to_physics_jax(
-            jnp.float64(log_at_tref),
-            jnp.float64(alpha_original),
-            t_ref,
-        ))
+        a0_recovered = float(
+            reparam_to_physics_jax(
+                jnp.float64(log_at_tref),
+                jnp.float64(alpha_original),
+                t_ref,
+            )
+        )
 
         npt.assert_allclose(a0_recovered, a0_original, rtol=1e-10)
 
@@ -133,9 +137,7 @@ class TestRoundTripAllPairs:
         # Check that prefactors are replaced by log_*_at_tref
         for prefactor, exponent in config.enabled_pairs:
             log_name = config.get_reparam_name(prefactor)
-            assert log_name in sampling_params, (
-                f"Expected {log_name} in sampling space"
-            )
+            assert log_name in sampling_params, f"Expected {log_name} in sampling space"
             assert prefactor not in sampling_params, (
                 f"Prefactor {prefactor} should not be in sampling space"
             )
@@ -229,23 +231,24 @@ class TestNLSQInformedPriorsReparamSpace:
     @pytest.mark.integration
     def test_nlsq_informed_priors_centered(self) -> None:
         """build_nlsq_informed_priors centers on NLSQ values in physics space."""
+        # Build a minimal NLSQ result with known values
+        from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
         from heterodyne.config.parameter_space import ParameterSpace
         from heterodyne.optimization.cmc.priors import build_nlsq_informed_priors
         from heterodyne.optimization.nlsq.results import NLSQResult
 
-        # Build a minimal NLSQ result with known values
-        from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
         varying_names = [
             name for name in DEFAULT_REGISTRY if DEFAULT_REGISTRY[name].vary_default
         ]
-        n_varying = len(varying_names)
 
         # Use registry defaults as "NLSQ result"
         params = np.array([DEFAULT_REGISTRY[n].default for n in varying_names])
-        uncertainties = np.array([
-            DEFAULT_REGISTRY[n].prior_std if DEFAULT_REGISTRY[n].prior_std else 1.0
-            for n in varying_names
-        ])
+        uncertainties = np.array(
+            [
+                DEFAULT_REGISTRY[n].prior_std if DEFAULT_REGISTRY[n].prior_std else 1.0
+                for n in varying_names
+            ]
+        )
 
         nlsq_result = NLSQResult(
             parameters=params,
@@ -283,14 +286,18 @@ class TestReparamModelConsistency:
             a0_numpy = math.exp(log_at_tref - alpha * log_tref)
 
             # JAX
-            a0_jax = float(reparam_to_physics_jax(
-                jnp.float64(log_at_tref),
-                jnp.float64(alpha),
-                t_ref,
-            ))
+            a0_jax = float(
+                reparam_to_physics_jax(
+                    jnp.float64(log_at_tref),
+                    jnp.float64(alpha),
+                    t_ref,
+                )
+            )
 
             npt.assert_allclose(
-                a0_jax, a0_numpy, rtol=1e-12,
+                a0_jax,
+                a0_numpy,
+                rtol=1e-12,
                 err_msg=f"JAX/numpy mismatch for log_at_tref={log_at_tref}, alpha={alpha}",
             )
 
@@ -321,7 +328,9 @@ class TestPartialReparameterization:
         assert "alpha_ref" in sampling
 
         # D0_sample and v0 should pass through unchanged
-        npt.assert_allclose(sampling["D0_sample"], physics_params["D0_sample"], rtol=1e-14)
+        npt.assert_allclose(
+            sampling["D0_sample"], physics_params["D0_sample"], rtol=1e-14
+        )
         npt.assert_allclose(sampling["v0"], physics_params["v0"], rtol=1e-14)
         npt.assert_allclose(sampling["beta"], physics_params["beta"], rtol=1e-14)
 
@@ -357,7 +366,9 @@ class TestPartialReparameterization:
         assert "log_v0_at_tref" in sampling
         assert "v0" not in sampling
         npt.assert_allclose(sampling["D0_ref"], physics_params["D0_ref"], rtol=1e-14)
-        npt.assert_allclose(sampling["D0_sample"], physics_params["D0_sample"], rtol=1e-14)
+        npt.assert_allclose(
+            sampling["D0_sample"], physics_params["D0_sample"], rtol=1e-14
+        )
 
 
 class TestAllFlagsDisabled:
@@ -382,7 +393,9 @@ class TestAllFlagsDisabled:
         for name, value in physics_params.items():
             assert name in sampling, f"Missing parameter {name} in output"
             npt.assert_allclose(
-                sampling[name], value, rtol=1e-14,
+                sampling[name],
+                value,
+                rtol=1e-14,
                 err_msg=f"Parameter {name} should pass through unchanged",
             )
 
@@ -409,7 +422,9 @@ class TestAllFlagsDisabled:
 
         for name, value in physics_params.items():
             npt.assert_allclose(
-                recovered[name][0], value, rtol=1e-14,
+                recovered[name][0],
+                value,
+                rtol=1e-14,
                 err_msg=f"Round-trip failed for {name} with disabled config",
             )
 
