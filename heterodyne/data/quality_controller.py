@@ -856,7 +856,9 @@ def track_quality_history(
     if history:
         prev = history[-1]
         delta = new_result.quality_score - prev.quality_score
-        direction = "improved" if delta > 0 else "degraded" if delta < 0 else "unchanged"
+        direction = (
+            "improved" if delta > 0 else "degraded" if delta < 0 else "unchanged"
+        )
         logger.info(
             "Quality trend: %s -> %s (%.2f -> %.2f, %+.2f %s)",
             prev.stage.value,

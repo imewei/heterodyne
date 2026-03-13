@@ -7,7 +7,6 @@ NumPy arrays are used throughout to exercise validation logic.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 # ---------------------------------------------------------------------------
 # Import checks

@@ -33,7 +33,9 @@ def filter_by_angle_range(
             fall within the range.
     """
     if c2_3d.ndim != 3:
-        raise ValueError(f"c2_3d must be 3D, got {c2_3d.ndim}D with shape {c2_3d.shape}")
+        raise ValueError(
+            f"c2_3d must be 3D, got {c2_3d.ndim}D with shape {c2_3d.shape}"
+        )
 
     if len(phi_angles) != c2_3d.shape[0]:
         raise ValueError(

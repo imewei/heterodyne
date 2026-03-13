@@ -7,14 +7,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 
 from heterodyne.utils.logging import get_logger
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 
@@ -102,6 +99,7 @@ class PreprocessingPipeline:
 
         Normalizes c2 so that diagonal values are 1.
         """
+
         def _normalize(c2: np.ndarray) -> np.ndarray:
             if c2.ndim == 3:
                 # Batch of matrices: normalize each slice
@@ -128,6 +126,7 @@ class PreprocessingPipeline:
         Args:
             baseline: Baseline value to subtract
         """
+
         def _subtract(c2: np.ndarray) -> np.ndarray:
             return c2 - baseline
 
@@ -144,6 +143,7 @@ class PreprocessingPipeline:
             min_val: Minimum value
             max_val: Maximum value
         """
+
         def _clip(c2: np.ndarray) -> np.ndarray:
             return np.clip(c2, min_val, max_val)
 
@@ -160,6 +160,7 @@ class PreprocessingPipeline:
             n_sigma: Number of standard deviations for outlier threshold
             replace_with: Replacement strategy ('median', 'nan', 'clip')
         """
+
         def _remove_outliers(c2: np.ndarray) -> np.ndarray:
             if c2.ndim == 3:
                 # Batch: process each phi-slice independently
@@ -168,16 +169,25 @@ class PreprocessingPipeline:
                 for i in range(c2.shape[0]):
                     before = c2[i]
                     after = _remove_outliers_2d(before, n_sigma, replace_with)
-                    total_outliers += np.sum(before != after)
+                    finite_before = np.isfinite(before)
+                    total_outliers += np.sum(finite_before & (before != after))
                     result[i] = after
                 if total_outliers > 0:
-                    logger.info("Removed %d outliers (%.2f%%)", total_outliers, 100*total_outliers/c2.size)
+                    logger.info(
+                        "Removed %d outliers (%.2f%%)",
+                        total_outliers,
+                        100 * total_outliers / c2.size,
+                    )
                 return result
 
             result = _remove_outliers_2d(c2, n_sigma, replace_with)
-            n_outliers = np.sum(c2 != result)
+            n_outliers = np.sum(np.isfinite(c2) & (c2 != result))
             if n_outliers > 0:
-                logger.info("Removed %d outliers (%.2f%%)", n_outliers, 100*n_outliers/c2.size)
+                logger.info(
+                    "Removed %d outliers (%.2f%%)",
+                    n_outliers,
+                    100 * n_outliers / c2.size,
+                )
             return result
 
         return self.add_step(f"remove_outliers({n_sigma}σ)", _remove_outliers)
@@ -187,6 +197,7 @@ class PreprocessingPipeline:
 
         Makes c2(t1, t2) = c2(t2, t1). Handles both 2D and 3D (batch) data.
         """
+
         def _symmetrize(c2: np.ndarray) -> np.ndarray:
             if c2.ndim == 2:
                 return np.asarray(np.nanmean(np.stack([c2, c2.T]), axis=0))
@@ -359,6 +370,7 @@ def preprocess_correlation(
 # ---------------------------------------------------------------------------
 # Extended preprocessing: enums, provenance, normalization, noise reduction
 # ---------------------------------------------------------------------------
+
 
 class PreprocessingStage(Enum):
     """Stages in the preprocessing pipeline."""
@@ -759,7 +771,9 @@ def _baseline_polynomial(c2: np.ndarray, degree: int = 2) -> np.ndarray:
     flat_vals = c2.ravel()
     # Handle NaN: mask them out
     valid_vals = ~np.isnan(flat_vals)
-    lag_sums = np.bincount(flat_lags[valid_vals], weights=flat_vals[valid_vals], minlength=n)
+    lag_sums = np.bincount(
+        flat_lags[valid_vals], weights=flat_vals[valid_vals], minlength=n
+    )
     lag_counts = np.bincount(flat_lags[valid_vals], minlength=n)
     # Avoid division by zero
     lag_counts = np.maximum(lag_counts, 1)
@@ -772,7 +786,9 @@ def _baseline_polynomial(c2: np.ndarray, degree: int = 2) -> np.ndarray:
 
     # Fit using numpy.polynomial (lowest-degree-first coefficients)
     coeffs = np.polynomial.polynomial.polyfit(
-        offsets[valid], diag_means[valid], degree,
+        offsets[valid],
+        diag_means[valid],
+        degree,
     )
 
     # Evaluate polynomial on unique lag values (1D), then index into result
@@ -827,8 +843,7 @@ def apply_noise_reduction(
 
     if method is NoiseReductionMethod.WAVELET:
         logger.warning(
-            "Wavelet noise reduction is not yet implemented; "
-            "returning data unchanged."
+            "Wavelet noise reduction is not yet implemented; returning data unchanged."
         )
         return c2.copy()
 
@@ -836,7 +851,9 @@ def apply_noise_reduction(
     raise ValueError(msg)
 
 
-def _noise_wiener_filter(c2: np.ndarray, noise_variance: float | None = None) -> np.ndarray:
+def _noise_wiener_filter(
+    c2: np.ndarray, noise_variance: float | None = None
+) -> np.ndarray:
     """Apply Wiener filter for noise reduction.
 
     The Wiener filter is optimal in the MSE sense for additive Gaussian noise.
@@ -1089,7 +1106,8 @@ def preprocess_xpcs_data(
         nr_kwargs = {
             k: v
             for k, v in kwargs.items()
-            if k in ("kernel_size", "sigma", "noise_variance", "window_length", "polyorder")
+            if k
+            in ("kernel_size", "sigma", "noise_variance", "window_length", "polyorder")
         }
         pipeline.add_step(
             f"noise_reduction({nr_method.value})",

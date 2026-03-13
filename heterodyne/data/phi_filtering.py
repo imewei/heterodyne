@@ -86,7 +86,9 @@ class PhiAngleFilter:
             # Single angle data
             return PhiFilterResult(
                 c2=c2,
-                phi_angles=np.array([0.0]) if self._phi_angles is None else self._phi_angles[:1],
+                phi_angles=np.array([0.0])
+                if self._phi_angles is None
+                else self._phi_angles[:1],
                 selected_indices=np.array([0]),
                 n_angles=1,
             )
@@ -119,8 +121,10 @@ class PhiAngleFilter:
                 matched_angles.append(self._phi_angles[min_idx])
             else:
                 logger.warning(
-                    f"No angle within {angle_tolerance}° of target {target}°. "
-                    f"Closest: {self._phi_angles[min_idx]:.1f}°"
+                    "No angle within %.1f° of target %.1f°. Closest: %.1f°",
+                    angle_tolerance,
+                    target,
+                    float(self._phi_angles[min_idx]),
                 )
 
         # Deduplicate indices while preserving order

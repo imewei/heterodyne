@@ -89,7 +89,9 @@ def make_correlation_data(
     """
     rng = np.random.default_rng(seed)
     tau = make_tau_array(n=n_tau)
-    g2_clean = make_g2_synthetic(tau, contrast=contrast, offset=offset, decay_rate=decay_rate)
+    g2_clean = make_g2_synthetic(
+        tau, contrast=contrast, offset=offset, decay_rate=decay_rate
+    )
     noise = rng.normal(scale=noise_level, size=(n_angles, n_tau))
     g2 = np.broadcast_to(g2_clean, (n_angles, n_tau)).copy() + noise
     angles = list(np.linspace(0.0, 90.0, n_angles))
@@ -116,7 +118,9 @@ def make_param_dict(overrides: dict | None = None) -> dict[str, float]:
     """
     from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
 
-    params: dict[str, float] = {name: DEFAULT_REGISTRY[name].default for name in DEFAULT_REGISTRY}
+    params: dict[str, float] = {
+        name: DEFAULT_REGISTRY[name].default for name in DEFAULT_REGISTRY
+    }
     if overrides:
         params.update(overrides)
     return params

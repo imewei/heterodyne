@@ -93,9 +93,7 @@ def apply_q_range_filter(
         ValueError: If no q values fall within the range.
     """
     if q_range.q_min > q_range.q_max:
-        raise ValueError(
-            f"q_min ({q_range.q_min}) must be <= q_max ({q_range.q_max})"
-        )
+        raise ValueError(f"q_min ({q_range.q_min}) must be <= q_max ({q_range.q_max})")
 
     mask = (q_values >= q_range.q_min) & (q_values <= q_range.q_max)
     n_kept = int(np.sum(mask))
@@ -148,7 +146,7 @@ def apply_sigma_clip(
     if finite_values.size == 0:
         return FilterResult(
             data=c2.copy(),
-            mask=np.zeros_like(c2, dtype=bool),
+            mask=np.ones_like(c2, dtype=bool),
             n_removed=0,
             reason=f"sigma_clip (sigma={sigma}): no finite values",
         )

@@ -134,7 +134,7 @@ def validate_xpcs_data(
             statistics["relative_asymmetry"] = rel_asymmetry
 
         if rel_asymmetry is not None and rel_asymmetry > 0.01:
-            warnings.append(f"Significant asymmetry: {100*rel_asymmetry:.2f}%")
+            warnings.append(f"Significant asymmetry: {100 * rel_asymmetry:.2f}%")
 
     # Time array validation
     if data.t1 is not None:
@@ -156,7 +156,9 @@ def validate_xpcs_data(
         statistics["diagonal_mean"] = float(diag_mean)
 
         if abs(diag_mean - 1.0) > 0.1:
-            warnings.append(f"Diagonal mean = {diag_mean:.3f}, expected ~1.0 for normalized c2")
+            warnings.append(
+                f"Diagonal mean = {diag_mean:.3f}, expected ~1.0 for normalized c2"
+            )
 
     is_valid = len(errors) == 0
 
@@ -212,7 +214,9 @@ def validate_time_consistency(
 
         # Uniformity check
         if dt_std / dt_actual > 0.01:
-            warnings.append(f"Non-uniform time steps: dt_std/dt = {dt_std/dt_actual:.3f}")
+            warnings.append(
+                f"Non-uniform time steps: dt_std/dt = {dt_std / dt_actual:.3f}"
+            )
 
         # Expected dt check
         if dt_expected is not None:
@@ -233,6 +237,7 @@ def validate_time_consistency(
 # ---------------------------------------------------------------------------
 # Incremental validation infrastructure
 # ---------------------------------------------------------------------------
+
 
 class ValidationLevel(Enum):
     """Level of validation to perform."""
@@ -328,9 +333,7 @@ class IncrementalValidationCache:
 # ---------------------------------------------------------------------------
 
 
-def _validate_array_component(
-    c2: np.ndarray, issues: list[ValidationIssue]
-) -> None:
+def _validate_array_component(c2: np.ndarray, issues: list[ValidationIssue]) -> None:
     """Validate array shape, dtype, and size."""
     # Dimensionality check
     if c2.ndim == 2:
@@ -339,9 +342,7 @@ def _validate_array_component(
                 ValidationIssue(
                     severity="error",
                     category="shape",
-                    message=(
-                        f"2D c2 array is not square: shape {c2.shape}"
-                    ),
+                    message=(f"2D c2 array is not square: shape {c2.shape}"),
                     recommendation="Provide a square correlation matrix c2(t1, t2).",
                 )
             )
@@ -566,9 +567,7 @@ def _validate_time_component(
             )
 
 
-def _validate_physics_parameters(
-    data: XPCSData, issues: list[ValidationIssue]
-) -> None:
+def _validate_physics_parameters(data: XPCSData, issues: list[ValidationIssue]) -> None:
     """Validate physics-related metadata against PhysicsConstants ranges.
 
     Imports PhysicsConstants locally to avoid circular imports
@@ -659,8 +658,7 @@ def _validate_statistical_properties(
                     message=f"Excess kurtosis = {kurtosis:.2f} (heavy tails)",
                     value=kurtosis,
                     recommendation=(
-                        "Large kurtosis may indicate outliers "
-                        "or non-Gaussian noise."
+                        "Large kurtosis may indicate outliers or non-Gaussian noise."
                     ),
                 )
             )
@@ -823,9 +821,7 @@ def validate_xpcs_data_incremental(
         _validate_statistical_properties(data.c2, issues)
 
     # Build errors / warnings lists
-    errors = [
-        issue.message for issue in issues if issue.severity == "error"
-    ]
+    errors = [issue.message for issue in issues if issue.severity == "error"]
     warnings = [
         issue.message for issue in issues if issue.severity in ("warning", "info")
     ]

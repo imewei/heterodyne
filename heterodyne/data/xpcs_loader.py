@@ -4,16 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import h5py
 import numpy as np
 
 from heterodyne.utils.logging import get_logger
 from heterodyne.utils.path_validation import validate_file_exists
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 
@@ -149,9 +146,7 @@ def validate_loaded_data(data: XPCSData) -> list[str]:
                 f"c2 q-axis size {n_q}"
             )
     else:
-        raise DataValidationError(
-            f"c2 must be 2-D or 3-D, got {data.c2.ndim}-D"
-        )
+        raise DataValidationError(f"c2 must be 2-D or 3-D, got {data.c2.ndim}-D")
 
     # 3. Symmetry (soft check, 2-D only)
     if data.c2.ndim == 2:
@@ -183,9 +178,7 @@ def validate_loaded_data(data: XPCSData) -> list[str]:
     # 5. Time monotonicity
     for name, arr in (("t1", data.t1), ("t2", data.t2)):
         if arr.shape[0] > 1 and not np.all(np.diff(arr) > 0):
-            raise DataValidationError(
-                f"{name} is not strictly increasing"
-            )
+            raise DataValidationError(f"{name} is not strictly increasing")
 
     if warnings:
         for w in warnings:
@@ -233,8 +226,7 @@ def _reconstruct_from_half_matrix(data: np.ndarray) -> np.ndarray:
             result[qi] = _reconstruct_2d(data[qi])
         return result
     raise ValueError(
-        f"_reconstruct_from_half_matrix expects 2-D or 3-D input, "
-        f"got {data.ndim}-D"
+        f"_reconstruct_from_half_matrix expects 2-D or 3-D input, got {data.ndim}-D"
     )
 
 
@@ -491,7 +483,7 @@ def load_xpcs_batch(
                 n_total,
                 Path(fp).name,
             )
-        except Exception as exc:
+        except (OSError, ValueError, KeyError, RuntimeError) as exc:
             logger.error(
                 "Batch load [%d/%d]: FAILED %s - %s",
                 idx + 1,
@@ -531,7 +523,7 @@ def _cache_is_valid(source: Path, cache: Path) -> bool:
         stored = np.load(cache, allow_pickle=False)
         cached_mtime = float(stored[_CACHE_KEY_MTIME])
         return cached_mtime == _source_mtime(source)
-    except Exception:
+    except (OSError, ValueError, KeyError):
         return False
 
 
@@ -706,17 +698,11 @@ class XPCSDataLoader:
 
         start_0 = start - 1  # convert to 0-based
         if start_0 < 0:
-            raise ValueError(
-                f"frame_range start must be >= 1 (1-based), got {start}"
-            )
+            raise ValueError(f"frame_range start must be >= 1 (1-based), got {start}")
         if end > n_frames:
-            raise ValueError(
-                f"frame_range end {end} exceeds n_frames {n_frames}"
-            )
+            raise ValueError(f"frame_range end {end} exceeds n_frames {n_frames}")
         if start > end:
-            raise ValueError(
-                f"frame_range start {start} must be <= end {end}"
-            )
+            raise ValueError(f"frame_range start {start} must be <= end {end}")
 
         logger.info(
             "Frame slicing: frames %d–%d (0-based %d:%d), %d → %d frames",
@@ -789,8 +775,7 @@ class XPCSDataLoader:
 
         deviation = float(np.abs(selected_q - select_q).min())
         logger.info(
-            "Q selection: target=%.6g Å⁻¹, selected %d bin(s) "
-            "(min deviation=%.4g Å⁻¹)",
+            "Q selection: target=%.6g Å⁻¹, selected %d bin(s) (min deviation=%.4g Å⁻¹)",
             select_q,
             indices.size,
             deviation,
@@ -860,7 +845,7 @@ class XPCSDataLoader:
         if _cache_is_valid(self.file_path, cache):
             try:
                 return _read_cache(cache)
-            except Exception as exc:
+            except (OSError, ValueError, KeyError) as exc:
                 logger.warning(
                     "Cache read failed for %s (%s), reloading from source",
                     cache.name,
@@ -905,10 +890,7 @@ class XPCSDataLoader:
         Returns:
             One of ``"aps_u"``, ``"aps_old"``, ``"exchange"``, ``"flat"``.
         """
-        if (
-            "xpcs/twotime/correlation_map" in f
-            and "xpcs/qmap/dynamic_v_list_dim0" in f
-        ):
+        if "xpcs/twotime/correlation_map" in f and "xpcs/qmap/dynamic_v_list_dim0" in f:
             logger.debug("HDF5 format detected: aps_u")
             return "aps_u"
         if "xpcs/dqlist" in f and "exchange/C2T_all" in f:
@@ -946,7 +928,9 @@ class XPCSDataLoader:
             to the per-bin phi-values.
         """
         q_all = np.asarray(f["xpcs/qmap/dynamic_v_list_dim0"], dtype=np.float64).ravel()
-        phi_all = np.asarray(f["xpcs/qmap/dynamic_v_list_dim1"], dtype=np.float64).ravel()
+        phi_all = np.asarray(
+            f["xpcs/qmap/dynamic_v_list_dim1"], dtype=np.float64
+        ).ravel()
         n_phi = phi_all.shape[0]
 
         bins_raw = np.asarray(f["xpcs/twotime/processed_bins"]).ravel()
@@ -962,7 +946,9 @@ class XPCSDataLoader:
 
         for key, bin_idx in zip(sorted_keys, bins_0, strict=True):
             if bin_idx < 0:
-                logger.debug("APS-U loader: skipping invalid bin index %d (key %s)", bin_idx, key)
+                logger.debug(
+                    "APS-U loader: skipping invalid bin index %d (key %s)", bin_idx, key
+                )
                 continue
             q_idx = int(bin_idx) // n_phi
             phi_idx = int(bin_idx) % n_phi
@@ -1074,7 +1060,9 @@ class XPCSDataLoader:
                 break
         else:
             t = np.arange(n_frames, dtype=np.float64)
-            logger.warning("APS old loader: time dataset not found, using frame indices")
+            logger.warning(
+                "APS old loader: time dataset not found, using frame indices"
+            )
 
         metadata: dict[str, Any] = {}
         for attr_key in f.attrs:
@@ -1134,17 +1122,13 @@ class XPCSDataLoader:
             # --- Flat layout ---
             if c2_key not in f:
                 available = list(f.keys())
-                raise KeyError(
-                    f"Key '{c2_key}' not found. Available: {available}"
-                )
+                raise KeyError(f"Key '{c2_key}' not found. Available: {available}")
             c2 = np.asarray(f[c2_key], dtype=np.float64)
 
             if time_key in f:
                 t = np.asarray(f[time_key], dtype=np.float64)
             else:
-                logger.warning(
-                    "Time key '%s' not found, using indices", time_key
-                )
+                logger.warning("Time key '%s' not found, using indices", time_key)
                 n_t = c2.shape[-2] if c2.ndim == 3 else c2.shape[0]
                 t = np.arange(n_t, dtype=np.float64)
 
@@ -1279,9 +1263,7 @@ class XPCSDataLoader:
         with npz_file as data:
             if c2_key not in data:
                 available = list(data.keys())
-                raise KeyError(
-                    f"Key '{c2_key}' not found. Available: {available}"
-                )
+                raise KeyError(f"Key '{c2_key}' not found. Available: {available}")
             c2 = np.asarray(data[c2_key], dtype=np.float64)
 
             if time_key in data:
@@ -1319,7 +1301,7 @@ class XPCSDataLoader:
             raise ValueError(
                 f"Expected 2D or 3D array from {self.file_path}, got {c2.ndim}D"
             )
-        t = np.arange(c2.shape[-2] if c2.ndim == 3 else c2.shape[0])
+        t = np.arange(c2.shape[-2] if c2.ndim == 3 else c2.shape[0], dtype=np.float64)
         return XPCSData(c2=c2, t1=t, t2=t)
 
     def _load_mat(
@@ -1336,9 +1318,7 @@ class XPCSDataLoader:
 
         if c2_key not in data:
             available = [k for k in data.keys() if not k.startswith("__")]
-            raise KeyError(
-                f"Key '{c2_key}' not found. Available: {available}"
-            )
+            raise KeyError(f"Key '{c2_key}' not found. Available: {available}")
 
         c2 = np.asarray(data[c2_key], dtype=np.float64)
 

@@ -264,7 +264,7 @@ class TieredCache:
                     self._l2_hits += 1
                 logger.debug("TieredCache L2 hit for '%s'; promoted to L1", key)
                 return data
-            except Exception:
+            except (OSError, ValueError, KeyError):
                 logger.warning(
                     "TieredCache: failed to load disk cache for '%s'; treating as miss",
                     key,
@@ -303,9 +303,7 @@ class TieredCache:
                 disk_path.unlink()
                 logger.debug("TieredCache: removed disk entry for '%s'", key)
             except OSError:
-                logger.warning(
-                    "TieredCache: could not remove disk entry for '%s'", key
-                )
+                logger.warning("TieredCache: could not remove disk entry for '%s'", key)
 
     def clear(self) -> None:
         """Clear both cache levels."""
@@ -382,9 +380,7 @@ class TieredCache:
         to avoid leaving partial files on crash or interruption.
         """
         try:
-            fd, tmp_path_str = tempfile.mkstemp(
-                dir=path.parent, suffix=".npz.tmp"
-            )
+            fd, tmp_path_str = tempfile.mkstemp(dir=path.parent, suffix=".npz.tmp")
             os.close(fd)
             tmp_path = Path(tmp_path_str)
             try:
@@ -401,7 +397,7 @@ class TieredCache:
             except Exception:
                 tmp_path.unlink(missing_ok=True)
                 raise
-        except Exception:
+        except OSError:
             logger.warning(
                 "TieredCache: failed to write disk cache to '%s'",
                 path,

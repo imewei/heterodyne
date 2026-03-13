@@ -445,7 +445,7 @@ def categorize_dataset(
             import psutil  # type: ignore[import-untyped]
 
             available_memory = int(psutil.virtual_memory().available)
-        except Exception:
+        except (ImportError, AttributeError):
             available_memory = 8_000_000_000  # 8 GB fallback
             logger.debug(
                 "psutil unavailable; assuming %d bytes available memory",
@@ -530,10 +530,10 @@ def create_loading_plan(
     # Rough throughput estimates (bytes/s) for sequentially reading from disk.
     # These are conservative approximations suitable for planning purposes.
     _THROUGHPUT = {
-        "small": 500_000_000,       # 500 MB/s (fast SSD, fully cached)
-        "medium": 300_000_000,      # 300 MB/s (SSD)
-        "large": 150_000_000,       # 150 MB/s (mmap, partial cache pressure)
-        "very_large": 80_000_000,   # 80 MB/s (HDD / high memory pressure)
+        "small": 500_000_000,  # 500 MB/s (fast SSD, fully cached)
+        "medium": 300_000_000,  # 300 MB/s (SSD)
+        "large": 150_000_000,  # 150 MB/s (mmap, partial cache pressure)
+        "very_large": 80_000_000,  # 80 MB/s (HDD / high memory pressure)
     }
 
     throughput = _THROUGHPUT.get(cat.category, 100_000_000)

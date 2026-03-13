@@ -333,9 +333,7 @@ def validate_config_schema(
             continue
         for field_name, expected_type in fields.items():
             if field_name not in section_data:
-                errors.append(
-                    f"Missing required field: '{section}.{field_name}'"
-                )
+                errors.append(f"Missing required field: '{section}.{field_name}'")
             else:
                 value = section_data[field_name]
                 if not isinstance(value, expected_type):

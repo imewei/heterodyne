@@ -99,8 +99,7 @@ class MemoryManager:
                     self._labels[label] = prior
                     self._allocated += prior
                 logger.warning(
-                    "Allocation '%s' denied: %d bytes requested, "
-                    "%d/%d bytes used",
+                    "Allocation '%s' denied: %d bytes requested, %d/%d bytes used",
                     label,
                     n_bytes,
                     self._allocated,
@@ -474,9 +473,9 @@ class AdaptiveChunker:
 class MemoryPressureLevel(Enum):
     """System memory pressure classification."""
 
-    LOW = "low"           # < 50% used
+    LOW = "low"  # < 50% used
     MODERATE = "moderate"  # 50-75% used
-    HIGH = "high"          # 75-90% used
+    HIGH = "high"  # 75-90% used
     CRITICAL = "critical"  # > 90% used
 
 

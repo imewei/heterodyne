@@ -19,7 +19,6 @@ from heterodyne.data.angle_filtering import (
 from heterodyne.data.types import AngleRange
 from heterodyne.optimization.cmc.priors import estimate_per_angle_scaling
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -80,9 +79,7 @@ class TestFilterByAngleRange:
         with pytest.raises(ValueError, match="3D"):
             filter_by_angle_range(c2_2d, phi_4, AngleRange(0.0, 90.0))
 
-    def test_raises_on_length_mismatch(
-        self, small_c2_3d: np.ndarray
-    ) -> None:
+    def test_raises_on_length_mismatch(self, small_c2_3d: np.ndarray) -> None:
         phi_wrong = np.array([0.0, 45.0], dtype=np.float64)
         with pytest.raises(ValueError, match="phi_angles length"):
             filter_by_angle_range(small_c2_3d, phi_wrong, AngleRange(0.0, 90.0))
@@ -179,9 +176,7 @@ class TestComputeAngleQuality:
         result = compute_angle_quality(small_c2_3d, phi_4)
         assert set(result.keys()) == {"phi_angles", "snr", "mean", "std"}
 
-    def test_output_shapes(
-        self, small_c2_3d: np.ndarray, phi_4: np.ndarray
-    ) -> None:
+    def test_output_shapes(self, small_c2_3d: np.ndarray, phi_4: np.ndarray) -> None:
         result = compute_angle_quality(small_c2_3d, phi_4)
         assert result["snr"].shape == (4,)
         assert result["mean"].shape == (4,)
@@ -193,9 +188,7 @@ class TestComputeAngleQuality:
         result = compute_angle_quality(small_c2_3d, phi_4)
         np.testing.assert_array_equal(result["phi_angles"], phi_4)
 
-    def test_snr_non_negative(
-        self, small_c2_3d: np.ndarray, phi_4: np.ndarray
-    ) -> None:
+    def test_snr_non_negative(self, small_c2_3d: np.ndarray, phi_4: np.ndarray) -> None:
         result = compute_angle_quality(small_c2_3d, phi_4)
         assert np.all(result["snr"] >= 0.0)
 
@@ -221,9 +214,7 @@ class TestComputeAngleQuality:
         with pytest.raises(ValueError, match="3D"):
             compute_angle_quality(np.zeros((4, 5)), phi_4)
 
-    def test_raises_on_phi_length_mismatch(
-        self, small_c2_3d: np.ndarray
-    ) -> None:
+    def test_raises_on_phi_length_mismatch(self, small_c2_3d: np.ndarray) -> None:
         phi_wrong = np.array([0.0, 45.0], dtype=np.float64)
         with pytest.raises(ValueError, match="phi_angles length"):
             compute_angle_quality(small_c2_3d, phi_wrong)

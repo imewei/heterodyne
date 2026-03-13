@@ -34,16 +34,13 @@ def validate_correlation_shape(
 
     if c2.ndim not in (2, 3):
         errors.append(
-            f"Correlation data must be 2D or 3D, got {c2.ndim}D "
-            f"with shape {c2.shape}"
+            f"Correlation data must be 2D or 3D, got {c2.ndim}D with shape {c2.shape}"
         )
         return errors
 
     # For 2D: (n_t, n_t); for 3D: (n_phi, n_t, n_t)
     if c2.ndim == 2 and c2.shape[0] != c2.shape[1]:
-        errors.append(
-            f"2D correlation matrix must be square, got shape {c2.shape}"
-        )
+        errors.append(f"2D correlation matrix must be square, got shape {c2.shape}")
 
     if c2.ndim == 3 and c2.shape[1] != c2.shape[2]:
         errors.append(
@@ -52,9 +49,7 @@ def validate_correlation_shape(
         )
 
     if expected_shape is not None and c2.shape != expected_shape:
-        errors.append(
-            f"Shape mismatch: got {c2.shape}, expected {expected_shape}"
-        )
+        errors.append(f"Shape mismatch: got {c2.shape}, expected {expected_shape}")
 
     return errors
 
@@ -155,8 +150,7 @@ def validate_weights(
 
     if weights.shape != data_shape:
         errors.append(
-            f"Weights shape {weights.shape} does not match "
-            f"data shape {data_shape}"
+            f"Weights shape {weights.shape} does not match data shape {data_shape}"
         )
 
     if np.any(weights < 0):
