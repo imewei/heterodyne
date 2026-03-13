@@ -11,6 +11,7 @@ needed by the NLSQ strategies.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -190,19 +191,50 @@ def make_varying_residual_fn(
     return varying_residual_fn, n_residuals
 
 
+# Module-level cache: maps residual_fn id → (residual_fn, compiled jacfwd).
+# Storing the *original* residual_fn alongside the compiled version keeps
+# it alive, preventing Python from recycling its ``id()`` for a different
+# object (which would silently return a stale compiled Jacobian).
+# Bounded to _JAC_CACHE_MAX entries; oldest entries are evicted first.
+_JAC_CACHE_MAX = 8
+_jac_fn_cache: dict[
+    int, tuple[Callable[..., jnp.ndarray], Callable[..., jnp.ndarray]]
+] = {}
+
+
 def compute_nlsq_jacobian(
-    residual_fn,
+    residual_fn: Callable[..., jnp.ndarray],
     params: jnp.ndarray,
 ) -> np.ndarray:
-    """Compute Jacobian of residual function via JAX autodiff.
+    """Compute Jacobian of residual function via JAX forward-mode autodiff.
+
+    Uses ``jax.jacfwd`` (forward-mode) rather than ``jax.jacobian``
+    (reverse-mode default).  For a residual function with 14 input
+    parameters and O(N²) outputs, forward mode runs 14 JVP passes
+    instead of O(N²) VJP passes — substantially cheaper for the
+    XPCS use-case where N=200--500.
+
+    The compiled ``jacfwd`` closure is cached by the identity of
+    ``residual_fn``, so repeated calls during an NLSQ iteration loop
+    reuse the already-traced XLA computation without re-tracing.
 
     Args:
-        residual_fn: JIT-compiled residual function (params → residuals)
+        residual_fn: JIT-compiled residual function (params -> residuals)
         params: Current parameter values
 
     Returns:
         Jacobian matrix, shape (n_residuals, n_params), as numpy array
     """
-    jac_fn = jax.jit(jax.jacobian(residual_fn))
-    jac = jac_fn(jnp.asarray(params))
+    fn_id = id(residual_fn)
+    entry = _jac_fn_cache.get(fn_id)
+    if entry is None or entry[0] is not residual_fn:
+        # jacfwd does n_params JVP passes; far cheaper than n_residuals VJPs.
+        compiled = jax.jit(jax.jacfwd(residual_fn))
+        # Evict oldest entry if cache is full
+        if len(_jac_fn_cache) >= _JAC_CACHE_MAX:
+            _jac_fn_cache.pop(next(iter(_jac_fn_cache)))
+        _jac_fn_cache[fn_id] = (residual_fn, compiled)
+    else:
+        compiled = entry[1]
+    jac = compiled(jnp.asarray(params))
     return np.asarray(jac)
