@@ -89,7 +89,7 @@ parameters:
 | `beta` | Velocity exponent (0 = constant velocity) | 0.0 | — |
 | `v_offset` | Velocity offset (negative for reversal) | 0.0 | Å/s |
 
-**Sample fraction** — $f_s(t) = \text{clip}(f_0 \exp(f_1 (t - f_2)) + f_3, 0, 1)$
+**Sample fraction** — $f_s(t) = f_0 \exp(f_1 (t - f_2)) + f_3$, where $f_s(t) \in [0, 1]$
 
 | Parameter | Description | Default | Units |
 |-----------|-------------|---------|-------|
