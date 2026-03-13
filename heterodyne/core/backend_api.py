@@ -147,9 +147,9 @@ def get_array_module(backend: Backend | None = None) -> ModuleType:
             )
         import jax.numpy as jnp
 
-        return jnp  # type: ignore[return-value]
+        return jnp
 
-    return np  # type: ignore[return-value]
+    return np
 
 
 def ensure_array(

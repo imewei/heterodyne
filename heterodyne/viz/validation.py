@@ -87,7 +87,8 @@ def plot_validation_report(
         f"Validation: {status}", fontsize=13, color=title_color, fontweight="bold"
     )
 
-    ax.figure.tight_layout()
+    if hasattr(ax.figure, "tight_layout"):
+        ax.figure.tight_layout()
 
     return ax
 
@@ -146,7 +147,8 @@ def plot_bounds_check(
     ax.invert_yaxis()
     ax.grid(True, axis="x", alpha=0.3)
 
-    ax.figure.tight_layout()
+    if hasattr(ax.figure, "tight_layout"):
+        ax.figure.tight_layout()
 
     return ax
 
@@ -206,6 +208,7 @@ def plot_quality_report(
         fontweight="bold",
     )
 
-    ax.figure.tight_layout()
+    if hasattr(ax.figure, "tight_layout"):
+        ax.figure.tight_layout()
 
     return ax

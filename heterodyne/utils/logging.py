@@ -445,20 +445,23 @@ class AnalysisSummaryLogger:
             }
 
         # Sanitize metrics so NaN/Inf floats do not cause json.dump to fail.
+        def _json_safe(value: Any) -> Any:
+            """Minimal fallback when io module unavailable."""
+            if isinstance(value, float):
+                import math
+
+                if math.isnan(value):
+                    return None
+                if math.isinf(value):
+                    return str(value)
+            return value
+
         try:
-            from heterodyne.io.json_utils import json_safe as _json_safe
+            import heterodyne.io.json_utils as _json_utils
+
+            _json_safe = _json_utils.json_safe  # type: ignore[assignment]
         except ImportError:
-
-            def _json_safe(value: Any) -> Any:
-                """Minimal fallback when io module unavailable."""
-                if isinstance(value, float):
-                    import math
-
-                    if math.isnan(value):
-                        return None
-                    if math.isinf(value):
-                        return str(value)
-                return value
+            pass
 
         return {
             "run_id": self.run_id,

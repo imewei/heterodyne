@@ -138,7 +138,7 @@ def _estimate_available_memory() -> float:
         import psutil
 
         mem = psutil.virtual_memory()
-        return mem.available / (1024**3)
+        return float(mem.available) / (1024**3)
     except ImportError:
         # Conservative default: 4 GB
         return 4.0

@@ -390,7 +390,7 @@ def compute_chi_squared(
         Chi-squared scalar
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
-    return jnp.sum((c2_model - c2_data) ** 2 * weights)  # type: ignore[no-any-return]
+    return jnp.sum((c2_model - c2_data) ** 2 * weights)
 
 
 def batch_chi_squared(
@@ -433,7 +433,7 @@ def batch_chi_squared(
     n_times = t.shape[0]
 
     def single_chi2(params: jnp.ndarray) -> jnp.ndarray:
-        return compute_chi_squared(
+        return compute_chi_squared(  # type: ignore[no-any-return]
             params, t, q, dt, phi_angle, c2_data, weights, contrast, offset
         )
 
@@ -446,14 +446,14 @@ def batch_chi_squared(
         chunk_size = max(1, int(1.6e9 / max(matrix_bytes, 1)))
 
     if n_sets <= chunk_size:
-        return jax.vmap(single_chi2)(params_batch)  # type: ignore[no-any-return]
+        return jax.vmap(single_chi2)(params_batch)
 
     # Chunked evaluation to bound peak memory
     chunks = []
     for start in range(0, n_sets, chunk_size):
         chunk = params_batch[start : start + chunk_size]
         chunks.append(jax.vmap(single_chi2)(chunk))
-    return jnp.concatenate(chunks)  # type: ignore[no-any-return]
+    return jnp.concatenate(chunks)
 
 
 @jax.jit
@@ -493,13 +493,13 @@ def compute_multi_angle_residuals(
         o: jnp.ndarray,
     ) -> jnp.ndarray:
         c2_model = compute_c2_heterodyne(params, t, q, dt, phi, c, o)
-        return ((c2_model - c2_exp) * jnp.sqrt(w)).ravel()
+        return ((c2_model - c2_exp) * jnp.sqrt(w)).ravel()  # type: ignore[no-any-return]
 
     compute_all = jax.vmap(single_angle_residual, in_axes=(0, 0, 0, 0, 0))
     residuals_batch = compute_all(
         phi_angles, c2_data_batch, weights_batch, contrasts, offsets
     )
-    return residuals_batch.ravel()  # type: ignore[no-any-return]
+    return residuals_batch.ravel()
 
 
 # Gradient of chi-squared with respect to parameters

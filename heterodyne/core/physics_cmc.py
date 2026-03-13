@@ -352,7 +352,7 @@ def compute_log_likelihood(
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     residuals = (c2_model - c2_data) / sigma
-    return -0.5 * jnp.sum(residuals**2)  # type: ignore[no-any-return]
+    return -0.5 * jnp.sum(residuals**2)
 
 
 @jax.jit
@@ -396,7 +396,7 @@ def compute_log_likelihood_elementwise(
         offset,
     )
     residuals = (c2_model - c2_data_flat) / sigma_flat
-    return -0.5 * jnp.sum(residuals**2)  # type: ignore[no-any-return]
+    return -0.5 * jnp.sum(residuals**2)
 
 
 @partial(jax.jit, static_argnames=("shard_start", "shard_end"))
@@ -468,7 +468,7 @@ def compute_shard_log_likelihood(
         (shard_end - shard_start, shard_end - shard_start),
     )
     residuals = (c2_model_shard - c2_shard) / sigma_shard
-    return -0.5 * jnp.sum(residuals**2)  # type: ignore[no-any-return]
+    return -0.5 * jnp.sum(residuals**2)
 
 
 def compute_sharded_log_likelihood(
@@ -524,7 +524,7 @@ def compute_sharded_log_likelihood(
             shard_end=end,
         )
         total = total + ll
-    return total
+    return total  # type: ignore[no-any-return]
 
 
 def compute_sharded_log_likelihood_elementwise(
@@ -576,7 +576,7 @@ def compute_sharded_log_likelihood_elementwise(
             offset,
         )
         total = total + ll
-    return total
+    return total  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------
@@ -618,8 +618,8 @@ def compute_posterior_predictive(
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     if rng_key is not None:
         noise = jax.random.normal(rng_key, shape=c2_model.shape) * sigma
-        return c2_model + noise
-    return c2_model
+        return c2_model + noise  # type: ignore[no-any-return]
+    return c2_model  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------

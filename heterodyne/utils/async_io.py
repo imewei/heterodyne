@@ -89,11 +89,11 @@ class PrefetchLoader[T]:
             raise StopIteration
 
         if item is _ERROR:
-            exc: BaseException = self._queue.get()  # type: ignore[assignment]
+            exc: BaseException = self._queue.get()
             self._shutdown()
             raise exc
 
-        return item  # type: ignore[return-value]
+        return item  # type: ignore[no-any-return]  # queue typed Any; caller gets T via PrefetchLoader[T]
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -236,7 +236,7 @@ class AsyncWriter:
 
     def _do_write_npz(self, path: Path, arrays: dict[str, np.ndarray]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(path, **arrays)
+        np.savez_compressed(path, **arrays)  # type: ignore[arg-type]  # numpy stubs incorrectly type **kwargs as bool
         _log.debug("AsyncWriter wrote npz: %s", path)
 
     def _do_write_json(self, path: Path, data: dict[str, Any]) -> None:

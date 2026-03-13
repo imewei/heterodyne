@@ -10,7 +10,7 @@ large parameter spaces or when the analytic Jacobian is expensive.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import jax
 import jax.numpy as jnp
@@ -126,20 +126,25 @@ class ResidualJITStrategy:
         # Set ydata=zeros so residuals = -residual_fn(params).
         # params arrive as JAX-traced scalars; jnp.stack reassembles.
         def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
-            return -_jit_residuals(jnp.stack(list(params)))  # type: ignore[arg-type]
+            return -_jit_residuals(jnp.stack(list(params)))  # type: ignore[arg-type, no-any-return]
 
         _xdata = np.arange(n_data, dtype=np.float64)
         _ydata = np.zeros(n_data, dtype=np.float64)
 
         fitter = CurveFit(flength=n_data)
-        nlsq_result = fitter.curve_fit(
-            f=_wrapped,
-            xdata=_xdata,
-            ydata=_ydata,
-            p0=initial,
-            bounds=(lower, upper),
-            method=method,
-            # No analytic Jacobian — finite-difference only
+        # CurveFit.curve_fit stub returns tuple[ndarray, ndarray]; at runtime it
+        # always returns CurveFitResult(OptimizeResult) with .x/.success/.jac
+        nlsq_result = cast(
+            Any,
+            fitter.curve_fit(
+                f=_wrapped,
+                xdata=_xdata,
+                ydata=_ydata,
+                p0=initial,
+                bounds=(lower, upper),
+                method=method,
+                # No analytic Jacobian — finite-difference only
+            ),
         )
 
         wall_time = time.perf_counter() - start_time

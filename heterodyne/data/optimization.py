@@ -442,7 +442,7 @@ def categorize_dataset(
 
     if available_memory is None:
         try:
-            import psutil  # type: ignore[import-untyped]
+            import psutil
 
             available_memory = int(psutil.virtual_memory().available)
         except (ImportError, AttributeError):

@@ -31,8 +31,8 @@ try:
     STREAMING_AVAILABLE = True
 except ImportError:
     STREAMING_AVAILABLE = False
-    AdaptiveHybridStreamingOptimizer = None  # type: ignore[assignment,misc]
-    HybridStreamingConfig = None  # type: ignore[assignment,misc]
+    AdaptiveHybridStreamingOptimizer = None
+    HybridStreamingConfig = None
 
 import jax.numpy as jnp
 import numpy as np

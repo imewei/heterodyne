@@ -299,7 +299,7 @@ def _run_strategy(
         residuals = np.asarray(c2_theory).ravel() - c2_data.ravel()
         if weights is not None:
             residuals = residuals * np.sqrt(weights.ravel())
-        return residuals
+        return residuals  # type: ignore[no-any-return]
 
     initial_params = np.array(
         model.param_manager.get_initial_values(), dtype=np.float64

@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import numpy as np
 
@@ -130,7 +130,7 @@ class ParameterSpace:
                             "Loaded %d parameter bounds from config_manager",
                             len(bounds),
                         )
-                        return bounds
+                        return cast(list[tuple[float, float]], bounds)
             except (TypeError, KeyError, AttributeError, ValueError) as e:
                 logger.warning(
                     "Failed to use config_manager for bounds: %s, using registry defaults",
@@ -421,7 +421,7 @@ if JAX_AVAILABLE:
                 n_data_final,
             ),
             _,
-        ) = jax.lax.scan(process_chunk, carry_init, (theory_chunks, exp_chunks))  # type: ignore[arg-type]
+        ) = jax.lax.scan(process_chunk, carry_init, (theory_chunks, exp_chunks))
 
         # Solve 2x2 system
         det = sum_theory_sq_final * n_data_final - sum_theory_final * sum_theory_final

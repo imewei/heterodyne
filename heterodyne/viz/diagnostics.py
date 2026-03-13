@@ -78,7 +78,12 @@ def plot_residual_map(
         _, ax = plt.subplots(figsize=(8, 7))
 
     vmax = float(np.nanpercentile(np.abs(residuals), 99))
-    extent = [times[0], times[-1], times[-1], times[0]]
+    extent: tuple[float, float, float, float] = (
+        float(times[0]),
+        float(times[-1]),
+        float(times[-1]),
+        float(times[0]),
+    )
 
     im = ax.imshow(
         residuals,
@@ -115,11 +120,16 @@ def plot_weight_map(
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 7))
 
-    extent = [times[0], times[-1], times[-1], times[0]]
+    extent2: tuple[float, float, float, float] = (
+        float(times[0]),
+        float(times[-1]),
+        float(times[-1]),
+        float(times[0]),
+    )
 
     im = ax.imshow(
         weights,
-        extent=extent,
+        extent=extent2,
         aspect="auto",
         cmap="viridis",
         origin="upper",
@@ -342,7 +352,8 @@ def plot_parameter_sensitivity(
     ax.set_title("Parameter Sensitivity")
     ax.grid(True, axis="y", alpha=0.3)
 
-    ax.figure.tight_layout()
+    if hasattr(ax.figure, "tight_layout"):
+        ax.figure.tight_layout()
 
     return ax
 

@@ -309,7 +309,7 @@ def _is_jax_array(array: Any) -> bool:
         pass
 
     try:
-        from jaxlib.xla_extension import ArrayImpl
+        from jaxlib.xla_extension import ArrayImpl  # type: ignore[import-not-found]
 
         if isinstance(array, ArrayImpl):
             return True

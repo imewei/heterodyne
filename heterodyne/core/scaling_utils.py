@@ -144,7 +144,7 @@ class PerAngleScaling:
             Array of shape (n_varying_scaling,)
         """
         full = self.get_scaling_array()
-        return full[self.varying_indices]
+        return full[self.varying_indices]  # type: ignore[no-any-return]
 
     def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:
         """Get bounds for varying scaling parameters.

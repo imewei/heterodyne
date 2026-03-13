@@ -69,7 +69,7 @@ def compute_flat_residuals(
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     c2_model_flat = c2_model[triu_i, triu_j]
-    return (c2_model_flat - c2_data_flat) * sqrt_weights_flat
+    return (c2_model_flat - c2_data_flat) * sqrt_weights_flat  # type: ignore[no-any-return]
 
 
 def make_residual_fn(
@@ -126,7 +126,7 @@ def make_residual_fn(
 
     @jax.jit
     def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
-        return compute_flat_residuals(
+        return compute_flat_residuals(  # type: ignore[no-any-return]
             params,
             t_jax,
             q,
@@ -187,7 +187,7 @@ def make_varying_residual_fn(
     @jax.jit
     def varying_residual_fn(varying_params: jnp.ndarray) -> jnp.ndarray:
         full_params = fixed_jax.at[vary_idx].set(varying_params)
-        return full_residual_fn(full_params)
+        return full_residual_fn(full_params)  # type: ignore[no-any-return]
 
     return varying_residual_fn, n_residuals
 

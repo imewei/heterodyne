@@ -411,10 +411,8 @@ class CMCConfig:
             )
 
         # Cross-check: if both are explicit integers, min <= max.
-        if (
-            isinstance(self.min_points_per_shard, int)
-            and isinstance(self.max_points_per_shard, int)
-            and self.max_points_per_shard != "auto"
+        if isinstance(self.min_points_per_shard, int) and isinstance(
+            self.max_points_per_shard, int
         ):
             if self.min_points_per_shard > self.max_points_per_shard:
                 errors.append(

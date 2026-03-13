@@ -8,7 +8,7 @@ the scattering vector range.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import jax.numpy as jnp
 import numpy as np
@@ -105,20 +105,25 @@ class StratifiedLSStrategy:
         # Set ydata=zeros so residuals = -residual_fn(params).
         # params arrive as JAX-traced scalars; jnp.stack reassembles.
         def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
-            return -jnp.asarray(  # type: ignore[return-value]
+            return -jnp.asarray(
                 residual_fn(np.asarray(jnp.stack(list(params))))  # type: ignore[arg-type]
             )
 
         _xdata = np.arange(n_data, dtype=np.float64)
         _ydata = np.zeros(n_data, dtype=np.float64)
 
-        nlsq_result = curve_fit_large(
-            f=_wrapped,
-            xdata=_xdata,
-            ydata=_ydata,
-            p0=initial,
-            bounds=(lower, upper),
-            method=method,
+        # curve_fit_large stub returns tuple|OptimizeResult; at runtime it
+        # always returns CurveFitResult(OptimizeResult) with .x/.success/.jac
+        nlsq_result = cast(
+            Any,
+            curve_fit_large(
+                f=_wrapped,
+                xdata=_xdata,
+                ydata=_ydata,
+                p0=initial,
+                bounds=(lower, upper),
+                method=method,
+            ),
         )
 
         wall_time = time.perf_counter() - start_time

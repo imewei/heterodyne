@@ -37,7 +37,7 @@ scripts can distinguish compilation overhead from optimisation runtime.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import jax
 import jax.numpy as jnp
@@ -337,7 +337,7 @@ class JITStrategy:
         # params arrive as JAX-traced scalars; jnp.stack reassembles.
         def _wrapped(xdata: np.ndarray, *params: object) -> jnp.ndarray:
             varying_jax = jnp.stack(list(params))  # type: ignore[arg-type]
-            return -jit_res_fn(varying_jax)
+            return -jit_res_fn(varying_jax)  # type: ignore[no-any-return]
 
         _xdata = np.arange(n_data, dtype=np.float64)
         _ydata = np.zeros(n_data, dtype=np.float64)
@@ -358,14 +358,19 @@ class JITStrategy:
 
         exec_start = time.perf_counter()
         fitter = CurveFit(flength=n_data)
-        nlsq_result = fitter.curve_fit(
-            f=_wrapped,
-            xdata=_xdata,
-            ydata=_ydata,
-            p0=initial,
-            bounds=(lower, upper),
-            method=method,
-            jac=jac_callable,
+        # CurveFit.curve_fit stub returns tuple[ndarray, ndarray]; at runtime it
+        # always returns CurveFitResult(OptimizeResult) with .x/.success/.jac
+        nlsq_result = cast(
+            Any,
+            fitter.curve_fit(
+                f=_wrapped,
+                xdata=_xdata,
+                ydata=_ydata,
+                p0=initial,
+                bounds=(lower, upper),
+                method=method,
+                jac=jac_callable,
+            ),
         )
         execution_time_s = time.perf_counter() - exec_start
         wall_time = time.perf_counter() - wall_start
