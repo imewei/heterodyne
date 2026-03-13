@@ -184,8 +184,12 @@ class TwoComponentModel(HeterodyneModelBase):
             g1_ref array
         """
         D0, alpha, offset = params[0], params[1], params[2]
-        t_safe = jnp.maximum(t, 1e-10)
+        # Use jnp.where instead of jnp.maximum to preserve gradients at the
+        # t=0 floor (jnp.maximum zeros the gradient when t < 1e-10).
+        t_safe = jnp.where(t > 1e-10, t, 1e-10)
         J = D0 * jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0) + offset
+        # Physical positivity: jnp.maximum gives subgradient 0.5 at J=0,
+        # allowing offset gradient to pass through the boundary.
         J = jnp.maximum(J, 0.0)
         return jnp.exp(-q * q * J)
 
@@ -211,8 +215,12 @@ class TwoComponentModel(HeterodyneModelBase):
             g1_sample array
         """
         D0, alpha, offset = params[3], params[4], params[5]
-        t_safe = jnp.maximum(t, 1e-10)
+        # Use jnp.where instead of jnp.maximum to preserve gradients at the
+        # t=0 floor (jnp.maximum zeros the gradient when t < 1e-10).
+        t_safe = jnp.where(t > 1e-10, t, 1e-10)
         J = D0 * jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0) + offset
+        # Physical positivity: jnp.maximum gives subgradient 0.5 at J=0,
+        # allowing offset gradient to pass through the boundary.
         J = jnp.maximum(J, 0.0)
         return jnp.exp(-q * q * J)
 
