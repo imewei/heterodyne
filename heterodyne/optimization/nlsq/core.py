@@ -964,6 +964,8 @@ def _make_numpy_residual_fn(
     t, q, dt = model.t, model.q, model.dt
 
     # Pre-capture as JAX device arrays — allocated once, reused every call.
+    # NOTE: fixed_values snapshot is taken at construction time. Do not mutate
+    # param_manager between construction and optimizer completion.
     fixed_values = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
     varying_indices = jnp.array(param_manager.varying_indices, dtype=jnp.int32)
 

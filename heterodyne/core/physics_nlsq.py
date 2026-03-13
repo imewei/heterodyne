@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import jax
 import jax.numpy as jnp
@@ -197,9 +197,7 @@ def make_varying_residual_fn(
 # object (which would silently return a stale compiled Jacobian).
 # Bounded to _JAC_CACHE_MAX entries; oldest entries are evicted first.
 _JAC_CACHE_MAX = 8
-_jac_fn_cache: dict[
-    int, tuple[Callable[..., jnp.ndarray], Callable[..., jnp.ndarray]]
-] = {}
+_jac_fn_cache: dict[int, tuple[Any, Any]] = {}
 
 
 def compute_nlsq_jacobian(
