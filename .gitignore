@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Auto-generated version file (setuptools_scm)
+heterodyne/_version.py
+
 # Distribution / packaging
 .Python
 build/
