@@ -15,7 +15,11 @@ from typing import TYPE_CHECKING, Any
 import jax.numpy as jnp
 import numpy as np
 
-from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
+from heterodyne.core.jax_backend import (
+    compute_c2_heterodyne,
+    compute_multi_angle_residuals,
+    compute_residuals,
+)
 from heterodyne.optimization.nlsq.config import NLSQConfig
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import get_logger
@@ -300,10 +304,10 @@ def _fit_joint_multi_phi(
         n_phi,
     )
 
-    # Pre-convert data to JAX arrays
+    # Pre-convert data to JAX arrays (outside closure — constants)
     t, q, dt = model.t, model.q, model.dt
     c2_data_list = [jnp.asarray(c2_data[i], dtype=jnp.float64) for i in range(n_phi)]
-    weights_list = []
+    weights_list: list[jnp.ndarray | None] = []
     for i in range(n_phi):
         if weights is not None and weights.ndim == 3:
             weights_list.append(jnp.asarray(weights[i], dtype=jnp.float64))
@@ -312,11 +316,32 @@ def _fit_joint_multi_phi(
         else:
             weights_list.append(None)
 
+    # Pre-stack batched arrays for compute_multi_angle_residuals.
+    # weights_list entries may be None (unweighted) — materialise ones_like
+    # so the stacked weights_batch is always a concrete (n_phi, N, N) array.
+    c2_data_batch = jnp.stack(c2_data_list, axis=0)  # (n_phi, N, N)
+    weights_batch = jnp.stack(
+        [
+            (w if w is not None else jnp.ones_like(c2_data_list[i]))
+            for i, w in enumerate(weights_list)
+        ],
+        axis=0,
+    )  # (n_phi, N, N)
+    phi_angles_jax = jnp.asarray(phi_angles, dtype=jnp.float64)  # (n_phi,)
+
     fixed_values = param_manager.get_full_values().copy()
     varying_indices = param_manager.varying_indices
 
     def joint_residual_fn(x: np.ndarray) -> np.ndarray:
-        """Compute concatenated residuals across all angles."""
+        """Compute concatenated residuals across all angles via vmap.
+
+        Routes through ``compute_multi_angle_residuals`` (jit + vmap) to
+        replace the previous n_phi serial kernel dispatches with a single
+        batched XLA call.  Fourier reparameterization is preserved: the
+        combined parameter vector is split into physics and Fourier parts,
+        and ``fourier.fourier_to_per_angle`` converts coefficients to
+        per-angle contrast/offset arrays before the batched residual call.
+        """
         # Split combined vector
         physics_varying = x[:n_physics_varying]
         fourier_coeffs = x[n_physics_varying:]
@@ -325,28 +350,27 @@ def _fit_joint_multi_phi(
         full_params = fixed_values.copy()
         for j, idx in enumerate(varying_indices):
             full_params[idx] = physics_varying[j]
-        full_jax = jnp.asarray(full_params)
+        full_jax = jnp.asarray(full_params, dtype=jnp.float64)
 
         # Convert Fourier coefficients → per-angle contrast/offset
         contrast_arr, offset_arr = fourier.fourier_to_per_angle(fourier_coeffs)
+        contrasts_jax = jnp.asarray(contrast_arr, dtype=jnp.float64)  # (n_phi,)
+        offsets_jax = jnp.asarray(offset_arr, dtype=jnp.float64)  # (n_phi,)
 
-        # Compute residuals per angle and concatenate
-        all_residuals = []
-        for i in range(n_phi):
-            residuals_i = compute_residuals(
+        # Single batched vmap call — eliminates n_phi serial dispatches
+        return np.asarray(
+            compute_multi_angle_residuals(
                 full_jax,
                 t,
                 q,
                 dt,
-                float(phi_angles[i]),
-                c2_data_list[i],
-                weights_list[i],
-                contrast=float(contrast_arr[i]),
-                offset=float(offset_arr[i]),
+                phi_angles_jax,
+                c2_data_batch,
+                weights_batch,
+                contrasts_jax,
+                offsets_jax,
             )
-            all_residuals.append(np.asarray(residuals_i))
-
-        return np.concatenate(all_residuals)
+        )
 
     # Run optimization via NLSQAdapter (primary) with NLSQWrapper fallback
     joint_config = NLSQConfig(
@@ -925,6 +949,12 @@ def _make_numpy_residual_fn(
     """Create a numpy residual function closed over model/data.
 
     Returns a callable ``(varying_params: np.ndarray) -> np.ndarray``.
+
+    Hot-path optimisation: ``fixed_values`` and ``varying_indices`` are
+    pre-captured as JAX device arrays at construction time so each call
+    only performs a single ``jnp.asarray`` (for the incoming numpy vector)
+    and one ``jnp.ndarray.at[].set()`` scatter instead of a Python loop
+    plus a full host copy.
     """
     param_manager = model.param_manager
     c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
@@ -933,12 +963,15 @@ def _make_numpy_residual_fn(
     )
     t, q, dt = model.t, model.q, model.dt
 
+    # Pre-capture as JAX device arrays — allocated once, reused every call.
+    fixed_values = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
+    varying_indices = jnp.array(param_manager.varying_indices, dtype=jnp.int32)
+
     def residual_fn(varying_params: np.ndarray) -> np.ndarray:
-        full_params = param_manager.get_full_values().copy()
-        for i, idx in enumerate(param_manager.varying_indices):
-            full_params[idx] = varying_params[i]
+        varying_jax = jnp.asarray(varying_params, dtype=jnp.float64)
+        full_params = fixed_values.at[varying_indices].set(varying_jax)
         residuals = compute_residuals(
-            jnp.asarray(full_params),
+            full_params,
             t,
             q,
             dt,

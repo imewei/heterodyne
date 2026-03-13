@@ -393,10 +393,23 @@ class NLSQAdapter(NLSQAdapterBase):
                 wall_time=wall_time,
             )
 
-            # Recompute residuals via JAX for the result (more accurate than
-            # what build_result_from_nlsq extracts from raw result)
-            final_residuals_jax = jax_residual_fn(jnp.arange(n_data), *base.parameters)
-            final_residuals = np.asarray(final_residuals_jax)
+            # Use residuals already stored in the optimizer result.
+            # ``build_result_from_nlsq`` extracts them from ``nlsq_result.fun``
+            # which is the final residual vector the optimizer converged to —
+            # re-evaluating at the same point is numerically identical and wastes
+            # one full N×N forward pass.  Fall back to re-evaluation only when
+            # the optimizer did not expose residuals (e.g. streaming backends).
+            if base.residuals is not None:
+                final_residuals = base.residuals
+            else:
+                logger.debug(
+                    "fit_jax: optimizer did not expose final residuals; "
+                    "re-evaluating residual function"
+                )
+                final_residuals_jax = jax_residual_fn(
+                    jnp.arange(n_data), *base.parameters
+                )
+                final_residuals = np.asarray(final_residuals_jax)
             final_cost = 0.5 * float(np.sum(final_residuals**2))
             n_dof = n_data - n_params
             reduced_chi2: float | None = 2.0 * final_cost / n_dof if n_dof > 0 else None
