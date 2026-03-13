@@ -211,8 +211,8 @@ def format_mcmc_summary(result: CMCResult) -> str:
         std = result.posterior_std[i]
 
         ci = result.credible_intervals.get(name, {})
-        ci_low = ci.get("2.5%", np.nan)
-        ci_high = ci.get("97.5%", np.nan)
+        ci_low = ci.get("lower_95", np.nan)
+        ci_high = ci.get("upper_95", np.nan)
 
         r_hat = result.r_hat[i] if result.r_hat is not None else np.nan
         r_hat_str = f"{r_hat:.3f}" if not np.isnan(r_hat) else "N/A"

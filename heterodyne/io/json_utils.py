@@ -12,7 +12,7 @@ from typing import Any, cast
 import numpy as np
 
 
-def _sanitize_float(value: float) -> float | None:
+def _sanitize_float(value: float) -> float:
     """Check a float for NaN/Inf and raise ValueError.
 
     Args:
