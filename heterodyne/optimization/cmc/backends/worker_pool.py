@@ -81,7 +81,7 @@ def _run_shard_worker(
 
     kernel = NUTS(
         model_fn,
-        target_accept_prob=config_dict["target_accept"],
+        target_accept_prob=config_dict["target_accept_prob"],
         max_tree_depth=config_dict.get("max_tree_depth", 10),
     )
 
@@ -173,7 +173,7 @@ class WorkerPoolBackend:
         config_dict = {
             "num_warmup": config.num_warmup,
             "num_samples": config.num_samples,
-            "target_accept": config.target_accept_prob,
+            "target_accept_prob": config.target_accept_prob,
             "max_tree_depth": config.max_tree_depth,
         }
 
