@@ -9,3 +9,5 @@
 | 3 | 1 HIGH (CMC warm-start ignores fitted contrast/offset) | Confirmed fix correct | 1 | optimization/cmc | PASS — 2578 tests, 0 mypy errors |
 | 4 | 1 MEDIUM (CI key mismatch in MCMC summary) + 1 minor | No review issues | 1 | io | PASS — 2578 tests, 0 mypy errors |
 | 5 | 0 findings — physics computation path verified clean | N/A | 0 | — | ALL CLEAR |
+| 6 | 1 MEDIUM (legacy key in CMC worker pool) | No review issues | 1 | optimization/cmc | PASS — 2578 tests, 0 mypy errors |
+| 7 | 0 findings — validation, CMA-ES, data loader, parameter_space all clean | N/A | 0 | — | ALL CLEAR |
