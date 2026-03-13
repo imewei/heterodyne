@@ -52,7 +52,7 @@ def apply_time_window(
     if c2.ndim == 2:
         filtered = c2[np.ix_(mask_1d, mask_1d)]
     elif c2.ndim == 3:
-        filtered = c2[:, np.ix_(mask_1d, mask_1d)[0], np.ix_(mask_1d, mask_1d)[1]]
+        filtered = c2[np.ix_(np.arange(c2.shape[0]), mask_1d, mask_1d)]
     else:
         raise ValueError(f"c2 must be 2D or 3D, got {c2.ndim}D")
 
