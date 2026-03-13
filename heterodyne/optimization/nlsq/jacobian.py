@@ -100,7 +100,9 @@ def validate_jacobian(
     warnings: list[str] = []
 
     n_residuals, n_params = jac.shape
-    names = param_names if param_names is not None else [f"p{i}" for i in range(n_params)]
+    names = (
+        param_names if param_names is not None else [f"p{i}" for i in range(n_params)]
+    )
 
     # Check for NaN/Inf
     nan_mask = np.isnan(jac)
@@ -187,8 +189,7 @@ def compare_jacobians(
 
     if analytic.shape != numerical.shape:
         raise ValueError(
-            f"Shape mismatch: analytic {analytic.shape} vs "
-            f"numerical {numerical.shape}"
+            f"Shape mismatch: analytic {analytic.shape} vs numerical {numerical.shape}"
         )
 
     abs_diff = np.abs(analytic - numerical)
@@ -276,8 +277,7 @@ def analyze_parameter_sensitivity(
 
     if len(param_names) != n_params:
         raise ValueError(
-            f"param_names length {len(param_names)} does not match "
-            f"n_params {n_params}"
+            f"param_names length {len(param_names)} does not match n_params {n_params}"
         )
 
     col_norms = np.linalg.norm(jac, axis=0)

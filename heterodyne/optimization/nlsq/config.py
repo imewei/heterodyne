@@ -77,8 +77,12 @@ def safe_int(value: Any, default: int) -> int:
 # ---------------------------------------------------------------------------
 
 _VALID_WORKFLOWS: frozenset[str] = frozenset({"auto", "auto_global", "hpc"})
-_VALID_GOALS: frozenset[str] = frozenset({"fast", "robust", "quality", "memory_efficient"})
-_VALID_ANALYSIS_MODES: frozenset[str] = frozenset({"static_ref", "static_both", "two_component"})
+_VALID_GOALS: frozenset[str] = frozenset(
+    {"fast", "robust", "quality", "memory_efficient"}
+)
+_VALID_ANALYSIS_MODES: frozenset[str] = frozenset(
+    {"static_ref", "static_both", "two_component"}
+)
 _VALID_NLSQ_STABILITY: frozenset[str] = frozenset({"auto", "check", "off"})
 
 
@@ -502,9 +506,7 @@ class NLSQConfig:
                 f"must be one of {valid_per_angle_modes}"
             )
         if self.fourier_order < 1:
-            errors.append(
-                f"fourier_order={self.fourier_order} must be >= 1"
-            )
+            errors.append(f"fourier_order={self.fourier_order} must be >= 1")
         if self.fourier_auto_threshold < 1:
             errors.append(
                 f"fourier_auto_threshold={self.fourier_auto_threshold} must be >= 1"
@@ -697,8 +699,7 @@ class NLSQConfig:
         raw_scale_map = config.get("x_scale_map")
         if isinstance(raw_scale_map, dict):
             kwargs["x_scale_map"] = {
-                str(k): safe_float(v, 1.0)
-                for k, v in raw_scale_map.items()
+                str(k): safe_float(v, 1.0) for k, v in raw_scale_map.items()
             }
         elif raw_scale_map is not None:
             logger.warning(
@@ -717,13 +718,15 @@ class NLSQConfig:
                     raw_recovery.get("lr_decay"), HybridRecoveryConfig.lr_decay
                 ),
                 lambda_growth=safe_float(
-                    raw_recovery.get("lambda_growth"), HybridRecoveryConfig.lambda_growth
+                    raw_recovery.get("lambda_growth"),
+                    HybridRecoveryConfig.lambda_growth,
                 ),
                 trust_decay=safe_float(
                     raw_recovery.get("trust_decay"), HybridRecoveryConfig.trust_decay
                 ),
                 perturb_scale=safe_float(
-                    raw_recovery.get("perturb_scale"), HybridRecoveryConfig.perturb_scale
+                    raw_recovery.get("perturb_scale"),
+                    HybridRecoveryConfig.perturb_scale,
                 ),
             )
             kwargs["recovery_config"] = recovery

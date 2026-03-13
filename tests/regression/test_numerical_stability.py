@@ -7,12 +7,11 @@ inputs, and boundary conditions.
 
 from __future__ import annotations
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-
-import jax
-import jax.numpy as jnp
 
 from heterodyne.config.parameter_names import ALL_PARAM_NAMES
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
@@ -60,7 +59,9 @@ class TestSmoothAbs:
         """smooth_abs produces finite output for x values near zero."""
         x = jnp.array([0.0, 1e-15, -1e-15, 1e-30, -1e-30])
         result = smooth_abs(x)
-        assert jnp.all(jnp.isfinite(result)), "smooth_abs produced non-finite output near zero"
+        assert jnp.all(jnp.isfinite(result)), (
+            "smooth_abs produced non-finite output near zero"
+        )
         # All outputs should be >= 0
         assert jnp.all(result >= 0.0)
 
@@ -78,7 +79,9 @@ class TestSmoothAbs:
         test_points = jnp.array([0.0, 1e-15, -1e-15, 1e-8, -1e-8, 1e-4, -1e-4])
         grads = jax.vmap(grad_fn)(test_points)
 
-        assert jnp.all(jnp.isfinite(grads)), "smooth_abs gradient contains non-finite values"
+        assert jnp.all(jnp.isfinite(grads)), (
+            "smooth_abs gradient contains non-finite values"
+        )
 
         # Gradient at x=0 should be near zero (midpoint of the smooth transition)
         grad_at_zero = float(grads[0])
@@ -185,48 +188,59 @@ class TestC2HeterodyneStability:
 
     def test_finite_for_large_d0(self) -> None:
         """D0=1e6, alpha=0.99 produces finite c2."""
-        params = self.base_params.at[0].set(1e6)   # D0_ref
-        params = params.at[1].set(0.99)             # alpha_ref
-        params = params.at[3].set(1e6)              # D0_sample
-        params = params.at[4].set(0.99)             # alpha_sample
+        params = self.base_params.at[0].set(1e6)  # D0_ref
+        params = params.at[1].set(0.99)  # alpha_ref
+        params = params.at[3].set(1e6)  # D0_sample
+        params = params.at[4].set(0.99)  # alpha_sample
         c2 = compute_c2_heterodyne(params, self.t, Q, self.dt, PHI_ANGLE)
         assert jnp.all(jnp.isfinite(c2)), "c2 contains non-finite values for large D0"
 
     def test_finite_for_minimal_d0(self) -> None:
         """D0=100, alpha=0.01 produces finite c2."""
         params = self.base_params.at[0].set(100.0)  # D0_ref
-        params = params.at[1].set(0.01)              # alpha_ref
-        params = params.at[3].set(100.0)             # D0_sample
-        params = params.at[4].set(0.01)              # alpha_sample
+        params = params.at[1].set(0.01)  # alpha_ref
+        params = params.at[3].set(100.0)  # D0_sample
+        params = params.at[4].set(0.01)  # alpha_sample
         c2 = compute_c2_heterodyne(params, self.t, Q, self.dt, PHI_ANGLE)
         assert jnp.all(jnp.isfinite(c2)), "c2 contains non-finite values for minimal D0"
 
     def test_finite_for_large_velocity(self) -> None:
         """v0=1e4, beta=1.5 produces finite c2."""
-        params = self.base_params.at[6].set(1e4)    # v0
-        params = params.at[7].set(1.5)               # beta
+        params = self.base_params.at[6].set(1e4)  # v0
+        params = params.at[7].set(1.5)  # beta
         c2 = compute_c2_heterodyne(params, self.t, Q, self.dt, PHI_ANGLE)
-        assert jnp.all(jnp.isfinite(c2)), "c2 contains non-finite values for large velocity"
+        assert jnp.all(jnp.isfinite(c2)), (
+            "c2 contains non-finite values for large velocity"
+        )
 
     def test_finite_for_zero_fraction(self) -> None:
         """f0=0, f3=0 (pure reference) produces finite c2."""
-        params = self.base_params.at[9].set(0.0)    # f0
-        params = params.at[12].set(0.0)              # f3
+        params = self.base_params.at[9].set(0.0)  # f0
+        params = params.at[12].set(0.0)  # f3
         c2 = compute_c2_heterodyne(params, self.t, Q, self.dt, PHI_ANGLE)
-        assert jnp.all(jnp.isfinite(c2)), "c2 contains non-finite values for zero fraction"
+        assert jnp.all(jnp.isfinite(c2)), (
+            "c2 contains non-finite values for zero fraction"
+        )
 
     def test_finite_for_full_fraction(self) -> None:
         """f0=1, f3=0 (pure sample) produces finite c2."""
-        params = self.base_params.at[9].set(1.0)    # f0
-        params = params.at[12].set(0.0)              # f3
+        params = self.base_params.at[9].set(1.0)  # f0
+        params = params.at[12].set(0.0)  # f3
         c2 = compute_c2_heterodyne(params, self.t, Q, self.dt, PHI_ANGLE)
-        assert jnp.all(jnp.isfinite(c2)), "c2 contains non-finite values for full fraction"
+        assert jnp.all(jnp.isfinite(c2)), (
+            "c2 contains non-finite values for full fraction"
+        )
 
     def test_correlation_diagonal_geq_one(self) -> None:
         """Correlation matrix diagonal is >= 1.0 (physical constraint: c2(t,t) >= offset)."""
         c2 = compute_c2_heterodyne(
-            self.base_params, self.t, Q, self.dt, PHI_ANGLE,
-            contrast=0.5, offset=1.0,
+            self.base_params,
+            self.t,
+            Q,
+            self.dt,
+            PHI_ANGLE,
+            contrast=0.5,
+            offset=1.0,
         )
         diag = jnp.diag(c2)
         # With offset=1.0 and non-negative contrast term, diagonal >= 1.0

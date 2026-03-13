@@ -182,8 +182,7 @@ def _get_memory_threshold(memory_fraction: float) -> float:
     total_gb = detect_total_system_memory()
     if total_gb is None:
         logger.warning(
-            "Could not detect system memory; "
-            "using fallback threshold %.1f GB",
+            "Could not detect system memory; using fallback threshold %.1f GB",
             FALLBACK_THRESHOLD_GB,
         )
         return FALLBACK_THRESHOLD_GB
@@ -245,8 +244,7 @@ def select_nlsq_strategy(
     # 1. Extreme scale — even the index array blows memory
     if index_gb > threshold_gb:
         reason = (
-            f"Index array ({index_gb:.2f} GB) exceeds "
-            f"threshold ({threshold_gb:.2f} GB)"
+            f"Index array ({index_gb:.2f} GB) exceeds threshold ({threshold_gb:.2f} GB)"
         )
         logger.info("Auto-selecting STREAMING: %s", reason)
         return StrategyDecision(
@@ -259,8 +257,7 @@ def select_nlsq_strategy(
     # 2. Large scale — Jacobian doesn't fit
     if peak_gb > threshold_gb:
         reason = (
-            f"Peak memory ({peak_gb:.2f} GB) exceeds "
-            f"threshold ({threshold_gb:.2f} GB)"
+            f"Peak memory ({peak_gb:.2f} GB) exceeds threshold ({threshold_gb:.2f} GB)"
         )
         logger.info("Auto-selecting LARGE: %s", reason)
         return StrategyDecision(
@@ -271,10 +268,7 @@ def select_nlsq_strategy(
         )
 
     # 3. Standard — fits in memory
-    reason = (
-        f"Peak memory ({peak_gb:.2f} GB) within "
-        f"threshold ({threshold_gb:.2f} GB)"
-    )
+    reason = f"Peak memory ({peak_gb:.2f} GB) within threshold ({threshold_gb:.2f} GB)"
     logger.debug("Selecting STANDARD: %s", reason)
     return StrategyDecision(
         strategy=NLSQStrategy.STANDARD,

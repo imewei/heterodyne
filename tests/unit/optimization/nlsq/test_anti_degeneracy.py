@@ -18,7 +18,6 @@ from heterodyne.optimization.nlsq.multistart import (
     generate_lhs_starts,
 )
 
-
 # ---------------------------------------------------------------------------
 # AntiDegeneracyController
 # ---------------------------------------------------------------------------

@@ -135,7 +135,8 @@ def safe_uncertainties_from_pcov(
     if pcov.shape != (n_params, n_params):
         logger.warning(
             "Covariance shape %s doesn't match n_params=%d; returning inf",
-            pcov.shape, n_params,
+            pcov.shape,
+            n_params,
         )
         return np.full(n_params, np.inf)
 
@@ -148,14 +149,17 @@ def safe_uncertainties_from_pcov(
     if n_inf > 0:
         logger.warning(
             "%d/%d parameters have undefined uncertainty (negative or zero variance)",
-            n_inf, n_params,
+            n_inf,
+            n_params,
         )
 
     return uncertainties
 
 
 def execute_with_recovery(
-    fit_fn: Callable[[np.ndarray, tuple[np.ndarray, np.ndarray], NLSQConfig], NLSQResult],
+    fit_fn: Callable[
+        [np.ndarray, tuple[np.ndarray, np.ndarray], NLSQConfig], NLSQResult
+    ],
     initial_params: np.ndarray,
     bounds: tuple[np.ndarray, np.ndarray],
     config: NLSQConfig,
@@ -201,10 +205,15 @@ def execute_with_recovery(
         elif attempt == 1:
             # Perturbation
             action = "perturb"
-            noise = rng.normal(0, perturb_scale, size=initial_params.shape) * param_range
+            noise = (
+                rng.normal(0, perturb_scale, size=initial_params.shape) * param_range
+            )
             current_params = np.clip(initial_params + noise, lower, upper)
-            logger.info("Recovery attempt %d: perturbing parameters (scale=%.3f)",
-                       attempt, perturb_scale)
+            logger.info(
+                "Recovery attempt %d: perturbing parameters (scale=%.3f)",
+                attempt,
+                perturb_scale,
+            )
         elif attempt == 2:
             # Tolerance relaxation
             action = "relax_tolerance"
@@ -219,25 +228,33 @@ def execute_with_recovery(
             # Method switching
             action = "switch_method"
             method_cycle: dict[str, Literal["trf", "dogbox", "lm"]] = {
-                "trf": "dogbox", "dogbox": "trf", "lm": "trf",
+                "trf": "dogbox",
+                "dogbox": "trf",
+                "lm": "trf",
             }
             current_config = config
             fallback_method: Literal["trf", "dogbox", "lm"] = "trf"
             current_config.method = method_cycle.get(
-                config.method, fallback_method,
+                config.method,
+                fallback_method,
             )
-            logger.info("Recovery attempt %d: switching method to %s",
-                       attempt, current_config.method)
+            logger.info(
+                "Recovery attempt %d: switching method to %s",
+                attempt,
+                current_config.method,
+            )
 
         try:
             result = fit_fn(current_params, bounds, current_config)
 
-            attempts.append({
-                "attempt": attempt,
-                "action": action,
-                "success": result.success,
-                "cost": result.final_cost,
-            })
+            attempts.append(
+                {
+                    "attempt": attempt,
+                    "action": action,
+                    "success": result.success,
+                    "cost": result.final_cost,
+                }
+            )
 
             if result.success:
                 result.metadata["recovery"] = {
@@ -247,27 +264,35 @@ def execute_with_recovery(
                 }
                 logger.info(
                     "Recovery succeeded on attempt %d (%s)",
-                    attempt + 1, action,
+                    attempt + 1,
+                    action,
                 )
                 return result
 
             logger.warning(
                 "Recovery attempt %d (%s) did not converge: %s",
-                attempt + 1, action, result.message,
+                attempt + 1,
+                action,
+                result.message,
             )
 
         except Exception as exc:  # noqa: BLE001
             diagnosis = diagnose_error(exc)
             logger.warning(
                 "Recovery attempt %d (%s) failed: %s [%s]",
-                attempt + 1, action, exc, diagnosis.category,
+                attempt + 1,
+                action,
+                exc,
+                diagnosis.category,
             )
-            attempts.append({
-                "attempt": attempt,
-                "action": action,
-                "error": str(exc),
-                "category": diagnosis.category,
-            })
+            attempts.append(
+                {
+                    "attempt": attempt,
+                    "action": action,
+                    "error": str(exc),
+                    "category": diagnosis.category,
+                }
+            )
 
             if not diagnosis.recoverable:
                 break

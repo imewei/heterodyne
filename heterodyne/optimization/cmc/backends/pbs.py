@@ -346,11 +346,7 @@ class PBSBackend(CMCBackend):
 
         config_dict = self._extract_config_dict(config)
         seeds = [
-            int(
-                jax.random.randint(
-                    jax.random.fold_in(rng_key, i), (), 0, 2**31 - 1
-                )
-            )
+            int(jax.random.randint(jax.random.fold_in(rng_key, i), (), 0, 2**31 - 1))
             for i in range(num_shards)
         ]
 
@@ -570,17 +566,22 @@ class PBSBackend(CMCBackend):
                     if result.success:
                         logger.info(
                             "PBSBackend: shard %d (job %s) completed",
-                            shard_id, job_id,
+                            shard_id,
+                            job_id,
                         )
                     else:
                         logger.error(
                             "PBSBackend: shard %d (job %s) failed: %s",
-                            shard_id, job_id, result.error_message,
+                            shard_id,
+                            job_id,
+                            result.error_message,
                         )
                 else:
                     logger.debug(
                         "PBSBackend: shard %d (job %s) state=%s",
-                        shard_id, job_id, state,
+                        shard_id,
+                        job_id,
+                        state,
                     )
 
             for shard_id in finished:
@@ -601,7 +602,10 @@ class PBSBackend(CMCBackend):
 
         if not result_npz.exists():
             return ShardResult(
-                shard_id=shard_id, samples={}, job_id=job_id, success=False,
+                shard_id=shard_id,
+                samples={},
+                job_id=job_id,
+                success=False,
                 error_message=f"Result file not found: {result_npz}",
             )
 
@@ -610,13 +614,19 @@ class PBSBackend(CMCBackend):
                 samples: dict[str, Any] = {k: npz[k] for k in npz.files}
         except Exception as exc:  # noqa: BLE001
             return ShardResult(
-                shard_id=shard_id, samples={}, job_id=job_id, success=False,
+                shard_id=shard_id,
+                samples={},
+                job_id=job_id,
+                success=False,
                 error_message=f"Failed to load {result_npz}: {exc}",
             )
 
         if not samples:
             return ShardResult(
-                shard_id=shard_id, samples={}, job_id=job_id, success=False,
+                shard_id=shard_id,
+                samples={},
+                job_id=job_id,
+                success=False,
                 error_message=f"Result file {result_npz} contains no arrays",
             )
 
@@ -682,7 +692,8 @@ class PBSBackend(CMCBackend):
             job_ids.append(job_id)
             logger.info(
                 "PBSBackend.run_shards: shard %d submitted as job %s",
-                shard_id, job_id,
+                shard_id,
+                job_id,
             )
 
         timeout = getattr(config, "shard_timeout_seconds", None)

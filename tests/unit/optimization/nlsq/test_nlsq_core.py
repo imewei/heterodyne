@@ -163,7 +163,15 @@ class TestNumpyLeakage:
 
         # Some numpy usage is OK (e.g., for type hints, docstrings)
         # But core computation should not use numpy
-        forbidden_np_ops = {"array", "zeros", "ones", "arange", "linspace", "sum", "mean"}
+        forbidden_np_ops = {
+            "array",
+            "zeros",
+            "ones",
+            "arange",
+            "linspace",
+            "sum",
+            "mean",
+        }
         violations = set(np_usages) & forbidden_np_ops
 
         if violations:
@@ -186,7 +194,16 @@ class TestNumpyLeakage:
                 if isinstance(node.value, ast.Name) and node.value.id == "np":
                     np_usages.append(node.attr)
 
-        forbidden_np_ops = {"array", "zeros", "ones", "sum", "exp", "sqrt", "cos", "sin"}
+        forbidden_np_ops = {
+            "array",
+            "zeros",
+            "ones",
+            "sum",
+            "exp",
+            "sqrt",
+            "cos",
+            "sin",
+        }
         violations = set(np_usages) & forbidden_np_ops
 
         if violations:
@@ -364,6 +381,7 @@ class TestBugPrevention_JAXTracing:
         This test documents the bug behavior - using numpy inside a
         JAX-traced function should raise ConcretizationTypeError.
         """
+
         # This function uses numpy - it should NOT be traceable
         def bad_residual_fn(x: jnp.ndarray) -> jnp.ndarray:
             # BUG: using numpy inside traced function
@@ -381,6 +399,7 @@ class TestBugPrevention_JAXTracing:
         This test documents the correct behavior - using jax.numpy
         inside a traced function should work.
         """
+
         # This function uses jax.numpy - it SHOULD be traceable
         def good_residual_fn(x: jnp.ndarray) -> jnp.ndarray:
             return jnp.array([jnp.sum(x)])

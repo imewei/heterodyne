@@ -95,7 +95,9 @@ class TestSmoothBound:
     def test_degenerate_bounds_returns_midpoint_not_nan(self) -> None:
         """When low == high, smooth_bound returns the bound value, not NaN."""
         result = float(smooth_bound(jnp.float64(5.0), 5.0, 5.0))
-        assert np.isfinite(result), f"smooth_bound returned {result} for degenerate bounds"
+        assert np.isfinite(result), (
+            f"smooth_bound returned {result} for degenerate bounds"
+        )
         assert result == pytest.approx(5.0)
 
     @pytest.mark.unit
@@ -219,7 +221,9 @@ class TestComputeScalingFactors:
         nlsq_unc = {"D0_ref": 0.15, "alpha_ref": 0.08}
 
         scalings = compute_scaling_factors(
-            space, nlsq_values=nlsq_vals, nlsq_uncertainties=nlsq_unc,
+            space,
+            nlsq_values=nlsq_vals,
+            nlsq_uncertainties=nlsq_unc,
             width_factor=2.0,
         )
 
@@ -248,7 +252,9 @@ class TestComputeScalingFactors:
         space.bounds = {"p": (0.0, 12.0)}
 
         scalings = compute_scaling_factors(
-            space, nlsq_values={"p": 6.0}, nlsq_uncertainties={"p": 0.0},
+            space,
+            nlsq_values={"p": 6.0},
+            nlsq_uncertainties={"p": 0.0},
         )
 
         assert scalings["p"].center == 6.0
@@ -272,7 +278,9 @@ class TestComputeScalingFactors:
         space.bounds = {"p": (0.0, 10.0)}
 
         scalings = compute_scaling_factors(
-            space, nlsq_values={"p": 5.0}, nlsq_uncertainties={"p": 0.5},
+            space,
+            nlsq_values={"p": 5.0},
+            nlsq_uncertainties={"p": 0.5},
             width_factor=3.0,
         )
 

@@ -42,8 +42,10 @@ def nlsq_config() -> NLSQConfig:
 @pytest.fixture
 def simple_residual_fn():
     """Simple quadratic residual function."""
+
     def residual(params):
         return params - np.array([1.0, 2.0, 3.0])
+
     return residual
 
 
@@ -227,7 +229,9 @@ class TestLatinHypercubeSampling:
         n_quadrant1 = np.sum((samples_array[:, 0] < 0.5) & (samples_array[:, 1] < 0.5))
         n_quadrant2 = np.sum((samples_array[:, 0] >= 0.5) & (samples_array[:, 1] < 0.5))
         n_quadrant3 = np.sum((samples_array[:, 0] < 0.5) & (samples_array[:, 1] >= 0.5))
-        n_quadrant4 = np.sum((samples_array[:, 0] >= 0.5) & (samples_array[:, 1] >= 0.5))
+        n_quadrant4 = np.sum(
+            (samples_array[:, 0] >= 0.5) & (samples_array[:, 1] >= 0.5)
+        )
 
         # Each quadrant should have at least some samples (not exact for random)
         assert n_quadrant1 > 5

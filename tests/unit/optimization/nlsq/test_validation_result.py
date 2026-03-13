@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from heterodyne.optimization.nlsq.config import NLSQValidationConfig
 from heterodyne.optimization.nlsq.results import NLSQResult
@@ -13,7 +12,6 @@ from heterodyne.optimization.nlsq.validation.result import (
     ValidationReport,
     ValidationSeverity,
 )
-
 
 # ---------------------------------------------------------------------------
 # ValidationSeverity
@@ -43,9 +41,7 @@ class TestValidationIssue:
         assert issue.metric_value is None
 
     def test_full_construction(self) -> None:
-        issue = ValidationIssue(
-            ValidationSeverity.ERROR, "bad value", "chi2", 99.9
-        )
+        issue = ValidationIssue(ValidationSeverity.ERROR, "bad value", "chi2", 99.9)
         assert issue.severity == ValidationSeverity.ERROR
         assert issue.message == "bad value"
         assert issue.metric_name == "chi2"
@@ -68,19 +64,23 @@ class TestValidationReport:
         assert report.warnings == []
 
     def test_errors_property(self) -> None:
-        report = ValidationReport(issues=[
-            ValidationIssue(ValidationSeverity.ERROR, "e1"),
-            ValidationIssue(ValidationSeverity.WARNING, "w1"),
-            ValidationIssue(ValidationSeverity.ERROR, "e2"),
-        ])
+        report = ValidationReport(
+            issues=[
+                ValidationIssue(ValidationSeverity.ERROR, "e1"),
+                ValidationIssue(ValidationSeverity.WARNING, "w1"),
+                ValidationIssue(ValidationSeverity.ERROR, "e2"),
+            ]
+        )
         assert len(report.errors) == 2
 
     def test_warnings_property(self) -> None:
-        report = ValidationReport(issues=[
-            ValidationIssue(ValidationSeverity.WARNING, "w1"),
-            ValidationIssue(ValidationSeverity.INFO, "i1"),
-            ValidationIssue(ValidationSeverity.WARNING, "w2"),
-        ])
+        report = ValidationReport(
+            issues=[
+                ValidationIssue(ValidationSeverity.WARNING, "w1"),
+                ValidationIssue(ValidationSeverity.INFO, "i1"),
+                ValidationIssue(ValidationSeverity.WARNING, "w2"),
+            ]
+        )
         assert len(report.warnings) == 2
 
     def test_summary_pass(self) -> None:
@@ -89,19 +89,24 @@ class TestValidationReport:
         assert "PASS" in summary
 
     def test_summary_fail(self) -> None:
-        report = ValidationReport(is_valid=False, issues=[
-            ValidationIssue(ValidationSeverity.ERROR, "something broke"),
-        ])
+        report = ValidationReport(
+            is_valid=False,
+            issues=[
+                ValidationIssue(ValidationSeverity.ERROR, "something broke"),
+            ],
+        )
         summary = report.summary()
         assert "FAIL" in summary
         assert "[X]" in summary
 
     def test_summary_includes_all_severities(self) -> None:
-        report = ValidationReport(issues=[
-            ValidationIssue(ValidationSeverity.INFO, "info msg"),
-            ValidationIssue(ValidationSeverity.WARNING, "warn msg"),
-            ValidationIssue(ValidationSeverity.ERROR, "err msg"),
-        ])
+        report = ValidationReport(
+            issues=[
+                ValidationIssue(ValidationSeverity.INFO, "info msg"),
+                ValidationIssue(ValidationSeverity.WARNING, "warn msg"),
+                ValidationIssue(ValidationSeverity.ERROR, "err msg"),
+            ]
+        )
         summary = report.summary()
         assert "[i]" in summary
         assert "[!]" in summary
@@ -188,9 +193,7 @@ class TestResultValidator:
         report = validator.validate(result)
 
         assert report.is_valid is False
-        chi2_errors = [
-            i for i in report.errors if i.metric_name == "chi2_red"
-        ]
+        chi2_errors = [i for i in report.errors if i.metric_name == "chi2_red"]
         assert len(chi2_errors) == 1
 
     def test_low_chi2_overfitting_warning(self) -> None:
@@ -218,9 +221,7 @@ class TestResultValidator:
         validator = ResultValidator()
         report = validator.validate(result)
 
-        unc_issues = [
-            i for i in report.issues if i.metric_name == "uncertainties"
-        ]
+        unc_issues = [i for i in report.issues if i.metric_name == "uncertainties"]
         assert len(unc_issues) == 1
         assert unc_issues[0].severity == ValidationSeverity.WARNING
 
@@ -229,15 +230,11 @@ class TestResultValidator:
         params = np.array([1.0, 2.0])
         # uncertainties are 200% of values
         uncertainties = np.array([2.0, 4.0])
-        result = _make_result(
-            parameters=params, uncertainties=uncertainties
-        )
+        result = _make_result(parameters=params, uncertainties=uncertainties)
         validator = ResultValidator(config)
         report = validator.validate(result)
 
-        unc_warnings = [
-            i for i in report.warnings if "uncertainty" in i.metric_name
-        ]
+        unc_warnings = [i for i in report.warnings if "uncertainty" in i.metric_name]
         assert len(unc_warnings) == 2
 
     def test_zero_param_skips_relative_uncertainty(self) -> None:
@@ -249,9 +246,7 @@ class TestResultValidator:
         report = validator.validate(result)
 
         # Only p1 could trigger (but 0.01/1.0 = 1%, which is fine)
-        unc_warnings = [
-            i for i in report.warnings if "uncertainty" in i.metric_name
-        ]
+        unc_warnings = [i for i in report.warnings if "uncertainty" in i.metric_name]
         assert len(unc_warnings) == 0
 
     def test_high_correlation_warning(self) -> None:
@@ -262,9 +257,7 @@ class TestResultValidator:
         validator = ResultValidator(config)
         report = validator.validate(result)
 
-        corr_warnings = [
-            i for i in report.warnings if i.metric_name == "correlation"
-        ]
+        corr_warnings = [i for i in report.warnings if i.metric_name == "correlation"]
         assert len(corr_warnings) == 1
 
     def test_low_correlation_no_warning(self) -> None:
@@ -273,9 +266,7 @@ class TestResultValidator:
         validator = ResultValidator()
         report = validator.validate(result)
 
-        corr_warnings = [
-            i for i in report.warnings if i.metric_name == "correlation"
-        ]
+        corr_warnings = [i for i in report.warnings if i.metric_name == "correlation"]
         assert len(corr_warnings) == 0
 
     def test_no_covariance_skips_correlation(self) -> None:
@@ -283,9 +274,7 @@ class TestResultValidator:
         validator = ResultValidator()
         report = validator.validate(result)
 
-        corr_issues = [
-            i for i in report.issues if i.metric_name == "correlation"
-        ]
+        corr_issues = [i for i in report.issues if i.metric_name == "correlation"]
         assert len(corr_issues) == 0
 
     def test_nan_in_parameters_error(self) -> None:
@@ -294,9 +283,7 @@ class TestResultValidator:
         report = validator.validate(result)
 
         assert report.is_valid is False
-        nan_errors = [
-            i for i in report.issues if i.metric_name == "nan_params"
-        ]
+        nan_errors = [i for i in report.issues if i.metric_name == "nan_params"]
         assert len(nan_errors) == 1
 
     def test_inf_in_parameters_error(self) -> None:

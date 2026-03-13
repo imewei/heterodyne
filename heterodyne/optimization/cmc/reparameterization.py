@@ -160,9 +160,7 @@ def transform_nlsq_to_reparam_space(
 
         # Var ≈ (σ_A0/A0)² + (log(t_ref) · σ_alpha)²
         rel_sigma_a0 = sigma_a0 / max(abs(a0), 1e-30)
-        sigma_log_at_tref = math.sqrt(
-            rel_sigma_a0**2 + (log_tref * sigma_alpha) ** 2
-        )
+        sigma_log_at_tref = math.sqrt(rel_sigma_a0**2 + (log_tref * sigma_alpha) ** 2)
 
         reparam_name = config.get_reparam_name(prefactor)
         transformed_values[reparam_name] = log_at_tref

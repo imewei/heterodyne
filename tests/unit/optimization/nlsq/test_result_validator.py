@@ -17,7 +17,6 @@ from heterodyne.optimization.nlsq.validation.result_validator import (
     validate_result,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers — lightweight fakes for NLSQResult and ParameterRegistry
 # ---------------------------------------------------------------------------

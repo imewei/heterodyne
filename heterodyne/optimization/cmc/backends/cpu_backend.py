@@ -36,7 +36,7 @@ _INIT_STRATEGY_MAP: dict[str, Callable[..., Any]] = {
 _BYTES_PER_FLOAT64: int = 8
 # Heuristic multiplier: JAX overhead, gradient buffers, NumPyro state
 _CPU_MEMORY_OVERHEAD_FACTOR: float = 6.0
-_BYTES_PER_GB: float = 1024.0 ** 3
+_BYTES_PER_GB: float = 1024.0**3
 
 
 class CPUBackend(CMCBackend):
@@ -133,7 +133,9 @@ class CPUBackend(CMCBackend):
                 "CPUBackend: no JAX CPU devices found. "
                 "Ensure JAX is installed correctly."
             )
-        logger.debug("CPUBackend.validate_resources: %d CPU device(s) found", len(devices))
+        logger.debug(
+            "CPUBackend.validate_resources: %d CPU device(s) found", len(devices)
+        )
 
     def estimate_memory(
         self,
@@ -205,8 +207,7 @@ class CPUBackend(CMCBackend):
             separator = " " if existing_flags else ""
             os.environ["XLA_FLAGS"] = existing_flags + separator + " ".join(injected)
             logger.debug(
-                "CPUBackend._configure_threading: set XLA_FLAGS += %s "
-                "(n_threads=%d)",
+                "CPUBackend._configure_threading: set XLA_FLAGS += %s (n_threads=%d)",
                 " ".join(injected),
                 n_threads,
             )

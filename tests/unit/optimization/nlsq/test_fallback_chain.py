@@ -18,15 +18,14 @@ import numpy as np
 import pytest
 
 from heterodyne.optimization.nlsq.fallback_chain import (
-    OptimizationStrategy,
     _FALLBACK_ORDER,
+    OptimizationStrategy,
     _is_memory_error,
     execute_optimization_with_fallback,
     get_fallback_strategy,
     handle_nlsq_result,
 )
 from heterodyne.optimization.nlsq.results import NLSQResult
-
 
 # ---------------------------------------------------------------------------
 # Helpers

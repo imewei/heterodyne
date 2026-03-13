@@ -39,12 +39,12 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
-# nlsq import MUST precede JAX — enables x64 mode
-from nlsq import CurveFit
-
 import jax
 import jax.numpy as jnp
 import numpy as np
+
+# nlsq import MUST precede JAX — enables x64 mode
+from nlsq import CurveFit
 
 from heterodyne.core.jax_backend import (
     compute_c2_heterodyne,
@@ -319,8 +319,7 @@ class JITStrategy:
         method = config.method if config.method != "lm" else "trf"
         if method == "dogbox":
             logger.warning(
-                "JITStrategy: 'dogbox' is not supported by CurveFit; "
-                "coercing to 'trf'."
+                "JITStrategy: 'dogbox' is not supported by CurveFit; coercing to 'trf'."
             )
             method = "trf"
         max_nfev = config.max_nfev or config.max_iterations * (n_params + 1) * 10
@@ -386,7 +385,11 @@ class JITStrategy:
 
         # Recompute residuals via the JIT residual function at the solution.
         final_residuals = residual_fn(np.asarray(nlsq_result.x, dtype=np.float64))
-        final_jac = np.asarray(nlsq_result.jac, dtype=np.float64) if nlsq_result.jac is not None else None
+        final_jac = (
+            np.asarray(nlsq_result.jac, dtype=np.float64)
+            if nlsq_result.jac is not None
+            else None
+        )
 
         covariance, uncertainties = _estimate_covariance_from_jac(
             final_jac,

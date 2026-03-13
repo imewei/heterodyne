@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 import pytest
 
@@ -14,7 +12,6 @@ from heterodyne.optimization.cmc.diagnostics import (
     cluster_shard_modes,
     summarize_cross_shard_bimodality,
 )
-
 
 # ---------------------------------------------------------------------------
 # ModeCluster dataclass
@@ -323,7 +320,9 @@ class TestSummarizeCrossShardBimodality:
             "x": [_make_bimodal_result("x", bimodal=True, means=(1.0, 9.0))],
         }
         result = summarize_cross_shard_bimodality(
-            bimodal_detections, n_shards=1, consensus_means=None,
+            bimodal_detections,
+            n_shards=1,
+            consensus_means=None,
         )
         pp = result["per_param"]["x"]
         assert pp["consensus_in_trough"] is False

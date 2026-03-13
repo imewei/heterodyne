@@ -32,11 +32,13 @@ def full_result() -> NLSQResult:
     """Create result with all optional fields."""
     params = np.array([1.0, 2.0, 3.0])
     uncertainties = np.array([0.1, 0.2, 0.3])
-    covariance = np.array([
-        [0.01, 0.005, 0.002],
-        [0.005, 0.04, 0.01],
-        [0.002, 0.01, 0.09],
-    ])
+    covariance = np.array(
+        [
+            [0.01, 0.005, 0.002],
+            [0.005, 0.04, 0.01],
+            [0.002, 0.01, 0.09],
+        ]
+    )
 
     return NLSQResult(
         parameters=params,

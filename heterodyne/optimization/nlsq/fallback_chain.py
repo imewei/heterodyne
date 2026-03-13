@@ -173,7 +173,10 @@ def handle_nlsq_result(
         pcov_raw = getattr(raw_result, "pcov", None)
         pcov = np.asarray(pcov_raw, dtype=np.float64) if pcov_raw is not None else None
         if pcov_raw is None:
-            logger.debug("No pcov attribute in result object (type=%s)", type(raw_result).__name__)
+            logger.debug(
+                "No pcov attribute in result object (type=%s)",
+                type(raw_result).__name__,
+            )
 
         for attr in ("message", "success", "nfev", "njev", "optimality", "fun"):
             val = getattr(raw_result, attr, None)
@@ -433,9 +436,7 @@ def execute_optimization_with_fallback(
             current = get_fallback_strategy(current, error=exc)
 
     error_summary = "; ".join(f"{name}: {msg}" for name, msg in errors)
-    raise RuntimeError(
-        f"All optimization strategies failed. Errors: {error_summary}"
-    )
+    raise RuntimeError(f"All optimization strategies failed. Errors: {error_summary}")
 
 
 __all__ = [

@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import numpy as np
-import pytest
 
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.optimization.nlsq.validation.bounds import BoundsValidator
@@ -125,7 +122,8 @@ class TestBoundsValidator:
 
         # Should not have ERROR for being outside bounds
         errors = [
-            i for i in report.issues
+            i
+            for i in report.issues
             if i.severity == ValidationSeverity.ERROR and "outside" in i.message
         ]
         assert len(errors) == 0

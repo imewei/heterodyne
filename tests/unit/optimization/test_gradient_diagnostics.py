@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
-
-import jax.numpy as jnp
 
 from heterodyne.optimization.gradient_diagnostics import (
     GradientHealth,
@@ -17,7 +16,6 @@ from heterodyne.optimization.gradient_diagnostics import (
     diagnose_gradients,
     suggest_step_sizes,
 )
-
 
 # ---------------------------------------------------------------------------
 # GradientHealth dataclass
@@ -267,7 +265,9 @@ class TestComputeOptimalXScale:
     def test_clipping_bounds(self) -> None:
         norms = {"tiny": 1e-20, "huge": 1e20}
         scales = compute_optimal_x_scale(
-            norms, min_scale=1e-8, max_scale=1e2,
+            norms,
+            min_scale=1e-8,
+            max_scale=1e2,
         )
         for v in scales.values():
             assert 1e-8 <= v <= 1e2

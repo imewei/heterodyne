@@ -235,8 +235,11 @@ class HierarchicalFitter:
                         def _residual(params: np.ndarray) -> np.ndarray:
                             full = _model.param_manager.expand_varying_to_full(params)
                             return np.asarray(
-                                _model.compute_residuals(_c2, phi_angle=_phi, params=full)
+                                _model.compute_residuals(
+                                    _c2, phi_angle=_phi, params=full
+                                )
                             )
+
                         return _residual
 
                     res_fn = _make_residual(model, c2_data, phi_angle)
@@ -257,7 +260,9 @@ class HierarchicalFitter:
                     logger.info(
                         "Stage '%s' converged: cost=%.4e, %d iterations",
                         stage_name,
-                        result.final_cost if result.final_cost is not None else float("nan"),
+                        result.final_cost
+                        if result.final_cost is not None
+                        else float("nan"),
                         result.n_iterations,
                     )
                 else:
@@ -276,11 +281,15 @@ class HierarchicalFitter:
                 pm.set_vary(name, vary)
 
         # Return the last successful result, or the last result overall
-        final_result = stage_results[-1] if stage_results else NLSQResult(
-            parameters=pm.get_initial_values(),
-            parameter_names=pm.varying_names,
-            success=False,
-            message="No stages were executed",
+        final_result = (
+            stage_results[-1]
+            if stage_results
+            else NLSQResult(
+                parameters=pm.get_initial_values(),
+                parameter_names=pm.varying_names,
+                success=False,
+                message="No stages were executed",
+            )
         )
 
         # Attach stage metadata

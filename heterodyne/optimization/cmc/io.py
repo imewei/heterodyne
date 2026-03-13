@@ -124,8 +124,7 @@ def save_inference_data(idata: object, path: str | Path) -> Path:
         import arviz as az
     except ImportError as exc:
         raise ImportError(
-            "arviz is required for InferenceData I/O.  "
-            "Install it with: uv add arviz"
+            "arviz is required for InferenceData I/O.  Install it with: uv add arviz"
         ) from exc
 
     save_path = Path(path)
@@ -153,8 +152,7 @@ def load_inference_data(path: str | Path) -> object:
         import arviz as az
     except ImportError as exc:
         raise ImportError(
-            "arviz is required for InferenceData I/O.  "
-            "Install it with: uv add arviz"
+            "arviz is required for InferenceData I/O.  Install it with: uv add arviz"
         ) from exc
 
     load_path = Path(path)

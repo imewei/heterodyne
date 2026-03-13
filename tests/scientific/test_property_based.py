@@ -20,29 +20,41 @@ from numpy.testing import assert_allclose
 # ============================================================================
 
 # Physical parameter ranges
-positive_float = st.floats(min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False)
-bounded_float = st.floats(min_value=-100.0, max_value=100.0, allow_nan=False, allow_infinity=False)
-fraction_float = st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
-angle_float = st.floats(min_value=-360.0, max_value=360.0, allow_nan=False, allow_infinity=False)
-alpha_float = st.floats(min_value=0.1, max_value=2.0, allow_nan=False, allow_infinity=False)
+positive_float = st.floats(
+    min_value=1e-6, max_value=1e6, allow_nan=False, allow_infinity=False
+)
+bounded_float = st.floats(
+    min_value=-100.0, max_value=100.0, allow_nan=False, allow_infinity=False
+)
+fraction_float = st.floats(
+    min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False
+)
+angle_float = st.floats(
+    min_value=-360.0, max_value=360.0, allow_nan=False, allow_infinity=False
+)
+alpha_float = st.floats(
+    min_value=0.1, max_value=2.0, allow_nan=False, allow_infinity=False
+)
 
 # Time arrays (positive, monotonic)
 time_array_strategy = hnp.arrays(
     dtype=np.float64,
     shape=st.integers(min_value=5, max_value=50),
-    elements=st.floats(min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False),
+    elements=st.floats(
+        min_value=0.0, max_value=100.0, allow_nan=False, allow_infinity=False
+    ),
 ).map(lambda x: np.sort(np.unique(np.abs(x))))
 
 # Small time array for faster tests
 small_time_array = st.builds(
-    lambda n: jnp.arange(n, dtype=jnp.float64),
-    n=st.integers(min_value=5, max_value=20)
+    lambda n: jnp.arange(n, dtype=jnp.float64), n=st.integers(min_value=5, max_value=20)
 )
 
 
 # ============================================================================
 # Transport Coefficient Properties
 # ============================================================================
+
 
 class TestTransportCoefficientProperties:
     """Property-based tests for transport coefficient computations."""
@@ -51,7 +63,9 @@ class TestTransportCoefficientProperties:
     @pytest.mark.requires_jax
     @given(D0=positive_float, alpha=alpha_float, t=positive_float)
     @settings(max_examples=100, deadline=None)
-    def test_transport_monotonic_in_time(self, D0: float, alpha: float, t: float) -> None:
+    def test_transport_monotonic_in_time(
+        self, D0: float, alpha: float, t: float
+    ) -> None:
         """J(t) is monotonically increasing in t for positive D0, alpha."""
         from heterodyne.core.theory import compute_transport_coefficient
 
@@ -61,7 +75,7 @@ class TestTransportCoefficientProperties:
         J = compute_transport_coefficient(t_arr, D0, alpha, offset=0.0)
 
         # J should increase with t
-        assert J[1] >= J[0], f"J not monotonic: J({t})={J[0]}, J({t+1})={J[1]}"
+        assert J[1] >= J[0], f"J not monotonic: J({t})={J[0]}, J({t + 1})={J[1]}"
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
@@ -95,6 +109,7 @@ class TestTransportCoefficientProperties:
 # g1 Correlation Properties
 # ============================================================================
 
+
 class TestG1CorrelationProperties:
     """Property-based tests for g1 correlation."""
 
@@ -115,12 +130,20 @@ class TestG1CorrelationProperties:
     @pytest.mark.unit
     @pytest.mark.requires_jax
     @given(
-        J1=st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False),
-        delta=st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False),
-        q=st.floats(min_value=0.01, max_value=5.0, allow_nan=False, allow_infinity=False),
+        J1=st.floats(
+            min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False
+        ),
+        delta=st.floats(
+            min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False
+        ),
+        q=st.floats(
+            min_value=0.01, max_value=5.0, allow_nan=False, allow_infinity=False
+        ),
     )
     @settings(max_examples=100, deadline=None)
-    def test_g1_monotonically_decreasing(self, J1: float, delta: float, q: float) -> None:
+    def test_g1_monotonically_decreasing(
+        self, J1: float, delta: float, q: float
+    ) -> None:
         """g1 decreases as J increases (for fixed q)."""
         from heterodyne.core.jax_backend import compute_g1_transport
 
@@ -133,12 +156,20 @@ class TestG1CorrelationProperties:
     @pytest.mark.unit
     @pytest.mark.requires_jax
     @given(
-        J=st.floats(min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False),
-        q1=st.floats(min_value=0.01, max_value=5.0, allow_nan=False, allow_infinity=False),
-        delta_q=st.floats(min_value=0.01, max_value=2.0, allow_nan=False, allow_infinity=False),
+        J=st.floats(
+            min_value=0.1, max_value=100.0, allow_nan=False, allow_infinity=False
+        ),
+        q1=st.floats(
+            min_value=0.01, max_value=5.0, allow_nan=False, allow_infinity=False
+        ),
+        delta_q=st.floats(
+            min_value=0.01, max_value=2.0, allow_nan=False, allow_infinity=False
+        ),
     )
     @settings(max_examples=100, deadline=None)
-    def test_g1_decreases_faster_with_larger_q(self, J: float, q1: float, delta_q: float) -> None:
+    def test_g1_decreases_faster_with_larger_q(
+        self, J: float, q1: float, delta_q: float
+    ) -> None:
         """Larger q causes faster decay (smaller g1)."""
         from heterodyne.core.jax_backend import compute_g1_transport
 
@@ -154,6 +185,7 @@ class TestG1CorrelationProperties:
 # Fraction Properties
 # ============================================================================
 
+
 class TestFractionProperties:
     """Property-based tests for fraction computation."""
 
@@ -161,13 +193,21 @@ class TestFractionProperties:
     @pytest.mark.requires_jax
     @given(
         f0=fraction_float,
-        f1=st.floats(min_value=-2.0, max_value=2.0, allow_nan=False, allow_infinity=False),
-        f2=st.floats(min_value=-5.0, max_value=5.0, allow_nan=False, allow_infinity=False),
+        f1=st.floats(
+            min_value=-2.0, max_value=2.0, allow_nan=False, allow_infinity=False
+        ),
+        f2=st.floats(
+            min_value=-5.0, max_value=5.0, allow_nan=False, allow_infinity=False
+        ),
         f3=fraction_float,
-        t=st.floats(min_value=0.001, max_value=100.0, allow_nan=False, allow_infinity=False),
+        t=st.floats(
+            min_value=0.001, max_value=100.0, allow_nan=False, allow_infinity=False
+        ),
     )
     @settings(max_examples=100, deadline=None)
-    def test_fraction_always_clipped(self, f0: float, f1: float, f2: float, f3: float, t: float) -> None:
+    def test_fraction_always_clipped(
+        self, f0: float, f1: float, f2: float, f3: float, t: float
+    ) -> None:
         """Fraction is always in [0, 1] for bounded inputs."""
         from heterodyne.core.jax_backend import compute_fraction_jit
 
@@ -184,7 +224,9 @@ class TestFractionProperties:
     @pytest.mark.requires_jax
     @given(f0=fraction_float, f3=fraction_float, t=positive_float)
     @settings(max_examples=50, deadline=None)
-    def test_fraction_constant_when_f1_zero(self, f0: float, f3: float, t: float) -> None:
+    def test_fraction_constant_when_f1_zero(
+        self, f0: float, f3: float, t: float
+    ) -> None:
         """When f1=0, fraction is constant f0 + f3 (clipped)."""
         from heterodyne.core.jax_backend import compute_fraction_jit
 
@@ -199,6 +241,7 @@ class TestFractionProperties:
 # C2 Correlation Properties
 # ============================================================================
 
+
 class TestC2CorrelationProperties:
     """Property-based tests for full C2 correlation."""
 
@@ -211,10 +254,10 @@ class TestC2CorrelationProperties:
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
         t = jnp.arange(10, dtype=jnp.float64)
-        params = jnp.array([
-            1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-            0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0
-        ], dtype=jnp.float64)
+        params = jnp.array(
+            [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0],
+            dtype=jnp.float64,
+        )
 
         c2 = compute_c2_heterodyne(params, t, 0.01, 1.0, phi)
 
@@ -229,10 +272,25 @@ class TestC2CorrelationProperties:
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
         t = jnp.arange(10, dtype=jnp.float64)
-        params = jnp.array([
-            1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-            0.1, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0  # Non-zero velocity
-        ], dtype=jnp.float64)
+        params = jnp.array(
+            [
+                1.0,
+                1.0,
+                0.0,
+                1.0,
+                1.0,
+                0.0,
+                0.1,
+                1.0,
+                0.0,
+                0.5,
+                0.0,
+                0.0,
+                0.0,
+                0.0,  # Non-zero velocity
+            ],
+            dtype=jnp.float64,
+        )
 
         c2_phi = compute_c2_heterodyne(params, t, 0.01, 1.0, phi)
         c2_phi_360 = compute_c2_heterodyne(params, t, 0.01, 1.0, phi + 360.0)
@@ -248,10 +306,10 @@ class TestC2CorrelationProperties:
         from heterodyne.core.jax_backend import compute_c2_heterodyne
 
         t = jnp.arange(10, dtype=jnp.float64)
-        params = jnp.array([
-            1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-            0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0
-        ], dtype=jnp.float64)
+        params = jnp.array(
+            [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0],
+            dtype=jnp.float64,
+        )
 
         c2 = compute_c2_heterodyne(params, t, 0.01, 1.0, phi)
 
@@ -263,22 +321,27 @@ class TestC2CorrelationProperties:
 # Residual Properties
 # ============================================================================
 
+
 class TestResidualProperties:
     """Property-based tests for residual computations."""
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
-    @given(scale=st.floats(min_value=0.01, max_value=100.0, allow_nan=False, allow_infinity=False))
+    @given(
+        scale=st.floats(
+            min_value=0.01, max_value=100.0, allow_nan=False, allow_infinity=False
+        )
+    )
     @settings(max_examples=50, deadline=None)
     def test_residual_scales_with_weights(self, scale: float) -> None:
         """Weighted residuals scale as sqrt(weights)."""
         from heterodyne.core.jax_backend import compute_residuals
 
         t = jnp.arange(5, dtype=jnp.float64)
-        params = jnp.array([
-            1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-            0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0
-        ], dtype=jnp.float64)
+        params = jnp.array(
+            [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0],
+            dtype=jnp.float64,
+        )
 
         c2_data = jnp.ones((5, 5))
         weights = jnp.full((5, 5), scale)
@@ -288,7 +351,9 @@ class TestResidualProperties:
 
         # Weighted = unweighted * sqrt(scale)
         expected_ratio = np.sqrt(scale)
-        actual_ratio = float(jnp.mean(jnp.abs(res_weighted)) / jnp.mean(jnp.abs(res_no_weight)))
+        actual_ratio = float(
+            jnp.mean(jnp.abs(res_weighted)) / jnp.mean(jnp.abs(res_no_weight))
+        )
 
         assert_allclose(actual_ratio, expected_ratio, rtol=1e-10)
 
@@ -296,6 +361,7 @@ class TestResidualProperties:
 # ============================================================================
 # Normalization Factor Properties
 # ============================================================================
+
 
 class TestNormalizationProperties:
     """Property-based tests for normalization computations."""
@@ -335,11 +401,16 @@ class TestNormalizationProperties:
 # MCMC Diagnostic Properties
 # ============================================================================
 
+
 class TestMCMCDiagnosticProperties:
     """Property-based tests for MCMC diagnostics."""
 
     @pytest.mark.unit
-    @given(shift=st.floats(min_value=-1000, max_value=1000, allow_nan=False, allow_infinity=False))
+    @given(
+        shift=st.floats(
+            min_value=-1000, max_value=1000, allow_nan=False, allow_infinity=False
+        )
+    )
     @settings(max_examples=50, deadline=None)
     def test_rhat_location_invariant(self, shift: float) -> None:
         """R-hat is invariant to location shifts."""
@@ -355,7 +426,11 @@ class TestMCMCDiagnosticProperties:
         assert_allclose(rhat_original, rhat_shifted, rtol=1e-3)
 
     @pytest.mark.unit
-    @given(scale=st.floats(min_value=0.01, max_value=100, allow_nan=False, allow_infinity=False))
+    @given(
+        scale=st.floats(
+            min_value=0.01, max_value=100, allow_nan=False, allow_infinity=False
+        )
+    )
     @settings(max_examples=50, deadline=None)
     def test_rhat_scale_invariant(self, scale: float) -> None:
         """R-hat is approximately invariant to scale."""
@@ -371,7 +446,11 @@ class TestMCMCDiagnosticProperties:
         assert_allclose(rhat_original, rhat_scaled, rtol=1e-3)
 
     @pytest.mark.unit
-    @given(shift=st.floats(min_value=-1000, max_value=1000, allow_nan=False, allow_infinity=False))
+    @given(
+        shift=st.floats(
+            min_value=-1000, max_value=1000, allow_nan=False, allow_infinity=False
+        )
+    )
     @settings(max_examples=50, deadline=None)
     def test_ess_location_invariant(self, shift: float) -> None:
         """ESS is invariant to location shifts."""

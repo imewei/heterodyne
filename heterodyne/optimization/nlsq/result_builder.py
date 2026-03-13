@@ -61,7 +61,9 @@ def build_result_from_scipy(
     reduced_chi2 = cost / dof
 
     # Map scipy status to success
-    success = opt_result.status > 0 if hasattr(opt_result, "status") else opt_result.success
+    success = (
+        opt_result.status > 0 if hasattr(opt_result, "status") else opt_result.success
+    )
     message = getattr(opt_result, "message", str(opt_result.get("message", "")))
 
     return NLSQResult(
@@ -200,8 +202,11 @@ def build_result_from_nlsq(
 
         # Merge dict info into metadata
         for key in (
-            "streaming_diagnostics", "success", "message",
-            "best_loss", "final_epoch",
+            "streaming_diagnostics",
+            "success",
+            "message",
+            "best_loss",
+            "final_epoch",
         ):
             val = nlsq_result.get(key)
             if val is not None:
@@ -261,9 +266,7 @@ def build_result_from_nlsq(
         if hasattr(nlsq_result, "info") and isinstance(nlsq_result.info, dict):
             merged_meta.update(nlsq_result.info)
 
-        logger.debug(
-            "Normalized object result (type: %s)", type(nlsq_result).__name__
-        )
+        logger.debug("Normalized object result (type: %s)", type(nlsq_result).__name__)
 
     # Case 4: Unrecognized format
     else:
@@ -324,7 +327,9 @@ def build_failed_result(
     Returns:
         NLSQResult with success=False
     """
-    params = initial_params if initial_params is not None else np.zeros(len(parameter_names))
+    params = (
+        initial_params if initial_params is not None else np.zeros(len(parameter_names))
+    )
     return NLSQResult(
         parameters=np.asarray(params, dtype=np.float64),
         parameter_names=parameter_names,

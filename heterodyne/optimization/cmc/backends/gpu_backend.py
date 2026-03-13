@@ -69,9 +69,7 @@ class GPUBackend:
         has_gpu = any(d.platform == "gpu" for d in devices)
 
         if not has_gpu:
-            logger.warning(
-                "GPUBackend: no GPU detected, falling back to CPUBackend"
-            )
+            logger.warning("GPUBackend: no GPU detected, falling back to CPUBackend")
             from heterodyne.optimization.cmc.backends.cpu_backend import CPUBackend
 
             return CPUBackend().run(model, config, rng_key, init_params)

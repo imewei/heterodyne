@@ -23,9 +23,7 @@ from heterodyne.core.physics_cmc import (
     precompute_shard_grid_from_matrix,
 )
 from heterodyne.optimization.cmc.config import CMCConfig
-
 from tests.factories.config_factory import make_cmc_config
-
 
 # ============================================================================
 # Helpers
@@ -39,22 +37,25 @@ def _make_time_grid(n: int, dt: float = 0.1) -> jnp.ndarray:
 
 def _make_default_params() -> jnp.ndarray:
     """Return a 14-parameter array with physically reasonable defaults."""
-    return jnp.array([
-        1e4,   # D0_ref
-        0.5,   # alpha_ref
-        0.0,   # D_offset_ref
-        1e4,   # D0_sample
-        0.5,   # alpha_sample
-        0.0,   # D_offset_sample
-        1e3,   # v0
-        0.5,   # beta
-        0.0,   # v_offset
-        0.5,   # f0
-        0.01,  # f1
-        0.5,   # f2
-        0.0,   # f3
-        0.0,   # phi0
-    ], dtype=jnp.float64)
+    return jnp.array(
+        [
+            1e4,  # D0_ref
+            0.5,  # alpha_ref
+            0.0,  # D_offset_ref
+            1e4,  # D0_sample
+            0.5,  # alpha_sample
+            0.0,  # D_offset_sample
+            1e3,  # v0
+            0.5,  # beta
+            0.0,  # v_offset
+            0.5,  # f0
+            0.01,  # f1
+            0.5,  # f2
+            0.0,  # f3
+            0.0,  # phi0
+        ],
+        dtype=jnp.float64,
+    )
 
 
 # ============================================================================
@@ -218,9 +219,13 @@ class TestComputeC2Elementwise:
         params = _make_default_params()
 
         c2 = compute_c2_elementwise(
-            params, sg,
-            q=0.01, dt=0.1, phi_angle=0.0,
-            contrast=0.5, offset=1.0,
+            params,
+            sg,
+            q=0.01,
+            dt=0.1,
+            phi_angle=0.0,
+            contrast=0.5,
+            offset=1.0,
         )
 
         assert c2.shape == (sg.n_pairs,)
@@ -234,8 +239,11 @@ class TestComputeC2Elementwise:
         params = _make_default_params()
 
         c2 = compute_c2_elementwise(
-            params, sg,
-            q=0.01, dt=0.05, phi_angle=0.0,
+            params,
+            sg,
+            q=0.01,
+            dt=0.05,
+            phi_angle=0.0,
         )
 
         expected_pairs = n * (n + 1) // 2
@@ -250,9 +258,13 @@ class TestComputeC2Elementwise:
 
         offset_val = 1.5
         c2 = compute_c2_elementwise(
-            params, sg,
-            q=0.01, dt=0.1, phi_angle=0.0,
-            contrast=0.0, offset=offset_val,
+            params,
+            sg,
+            q=0.01,
+            dt=0.1,
+            phi_angle=0.0,
+            contrast=0.0,
+            offset=offset_val,
         )
 
         np.testing.assert_allclose(c2, offset_val, atol=1e-10)
@@ -265,10 +277,18 @@ class TestComputeC2Elementwise:
         params = _make_default_params()
 
         c2_phi0 = compute_c2_elementwise(
-            params, sg, q=0.01, dt=0.1, phi_angle=0.0,
+            params,
+            sg,
+            q=0.01,
+            dt=0.1,
+            phi_angle=0.0,
         )
         c2_phi45 = compute_c2_elementwise(
-            params, sg, q=0.01, dt=0.1, phi_angle=45.0,
+            params,
+            sg,
+            q=0.01,
+            dt=0.1,
+            phi_angle=45.0,
         )
 
         # Different phi angles should generally produce different c2

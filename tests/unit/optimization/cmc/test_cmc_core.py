@@ -372,7 +372,7 @@ class TestBugPrevention_MultiChainInit:
 
         # Verify the scalar doesn't have the right shape
         value = wrong_init_params["D0_ref"]
-        assert not hasattr(value, 'shape') or value.shape != (config.num_chains,), (
+        assert not hasattr(value, "shape") or value.shape != (config.num_chains,), (
             "This test documents that scalars are wrong"
         )
 
@@ -388,9 +388,7 @@ class TestBugPrevention_MultiChainInit:
         config = CMCConfig(num_chains=4)
 
         # This is the CORRECT way to create init_params
-        correct_init_params = {
-            "D0_ref": jnp.full((config.num_chains,), 1.0)
-        }
+        correct_init_params = {"D0_ref": jnp.full((config.num_chains,), 1.0)}
 
         # Verify the shape is correct
         value = correct_init_params["D0_ref"]
@@ -490,12 +488,14 @@ class TestReparamBackwardCompat:
         """from_dict picks up new fields."""
         from heterodyne import CMCConfig
 
-        config = CMCConfig.from_dict({
-            "num_warmup": 100,
-            "num_samples": 100,
-            "use_reparam": False,
-            "prior_width_factor": 3.0,
-        })
+        config = CMCConfig.from_dict(
+            {
+                "num_warmup": 100,
+                "num_samples": 100,
+                "use_reparam": False,
+                "prior_width_factor": 3.0,
+            }
+        )
         assert config.use_reparam is False
         assert config.nlsq_prior_width_factor == 3.0
 

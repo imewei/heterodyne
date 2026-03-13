@@ -15,7 +15,6 @@ from heterodyne.optimization.cmc.sampler import (
     SamplingStats,
 )
 
-
 # ---------------------------------------------------------------------------
 # SamplingStats construction
 # ---------------------------------------------------------------------------

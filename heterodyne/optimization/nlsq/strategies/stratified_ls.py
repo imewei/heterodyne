@@ -10,11 +10,11 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
-# nlsq import MUST precede JAX — enables x64 mode
-from nlsq import curve_fit_large
-
 import jax.numpy as jnp
 import numpy as np
+
+# nlsq import MUST precede JAX — enables x64 mode
+from nlsq import curve_fit_large
 
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 from heterodyne.optimization.nlsq.results import NLSQResult
@@ -76,7 +76,9 @@ class StratifiedLSStrategy:
         n_data = c2_data.size
 
         c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
-        weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+        weights_jax = (
+            jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+        )
         t = model.t
         q = model.q
         dt = model.dt
@@ -87,9 +89,7 @@ class StratifiedLSStrategy:
             full_params = fixed_values.at[varying_idx].set(
                 jnp.asarray(varying, dtype=jnp.float64)
             )
-            r = compute_residuals(
-                full_params, t, q, dt, phi_angle, c2_jax, weights_jax
-            )
+            r = compute_residuals(full_params, t, q, dt, phi_angle, c2_jax, weights_jax)
             return np.asarray(r, dtype=np.float64)
 
         method = config.method if config.method != "lm" else "trf"
@@ -125,7 +125,11 @@ class StratifiedLSStrategy:
 
         # Recompute residuals at the solution via residual_fn.
         final_residuals = residual_fn(np.asarray(nlsq_result.x, dtype=np.float64))
-        final_jac = np.asarray(nlsq_result.jac, dtype=np.float64) if nlsq_result.jac is not None else None
+        final_jac = (
+            np.asarray(nlsq_result.jac, dtype=np.float64)
+            if nlsq_result.jac is not None
+            else None
+        )
 
         covariance = None
         uncertainties = None

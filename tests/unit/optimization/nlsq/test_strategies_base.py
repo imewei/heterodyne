@@ -4,16 +4,16 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
 from heterodyne.optimization.nlsq.strategies.base import (
-    StrategyResult,
     _LARGE_DATASET,
     _MEDIUM_DATASET,
     _SMALL_DATASET,
+    StrategyResult,
     select_strategy,
 )
 from heterodyne.optimization.nlsq.strategies.sequential import (
@@ -24,7 +24,6 @@ from heterodyne.optimization.nlsq.strategies.sequential import (
     restore_fixed_parameters,
     strip_fixed_parameters,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -145,9 +144,7 @@ class TestSelectStrategy:
 
     def test_large_dataset_chunked(self) -> None:
         n_data = _MEDIUM_DATASET + 1
-        strategy = select_strategy(
-            n_data, 10, self._config(), available_memory_gb=8.0
-        )
+        strategy = select_strategy(n_data, 10, self._config(), available_memory_gb=8.0)
         assert strategy.__class__.__name__ == "ChunkedStrategy"
 
     def test_large_dataset_auto_memory(self) -> None:

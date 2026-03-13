@@ -117,7 +117,7 @@ def compute_weights(
             )
         # Clamp sigma to avoid division by zero
         sigma_safe = np.maximum(np.abs(sigma), 1e-30)
-        weights = 1.0 / (sigma_safe ** 2)
+        weights = 1.0 / (sigma_safe**2)
 
     elif method == "data_amplitude":
         amplitude = np.maximum(np.abs(c2_data), 1e-30)

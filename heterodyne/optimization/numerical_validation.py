@@ -83,9 +83,7 @@ def validate_parameters(
             f"Parameter values length ({len(arr)}) != names length ({len(names)})"
         )
     if bounds is not None and len(bounds) != len(arr):
-        raise ValueError(
-            f"bounds length ({len(bounds)}) != values length ({len(arr)})"
-        )
+        raise ValueError(f"bounds length ({len(bounds)}) != values length ({len(arr)})")
 
     for i, name in enumerate(names):
         v = arr[i]

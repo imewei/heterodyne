@@ -135,7 +135,9 @@ class AntiDegeneracyController:
             actions.append(plateau_result.suggested_action)
 
         if not issues:
-            return DegeneracyCheck(is_degenerate=False, message="No degeneracy detected")
+            return DegeneracyCheck(
+                is_degenerate=False, message="No degeneracy detected"
+            )
 
         # De-duplicate affected parameters
         seen: set[str] = set()
@@ -436,9 +438,7 @@ def detect_hierarchical_trigger(
     last_three = cost_history[-3:]
     ref = abs(last_three[0])
     denom = ref if ref > 1e-30 else 1e-30
-    plateaued = all(
-        abs(c - last_three[0]) / denom < 0.01 for c in last_three[1:]
-    )
+    plateaued = all(abs(c - last_three[0]) / denom < 0.01 for c in last_three[1:])
     if not plateaued:
         return False
 

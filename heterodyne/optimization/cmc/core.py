@@ -74,7 +74,9 @@ def fit_cmc_jax(
 
     logger.info(
         "[CMC] Starting analysis: chains=%d, samples=%d, warmup=%d",
-        config.num_chains, config.num_samples, config.num_warmup,
+        config.num_chains,
+        config.num_samples,
+        config.num_warmup,
     )
 
     start_time = time.perf_counter()
@@ -97,12 +99,12 @@ def fit_cmc_jax(
     logger.info("[CMC] Sampling %d parameters: %s", len(varying_names), varying_names)
 
     # Validate NLSQ warm-start
-    use_reparam = (
-        config.use_reparam
+    use_reparam = config.use_reparam and nlsq_result is not None and nlsq_result.success
+    if (
+        config.use_nlsq_warmstart
         and nlsq_result is not None
-        and nlsq_result.success
-    )
-    if config.use_nlsq_warmstart and nlsq_result is not None and not nlsq_result.success:
+        and not nlsq_result.success
+    ):
         logger.warning(
             "[CMC] NLSQ warm-start requested but result is not converged "
             "(success=False); falling back to default initialization"
@@ -114,7 +116,9 @@ def fit_cmc_jax(
 
     if use_reparam:
         t_array = np.asarray(model.t)
-        dt_val = float(t_array[1] - t_array[0]) if len(t_array) > 1 else float(t_array[0])
+        dt_val = (
+            float(t_array[1] - t_array[0]) if len(t_array) > 1 else float(t_array[0])
+        )
         t_max_val = float(t_array[-1])
         t_ref = compute_t_ref(dt_val, t_max_val, fallback_value=1.0)
 
@@ -134,7 +138,10 @@ def fit_cmc_jax(
         }
 
         reparam_values, reparam_uncertainties = transform_nlsq_to_reparam_space(
-            nlsq_values, nlsq_uncertainties, t_ref, reparam_config,
+            nlsq_values,
+            nlsq_uncertainties,
+            t_ref,
+            reparam_config,
         )
 
         from heterodyne.optimization.cmc.scaling import ParameterScaling
@@ -163,7 +170,11 @@ def fit_cmc_jax(
                 low, high = space.bounds[name]
 
             scalings[sname] = ParameterScaling(
-                name=sname, center=center, scale=scale, low=low, high=high,
+                name=sname,
+                center=center,
+                scale=scale,
+                low=low,
+                high=high,
             )
 
         prior_std_dict = {}
@@ -234,7 +245,9 @@ def fit_cmc_jax(
                 reparam_val = reparam_values.get(sname, sc.center)
                 z_init = sc.to_normalized(reparam_val)
                 base = jnp.full((config.num_chains,), jnp.float64(z_init))
-                perturbation = 0.01 * jax.random.normal(subkey, shape=(config.num_chains,))
+                perturbation = 0.01 * jax.random.normal(
+                    subkey, shape=(config.num_chains,)
+                )
                 init_params[f"{sname}_z"] = base + perturbation
         else:
             init_params = {}
@@ -277,24 +290,30 @@ def fit_cmc_jax(
         physics_samples = transform_to_physics_space(raw_samples, reparam_config)
         output_names = varying_names
         available_names = [n for n in output_names if n in idata.posterior]
-        summary = az.summary(idata, var_names=available_names, ci_prob=0.95) if available_names else None
+        summary = (
+            az.summary(idata, var_names=available_names, ci_prob=0.95)
+            if available_names
+            else None
+        )
     else:
         physics_samples = {k: np.asarray(v) for k, v in samples.items()}
         output_names = varying_names
         summary = az.summary(idata, var_names=output_names, ci_prob=0.95)
 
     posterior_mean, posterior_std, r_hat, ess_bulk, ess_tail = _extract_posterior_stats(
-        output_names, physics_samples, summary,
+        output_names,
+        physics_samples,
+        summary,
     )
 
-    credible_intervals = _extract_credible_intervals(output_names, physics_samples, summary)
+    credible_intervals = _extract_credible_intervals(
+        output_names, physics_samples, summary
+    )
 
     bfmi, bfmi_compute_failed = _compute_bfmi(idata)
 
     samples_dict = {
-        name: physics_samples[name]
-        for name in output_names
-        if name in physics_samples
+        name: physics_samples[name] for name in output_names if name in physics_samples
     }
     map_estimate = posterior_mean.copy()
 
@@ -337,13 +356,16 @@ def fit_cmc_jax(
         metadata=metadata,
     )
 
-    conv_report = validate_convergence(result, config.max_r_hat, config.min_ess, config.min_bfmi)
+    conv_report = validate_convergence(
+        result, config.max_r_hat, config.min_ess, config.min_bfmi
+    )
     for msg in conv_report.messages:
         logger.info(msg)
 
     logger.info(
         "[CMC] Complete in %.1fs, convergence: %s",
-        wall_time, "PASSED" if convergence_passed else "FAILED",
+        wall_time,
+        "PASSED" if convergence_passed else "FAILED",
     )
 
     return result
@@ -409,7 +431,10 @@ def fit_cmc_sharded(
 
     logger.info(
         "[CMC-sharded] Starting: %d shards, strategy=%s, chains=%d, samples=%d",
-        num_shards, sharding_strategy, config.num_chains, config.num_samples,
+        num_shards,
+        sharding_strategy,
+        config.num_chains,
+        config.num_samples,
     )
 
     start_time = time.perf_counter()
@@ -431,7 +456,9 @@ def fit_cmc_sharded(
     # --- Phase 2: shard creation ---
     logger.info("[CMC-sharded] Phase 2/5: creating %d shards", num_shards)
     effective_seed = shard_seed if shard_seed is not None else secrets.randbelow(2**31)
-    shards = _create_shards(c2_np, sigma_np, num_shards, sharding_strategy, effective_seed)
+    shards = _create_shards(
+        c2_np, sigma_np, num_shards, sharding_strategy, effective_seed
+    )
 
     logger.info(
         "[CMC-sharded] Shards created: sizes=%s",
@@ -447,7 +474,9 @@ def fit_cmc_sharded(
     for shard_idx, shard in enumerate(shards):
         logger.info(
             "[CMC-sharded] Shard %d/%d: %d data points",
-            shard_idx + 1, num_shards, len(shard["indices"]),
+            shard_idx + 1,
+            num_shards,
+            len(shard["indices"]),
         )
 
         # Build per-shard sigma (tempered)
@@ -468,17 +497,22 @@ def fit_cmc_sharded(
         shard_results.append(shard_result)
 
         logger.info(
-            "[CMC-sharded] Shard %d/%d complete: convergence=%s, "
-            "max_rhat=%.3f",
-            shard_idx + 1, num_shards,
+            "[CMC-sharded] Shard %d/%d complete: convergence=%s, max_rhat=%.3f",
+            shard_idx + 1,
+            num_shards,
             "PASSED" if shard_result.convergence_passed else "FAILED",
-            float(np.nanmax(shard_result.r_hat)) if shard_result.r_hat is not None else float("nan"),
+            float(np.nanmax(shard_result.r_hat))
+            if shard_result.r_hat is not None
+            else float("nan"),
         )
 
     # --- Phase 4: consensus combination ---
     logger.info("[CMC-sharded] Phase 4/5: combining shard posteriors (consensus)")
     combined_result = _combine_shard_posteriors(
-        shard_results, config, num_shards, base_seed,
+        shard_results,
+        config,
+        num_shards,
+        base_seed,
     )
 
     # --- Phase 5: finalize ---
@@ -597,7 +631,9 @@ def _create_shards(
     )
 
     if strategy == "random":
-        return _create_shards_random(c2_np, sigma_np, sigma_is_scalar, num_shards, seed, n)
+        return _create_shards_random(
+            c2_np, sigma_np, sigma_is_scalar, num_shards, seed, n
+        )
 
     # contiguous: diagonal blocks along the time axis
     return _create_shards_contiguous(c2_np, sigma_np, sigma_is_scalar, num_shards, n)
@@ -642,7 +678,9 @@ def _create_shards_random(
         unique_rows = np.unique(rows)
         unique_cols = np.unique(cols)
 
-        if len(unique_rows) == len(unique_cols) and np.array_equal(unique_rows, unique_cols):
+        if len(unique_rows) == len(unique_cols) and np.array_equal(
+            unique_rows, unique_cols
+        ):
             # Shard forms a square sub-matrix
             idx_map = {int(v): i for i, v in enumerate(unique_rows)}
             shard_n = len(unique_rows)
@@ -652,24 +690,32 @@ def _create_shards_random(
 
             if not sigma_is_scalar:
                 sigma_sq = np.zeros((shard_n, shard_n), dtype=np.float64)
-                for flat_r, flat_c, s_val in zip(rows, cols, np.asarray(sigma_shard), strict=True):
+                for flat_r, flat_c, s_val in zip(
+                    rows, cols, np.asarray(sigma_shard), strict=True
+                ):
                     sigma_sq[idx_map[int(flat_r)], idx_map[int(flat_c)]] = s_val
                 sigma_shard_out: np.ndarray | float = sigma_sq
             else:
                 sigma_shard_out = float(sigma_np)  # type: ignore[arg-type]
 
-            shards.append({
-                "c2_shard": jnp.asarray(c2_sq),
-                "sigma_shard": sigma_shard_out,
-                "indices": split_indices,
-            })
+            shards.append(
+                {
+                    "c2_shard": jnp.asarray(c2_sq),
+                    "sigma_shard": sigma_shard_out,
+                    "indices": split_indices,
+                }
+            )
         else:
             # Non-square: store as flattened 1-D array
-            shards.append({
-                "c2_shard": jnp.asarray(c2_shard_vals),
-                "sigma_shard": sigma_shard if not sigma_is_scalar else float(sigma_np),  # type: ignore[arg-type]
-                "indices": split_indices,
-            })
+            shards.append(
+                {
+                    "c2_shard": jnp.asarray(c2_shard_vals),
+                    "sigma_shard": sigma_shard
+                    if not sigma_is_scalar
+                    else float(sigma_np),  # type: ignore[arg-type]
+                    "indices": split_indices,
+                }
+            )
 
     return shards
 
@@ -702,11 +748,13 @@ def _create_shards_contiguous(
         )
         flat_indices = (row_idx * n + col_idx).ravel().astype(np.int64)
 
-        shards.append({
-            "c2_shard": jnp.asarray(c2_block),
-            "sigma_shard": sigma_block,
-            "indices": flat_indices,
-        })
+        shards.append(
+            {
+                "c2_shard": jnp.asarray(c2_block),
+                "sigma_shard": sigma_block,
+                "indices": flat_indices,
+            }
+        )
 
     return shards
 
@@ -777,7 +825,7 @@ def _combine_shard_posteriors(
     weighted_mean_sum = np.zeros(n_params)
 
     for sr in shard_results:
-        var_k = sr.posterior_std ** 2
+        var_k = sr.posterior_std**2
         # Clip to avoid division by zero from degenerate shards
         var_k_clipped = np.where(var_k > 1e-30, var_k, 1e-30)
         w_k = 1.0 / var_k_clipped
@@ -870,9 +918,12 @@ def _combine_shard_posteriors(
     logger.info(
         "[CMC-sharded] Consensus combination: %d/%d shards converged, "
         "worst_rhat=%.3f, combined_ess_min=%.0f",
-        num_shards - n_failed, num_shards,
+        num_shards - n_failed,
+        num_shards,
         float(np.nanmax(combined_r_hat)) if combined_r_hat.size > 0 else float("nan"),
-        float(np.nanmin(combined_ess_bulk)) if combined_ess_bulk.size > 0 else float("nan"),
+        float(np.nanmin(combined_ess_bulk))
+        if combined_ess_bulk.size > 0
+        else float("nan"),
     )
 
     return CMCResult(
@@ -988,14 +1039,10 @@ def _validate_cmc_inputs(
     # 2. NaN / Inf
     n_nan = int(np.sum(np.isnan(c2_np)))
     if n_nan > 0:
-        raise ValueError(
-            f"c2_data contains {n_nan} NaN values; clean data before CMC"
-        )
+        raise ValueError(f"c2_data contains {n_nan} NaN values; clean data before CMC")
     n_inf = int(np.sum(np.isinf(c2_np)))
     if n_inf > 0:
-        raise ValueError(
-            f"c2_data contains {n_inf} Inf values; clean data before CMC"
-        )
+        raise ValueError(f"c2_data contains {n_inf} Inf values; clean data before CMC")
 
     # 3. Approximate symmetry
     max_abs = float(np.max(np.abs(c2_np)))
@@ -1026,7 +1073,8 @@ def _validate_cmc_inputs(
 
     logger.debug(
         "[CMC] Input validation passed: shape=%s, n_varying=%d",
-        c2_np.shape, len(space.varying_names),
+        c2_np.shape,
+        len(space.varying_names),
     )
 
 
@@ -1074,35 +1122,55 @@ def _extract_posterior_stats(
         each of length ``len(output_names)``.
     """
     if summary is not None and len(summary) > 0:
-        posterior_mean = np.array([
-            float(summary.loc[name, "mean"]) if name in summary.index else 0.0
-            for name in output_names
-        ])
-        posterior_std = np.array([
-            float(summary.loc[name, "sd"]) if name in summary.index else 0.0
-            for name in output_names
-        ])
-        r_hat = np.array([
-            float(summary.loc[name, "r_hat"]) if name in summary.index else np.nan
-            for name in output_names
-        ])
-        ess_bulk = np.array([
-            float(summary.loc[name, "ess_bulk"]) if name in summary.index else np.nan
-            for name in output_names
-        ])
-        ess_tail = np.array([
-            float(summary.loc[name, "ess_tail"]) if name in summary.index else np.nan
-            for name in output_names
-        ])
+        posterior_mean = np.array(
+            [
+                float(summary.loc[name, "mean"]) if name in summary.index else 0.0
+                for name in output_names
+            ]
+        )
+        posterior_std = np.array(
+            [
+                float(summary.loc[name, "sd"]) if name in summary.index else 0.0
+                for name in output_names
+            ]
+        )
+        r_hat = np.array(
+            [
+                float(summary.loc[name, "r_hat"]) if name in summary.index else np.nan
+                for name in output_names
+            ]
+        )
+        ess_bulk = np.array(
+            [
+                float(summary.loc[name, "ess_bulk"])
+                if name in summary.index
+                else np.nan
+                for name in output_names
+            ]
+        )
+        ess_tail = np.array(
+            [
+                float(summary.loc[name, "ess_tail"])
+                if name in summary.index
+                else np.nan
+                for name in output_names
+            ]
+        )
     else:
-        posterior_mean = np.array([
-            float(np.mean(physics_samples[name])) if name in physics_samples else 0.0
-            for name in output_names
-        ])
-        posterior_std = np.array([
-            float(np.std(physics_samples[name])) if name in physics_samples else 0.0
-            for name in output_names
-        ])
+        posterior_mean = np.array(
+            [
+                float(np.mean(physics_samples[name]))
+                if name in physics_samples
+                else 0.0
+                for name in output_names
+            ]
+        )
+        posterior_std = np.array(
+            [
+                float(np.std(physics_samples[name])) if name in physics_samples else 0.0
+                for name in output_names
+            ]
+        )
         r_hat = np.full(len(output_names), np.nan)
         ess_bulk = np.full(len(output_names), np.nan)
         ess_tail = np.full(len(output_names), np.nan)

@@ -26,10 +26,10 @@ from heterodyne.optimization.nlsq.memory import (
     select_nlsq_strategy,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_cumsum(n: int) -> jnp.ndarray:
     """Build a cumulative-sum vector of length *n* from a simple rate."""
@@ -41,13 +41,24 @@ def _make_cumsum(n: int) -> jnp.ndarray:
 
 def _default_params() -> jnp.ndarray:
     """14-element canonical parameter vector with safe defaults."""
-    return jnp.array([
-        1e4, 1.0, 0.0,   # D0_ref, alpha_ref, D_offset_ref
-        1e4, 1.0, 0.0,   # D0_sample, alpha_sample, D_offset_sample
-        1e3, 1.0, 0.0,   # v0, beta, v_offset
-        0.5, 0.0, 0.0, 0.5,  # f0, f1, f2, f3
-        0.0,              # phi0
-    ])
+    return jnp.array(
+        [
+            1e4,
+            1.0,
+            0.0,  # D0_ref, alpha_ref, D_offset_ref
+            1e4,
+            1.0,
+            0.0,  # D0_sample, alpha_sample, D_offset_sample
+            1e3,
+            1.0,
+            0.0,  # v0, beta, v_offset
+            0.5,
+            0.0,
+            0.0,
+            0.5,  # f0, f1, f2, f3
+            0.0,  # phi0
+        ]
+    )
 
 
 # ===========================================================================
@@ -149,7 +160,10 @@ class TestNLSQCacheMemory:
     def test_cache_stores_entries(self) -> None:
         """After get_or_create_fitter, cache size is non-zero."""
         _fitter, cache_hit = get_or_create_fitter(
-            n_data=50, n_params=14, phi_angles=(0.0,), scaling_mode="auto",
+            n_data=50,
+            n_params=14,
+            phi_angles=(0.0,),
+            scaling_mode="auto",
         )
         assert not cache_hit
         stats = get_cache_stats()
@@ -159,7 +173,10 @@ class TestNLSQCacheMemory:
     def test_clear_cache_releases(self) -> None:
         """After clear_model_cache(), cache stats show zero entries."""
         get_or_create_fitter(
-            n_data=50, n_params=14, phi_angles=(0.0,), scaling_mode="auto",
+            n_data=50,
+            n_params=14,
+            phi_angles=(0.0,),
+            scaling_mode="auto",
         )
         assert get_cache_stats()["size"] > 0
 

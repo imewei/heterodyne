@@ -10,7 +10,6 @@ from heterodyne.optimization.cmc.model import (
     validate_model_output,
 )
 
-
 # ---------------------------------------------------------------------------
 # validate_model_output
 # ---------------------------------------------------------------------------
@@ -114,7 +113,9 @@ class TestGetModelParamCount:
     def test_individual_mode(self) -> None:
         """Individual mode adds 2 * n_phi per-angle params."""
         n_phi = 5
-        count_individual = get_model_param_count(n_phi=n_phi, per_angle_mode="individual")
+        count_individual = get_model_param_count(
+            n_phi=n_phi, per_angle_mode="individual"
+        )
         count_auto = get_model_param_count(n_phi=n_phi, per_angle_mode="auto")
         assert count_individual == count_auto + 2 * n_phi
 

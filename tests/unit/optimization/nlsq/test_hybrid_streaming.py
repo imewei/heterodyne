@@ -10,16 +10,11 @@ Verifies:
 from __future__ import annotations
 
 import ast
-import importlib
-import sys
-import textwrap
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers

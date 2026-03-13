@@ -13,7 +13,6 @@ from heterodyne.optimization.nlsq.data_prep import (
     unflatten_upper_triangle,
 )
 
-
 # ---------------------------------------------------------------------------
 # flatten_upper_triangle
 # ---------------------------------------------------------------------------

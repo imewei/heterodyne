@@ -46,7 +46,10 @@ class TestEstimateContrastOffset:
         c2 = true_offset + true_contrast * np.exp(-dt / tau) + rng.normal(0, 0.005, n)
 
         est_contrast, est_offset = estimate_contrast_offset_from_quantiles(
-            c2, dt, contrast_bounds=(0.0, 1.0), offset_bounds=(0.5, 1.5),
+            c2,
+            dt,
+            contrast_bounds=(0.0, 1.0),
+            offset_bounds=(0.5, 1.5),
         )
 
         # Quantile estimation should be within ~20% for synthetic data
@@ -59,7 +62,10 @@ class TestEstimateContrastOffset:
         c2 = np.ones(50)
         dt = np.ones(50)
         c, o = estimate_contrast_offset_from_quantiles(
-            c2, dt, contrast_bounds=(0.0, 1.0), offset_bounds=(0.5, 1.5),
+            c2,
+            dt,
+            contrast_bounds=(0.0, 1.0),
+            offset_bounds=(0.5, 1.5),
         )
         assert c == pytest.approx(0.5)
         assert o == pytest.approx(1.0)
@@ -94,7 +100,10 @@ class TestEstimateContrastOffset:
         c2 = np.full(200, 1.05)
         dt = np.linspace(0, 100, 200)
         c, o = estimate_contrast_offset_from_quantiles(
-            c2, dt, contrast_bounds=(0.0, 1.0), offset_bounds=(0.5, 1.5),
+            c2,
+            dt,
+            contrast_bounds=(0.0, 1.0),
+            offset_bounds=(0.5, 1.5),
         )
         assert c == pytest.approx(0.0, abs=1e-6)
         assert o == pytest.approx(1.05, abs=0.01)
@@ -107,7 +116,10 @@ class TestEstimateContrastOffset:
         c2 = 2.0 + 5.0 * np.exp(-dt / 10.0)  # contrast ~5, offset ~2
 
         c, o = estimate_contrast_offset_from_quantiles(
-            c2, dt, contrast_bounds=(0.0, 1.0), offset_bounds=(0.5, 1.5),
+            c2,
+            dt,
+            contrast_bounds=(0.0, 1.0),
+            offset_bounds=(0.5, 1.5),
         )
         assert 0.0 <= c <= 1.0
         assert 0.5 <= o <= 1.5
@@ -120,10 +132,16 @@ class TestEstimateContrastOffset:
         dt = rng.uniform(0.1, 100.0, size=500)
 
         c1, o1 = estimate_contrast_offset_from_quantiles(
-            c2, dt, lag_floor_quantile=0.90, lag_ceiling_quantile=0.10,
+            c2,
+            dt,
+            lag_floor_quantile=0.90,
+            lag_ceiling_quantile=0.10,
         )
         c2_, o2 = estimate_contrast_offset_from_quantiles(
-            c2, dt, lag_floor_quantile=0.70, lag_ceiling_quantile=0.30,
+            c2,
+            dt,
+            lag_floor_quantile=0.70,
+            lag_ceiling_quantile=0.30,
         )
         # Different quantile settings should produce different estimates
         # (not necessarily, but for random data they typically do)
@@ -151,8 +169,13 @@ class TestEstimatePerAngleScaling:
         phi_idx = np.zeros(n, dtype=int)
 
         result = estimate_per_angle_scaling(
-            c2, t1, t2, phi_idx, n_phi=1,
-            contrast_bounds=(0.0, 1.0), offset_bounds=(0.5, 1.5),
+            c2,
+            t1,
+            t2,
+            phi_idx,
+            n_phi=1,
+            contrast_bounds=(0.0, 1.0),
+            offset_bounds=(0.5, 1.5),
         )
 
         assert "contrast_0" in result
@@ -185,8 +208,13 @@ class TestEstimatePerAngleScaling:
         phi_idx = np.concatenate(phi_parts)
 
         result = estimate_per_angle_scaling(
-            c2, t1, t2, phi_idx, n_phi=n_phi,
-            contrast_bounds=(0.0, 1.0), offset_bounds=(0.5, 1.5),
+            c2,
+            t1,
+            t2,
+            phi_idx,
+            n_phi=n_phi,
+            contrast_bounds=(0.0, 1.0),
+            offset_bounds=(0.5, 1.5),
         )
 
         # All angles should have entries
@@ -207,8 +235,13 @@ class TestEstimatePerAngleScaling:
         phi_idx = np.array([0] * 10 + [1] * 10 + [2] * 10)
 
         result = estimate_per_angle_scaling(
-            c2, t1, t2, phi_idx, n_phi=3,
-            contrast_bounds=(0.0, 1.0), offset_bounds=(0.5, 1.5),
+            c2,
+            t1,
+            t2,
+            phi_idx,
+            n_phi=3,
+            contrast_bounds=(0.0, 1.0),
+            offset_bounds=(0.5, 1.5),
         )
 
         for i in range(3):
@@ -230,8 +263,13 @@ class TestEstimatePerAngleScaling:
         phi_idx = np.array([0] * 200 + [1] * 50)
 
         result = estimate_per_angle_scaling(
-            c2, t1, t2, phi_idx, n_phi=2,
-            contrast_bounds=(0.0, 1.0), offset_bounds=(0.5, 1.5),
+            c2,
+            t1,
+            t2,
+            phi_idx,
+            n_phi=2,
+            contrast_bounds=(0.0, 1.0),
+            offset_bounds=(0.5, 1.5),
         )
 
         # Angle 0 should have data-driven estimate
@@ -273,8 +311,13 @@ class TestComputeAveragedScaling:
         phi_idx = np.concatenate(phi_parts)
 
         c_avg, o_avg, c_per, o_per = compute_averaged_scaling(
-            c2, t1, t2, phi_idx, n_phi=n_phi,
-            contrast_bounds=(0.0, 1.0), offset_bounds=(0.5, 1.5),
+            c2,
+            t1,
+            t2,
+            phi_idx,
+            n_phi=n_phi,
+            contrast_bounds=(0.0, 1.0),
+            offset_bounds=(0.5, 1.5),
         )
 
         assert c_avg == pytest.approx(float(np.mean(c_per)))
@@ -398,11 +441,13 @@ class TestValidateParameters:
     @pytest.mark.unit
     def test_valid_parameters(self) -> None:
         """All parameters within bounds."""
-        result = validate_parameters({
-            "D0_ref": 1e4,
-            "alpha_ref": 0.5,
-            "v0": 100.0,
-        })
+        result = validate_parameters(
+            {
+                "D0_ref": 1e4,
+                "alpha_ref": 0.5,
+                "v0": 100.0,
+            }
+        )
         assert result.valid is True
         assert result.parameters_checked == 3
         assert len(result.violations) == 0
@@ -448,11 +493,13 @@ class TestValidateParameters:
     @pytest.mark.unit
     def test_multiple_violations(self) -> None:
         """Multiple violations are all reported."""
-        result = validate_parameters({
-            "D0_ref": -1.0,       # below min 100
-            "alpha_ref": 99.0,    # above max 2.0
-            "v0": float("nan"),   # not finite
-        })
+        result = validate_parameters(
+            {
+                "D0_ref": -1.0,  # below min 100
+                "alpha_ref": 99.0,  # above max 2.0
+                "v0": float("nan"),  # not finite
+            }
+        )
         assert result.valid is False
         assert result.parameters_checked == 3
         assert len(result.violations) == 3
@@ -470,10 +517,12 @@ class TestValidateParameters:
     @pytest.mark.unit
     def test_exact_boundary_values_valid(self) -> None:
         """Values exactly at bounds are valid."""
-        result = validate_parameters({
-            "D0_ref": 100.0,   # exact lower bound
-            "alpha_ref": 2.0,  # exact upper bound
-        })
+        result = validate_parameters(
+            {
+                "D0_ref": 100.0,  # exact lower bound
+                "alpha_ref": 2.0,  # exact upper bound
+            }
+        )
         assert result.valid is True
 
     @pytest.mark.unit

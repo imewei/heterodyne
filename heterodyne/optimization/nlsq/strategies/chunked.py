@@ -34,11 +34,11 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
-# nlsq import MUST precede JAX — enables x64 mode
-from nlsq import curve_fit_large
-
 import jax.numpy as jnp
 import numpy as np
+
+# nlsq import MUST precede JAX — enables x64 mode
+from nlsq import curve_fit_large
 
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 from heterodyne.optimization.nlsq.results import NLSQResult
@@ -281,8 +281,7 @@ class ChunkedStrategy:
         n_chunks = max(1, (n_data + chunk_size - 1) // chunk_size)
 
         logger.info(
-            "ChunkedStrategy: %d data points → %d chunks (chunk_size=%d, "
-            "n_params=%d)",
+            "ChunkedStrategy: %d data points → %d chunks (chunk_size=%d, n_params=%d)",
             n_data,
             n_chunks,
             chunk_size,
@@ -364,7 +363,11 @@ class ChunkedStrategy:
 
         # Recompute residuals at solution via chunked residual_fn.
         final_residuals = residual_fn(np.asarray(nlsq_result.x, dtype=np.float64))
-        final_jac = np.asarray(nlsq_result.jac, dtype=np.float64) if nlsq_result.jac is not None else None
+        final_jac = (
+            np.asarray(nlsq_result.jac, dtype=np.float64)
+            if nlsq_result.jac is not None
+            else None
+        )
 
         covariance, uncertainties = _estimate_covariance(
             final_jac,
@@ -583,5 +586,9 @@ class ChunkedStrategy:
         return ChunkedStrategy(chunk_size=config.chunk_size)
 
     def __repr__(self) -> str:
-        cs = self._chunk_size_override if self._chunk_size_override is not None else "auto"
+        cs = (
+            self._chunk_size_override
+            if self._chunk_size_override is not None
+            else "auto"
+        )
         return f"ChunkedStrategy(chunk_size={cs})"

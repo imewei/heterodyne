@@ -349,9 +349,7 @@ def robust_consensus_mc(
     n_outliers = int(np.sum(is_outlier))
     if n_outliers > 0:
         outlier_ids = [
-            shard_posteriors[i].shard_id
-            for i in range(n_shards)
-            if is_outlier[i]
+            shard_posteriors[i].shard_id for i in range(n_shards) if is_outlier[i]
         ]
         logger.warning(
             "robust_consensus_mc: %d/%d shards flagged as outliers (ids=%s)",

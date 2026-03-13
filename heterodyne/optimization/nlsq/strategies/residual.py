@@ -37,11 +37,11 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
-# nlsq import MUST precede JAX — enables x64 mode
-from nlsq import CurveFit
-
 import jax.numpy as jnp
 import numpy as np
+
+# nlsq import MUST precede JAX — enables x64 mode
+from nlsq import CurveFit
 
 from heterodyne.core.jax_backend import (
     compute_c2_heterodyne,
@@ -279,6 +279,7 @@ class ResidualStrategy:
             # Negate Jacobian to match the negated residual convention.
             def _jac_wrapped(xdata: np.ndarray, *params: object) -> np.ndarray:
                 return -jacobian_fn(np.asarray(jnp.stack(list(params))))  # type: ignore[arg-type]
+
             jac_callable = _jac_wrapped
 
         fitter = CurveFit(flength=n_data)
@@ -310,7 +311,11 @@ class ResidualStrategy:
         # nlsq returns residuals as (ydata - f(xdata, *popt)); negate back to
         # match the residual_fn convention (model - data).
         final_residuals = residual_fn(np.asarray(nlsq_result.x, dtype=np.float64))
-        final_jac = np.asarray(nlsq_result.jac, dtype=np.float64) if nlsq_result.jac is not None else None
+        final_jac = (
+            np.asarray(nlsq_result.jac, dtype=np.float64)
+            if nlsq_result.jac is not None
+            else None
+        )
 
         covariance, uncertainties = _estimate_covariance_from_jac(
             final_jac,
@@ -359,10 +364,9 @@ class ResidualStrategy:
             result.fitted_correlation = np.asarray(fitted_c2)
             model.set_params(full_fitted)
 
-        peak_memory_mb = (
-            n_data * n_params * _BYTES_PER_FLOAT64 / (1024 * 1024)
-            + np.asarray(c2_data).nbytes / (1024 * 1024)
-        )
+        peak_memory_mb = n_data * n_params * _BYTES_PER_FLOAT64 / (
+            1024 * 1024
+        ) + np.asarray(c2_data).nbytes / (1024 * 1024)
 
         return StrategyResult(
             result=result,

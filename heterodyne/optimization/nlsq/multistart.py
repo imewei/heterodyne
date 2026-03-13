@@ -55,7 +55,9 @@ class MultiStartConfig:
 
     n_starts: int = 10
     seed: int | None = None
-    parallel: bool = False  # Default False — JAX closures cannot cross process boundaries
+    parallel: bool = (
+        False  # Default False — JAX closures cannot cross process boundaries
+    )
     max_workers: int | None = None
     worker_timeout: float = _WORKER_TIMEOUT
     max_data_points_for_parallel: int = _MAX_POINTS_FOR_PARALLEL
@@ -395,8 +397,7 @@ class MultiStartOptimizer:
         wall_total = time.perf_counter() - t_start
 
         logger.info(
-            "Multi-start complete: %d/%d successful, best cost=%.4e, "
-            "total time=%.1fs",
+            "Multi-start complete: %d/%d successful, best cost=%.4e, total time=%.1fs",
             n_successful,
             n_points,
             best_cost,

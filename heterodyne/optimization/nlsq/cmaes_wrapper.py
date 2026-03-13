@@ -132,8 +132,7 @@ class CMAESWrapper:
         """
         if not _HAS_CMA:
             raise ImportError(
-                "CMA-ES requires the 'cma' package. Install it with: "
-                "uv add cma"
+                "CMA-ES requires the 'cma' package. Install it with: uv add cma"
             )
         import cma  # noqa: F811 — guarded re-import
 
@@ -192,9 +191,7 @@ class CMAESWrapper:
 
         effective_n_data = n_data if n_data is not None else max(len(residuals), 1)
 
-        stop_reason = "; ".join(
-            f"{k}={v}" for k, v in es.stop().items()
-        )
+        stop_reason = "; ".join(f"{k}={v}" for k, v in es.stop().items())
         success = best_cost < np.inf and not np.isnan(best_cost)
 
         result_metadata = {"optimizer": "CMA-ES", "stop_conditions": es.stop()}
@@ -452,7 +449,9 @@ def fit_with_cmaes(
             cfg = CMAESConfig(
                 sigma0=cfg.sigma0,
                 popsize=adaptive_pop,
-                maxiter=cfg.maxiter if cfg.maxiter != CMAESConfig.maxiter else adaptive_gen,
+                maxiter=cfg.maxiter
+                if cfg.maxiter != CMAESConfig.maxiter
+                else adaptive_gen,
                 tolx=cfg.tolx,
                 tolfun=cfg.tolfun,
                 seed=cfg.seed,
@@ -474,7 +473,9 @@ def fit_with_cmaes(
     names = parameter_names or [f"p{i}" for i in range(len(initial_params))]
     if anti_degeneracy:
         effective_objective = build_anti_degeneracy_objective(
-            objective_fn, bounds, names,
+            objective_fn,
+            bounds,
+            names,
         )
 
     wrapper = CMAESWrapper(config=cfg, parameter_names=names)

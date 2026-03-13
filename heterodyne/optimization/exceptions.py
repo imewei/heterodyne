@@ -35,9 +35,7 @@ class NLSQOptimizationError(Exception):
     def __str__(self) -> str:
         base = self.message
         if self.error_context:
-            ctx_str = ", ".join(
-                f"{k}={v!r}" for k, v in self.error_context.items()
-            )
+            ctx_str = ", ".join(f"{k}={v!r}" for k, v in self.error_context.items())
             return f"{base} [{ctx_str}]"
         return base
 
@@ -91,7 +89,6 @@ class NLSQNumericalError(NLSQOptimizationError):
         super().__init__(message, error_context=ctx)
 
 
-
 # ---------------------------------------------------------------------------
 # Generic optimization exception hierarchy (covers both NLSQ and CMC)
 # ---------------------------------------------------------------------------
@@ -118,9 +115,7 @@ class OptimizationError(Exception):
     def __str__(self) -> str:
         base = self.message
         if self.error_context:
-            ctx_str = ", ".join(
-                f"{k}={v!r}" for k, v in self.error_context.items()
-            )
+            ctx_str = ", ".join(f"{k}={v!r}" for k, v in self.error_context.items())
             return f"{base} [{ctx_str}]"
         return base
 

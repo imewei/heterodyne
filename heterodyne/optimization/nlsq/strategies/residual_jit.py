@@ -12,12 +12,12 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
-# nlsq import MUST precede JAX — enables x64 mode
-from nlsq import CurveFit
-
 import jax
 import jax.numpy as jnp
 import numpy as np
+
+# nlsq import MUST precede JAX — enables x64 mode
+from nlsq import CurveFit
 
 from heterodyne.core.jax_backend import compute_c2_heterodyne, compute_residuals
 from heterodyne.optimization.nlsq.results import NLSQResult
@@ -82,7 +82,9 @@ class ResidualJITStrategy:
         n_data = c2_data.size
 
         c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
-        weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+        weights_jax = (
+            jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+        )
         t = model.t
         q = model.q
         dt = model.dt
@@ -116,7 +118,8 @@ class ResidualJITStrategy:
         logger.info(
             "ResidualJIT: fitting %d params, %d data points "
             "(finite-difference Jacobian)",
-            n_params, n_data,
+            n_params,
+            n_data,
         )
 
         # CurveFit API: f(xdata, *params) -> prediction; residuals = ydata - f.
@@ -143,7 +146,11 @@ class ResidualJITStrategy:
 
         # Recompute residuals at the solution via the JIT function.
         final_residuals = residual_fn(np.asarray(nlsq_result.x, dtype=np.float64))
-        final_jac = np.asarray(nlsq_result.jac, dtype=np.float64) if nlsq_result.jac is not None else None
+        final_jac = (
+            np.asarray(nlsq_result.jac, dtype=np.float64)
+            if nlsq_result.jac is not None
+            else None
+        )
 
         covariance = None
         uncertainties = None

@@ -1,4 +1,5 @@
 """Post-fit quality assessment for NLSQ results."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -18,9 +19,7 @@ logger = get_logger(__name__)
 
 # Scaling parameter base names (derived from registry at import time)
 _SCALING_NAMES = frozenset(
-    info.name
-    for info in DEFAULT_REGISTRY._parameters.values()
-    if info.is_scaling
+    info.name for info in DEFAULT_REGISTRY._parameters.values() if info.is_scaling
 )
 
 
@@ -85,30 +84,42 @@ class FitQualityValidator:
         return report
 
     def _check_chi_squared(
-        self, result: NLSQResult, report: ValidationReport,
+        self,
+        result: NLSQResult,
+        report: ValidationReport,
     ) -> None:
         chi2 = result.reduced_chi_squared
         if chi2 is None:
             return
 
         if chi2 > self._chi2_fail:
-            report.issues.append(ValidationIssue(
-                ValidationSeverity.ERROR,
-                f"Very poor fit: reduced chi2 = {chi2:.2f} > {self._chi2_fail}",
-                "chi2_red", chi2,
-            ))
+            report.issues.append(
+                ValidationIssue(
+                    ValidationSeverity.ERROR,
+                    f"Very poor fit: reduced chi2 = {chi2:.2f} > {self._chi2_fail}",
+                    "chi2_red",
+                    chi2,
+                )
+            )
         elif chi2 > self._chi2_warn:
-            report.issues.append(ValidationIssue(
-                ValidationSeverity.WARNING,
-                f"Mediocre fit: reduced chi2 = {chi2:.2f} > {self._chi2_warn}",
-                "chi2_red", chi2,
-            ))
+            report.issues.append(
+                ValidationIssue(
+                    ValidationSeverity.WARNING,
+                    f"Mediocre fit: reduced chi2 = {chi2:.2f} > {self._chi2_warn}",
+                    "chi2_red",
+                    chi2,
+                )
+            )
 
     def _check_bounds_proximity(
-        self, result: NLSQResult, report: ValidationReport,
+        self,
+        result: NLSQResult,
+        report: ValidationReport,
     ) -> None:
         for name, value in zip(
-            result.parameter_names, result.parameters, strict=True,
+            result.parameter_names,
+            result.parameters,
+            strict=True,
         ):
             if not _is_physical_param(name):
                 continue
@@ -125,16 +136,22 @@ class FitQualityValidator:
             frac_hi = (info.max_bound - value) / span
 
             if frac_lo < self._edge_fraction:
-                report.issues.append(ValidationIssue(
-                    ValidationSeverity.WARNING,
-                    f"{name} = {value:.4e} near lower bound "
-                    f"({frac_lo * 100:.2f}% from min={info.min_bound})",
-                    f"bound_edge_{name}", frac_lo,
-                ))
+                report.issues.append(
+                    ValidationIssue(
+                        ValidationSeverity.WARNING,
+                        f"{name} = {value:.4e} near lower bound "
+                        f"({frac_lo * 100:.2f}% from min={info.min_bound})",
+                        f"bound_edge_{name}",
+                        frac_lo,
+                    )
+                )
             elif frac_hi < self._edge_fraction:
-                report.issues.append(ValidationIssue(
-                    ValidationSeverity.WARNING,
-                    f"{name} = {value:.4e} near upper bound "
-                    f"({frac_hi * 100:.2f}% from max={info.max_bound})",
-                    f"bound_edge_{name}", frac_hi,
-                ))
+                report.issues.append(
+                    ValidationIssue(
+                        ValidationSeverity.WARNING,
+                        f"{name} = {value:.4e} near upper bound "
+                        f"({frac_hi * 100:.2f}% from max={info.max_bound})",
+                        f"bound_edge_{name}",
+                        frac_hi,
+                    )
+                )

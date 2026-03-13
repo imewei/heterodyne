@@ -44,6 +44,7 @@ def compute_c2_batch(
     Returns:
         c2 matrices, shape (n_phi, N, N)
     """
+
     def compute_single_angle(phi_val: jnp.ndarray) -> jnp.ndarray:
         return compute_c2_heterodyne(params, t, q, dt, phi_val, contrast, offset)
 
@@ -74,12 +75,15 @@ def compute_c2_batch_with_per_angle_scaling(
     Returns:
         c2 matrices, shape (n_phi, N, N)
     """
+
     def compute_single(
         phi_val: jnp.ndarray,
         contrast_val: jnp.ndarray,
         offset_val: jnp.ndarray,
     ) -> jnp.ndarray:
-        return compute_c2_heterodyne(params, t, q, dt, phi_val, contrast_val, offset_val)
+        return compute_c2_heterodyne(
+            params, t, q, dt, phi_val, contrast_val, offset_val
+        )
 
     compute_all = jax.vmap(compute_single, in_axes=(0, 0, 0))
     return compute_all(phi_angles, contrasts, offsets)  # type: ignore[no-any-return]
@@ -101,6 +105,7 @@ def solve_lstsq_batch(
     Returns:
         Tuple of (contrasts, offsets), each shape (n_phi,)
     """
+
     def solve_single(
         theory_flat: jnp.ndarray,
         exp_flat: jnp.ndarray,
@@ -304,13 +309,25 @@ def compute_theoretical_fits(
     # Pad physics params to 14 if using a reduced mode
     if len(physical_params) < 14:
         mode_names = ANALYSIS_MODES[normalized_mode]
-        full_defaults = np.array([
-            1e4, 0.0, 0.0,  # ref transport: D0_ref, alpha_ref, D_offset_ref
-            1e4, 0.0, 0.0,  # sample transport: D0_sample, alpha_sample, D_offset_sample
-            1e3, 0.0, 0.0,  # velocity: v0, beta, v_offset
-            0.5, 0.0, 0.0, 0.0,  # fraction: f0, f1, f2, f3
-            0.0,             # phi0
-        ], dtype=np.float64)
+        full_defaults = np.array(
+            [
+                1e4,
+                0.0,
+                0.0,  # ref transport: D0_ref, alpha_ref, D_offset_ref
+                1e4,
+                0.0,
+                0.0,  # sample transport: D0_sample, alpha_sample, D_offset_sample
+                1e3,
+                0.0,
+                0.0,  # velocity: v0, beta, v_offset
+                0.5,
+                0.0,
+                0.0,
+                0.0,  # fraction: f0, f1, f2, f3
+                0.0,  # phi0
+            ],
+            dtype=np.float64,
+        )
         for i, name in enumerate(mode_names):
             idx = ALL_PARAM_NAMES.index(name)
             full_defaults[idx] = physical_params[i]

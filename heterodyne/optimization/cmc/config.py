@@ -357,9 +357,7 @@ class CMCConfig:
 
         # ---- min_points_for_cmc ---------------------------------------
         if self.min_points_for_cmc < 1:
-            errors.append(
-                f"min_points_for_cmc={self.min_points_for_cmc} must be >= 1."
-            )
+            errors.append(f"min_points_for_cmc={self.min_points_for_cmc} must be >= 1.")
 
         # ---- per_angle_mode -------------------------------------------
         if self.per_angle_mode not in _VALID_PER_ANGLE_MODE:
@@ -386,9 +384,7 @@ class CMCConfig:
                 f"num_shards={self.num_shards} must be >= 1 when set explicitly."
             )
         elif isinstance(self.num_shards, str) and self.num_shards != "auto":
-            errors.append(
-                f"num_shards={self.num_shards!r} must be an int or 'auto'."
-            )
+            errors.append(f"num_shards={self.num_shards!r} must be an int or 'auto'.")
 
         if isinstance(self.max_points_per_shard, int):
             if self.max_points_per_shard < 1:
@@ -490,9 +486,7 @@ class CMCConfig:
             errors.append(f"min_ess={self.min_ess} must be >= 1.")
 
         if not (0.0 < self.min_bfmi <= 1.0):
-            errors.append(
-                f"min_bfmi={self.min_bfmi} must be in (0, 1]."
-            )
+            errors.append(f"min_bfmi={self.min_bfmi} must be in (0, 1].")
 
         if not (0.0 <= self.max_divergence_rate <= 1.0):
             errors.append(
@@ -500,9 +494,7 @@ class CMCConfig:
             )
 
         if self.max_parameter_cv <= 0.0:
-            errors.append(
-                f"max_parameter_cv={self.max_parameter_cv} must be > 0."
-            )
+            errors.append(f"max_parameter_cv={self.max_parameter_cv} must be > 0.")
 
         # ---- NLSQ priors ----------------------------------------------
         if self.nlsq_prior_width_factor <= 0.0:
@@ -606,15 +598,11 @@ class CMCConfig:
         enable_str = str(self.enable).lower()
 
         if enable_str in {"always", "true"}:
-            logger.debug(
-                "CMC enabled unconditionally (enable=%r).", self.enable
-            )
+            logger.debug("CMC enabled unconditionally (enable=%r).", self.enable)
             return True
 
         if enable_str in {"never", "false"}:
-            logger.debug(
-                "CMC disabled unconditionally (enable=%r).", self.enable
-            )
+            logger.debug("CMC disabled unconditionally (enable=%r).", self.enable)
             return False
 
         # "auto" branch — gate on minimum dataset size.
@@ -809,9 +797,7 @@ class CMCConfig:
             Resolved per-angle mode (never ``"auto"``).
         """
         if self.per_angle_mode != "auto":
-            logger.debug(
-                "Per-angle mode fixed to %r (not auto).", self.per_angle_mode
-            )
+            logger.debug("Per-angle mode fixed to %r (not auto).", self.per_angle_mode)
             return self.per_angle_mode
 
         # --- Auto resolution ---
@@ -834,8 +820,7 @@ class CMCConfig:
             resolved = "constant"
 
         logger.debug(
-            "Per-angle mode auto-resolved to %r "
-            "(n_phi=%d threshold=%d).",
+            "Per-angle mode auto-resolved to %r (n_phi=%d threshold=%d).",
             resolved,
             n_phi,
             self.constant_scaling_threshold,
@@ -1020,7 +1005,12 @@ class CMCConfig:
         _pick("checkpoint_dir", backend)
         _pick("chain_method", backend)
         # Flat fallback
-        for _f in ("backend_name", "enable_checkpoints", "checkpoint_dir", "chain_method"):
+        for _f in (
+            "backend_name",
+            "enable_checkpoints",
+            "checkpoint_dir",
+            "chain_method",
+        ):
             _pick(_f, config_dict)
 
         # --- per_shard_mcmc section ------------------------------------
@@ -1092,9 +1082,16 @@ class CMCConfig:
         if "prior_width_factor" in nlsq and "nlsq_prior_width_factor" not in kwargs:
             kwargs["nlsq_prior_width_factor"] = nlsq["prior_width_factor"]
         # Flat fallbacks
-        for _f in ("use_nlsq_warmstart", "use_nlsq_informed_priors", "nlsq_prior_width_factor"):
+        for _f in (
+            "use_nlsq_warmstart",
+            "use_nlsq_informed_priors",
+            "nlsq_prior_width_factor",
+        ):
             _pick(_f, config_dict)
-        if "prior_width_factor" in config_dict and "nlsq_prior_width_factor" not in kwargs:
+        if (
+            "prior_width_factor" in config_dict
+            and "nlsq_prior_width_factor" not in kwargs
+        ):
             kwargs["nlsq_prior_width_factor"] = config_dict["prior_width_factor"]
 
         # --- combination section ---------------------------------------
@@ -1103,7 +1100,11 @@ class CMCConfig:
         _pick("min_success_rate", combination)
         _pick("min_success_rate_warning", combination)
         # Flat fallbacks
-        for _f in ("combination_method", "min_success_rate", "min_success_rate_warning"):
+        for _f in (
+            "combination_method",
+            "min_success_rate",
+            "min_success_rate_warning",
+        ):
             _pick(_f, config_dict)
 
         # --- timeout section -------------------------------------------

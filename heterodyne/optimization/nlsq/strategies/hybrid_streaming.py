@@ -145,10 +145,13 @@ class HybridStreamingStrategy:
         # Target is zero residual (we treat residuals as "predictions").
         ydata = np.zeros(n_data, dtype=np.float64)
 
-        warmup_maxiter = max(1, int(config.max_iterations * config.hybrid_warmup_fraction))
+        warmup_maxiter = max(
+            1, int(config.max_iterations * config.hybrid_warmup_fraction)
+        )
         gn_maxiter = max(
             100,
-            config.max_iterations - int(config.max_iterations * config.hybrid_warmup_fraction),
+            config.max_iterations
+            - int(config.max_iterations * config.hybrid_warmup_fraction),
         )
         chunk_size: int = getattr(config, "streaming_chunk_size", 50_000)
 

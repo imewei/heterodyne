@@ -20,6 +20,7 @@ from heterodyne.optimization.cmc.priors import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class MockParamInfo:
     """Minimal stand-in for ParameterInfo with new metadata fields."""
@@ -72,8 +73,8 @@ class MockNLSQResult:
 # build_nlsq_informed_priors
 # ===========================================================================
 
-class TestBuildNLSQInformedPriors:
 
+class TestBuildNLSQInformedPriors:
     @pytest.mark.unit
     def test_uses_nlsq_values_and_uncertainty(self) -> None:
         space = MockParameterSpace(
@@ -117,14 +118,17 @@ class TestBuildNLSQInformedPriors:
 # build_default_priors
 # ===========================================================================
 
-class TestBuildDefaultPriors:
 
+class TestBuildDefaultPriors:
     @pytest.mark.unit
     def test_truncated_normal_when_prior_mean_and_std(self) -> None:
         info = MockParamInfo(
-            name="D0_ref", default=500.0,
-            min_bound=100.0, max_bound=1e5,
-            prior_mean=50050.0, prior_std=24975.0,
+            name="D0_ref",
+            default=500.0,
+            min_bound=100.0,
+            max_bound=1e5,
+            prior_mean=50050.0,
+            prior_std=24975.0,
         )
         registry = _make_mock_registry({"D0_ref": info})
         space = MockParameterSpace(
@@ -140,9 +144,12 @@ class TestBuildDefaultPriors:
     @pytest.mark.unit
     def test_uniform_fallback_when_no_prior_std(self) -> None:
         info = MockParamInfo(
-            name="alpha_ref", default=0.0,
-            min_bound=-2.0, max_bound=2.0,
-            prior_mean=None, prior_std=None,
+            name="alpha_ref",
+            default=0.0,
+            min_bound=-2.0,
+            max_bound=2.0,
+            prior_mean=None,
+            prior_std=None,
         )
         registry = _make_mock_registry({"alpha_ref": info})
         space = MockParameterSpace(
@@ -159,14 +166,17 @@ class TestBuildDefaultPriors:
 # build_log_space_priors
 # ===========================================================================
 
-class TestBuildLogSpacePriors:
 
+class TestBuildLogSpacePriors:
     @pytest.mark.unit
     def test_creates_lognormal_for_flagged_params(self) -> None:
         info = MockParamInfo(
-            name="D0_ref", default=500.0,
-            min_bound=100.0, max_bound=1e5,
-            prior_mean=50050.0, prior_std=24975.0,
+            name="D0_ref",
+            default=500.0,
+            min_bound=100.0,
+            max_bound=1e5,
+            prior_mean=50050.0,
+            prior_std=24975.0,
             log_space=True,
         )
         registry = _make_mock_registry({"D0_ref": info})
@@ -178,8 +188,10 @@ class TestBuildLogSpacePriors:
     @pytest.mark.unit
     def test_skips_non_log_space_params(self) -> None:
         info = MockParamInfo(
-            name="alpha_ref", default=0.0,
-            min_bound=-2.0, max_bound=2.0,
+            name="alpha_ref",
+            default=0.0,
+            min_bound=-2.0,
+            max_bound=2.0,
             log_space=False,
         )
         registry = _make_mock_registry({"alpha_ref": info})
@@ -192,9 +204,12 @@ class TestBuildLogSpacePriors:
         """The LogNormal median = exp(mu) should equal prior_mean."""
         center = 5000.0
         info = MockParamInfo(
-            name="v0", default=center,
-            min_bound=1e-6, max_bound=1e4,
-            prior_mean=center, prior_std=2500.0,
+            name="v0",
+            default=center,
+            min_bound=1e-6,
+            max_bound=1e4,
+            prior_mean=center,
+            prior_std=2500.0,
             log_space=True,
         )
         registry = _make_mock_registry({"v0": info})
@@ -211,9 +226,12 @@ class TestBuildLogSpacePriors:
         center = 1000.0
         std = 500.0  # CV = 0.5
         info = MockParamInfo(
-            name="D0_ref", default=center,
-            min_bound=100.0, max_bound=1e5,
-            prior_mean=center, prior_std=std,
+            name="D0_ref",
+            default=center,
+            min_bound=100.0,
+            max_bound=1e5,
+            prior_mean=center,
+            prior_std=std,
             log_space=True,
         )
         registry = _make_mock_registry({"D0_ref": info})

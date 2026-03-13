@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -17,7 +16,6 @@ from heterodyne.optimization.nlsq.result_builder import (
     build_result_from_arrays,
     build_result_from_scipy,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -147,9 +145,7 @@ class TestBuildResultFromArrays:
         params = np.array([1.0, 2.0])
         residuals = np.array([0.1, -0.1, 0.05])
 
-        result = build_result_from_arrays(
-            params, ["a", "b"], residuals, n_data=50
-        )
+        result = build_result_from_arrays(params, ["a", "b"], residuals, n_data=50)
 
         assert result.success is True
         assert result.message == ""
@@ -173,8 +169,12 @@ class TestBuildResultFromArrays:
         residuals = np.array([10.0])
 
         result = build_result_from_arrays(
-            params, ["a"], residuals, n_data=5,
-            success=False, message="did not converge",
+            params,
+            ["a"],
+            residuals,
+            n_data=5,
+            success=False,
+            message="did not converge",
         )
 
         assert result.success is False

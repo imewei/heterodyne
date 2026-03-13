@@ -54,9 +54,7 @@ class TestNoScipyLeastSquares:
                     pytest.fail(f"{filepath} calls least_squares() directly")
                 # Check: scipy.optimize.least_squares(...)
                 if isinstance(func, ast.Attribute) and func.attr == "least_squares":
-                    pytest.fail(
-                        f"{filepath} calls least_squares as an attribute"
-                    )
+                    pytest.fail(f"{filepath} calls least_squares as an attribute")
 
     def test_no_scipy_nlsq_adapter_class(self) -> None:
         """ScipyNLSQAdapter class must not exist in adapter.py."""
@@ -70,6 +68,4 @@ class TestNoScipyLeastSquares:
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module:
                 if "scipy.optimize" in node.module:
-                    pytest.fail(
-                        f"adapter.py imports from {node.module}"
-                    )
+                    pytest.fail(f"adapter.py imports from {node.module}")

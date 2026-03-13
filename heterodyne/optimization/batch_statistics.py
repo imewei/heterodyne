@@ -108,9 +108,7 @@ def compute_batch_statistics(results: list[NLSQResult]) -> BatchResult:
 
     # Collect chi-squared values
     chi2_values = [
-        r.reduced_chi_squared
-        for r in successful
-        if r.reduced_chi_squared is not None
+        r.reduced_chi_squared for r in successful if r.reduced_chi_squared is not None
     ]
     mean_chi2 = float(np.mean(chi2_values)) if chi2_values else 0.0
 
@@ -218,7 +216,9 @@ def identify_outlier_fits(
 
     outliers = sorted(outlier_set)
     if outliers:
-        logger.info("Identified %d outlier fit(s) at indices %s", len(outliers), outliers)
+        logger.info(
+            "Identified %d outlier fit(s) at indices %s", len(outliers), outliers
+        )
     return outliers
 
 

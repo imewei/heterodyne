@@ -138,10 +138,7 @@ def check_covariance_health(result: NLSQResult) -> list[str]:
     diag = np.diag(cov)
     neg_mask = diag < 0.0
     if np.any(neg_mask):
-        bad = [
-            result.parameter_names[i]
-            for i in np.where(neg_mask)[0]
-        ]
+        bad = [result.parameter_names[i] for i in np.where(neg_mask)[0]]
         messages.append(
             f"Negative variance(s) in covariance diagonal for: {', '.join(bad)}"
         )
@@ -258,7 +255,7 @@ def check_uncertainty_ratios(
             messages.append(
                 f"Parameter '{name}' poorly constrained: "
                 f"value={val:.3e}, sigma={unc:.3e}, "
-                f"relative uncertainty={ratio*100:.0f}%."
+                f"relative uncertainty={ratio * 100:.0f}%."
             )
 
     return messages
@@ -298,7 +295,9 @@ def validate_result(
     if not result.success:
         report.errors.append(f"Optimization did not converge: {result.message}")
         report.passed = False
-        logger.warning("validate_result: optimization failure, skipping detailed checks.")
+        logger.warning(
+            "validate_result: optimization failure, skipping detailed checks."
+        )
         return report
 
     if not np.all(np.isfinite(result.parameters)):
@@ -315,7 +314,9 @@ def validate_result(
         else:
             report.warnings.append(msg)
 
-    if result.reduced_chi_squared is not None and np.isfinite(result.reduced_chi_squared):
+    if result.reduced_chi_squared is not None and np.isfinite(
+        result.reduced_chi_squared
+    ):
         report.metrics["reduced_chi2"] = float(result.reduced_chi_squared)
 
     # --- covariance health ---

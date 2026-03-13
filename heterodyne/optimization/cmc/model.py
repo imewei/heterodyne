@@ -81,11 +81,23 @@ def get_heterodyne_model(
         # Compute model prediction — dispatch to appropriate path
         if shard_grid is not None:
             c2_model = compute_c2_elementwise(
-                params, shard_grid, q, dt, phi_angle, contrast, offset,
+                params,
+                shard_grid,
+                q,
+                dt,
+                phi_angle,
+                contrast,
+                offset,
             )
         else:
             c2_model = compute_c2_heterodyne(
-                params, t, q, dt, phi_angle, contrast, offset,
+                params,
+                t,
+                q,
+                dt,
+                phi_angle,
+                contrast,
+                offset,
             )
 
         # Likelihood
@@ -193,11 +205,23 @@ def get_heterodyne_model_reparam(
                 params = params.at[i].set(param)
         if shard_grid is not None:
             c2_model = compute_c2_elementwise(
-                params, shard_grid, q, dt, phi_angle, contrast, offset,
+                params,
+                shard_grid,
+                q,
+                dt,
+                phi_angle,
+                contrast,
+                offset,
             )
         else:
             c2_model = compute_c2_heterodyne(
-                params, t, q, dt, phi_angle, contrast, offset,
+                params,
+                t,
+                q,
+                dt,
+                phi_angle,
+                contrast,
+                offset,
             )
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
@@ -290,11 +314,23 @@ def _build_reparam_model(
             params = params.at[PARAM_INDICES[name]].set(jnp.squeeze(value))
         if shard_grid is not None:
             c2_model = compute_c2_elementwise(
-                params, shard_grid, q, dt, phi_angle, contrast, offset,
+                params,
+                shard_grid,
+                q,
+                dt,
+                phi_angle,
+                contrast,
+                offset,
             )
         else:
             c2_model = compute_c2_heterodyne(
-                params, t, q, dt, phi_angle, contrast, offset,
+                params,
+                t,
+                q,
+                dt,
+                phi_angle,
+                contrast,
+                offset,
             )
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
@@ -364,11 +400,23 @@ def get_heterodyne_model_constant(
 
         if shard_grid is not None:
             c2_model = compute_c2_elementwise(
-                params, shard_grid, q, dt, phi_angle, contrast_val, offset_val,
+                params,
+                shard_grid,
+                q,
+                dt,
+                phi_angle,
+                contrast_val,
+                offset_val,
             )
         else:
             c2_model = compute_c2_heterodyne(
-                params, t, q, dt, phi_angle, contrast_val, offset_val,
+                params,
+                t,
+                q,
+                dt,
+                phi_angle,
+                contrast_val,
+                offset_val,
             )
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
@@ -426,11 +474,23 @@ def get_heterodyne_model_constant_averaged(
 
         if shard_grid is not None:
             c2_model = compute_c2_elementwise(
-                params, shard_grid, q, dt, phi_angle, _contrast, _offset,
+                params,
+                shard_grid,
+                q,
+                dt,
+                phi_angle,
+                _contrast,
+                _offset,
             )
         else:
             c2_model = compute_c2_heterodyne(
-                params, t, q, dt, phi_angle, _contrast, _offset,
+                params,
+                t,
+                q,
+                dt,
+                phi_angle,
+                _contrast,
+                _offset,
             )
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
@@ -514,10 +574,12 @@ def get_heterodyne_model_individual(
         # transform via smooth_bound (tanh) for NUTS-safe gradients.
         with numpyro.plate("angles", n_phi):
             contrast_z = numpyro.sample(
-                "contrast_z", dist.Normal(0.0, 1.0),
+                "contrast_z",
+                dist.Normal(0.0, 1.0),
             )
             offset_z = numpyro.sample(
-                "offset_z", dist.Normal(0.0, 1.0),
+                "offset_z",
+                dist.Normal(0.0, 1.0),
             )
 
         # Transform: raw = loc + scale * z, then smooth bound to physics range
@@ -859,8 +921,7 @@ def validate_model_output(
     # Check for NaN values
     if bool(jnp.any(jnp.isnan(c2_theory))):
         logger.warning(
-            "validate_model_output: NaN detected in C2 theory "
-            "(params=%s)",
+            "validate_model_output: NaN detected in C2 theory (params=%s)",
             params,
         )
         return False
@@ -868,8 +929,7 @@ def validate_model_output(
     # Check for inf values
     if bool(jnp.any(jnp.isinf(c2_theory))):
         logger.warning(
-            "validate_model_output: inf detected in C2 theory "
-            "(params=%s)",
+            "validate_model_output: inf detected in C2 theory (params=%s)",
             params,
         )
         return False
@@ -930,8 +990,7 @@ def get_model_param_count(
 
     # Base: count physics params that vary by default in the registry
     n_physics = sum(
-        1 for name in ALL_PARAM_NAMES
-        if DEFAULT_REGISTRY[name].vary_default
+        1 for name in ALL_PARAM_NAMES if DEFAULT_REGISTRY[name].vary_default
     )
 
     # Per-angle contributions

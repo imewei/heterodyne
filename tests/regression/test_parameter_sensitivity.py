@@ -7,10 +7,9 @@ sensitivity (e.g., from accidental clamping) and degenerate Jacobians.
 
 from __future__ import annotations
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
-
-import jax.numpy as jnp
 
 from heterodyne.config.parameter_names import ALL_PARAM_NAMES
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
@@ -48,9 +47,7 @@ def _time_grid() -> tuple[np.ndarray, float]:
 def _residual_fn(params: np.ndarray) -> np.ndarray:
     """Flatten c2 output into a 1-D residual vector (model - 1)."""
     t, dt = _time_grid()
-    c2 = compute_c2_heterodyne(
-        jnp.asarray(params), jnp.asarray(t), Q, dt, PHI_ANGLE
-    )
+    c2 = compute_c2_heterodyne(jnp.asarray(params), jnp.asarray(t), Q, dt, PHI_ANGLE)
     return np.asarray(c2).ravel() - 1.0
 
 
@@ -143,9 +140,7 @@ class TestJacobianStructure:
         parameters (alpha, beta) can dominate because small exponent changes affect the
         time-dependent shape strongly.
         """
-        sensitivity = analyze_parameter_sensitivity(
-            self.jac, list(ALL_PARAM_NAMES)
-        )
+        sensitivity = analyze_parameter_sensitivity(self.jac, list(ALL_PARAM_NAMES))
         assert sensitivity["D0_ref"] > 1e-30, "D0_ref has zero sensitivity"
         assert sensitivity["D0_sample"] > 1e-30, "D0_sample has zero sensitivity"
 
@@ -158,9 +153,7 @@ class TestJacobianStructure:
         """
         # f2 is expected to have zero sensitivity when f1=0
         expected_insensitive = {"f2"}
-        sensitivity = analyze_parameter_sensitivity(
-            self.jac, list(ALL_PARAM_NAMES)
-        )
+        sensitivity = analyze_parameter_sensitivity(self.jac, list(ALL_PARAM_NAMES))
         for name, norm in sensitivity.items():
             if name in expected_insensitive:
                 continue

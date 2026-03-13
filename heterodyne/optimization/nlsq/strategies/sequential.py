@@ -248,8 +248,12 @@ def combine_angle_results(
         )
     elif weighting == "n_points":
         weights_raw = np.array(
-            [float(sr.result.residuals.size) if sr.result.residuals is not None else 1.0
-             for sr in successful],
+            [
+                float(sr.result.residuals.size)
+                if sr.result.residuals is not None
+                else 1.0
+                for sr in successful
+            ],
             dtype=np.float64,
         )
     elif weighting == "uniform":
@@ -279,9 +283,7 @@ def combine_angle_results(
         for sr in successful
     )
 
-    logger.debug(
-        "Combined parameters (first 4): %s ...", combined_params[:4]
-    )
+    logger.debug("Combined parameters (first 4): %s ...", combined_params[:4])
     logger.info("Total combined cost: %.4e", total_cost)
 
     return combined_params, combined_cov, total_cost
@@ -449,7 +451,7 @@ class SequentialStrategy:
             i = subset.angle_index
             phi = subset.phi_angle
             warm_start_info = (
-                f" (warm-start from φ={phi_angles[i-1]:.2f}°)" if i > 0 else ""
+                f" (warm-start from φ={phi_angles[i - 1]:.2f}°)" if i > 0 else ""
             )
             logger.info(
                 "SequentialStrategy: angle %d/%d: φ=%.2f°%s",
@@ -493,8 +495,7 @@ class SequentialStrategy:
         success_rate = n_success / n_phi if n_phi > 0 else 0.0
 
         logger.info(
-            "SequentialStrategy.fit_multi_angle complete: "
-            "%d/%d converged (%.0f%%)",
+            "SequentialStrategy.fit_multi_angle complete: %d/%d converged (%.0f%%)",
             n_success,
             n_phi,
             success_rate * 100,

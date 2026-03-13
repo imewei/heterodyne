@@ -14,6 +14,7 @@ from numpy.testing import assert_allclose
 # R-hat (Gelman-Rubin) Tests
 # ============================================================================
 
+
 class TestComputeRHat:
     """Scientific tests for compute_r_hat."""
 
@@ -28,12 +29,14 @@ class TestComputeRHat:
         from heterodyne.optimization.cmc.diagnostics import compute_r_hat
 
         # All chains identical (but with internal variance)
-        samples = np.array([
-            [1.0, 2.0, 3.0, 4.0, 5.0],
-            [1.0, 2.0, 3.0, 4.0, 5.0],
-            [1.0, 2.0, 3.0, 4.0, 5.0],
-            [1.0, 2.0, 3.0, 4.0, 5.0],
-        ])
+        samples = np.array(
+            [
+                [1.0, 2.0, 3.0, 4.0, 5.0],
+                [1.0, 2.0, 3.0, 4.0, 5.0],
+                [1.0, 2.0, 3.0, 4.0, 5.0],
+                [1.0, 2.0, 3.0, 4.0, 5.0],
+            ]
+        )
 
         r_hat = compute_r_hat(samples)
 
@@ -59,12 +62,14 @@ class TestComputeRHat:
         from heterodyne.optimization.cmc.diagnostics import compute_r_hat
 
         # Chains with very different means
-        samples = np.array([
-            np.full(100, 0.0),   # Mean 0
-            np.full(100, 10.0),  # Mean 10
-            np.full(100, 0.0),   # Mean 0
-            np.full(100, 10.0),  # Mean 10
-        ])
+        samples = np.array(
+            [
+                np.full(100, 0.0),  # Mean 0
+                np.full(100, 10.0),  # Mean 10
+                np.full(100, 0.0),  # Mean 0
+                np.full(100, 10.0),  # Mean 10
+            ]
+        )
 
         r_hat = compute_r_hat(samples)
 
@@ -102,6 +107,7 @@ class TestComputeRHat:
 # ============================================================================
 # Effective Sample Size Tests
 # ============================================================================
+
 
 class TestComputeESS:
     """Scientific tests for compute_ess."""
@@ -146,7 +152,9 @@ class TestComputeESS:
         samples = np.zeros(n)
         samples[0] = rng.standard_normal()
         for i in range(1, n):
-            samples[i] = rho * samples[i-1] + np.sqrt(1 - rho**2) * rng.standard_normal()
+            samples[i] = (
+                rho * samples[i - 1] + np.sqrt(1 - rho**2) * rng.standard_normal()
+            )
 
         ess = compute_ess(samples)
 
@@ -169,6 +177,7 @@ class TestComputeESS:
 # ============================================================================
 # BFMI Tests
 # ============================================================================
+
 
 class TestComputeBFMI:
     """Scientific tests for compute_bfmi."""
@@ -231,6 +240,7 @@ class TestComputeBFMI:
 # Convergence Validation Tests
 # ============================================================================
 
+
 class TestValidateConvergence:
     """Tests for validate_convergence function."""
 
@@ -243,7 +253,9 @@ class TestValidateConvergence:
         class MockCMCResult:
             parameter_names: list = field(default_factory=lambda: ["p1", "p2"])
             r_hat: np.ndarray = field(default_factory=lambda: np.array([1.01, 1.02]))
-            ess_bulk: np.ndarray = field(default_factory=lambda: np.array([500.0, 600.0]))
+            ess_bulk: np.ndarray = field(
+                default_factory=lambda: np.array([500.0, 600.0])
+            )
             bfmi: list = field(default_factory=lambda: [0.8, 0.9])
 
         return MockCMCResult()
@@ -256,8 +268,12 @@ class TestValidateConvergence:
         @dataclass
         class MockCMCResult:
             parameter_names: list = field(default_factory=lambda: ["p1", "p2"])
-            r_hat: np.ndarray = field(default_factory=lambda: np.array([1.5, 1.3]))  # High R-hat
-            ess_bulk: np.ndarray = field(default_factory=lambda: np.array([50.0, 60.0]))  # Low ESS
+            r_hat: np.ndarray = field(
+                default_factory=lambda: np.array([1.5, 1.3])
+            )  # High R-hat
+            ess_bulk: np.ndarray = field(
+                default_factory=lambda: np.array([50.0, 60.0])
+            )  # Low ESS
             bfmi: list = field(default_factory=lambda: [0.1, 0.2])  # Low BFMI
 
         return MockCMCResult()
@@ -314,6 +330,7 @@ class TestValidateConvergence:
 # ============================================================================
 # Statistical Properties Tests
 # ============================================================================
+
 
 class TestStatisticalProperties:
     """Tests for statistical correctness of diagnostics."""

@@ -10,7 +10,6 @@ import pytest
 
 from heterodyne.optimization.nlsq.result_builder import build_result_from_nlsq
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -30,9 +29,7 @@ class TestBuildFromNlsqTuple:
     """(popt, pcov) input -> valid NLSQResult."""
 
     def test_basic(self) -> None:
-        result = build_result_from_nlsq(
-            (_POPT, _PCOV), _NAMES, n_data=_N_DATA
-        )
+        result = build_result_from_nlsq((_POPT, _PCOV), _NAMES, n_data=_N_DATA)
 
         assert result.success is True
         np.testing.assert_array_equal(result.parameters, _POPT)
@@ -40,9 +37,7 @@ class TestBuildFromNlsqTuple:
         assert result.covariance is not None
         np.testing.assert_array_equal(result.covariance, _PCOV)
         assert result.uncertainties is not None
-        np.testing.assert_allclose(
-            result.uncertainties, np.sqrt(np.diag(_PCOV))
-        )
+        np.testing.assert_allclose(result.uncertainties, np.sqrt(np.diag(_PCOV)))
 
     def test_wall_time_propagated(self) -> None:
         result = build_result_from_nlsq(
@@ -61,9 +56,7 @@ class TestBuildFromNlsqTriple:
 
     def test_info_dict_merged(self) -> None:
         info = {"nfev": 42, "message": "converged OK"}
-        result = build_result_from_nlsq(
-            (_POPT, _PCOV, info), _NAMES, n_data=_N_DATA
-        )
+        result = build_result_from_nlsq((_POPT, _PCOV, info), _NAMES, n_data=_N_DATA)
 
         assert result.success is True
         assert result.metadata["nfev"] == 42
@@ -151,16 +144,12 @@ class TestBuildFromNlsqNonePcov:
     """pcov=None -> uncertainties=None."""
 
     def test_tuple_none_pcov(self) -> None:
-        result = build_result_from_nlsq(
-            (_POPT, None), _NAMES, n_data=_N_DATA
-        )
+        result = build_result_from_nlsq((_POPT, None), _NAMES, n_data=_N_DATA)
         assert result.covariance is None
         assert result.uncertainties is None
 
     def test_triple_none_pcov(self) -> None:
-        result = build_result_from_nlsq(
-            (_POPT, None, {}), _NAMES, n_data=_N_DATA
-        )
+        result = build_result_from_nlsq((_POPT, None, {}), _NAMES, n_data=_N_DATA)
         assert result.covariance is None
         assert result.uncertainties is None
 
@@ -192,9 +181,7 @@ class TestBuildFromNlsqPreservesMetadata:
         assert result.metadata["nfev"] == 42
 
     def test_default_metadata_empty(self) -> None:
-        result = build_result_from_nlsq(
-            (_POPT, _PCOV), _NAMES, n_data=_N_DATA
-        )
+        result = build_result_from_nlsq((_POPT, _PCOV), _NAMES, n_data=_N_DATA)
         assert isinstance(result.metadata, dict)
 
 
@@ -208,9 +195,7 @@ class TestBuildFromNlsqChiSquared:
 
     def test_chi_squared_from_pcov(self) -> None:
         # With pcov provided directly (no residuals), reduced chi² is None
-        result = build_result_from_nlsq(
-            (_POPT, _PCOV), _NAMES, n_data=_N_DATA
-        )
+        result = build_result_from_nlsq((_POPT, _PCOV), _NAMES, n_data=_N_DATA)
         # Without residuals, no chi-squared can be computed
         assert result.reduced_chi_squared is None
 
@@ -251,6 +236,4 @@ class TestBuildFromNlsqErrors:
 
     def test_bad_tuple_length_raises(self) -> None:
         with pytest.raises(TypeError, match="tuple length"):
-            build_result_from_nlsq(
-                (_POPT, _PCOV, {}, "extra"), _NAMES, n_data=_N_DATA
-            )
+            build_result_from_nlsq((_POPT, _PCOV, {}, "extra"), _NAMES, n_data=_N_DATA)

@@ -22,7 +22,6 @@ from heterodyne.optimization.nlsq.cmaes_wrapper import (
 )
 from heterodyne.optimization.nlsq.validation.fit_quality import classify_fit_quality
 
-
 # ---------------------------------------------------------------------------
 # Fix #0: CMAES_AVAILABLE flag
 # ---------------------------------------------------------------------------
@@ -171,7 +170,10 @@ class TestBuildAntiDegeneracyObjective:
         lower = np.array([0.0, 0.0, 0.0])
         upper = np.array([1e6, 1e6, 1e3])
         wrapped = build_anti_degeneracy_objective(
-            base, (lower, upper), names, penalty_weight=0.01,
+            base,
+            (lower, upper),
+            names,
+            penalty_weight=0.01,
         )
         x = np.array([500.0, 500.0, 100.0])
         assert wrapped(x) >= base(x)
@@ -183,7 +185,10 @@ class TestBuildAntiDegeneracyObjective:
         lower = np.array([0.0, 0.0])
         upper = np.array([1e6, 1e6])
         wrapped = build_anti_degeneracy_objective(
-            base, (lower, upper), names, penalty_weight=1.0,
+            base,
+            (lower, upper),
+            names,
+            penalty_weight=1.0,
         )
         # Close together (both at 0.5 normalized)
         x_close = np.array([5e5, 5e5])
@@ -199,9 +204,15 @@ class TestBuildAntiDegeneracyObjective:
         upper = np.array([1e3, 100.0])
         x = np.array([500.0, 0.0])
         low_penalty = build_anti_degeneracy_objective(
-            base, (lower, upper), names, penalty_weight=0.001,
+            base,
+            (lower, upper),
+            names,
+            penalty_weight=0.001,
         )
         high_penalty = build_anti_degeneracy_objective(
-            base, (lower, upper), names, penalty_weight=1.0,
+            base,
+            (lower, upper),
+            names,
+            penalty_weight=1.0,
         )
         assert high_penalty(x) > low_penalty(x)

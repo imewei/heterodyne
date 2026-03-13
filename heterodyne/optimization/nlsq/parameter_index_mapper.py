@@ -64,7 +64,9 @@ class ParameterIndexMapper:
 
         self._varying_names = list(varying_names)
         self._varying_full_indices = list(varying_full_indices)
-        self._log_mask = list(log_mask) if log_mask is not None else [False] * len(varying_names)
+        self._log_mask = (
+            list(log_mask) if log_mask is not None else [False] * len(varying_names)
+        )
 
         # Build reverse lookup: full_index -> varying_index
         self._full_to_varying: dict[int, int] = {
@@ -129,7 +131,11 @@ class ParameterIndexMapper:
             KeyError: If the parameter at *full_idx* is not varying.
         """
         if full_idx not in self._full_to_varying:
-            name = ALL_PARAM_NAMES[full_idx] if 0 <= full_idx < self.n_full else f"#{full_idx}"
+            name = (
+                ALL_PARAM_NAMES[full_idx]
+                if 0 <= full_idx < self.n_full
+                else f"#{full_idx}"
+            )
             raise KeyError(f"Parameter '{name}' (full index {full_idx}) is not varying")
         return self._full_to_varying[full_idx]
 

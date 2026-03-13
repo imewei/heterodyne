@@ -15,8 +15,8 @@ from heterodyne.optimization.cmc.sampler import (
 # SamplingPlan
 # ===========================================================================
 
-class TestSamplingPlan:
 
+class TestSamplingPlan:
     @pytest.mark.unit
     def test_default_values(self) -> None:
         plan = SamplingPlan()
@@ -113,8 +113,8 @@ class TestSamplingPlan:
 # _perturb_init_params
 # ===========================================================================
 
-class TestPerturbInitParams:
 
+class TestPerturbInitParams:
     @pytest.mark.unit
     def test_output_shape(self) -> None:
         init = {"D0_ref": jnp.array(1000.0), "alpha": jnp.array(0.5)}
@@ -168,8 +168,8 @@ class TestPerturbInitParams:
 # NUTSSampler
 # ===========================================================================
 
-class TestNUTSSampler:
 
+class TestNUTSSampler:
     @pytest.mark.unit
     def test_from_plan_creates_instance(self) -> None:
         """from_plan should return a NUTSSampler without errors."""
@@ -179,9 +179,7 @@ class TestNUTSSampler:
         def simple_model():
             numpyro.sample("x", dist.Normal(0, 1))
 
-        plan = SamplingPlan(
-            num_warmup=10, num_samples=10, num_chains=1, seed=42
-        )
+        plan = SamplingPlan(num_warmup=10, num_samples=10, num_chains=1, seed=42)
         sampler = NUTSSampler.from_plan(plan, simple_model)
         assert isinstance(sampler, NUTSSampler)
         assert sampler._plan is plan
@@ -195,9 +193,7 @@ class TestNUTSSampler:
         def simple_model():
             numpyro.sample("x", dist.Normal(0, 1))
 
-        plan = SamplingPlan(
-            num_warmup=10, num_samples=10, num_chains=1, seed=42
-        )
+        plan = SamplingPlan(num_warmup=10, num_samples=10, num_chains=1, seed=42)
         sampler = NUTSSampler.from_plan(plan, simple_model)
         with pytest.raises(RuntimeError, match="before calling run"):
             sampler.get_diagnostics()

@@ -47,9 +47,7 @@ class BoundsValidator:
         """
         report = ValidationReport()
 
-        for name, value in zip(
-            result.parameter_names, result.parameters, strict=True
-        ):
+        for name, value in zip(result.parameter_names, result.parameters, strict=True):
             try:
                 info = DEFAULT_REGISTRY[name]
             except KeyError:
@@ -77,7 +75,7 @@ class BoundsValidator:
                         ValidationIssue(
                             ValidationSeverity.WARNING,
                             f"{name} = {value:.4e} at lower bound edge "
-                            f"({frac_from_lo*100:.1f}% from min={lo})",
+                            f"({frac_from_lo * 100:.1f}% from min={lo})",
                             f"edge_{name}",
                             frac_from_lo,
                         )
@@ -87,7 +85,7 @@ class BoundsValidator:
                         ValidationIssue(
                             ValidationSeverity.WARNING,
                             f"{name} = {value:.4e} at upper bound edge "
-                            f"({frac_from_hi*100:.1f}% from max={hi})",
+                            f"({frac_from_hi * 100:.1f}% from max={hi})",
                             f"edge_{name}",
                             frac_from_hi,
                         )

@@ -72,9 +72,7 @@ class SamplingPlan:
                 f"target_accept must be in [0.1, 0.99], got {self.target_accept}"
             )
         if self.max_tree_depth < 1:
-            raise ValueError(
-                f"max_tree_depth must be >= 1, got {self.max_tree_depth}"
-            )
+            raise ValueError(f"max_tree_depth must be >= 1, got {self.max_tree_depth}")
 
     @property
     def effective_seed(self) -> int:
@@ -127,7 +125,10 @@ class SamplingPlan:
             logger.debug(
                 "SamplingPlan.from_config: n_data=%d, scale=%.3f, "
                 "num_warmup=%d, num_samples=%d",
-                n_data, sqrt_scale, num_warmup, num_samples,
+                n_data,
+                sqrt_scale,
+                num_warmup,
+                num_samples,
             )
 
         return cls(
@@ -177,9 +178,13 @@ class SamplingPlan:
         logger.debug(
             "SamplingPlan.for_shard: shard_size=%d, full_size=%d, scale=%.3f, "
             "num_warmup=%d->%d, num_samples=%d->%d",
-            shard_size, full_size, scale,
-            self.num_warmup, new_warmup,
-            self.num_samples, new_samples,
+            shard_size,
+            full_size,
+            scale,
+            self.num_warmup,
+            new_warmup,
+            self.num_samples,
+            new_samples,
         )
 
         # frozen dataclass — use object.__setattr__ via a new instance
@@ -268,8 +273,11 @@ class NUTSSampler:
         logger.info(
             "NUTSSampler created: %d chains, %d warmup, %d samples, "
             "target_accept=%s, chain_method=%s",
-            plan.num_chains, plan.num_warmup, plan.num_samples,
-            plan.target_accept, chain_method,
+            plan.num_chains,
+            plan.num_warmup,
+            plan.num_samples,
+            plan.target_accept,
+            chain_method,
         )
 
         return cls(mcmc, plan)
@@ -420,9 +428,7 @@ class NUTSSampler:
         except Exception as exc:  # noqa: BLE001
             # Non-critical: potential_fn probing can fail for various internal
             # NumPyro reasons.  Log and continue rather than blocking sampling.
-            logger.debug(
-                "_validate_init_log_density: probe failed (%s), skipping", exc
-            )
+            logger.debug("_validate_init_log_density: probe failed (%s), skipping", exc)
 
     def get_divergence_stats(self) -> dict[str, float]:
         """Extract divergence rate and tree-depth statistics from the last run.
@@ -448,9 +454,7 @@ class NUTSSampler:
             RuntimeError: If called before :meth:`run`.
         """
         if not self._has_run:
-            raise RuntimeError(
-                "Cannot extract divergence stats before calling run()"
-            )
+            raise RuntimeError("Cannot extract divergence stats before calling run()")
 
         import numpy as np
 
@@ -480,9 +484,7 @@ class NUTSSampler:
             steps = np.where(steps > 0, steps, 1.0)
             depths = np.log2(steps)
             mean_tree_depth = float(np.mean(depths))
-            max_depth_fraction = float(
-                np.mean(depths >= self._plan.max_tree_depth)
-            )
+            max_depth_fraction = float(np.mean(depths >= self._plan.max_tree_depth))
 
         stats: dict[str, float] = {
             "divergence_rate": divergence_rate,
@@ -493,7 +495,9 @@ class NUTSSampler:
         logger.debug(
             "get_divergence_stats: divergence_rate=%.4f, mean_tree_depth=%.2f, "
             "max_depth_fraction=%.4f",
-            divergence_rate, mean_tree_depth, max_depth_fraction,
+            divergence_rate,
+            mean_tree_depth,
+            max_depth_fraction,
         )
 
         return stats
@@ -509,9 +513,7 @@ class NUTSSampler:
             RuntimeError: If called before :meth:`run`.
         """
         if not self._has_run:
-            raise RuntimeError(
-                "Cannot extract diagnostics before calling run()"
-            )
+            raise RuntimeError("Cannot extract diagnostics before calling run()")
         return az.from_numpyro(self._mcmc)
 
     @property
@@ -592,7 +594,11 @@ class AdaptiveSamplingPlan:
         logger.debug(
             "AdaptiveSamplingPlan.get_plan: shard_size=%d, n_params=%d, "
             "scale=%.3f, num_warmup=%d, num_samples=%d",
-            self.shard_size, self.n_params, scale, new_warmup, new_samples,
+            self.shard_size,
+            self.n_params,
+            scale,
+            new_warmup,
+            new_samples,
         )
 
         return SamplingPlan(
@@ -664,8 +670,7 @@ class SamplingStats:
         * ``mean_accept_prob > 0.6``
         """
         return (
-            self.divergence_rate < DIVERGENCE_RATE_HIGH
-            and self.mean_accept_prob > 0.6
+            self.divergence_rate < DIVERGENCE_RATE_HIGH and self.mean_accept_prob > 0.6
         )
 
 
@@ -729,9 +734,7 @@ def run_nuts_with_retry(
     import numpy as np
 
     if not (0.0 < step_size_factor < 1.0):
-        raise ValueError(
-            f"step_size_factor must be in (0, 1), got {step_size_factor}"
-        )
+        raise ValueError(f"step_size_factor must be in (0, 1), got {step_size_factor}")
 
     best_samples: dict[str, Any] | None = None
     best_stats: SamplingStats | None = None
@@ -758,9 +761,7 @@ def run_nuts_with_retry(
             mean_accept_prob = float(np.mean(np.asarray(extra["accept_prob"])))
 
         plan = current_sampler.plan
-        n_divergent = int(round(
-            divergence_rate * plan.num_samples * plan.num_chains
-        ))
+        n_divergent = int(round(divergence_rate * plan.num_samples * plan.num_chains))
 
         stats = SamplingStats(
             num_samples=plan.num_samples,
@@ -775,8 +776,11 @@ def run_nuts_with_retry(
         logger.info(
             "run_nuts_with_retry attempt %d/%d: "
             "divergence_rate=%.4f, mean_accept_prob=%.4f, wall_time=%.1fs",
-            attempt + 1, max_retries + 1,
-            divergence_rate, mean_accept_prob, wall_time,
+            attempt + 1,
+            max_retries + 1,
+            divergence_rate,
+            mean_accept_prob,
+            wall_time,
         )
 
         if divergence_rate < best_divergence_rate:
@@ -795,8 +799,11 @@ def run_nuts_with_retry(
             logger.warning(
                 "run_nuts_with_retry: divergence_rate=%.4f > %.2f; "
                 "retrying with target_accept=%.4f (attempt %d/%d)",
-                divergence_rate, DIVERGENCE_RATE_HIGH,
-                current_target_accept, attempt + 2, max_retries + 1,
+                divergence_rate,
+                DIVERGENCE_RATE_HIGH,
+                current_target_accept,
+                attempt + 2,
+                max_retries + 1,
             )
             # Build a new sampler with reduced target acceptance
             new_plan = SamplingPlan(
@@ -819,7 +826,8 @@ def run_nuts_with_retry(
         logger.warning(
             "run_nuts_with_retry: exhausted %d retries; "
             "returning best result with divergence_rate=%.4f",
-            max_retries, best_divergence_rate,
+            max_retries,
+            best_divergence_rate,
         )
 
     # These are always set on the first iteration, so cannot be None here
@@ -860,8 +868,10 @@ def _perturb_init_params(
         base = jnp.broadcast_to(jnp.asarray(value), (num_chains,))
 
         magnitude = jnp.abs(base) + 1e-10  # floor for zero-valued params
-        noise = perturbation_scale * magnitude * jax.random.normal(
-            subkey, shape=(num_chains,)
+        noise = (
+            perturbation_scale
+            * magnitude
+            * jax.random.normal(subkey, shape=(num_chains,))
         )
         perturbed[name] = base + noise
 

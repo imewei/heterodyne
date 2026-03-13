@@ -96,14 +96,10 @@ def diagnose_failure(result: NLSQResult, config: NLSQConfig) -> RecoveryPlan:
     # -- 2. Singular / ill-conditioned Jacobian ------------------------------
     if result.jacobian is not None:
         try:
-            singular_values = np.linalg.svd(
-                result.jacobian, compute_uv=False
-            )
+            singular_values = np.linalg.svd(result.jacobian, compute_uv=False)
             cond = float(singular_values[0] / max(singular_values[-1], 1e-30))
             if cond > 1e14:
-                logger.warning(
-                    "Jacobian condition number %.3e exceeds threshold", cond
-                )
+                logger.warning("Jacobian condition number %.3e exceeds threshold", cond)
                 new_diff_step = (config.diff_step or 1e-8) * 0.1
                 return RecoveryPlan(
                     action=RecoveryAction.REDUCE_STEP,
@@ -180,11 +176,7 @@ def apply_recovery(plan: RecoveryPlan, config: NLSQConfig) -> NLSQConfig:
     if plan.modified_config is None:
         return config
 
-    overrides = {
-        k: v
-        for k, v in plan.modified_config.items()
-        if hasattr(config, k)
-    }
+    overrides = {k: v for k, v in plan.modified_config.items() if hasattr(config, k)}
     if not overrides:
         return config
 

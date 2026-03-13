@@ -19,7 +19,6 @@ from heterodyne.optimization.cmc.diagnostics import (
     compute_precision_analysis,
 )
 
-
 # ---------------------------------------------------------------------------
 # BimodalResult construction
 # ---------------------------------------------------------------------------
@@ -133,7 +132,9 @@ class TestDetectBimodal:
 class TestComputeNlsqComparisonMetrics:
     """compute_nlsq_comparison_metrics produces the expected keys and values."""
 
-    def _make_samples(self, mean: float = 1e4, std: float = 500.0, n: int = 400) -> np.ndarray:
+    def _make_samples(
+        self, mean: float = 1e4, std: float = 500.0, n: int = 400
+    ) -> np.ndarray:
         rng = np.random.default_rng(42)
         return rng.normal(loc=mean, scale=std, size=n)
 
@@ -145,7 +146,13 @@ class TestComputeNlsqComparisonMetrics:
 
         assert "D0_ref" in result
         metrics = result["D0_ref"]
-        for key in ("posterior_mean", "posterior_std", "nlsq_value", "z_score", "within_hdi"):
+        for key in (
+            "posterior_mean",
+            "posterior_std",
+            "nlsq_value",
+            "z_score",
+            "within_hdi",
+        ):
             assert key in metrics, f"Missing metric key: {key}"
 
     def test_compute_nlsq_comparison_metrics_z_score(self) -> None:
@@ -228,7 +235,9 @@ class TestComputePrecisionAnalysis:
 
     def test_compute_precision_analysis_cv_positive(self) -> None:
         """Coefficient of variation is non-negative for positive-mean parameters."""
-        result = compute_precision_analysis({"D0_ref": np.abs(np.random.default_rng(0).normal(1e4, 200, 500))})
+        result = compute_precision_analysis(
+            {"D0_ref": np.abs(np.random.default_rng(0).normal(1e4, 200, 500))}
+        )
         assert result["D0_ref"]["cv"] >= 0.0
 
     def test_compute_precision_analysis_empty_array_skipped(self) -> None:

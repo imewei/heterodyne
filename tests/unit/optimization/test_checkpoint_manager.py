@@ -94,9 +94,7 @@ class TestCheckpointData:
 class TestCheckpointManager:
     """Tests for CheckpointManager save/load and integrity."""
 
-    def test_save_and_load(
-        self, checkpoint_dir, sample_data: CheckpointData
-    ) -> None:
+    def test_save_and_load(self, checkpoint_dir, sample_data: CheckpointData) -> None:
         mgr = CheckpointManager(checkpoint_dir)
         path = mgr.save(sample_data)
         loaded = mgr.load(path)
@@ -176,9 +174,7 @@ class TestCheckpointManager:
         mgr = CheckpointManager(checkpoint_dir)
         assert mgr.find_latest_valid() is None
 
-    def test_load_latest(
-        self, checkpoint_dir, sample_data: CheckpointData
-    ) -> None:
+    def test_load_latest(self, checkpoint_dir, sample_data: CheckpointData) -> None:
         mgr = CheckpointManager(checkpoint_dir)
         mgr.save(sample_data)
         loaded = mgr.load_latest()

@@ -101,9 +101,7 @@ class ResultValidator:
 
         return report
 
-    def _check_chi_squared(
-        self, result: NLSQResult, report: ValidationReport
-    ) -> None:
+    def _check_chi_squared(self, result: NLSQResult, report: ValidationReport) -> None:
         """Check reduced chi-squared quality."""
         chi2 = result.reduced_chi_squared
         if chi2 is None:
@@ -170,15 +168,13 @@ class ResultValidator:
                     ValidationIssue(
                         ValidationSeverity.WARNING,
                         f"Large relative uncertainty: {name} = {val:.3e} ± {unc:.3e} "
-                        f"({abs(unc/val)*100:.0f}%)",
+                        f"({abs(unc / val) * 100:.0f}%)",
                         f"uncertainty_{name}",
                         abs(unc / val),
                     )
                 )
 
-    def _check_correlations(
-        self, result: NLSQResult, report: ValidationReport
-    ) -> None:
+    def _check_correlations(self, result: NLSQResult, report: ValidationReport) -> None:
         """Check for highly correlated parameters."""
         corr = result.get_correlation_matrix()
         if corr is None:
@@ -211,7 +207,9 @@ class ResultValidator:
                 )
             )
 
-        if result.uncertainties is not None and np.any(~np.isfinite(result.uncertainties)):
+        if result.uncertainties is not None and np.any(
+            ~np.isfinite(result.uncertainties)
+        ):
             report.issues.append(
                 ValidationIssue(
                     ValidationSeverity.WARNING,

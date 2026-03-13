@@ -16,7 +16,6 @@ from heterodyne.optimization.nlsq.cmaes_wrapper import (
     normalize_to_unit_cube,
 )
 
-
 # ---------------------------------------------------------------------------
 # CMAESResult
 # ---------------------------------------------------------------------------

@@ -123,7 +123,9 @@ class CheckpointData:
             metadata=dict(d.get("metadata", {})),
             timestamp=str(d["timestamp"]),
             version=d.get("version", "unknown"),
-            checksum=stored_checksum if stored_checksum else cls.compute_checksum(params, cost),
+            checksum=stored_checksum
+            if stored_checksum
+            else cls.compute_checksum(params, cost),
         )
         return instance
 

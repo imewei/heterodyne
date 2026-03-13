@@ -3,6 +3,7 @@
 Spawns persistent workers that each run MCMC on assigned shards.
 Amortizes JAX/NumPyro initialization overhead across tasks.
 """
+
 from __future__ import annotations
 
 import multiprocessing
@@ -178,9 +179,14 @@ class WorkerPoolBackend:
 
         # Generate deterministic seeds per chain
         seeds = [
-            int(jax.random.randint(
-                jax.random.fold_in(rng_key, i), (), 0, 2**31 - 1,
-            ))
+            int(
+                jax.random.randint(
+                    jax.random.fold_in(rng_key, i),
+                    (),
+                    0,
+                    2**31 - 1,
+                )
+            )
             for i in range(n_chains)
         ]
 
@@ -199,9 +205,7 @@ class WorkerPoolBackend:
                 for name, arr in samples.items():
                     all_samples.setdefault(name, []).append(arr)
 
-        combined = {
-            name: jnp.concatenate(arrs) for name, arrs in all_samples.items()
-        }
+        combined = {name: jnp.concatenate(arrs) for name, arrs in all_samples.items()}
 
         logger.info("WorkerPoolBackend: combined %d chains", n_chains)
         return combined

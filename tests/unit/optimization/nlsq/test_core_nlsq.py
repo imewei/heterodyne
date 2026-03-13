@@ -10,11 +10,7 @@ Verifies:
 from __future__ import annotations
 
 import ast
-import importlib
-import inspect
-import textwrap
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -23,10 +19,10 @@ import pytest
 from heterodyne.optimization.nlsq.config import NLSQConfig
 from heterodyne.optimization.nlsq.results import NLSQResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_success_result(param_names: list[str]) -> NLSQResult:
     """Return a minimal successful NLSQResult for mocking."""
@@ -322,7 +318,7 @@ class TestFitJointMultiPhi:
         n_params = 2
         n_phi = 2
         model = _make_mock_model(n_params=n_params)
-        param_names = model.param_manager.varying_names
+        _param_names = model.param_manager.varying_names
 
         # c2_data shape (n_phi, N, N)
         c2_data = np.ones((n_phi, 4, 4), dtype=np.float64)
@@ -333,9 +329,7 @@ class TestFitJointMultiPhi:
         n_fourier_coeffs = 4
         joint_param_count = n_params + n_fourier_coeffs
         joint_params = np.ones(joint_param_count, dtype=np.float64)
-        joint_result = _make_success_result(
-            [f"p{i}" for i in range(joint_param_count)]
-        )
+        joint_result = _make_success_result([f"p{i}" for i in range(joint_param_count)])
         joint_result = NLSQResult(
             parameters=joint_params,
             parameter_names=[f"p{i}" for i in range(joint_param_count)],

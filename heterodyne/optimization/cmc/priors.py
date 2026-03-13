@@ -76,19 +76,22 @@ def build_nlsq_informed_priors(
         scale = max(scale, 1e-10)
 
         # Truncated normal: Normal constrained to [low, high]
-        priors[name] = dist.TruncatedNormal(
-            loc=center, scale=scale, low=low, high=high
-        )
+        priors[name] = dist.TruncatedNormal(loc=center, scale=scale, low=low, high=high)
 
         logger.debug(
             "NLSQ-informed prior for %s: "
             "TruncatedNormal(loc=%.4e, scale=%.4e, low=%.4e, high=%.4e)",
-            name, center, scale, low, high,
+            name,
+            center,
+            scale,
+            low,
+            high,
         )
 
     logger.info(
         "Built %d NLSQ-informed priors (width_factor=%s)",
-        len(priors), width_factor,
+        len(priors),
+        width_factor,
     )
     return priors
 
@@ -142,8 +145,12 @@ def build_default_priors(
                 from heterodyne.config.parameter_space import (
                     _compute_beta_concentrations,
                 )
+
                 conc1, conc2 = _compute_beta_concentrations(
-                    info.prior_mean, info.prior_std, low, high,
+                    info.prior_mean,
+                    info.prior_std,
+                    low,
+                    high,
                 )
                 base = dist.Beta(conc1, conc2)
                 priors[name] = dist.TransformedDistribution(
@@ -152,7 +159,11 @@ def build_default_priors(
                 )
                 logger.debug(
                     "BetaScaled prior for %s: Beta(%.4f, %.4f) on [%.4e, %.4e]",
-                    name, conc1, conc2, low, high,
+                    name,
+                    conc1,
+                    conc2,
+                    low,
+                    high,
                 )
                 continue
             except ValueError:
@@ -162,7 +173,11 @@ def build_default_priors(
                     name,
                 )
 
-        if info.prior_mean is not None and info.prior_std is not None and info.prior_std > 0:
+        if (
+            info.prior_mean is not None
+            and info.prior_std is not None
+            and info.prior_std > 0
+        ):
             # Truncated normal centered on registry prior
             priors[name] = dist.TruncatedNormal(
                 loc=info.prior_mean,
@@ -172,14 +187,18 @@ def build_default_priors(
             )
             logger.debug(
                 "Default prior for %s: TruncatedNormal(loc=%.4e, scale=%.4e)",
-                name, info.prior_mean, info.prior_std,
+                name,
+                info.prior_mean,
+                info.prior_std,
             )
         else:
             # Uniform fallback
             priors[name] = dist.Uniform(low=low, high=high)
             logger.debug(
                 "Default prior for %s: Uniform(%.4e, %.4e)",
-                name, low, high,
+                name,
+                low,
+                high,
             )
 
     logger.info("Built %d default priors from registry", len(priors))
@@ -227,7 +246,9 @@ def build_log_space_priors(
             logger.warning(
                 "Skipping log-space prior for %s: "
                 "prior_mean=%s, default=%s (both non-positive)",
-                name, info.prior_mean, info.default,
+                name,
+                info.prior_mean,
+                info.default,
             )
             continue
 
@@ -252,12 +273,16 @@ def build_log_space_priors(
 
         logger.debug(
             "Log-space prior for %s: LogNormal(loc=%.4f, scale=%.4f) [median=%.4e]",
-            name, mu, sigma, center,
+            name,
+            mu,
+            sigma,
+            center,
         )
 
     logger.info(
         "Built %d log-space priors from %d candidates",
-        len(priors), len(param_names),
+        len(priors),
+        len(param_names),
     )
     return priors
 
@@ -311,10 +336,15 @@ def temper_priors(
             scale = old_scale * factor
             low = float(prior.low)
             high = float(prior.high)
-            tempered[name] = dist.TruncatedNormal(loc=loc, scale=scale, low=low, high=high)
+            tempered[name] = dist.TruncatedNormal(
+                loc=loc, scale=scale, low=low, high=high
+            )
             logger.debug(
                 "temper_priors: %s TruncatedNormal scale %.4e -> %.4e (x%.2f)",
-                name, old_scale, scale, factor,
+                name,
+                old_scale,
+                scale,
+                factor,
             )
 
         elif isinstance(prior, dist.LogNormal):
@@ -323,7 +353,10 @@ def temper_priors(
             tempered[name] = dist.LogNormal(loc=loc, scale=scale)
             logger.debug(
                 "temper_priors: %s LogNormal scale %.4e -> %.4e (x%.2f)",
-                name, float(prior.scale), scale, factor,
+                name,
+                float(prior.scale),
+                scale,
+                factor,
             )
 
         elif isinstance(prior, dist.Uniform):
@@ -345,13 +378,16 @@ def temper_priors(
             logger.warning(
                 "temper_priors: %s has unsupported type %s — left unchanged. "
                 "Consider using TruncatedNormal or LogNormal for proper tempering.",
-                name, type(prior).__name__,
+                name,
+                type(prior).__name__,
             )
             tempered[name] = prior
 
     logger.info(
         "Tempered %d priors for %d shards (scale factor=%.4f).",
-        len(tempered), num_shards, factor,
+        len(tempered),
+        num_shards,
+        factor,
     )
     return tempered
 
@@ -460,7 +496,8 @@ def validate_priors(
     if issues:
         logger.warning(
             "validate_priors: %d issue(s) found:\n  %s",
-            len(issues), "\n  ".join(issues),
+            len(issues),
+            "\n  ".join(issues),
         )
     else:
         logger.info("validate_priors: all %d priors passed validation.", len(priors))
@@ -510,8 +547,8 @@ def summarize_priors(priors: dict[str, dist.Distribution]) -> str:
             scale = float(prior.scale)
             # Median of LogNormal = exp(loc); mean = exp(loc + scale^2/2)
             median = math.exp(loc)
-            mean = math.exp(loc + 0.5 * scale ** 2)
-            std = math.sqrt((math.exp(scale ** 2) - 1.0) * math.exp(2.0 * loc + scale ** 2))
+            mean = math.exp(loc + 0.5 * scale**2)
+            std = math.sqrt((math.exp(scale**2) - 1.0) * math.exp(2.0 * loc + scale**2))
             lines.append(
                 f"{label}LogNormal        "
                 f"loc={loc:.4f}  scale={scale:.4f}  "
@@ -549,7 +586,9 @@ def summarize_priors(priors: dict[str, dist.Distribution]) -> str:
                         f"mean={mean:.4e}"
                     )
                 else:
-                    lines.append(f"{label}TransformedBeta  alpha={conc1:.4f}  beta={conc2:.4f}")
+                    lines.append(
+                        f"{label}TransformedBeta  alpha={conc1:.4f}  beta={conc2:.4f}"
+                    )
             else:
                 lines.append(f"{label}Transformed({type(base).__name__})")
 
@@ -643,19 +682,16 @@ def validate_initial_value_bounds(
 
         param_issues: list[str] = []
         if value < low:
-            param_issues.append(
-                f"Value {value:.4e} is below min_bound {low:.4e}."
-            )
+            param_issues.append(f"Value {value:.4e} is below min_bound {low:.4e}.")
         if value > high:
-            param_issues.append(
-                f"Value {value:.4e} is above max_bound {high:.4e}."
-            )
+            param_issues.append(f"Value {value:.4e} is above max_bound {high:.4e}.")
 
         if param_issues:
             issues[name] = param_issues
             logger.warning(
                 "validate_initial_value_bounds: %s — %s",
-                name, "; ".join(param_issues),
+                name,
+                "; ".join(param_issues),
             )
 
     if not issues:
@@ -720,19 +756,20 @@ def build_init_values_dict(
             value = float(info.default)
 
         # Clamp to bounds and warn if adjusted
-        clamped = float(
-            max(info.min_bound, min(info.max_bound, value))
-        )
+        clamped = float(max(info.min_bound, min(info.max_bound, value)))
         if clamped != value:
             logger.warning(
                 "build_init_values_dict: %s initial value %.4e clamped to [%.4e, %.4e] -> %.4e",
-                name, value, info.min_bound, info.max_bound, clamped,
+                name,
+                value,
+                info.min_bound,
+                info.max_bound,
+                clamped,
             )
         init_values[name] = clamped
 
     logger.info(
-        "build_init_values_dict: built %d initial values "
-        "(nlsq=%d, fallback=%r).",
+        "build_init_values_dict: built %d initial values (nlsq=%d, fallback=%r).",
         len(init_values),
         sum(1 for n in param_names if n in nlsq_values),
         fallback,
@@ -887,7 +924,8 @@ def estimate_per_angle_scaling(
         except (ValueError, TypeError) as exc:
             logger.debug(
                 "estimate_per_angle_scaling: cannot convert key '%s' to array: %s",
-                key, exc,
+                key,
+                exc,
             )
             continue
 
@@ -908,13 +946,15 @@ def estimate_per_angle_scaling(
         result[key] = (contrast_est, offset_est)
 
         logger.debug(
-            "estimate_per_angle_scaling: key='%s', "
-            "contrast=%.4e, offset=%.4e",
-            key, contrast_est, offset_est,
+            "estimate_per_angle_scaling: key='%s', contrast=%.4e, offset=%.4e",
+            key,
+            contrast_est,
+            offset_est,
         )
 
     logger.info(
         "estimate_per_angle_scaling: estimated scaling for %d / %d angles.",
-        len(result), len(angle_keys),
+        len(result),
+        len(angle_keys),
     )
     return result

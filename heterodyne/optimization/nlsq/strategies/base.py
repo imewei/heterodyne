@@ -98,9 +98,7 @@ def select_strategy(
 
     # Explicit chunk_size in config forces chunked strategy
     if config.chunk_size is not None:
-        logger.info(
-            f"Using chunked strategy (explicit chunk_size={config.chunk_size})"
-        )
+        logger.info(f"Using chunked strategy (explicit chunk_size={config.chunk_size})")
         return ChunkedStrategy(chunk_size=config.chunk_size)
 
     # Estimate Jacobian memory: n_data × n_params × 8 bytes (float64)

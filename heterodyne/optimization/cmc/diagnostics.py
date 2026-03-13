@@ -110,9 +110,7 @@ def validate_convergence(
                     f"PCR for {name}: {ratio:.2f} (NEGATIVE — possible misspecification)"
                 )
             elif ratio < 0.1:
-                messages.append(
-                    f"PCR for {name}: {ratio:.2f} (poorly identified)"
-                )
+                messages.append(f"PCR for {name}: {ratio:.2f} (poorly identified)")
             else:
                 messages.append(f"PCR for {name}: {ratio:.2f}")
 
@@ -329,7 +327,10 @@ def analyze_divergences(
 
     logger.info(
         "Divergence analysis: %d/%d (%.1f%%) — %s",
-        n_divergent, n_total, rate * 100, severity,
+        n_divergent,
+        n_total,
+        rate * 100,
+        severity,
     )
 
     return DivergenceReport(
@@ -434,7 +435,11 @@ def validate_convergence_sharded(
     logger.info(
         "Sharded convergence: %d shards, passed=%s, "
         "worst_r_hat=%s, min_ess=%s, min_bfmi=%s",
-        len(results), passed, worst_r_hat, min_ess_seen, min_bfmi_seen,
+        len(results),
+        passed,
+        worst_r_hat,
+        min_ess_seen,
+        min_bfmi_seen,
     )
 
     return ConvergenceReport(
@@ -595,12 +600,15 @@ def compute_pair_correlations(
                 logger.warning(
                     "High parameter correlation: %s <-> %s (r=%.3f). "
                     "Possible degeneracy.",
-                    name_i, name_j, r,
+                    name_i,
+                    name_j,
+                    r,
                 )
 
     logger.info(
         "Computed %dx%d parameter correlation matrix.",
-        len(names), len(names),
+        len(names),
+        len(names),
     )
     return result
 
@@ -694,12 +702,19 @@ def detect_bimodal(
         logger.warning(
             "Bimodal posterior detected for %s: delta_BIC=%.2f, "
             "means=(%.4e, %.4e), weights=(%.3f, %.3f)",
-            param_name, delta, means[0], means[1], weights[0], weights[1],
+            param_name,
+            delta,
+            means[0],
+            means[1],
+            weights[0],
+            weights[1],
         )
     else:
         logger.debug(
             "Unimodal posterior for %s: delta_BIC=%.2f (threshold=%.1f)",
-            param_name, delta, bic_threshold,
+            param_name,
+            delta,
+            bic_threshold,
         )
 
     return BimodalResult(
@@ -755,14 +770,13 @@ def check_shard_bimodality(
         results[name] = param_results
 
     n_bimodal = sum(
-        1
-        for param_list in results.values()
-        for r in param_list
-        if r.is_bimodal
+        1 for param_list in results.values() for r in param_list if r.is_bimodal
     )
     logger.info(
         "check_shard_bimodality: %d params x %d shards; %d bimodal detections.",
-        len(all_param_names), len(shard_samples), n_bimodal,
+        len(all_param_names),
+        len(shard_samples),
+        n_bimodal,
     )
     return results
 
@@ -846,12 +860,18 @@ def compute_nlsq_comparison_metrics(
         logger.debug(
             "NLSQ comparison for %s: mean=%.4e, std=%.4e, "
             "nlsq=%.4e, z=%.2f, within_hdi=%s",
-            name, mean, std, nlsq_val, z_score, bool(within_hdi),
+            name,
+            mean,
+            std,
+            nlsq_val,
+            z_score,
+            bool(within_hdi),
         )
 
     logger.info(
         "compute_nlsq_comparison_metrics: %d / %d parameters compared.",
-        len(output), len(nlsq_values),
+        len(output),
+        len(nlsq_values),
     )
     return output
 
@@ -901,7 +921,11 @@ def compute_precision_analysis(
 
         logger.debug(
             "Precision for %s: mean=%.4e, std=%.4e, cv=%.4f, hdi_width=%.4e",
-            name, mean, std, cv, hdi_width,
+            name,
+            mean,
+            std,
+            cv,
+            hdi_width,
         )
 
     logger.info(

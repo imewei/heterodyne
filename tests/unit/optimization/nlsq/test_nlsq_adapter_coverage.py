@@ -20,7 +20,6 @@ import pytest
 
 from heterodyne.optimization.nlsq.adapter import (
     NLSQAdapter,
-    NLSQWrapper,
     _assess_convergence,
     clear_model_cache,
     get_cache_stats,

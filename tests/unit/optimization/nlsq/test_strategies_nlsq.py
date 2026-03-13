@@ -10,15 +10,12 @@ Each test class covers one strategy and checks:
 from __future__ import annotations
 
 import importlib
-import inspect
-import textwrap
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import jax.numpy as jnp
 import numpy as np
-import pytest
 
 # ---------------------------------------------------------------------------
 # Shared fixtures / helpers
@@ -124,8 +121,7 @@ def _assert_nlsq_import(module_path: str, symbol: str) -> None:
     with open(spec.origin) as fh:
         source = fh.read()
     assert any(
-        "from nlsq import" in line and symbol in line
-        for line in source.splitlines()
+        "from nlsq import" in line and symbol in line for line in source.splitlines()
     ), f"{module_path} does not import '{symbol}' from nlsq."
 
 
@@ -207,7 +203,7 @@ class TestResidualStrategyNlsq:
             ),
         ):
             strategy = ResidualStrategy(use_analytic_jac=False)
-            sr = strategy.fit(model, c2, phi_angle=0.0, config=config)
+            _sr = strategy.fit(model, c2, phi_angle=0.0, config=config)
 
         # The call should succeed and internally use trf
         _, call_kwargs = fitter_mock.curve_fit.call_args
@@ -309,7 +305,7 @@ class TestJITStrategyNlsq:
         ):
             strategy = JITStrategy()
             strategy._last_compile_time = 0.0  # initialise before fit
-            sr = strategy.fit(model, c2, phi_angle=0.0, config=config)
+            _sr = strategy.fit(model, c2, phi_angle=0.0, config=config)
 
         _, call_kwargs = fitter_mock.curve_fit.call_args
         assert call_kwargs.get("method") in (None, "trf")

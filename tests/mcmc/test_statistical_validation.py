@@ -32,7 +32,6 @@ from heterodyne.optimization.cmc.reparameterization import (
 from heterodyne.optimization.cmc.results import CMCResult
 from heterodyne.optimization.nlsq.results import NLSQResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -51,7 +50,8 @@ def _make_nlsq_result(param_space: ParameterSpace) -> NLSQResult:
     """
     names = param_space.varying_names
     values = np.array(
-        [param_space.values[n] for n in names], dtype=np.float64,
+        [param_space.values[n] for n in names],
+        dtype=np.float64,
     )
     uncertainties = np.maximum(np.abs(values) * 0.01, 1e-6)
     return NLSQResult(
@@ -95,7 +95,9 @@ class TestPriorConstruction:
         nlsq_result = _make_nlsq_result(param_space)
         default_priors = build_default_priors(param_space)
         informed_priors = build_nlsq_informed_priors(
-            nlsq_result, param_space, width_factor=2.0,
+            nlsq_result,
+            param_space,
+            width_factor=2.0,
         )
 
         n_narrower = 0
@@ -121,7 +123,8 @@ class TestPriorConstruction:
         """Log-space priors for D0 parameters produce strictly positive samples."""
         param_space = _make_param_space()
         log_names = [
-            name for name in param_space.varying_names
+            name
+            for name in param_space.varying_names
             if DEFAULT_REGISTRY[name].log_space
         ]
         assert len(log_names) > 0, "Expected at least one log_space parameter"
@@ -135,6 +138,7 @@ class TestPriorConstruction:
             )
             # Draw samples and verify positivity
             import jax
+
             key = jax.random.PRNGKey(42)
             samples = prior.sample(key, sample_shape=(500,))
             assert np.all(np.asarray(samples) > 0), (
@@ -176,16 +180,17 @@ class TestMCMCConvergence:
         total = n_chains * n_samples
 
         samples = {
-            name: np.random.default_rng(42).normal(size=total)
-            for name in param_names
+            name: np.random.default_rng(42).normal(size=total) for name in param_names
         }
         result = CMCResult(
             parameter_names=param_names,
             posterior_mean=np.mean(
-                [samples[n] for n in param_names], axis=1,
+                [samples[n] for n in param_names],
+                axis=1,
             ),
             posterior_std=np.std(
-                [samples[n] for n in param_names], axis=1,
+                [samples[n] for n in param_names],
+                axis=1,
             ),
             credible_intervals={},
             convergence_passed=True,
@@ -229,9 +234,7 @@ class TestMCMCConvergence:
         # least a float and not inf.
         samples_1d = rng.normal(size=(1, 40))
         r_hat_1c = compute_r_hat(samples_1d)
-        assert isinstance(r_hat_1c, float), (
-            f"Expected float, got {type(r_hat_1c)}"
-        )
+        assert isinstance(r_hat_1c, float), f"Expected float, got {type(r_hat_1c)}"
         # NaN is acceptable for 1 chain; inf is not.
         assert not math.isinf(r_hat_1c), f"R-hat is inf for 1 chain: {r_hat_1c}"
 
@@ -291,9 +294,7 @@ class TestReparameterization:
             )
 
         # Backward: sampling -> physics (need numpy arrays for transform_to_physics_space)
-        sampling_arrays = {
-            k: np.array([v]) for k, v in sampling_params.items()
-        }
+        sampling_arrays = {k: np.array([v]) for k, v in sampling_params.items()}
         recovered = transform_to_physics_space(sampling_arrays, config)
 
         # Check round-trip accuracy for all physics parameters
@@ -366,6 +367,4 @@ class TestCMCConfigValidation:
     def test_num_chains_positive(self) -> None:
         """Default num_chains >= 1."""
         config = CMCConfig()
-        assert config.num_chains >= 1, (
-            f"num_chains={config.num_chains} should be >= 1"
-        )
+        assert config.num_chains >= 1, f"num_chains={config.num_chains} should be >= 1"

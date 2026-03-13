@@ -102,8 +102,10 @@ class TestReparamConfig:
     def test_enabled_pairs_d_ref_only(self) -> None:
         """Only D0_ref/alpha_ref pair when others disabled."""
         config = ReparamConfig(
-            t_ref=10.0, enable_d_ref=True,
-            enable_d_sample=False, enable_v_ref=False,
+            t_ref=10.0,
+            enable_d_ref=True,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         pairs = config.enabled_pairs
         assert len(pairs) == 1
@@ -112,8 +114,10 @@ class TestReparamConfig:
     def test_enabled_pairs_d_sample_only(self) -> None:
         """Only D0_sample/alpha_sample pair when others disabled."""
         config = ReparamConfig(
-            t_ref=10.0, enable_d_ref=False,
-            enable_d_sample=True, enable_v_ref=False,
+            t_ref=10.0,
+            enable_d_ref=False,
+            enable_d_sample=True,
+            enable_v_ref=False,
         )
         pairs = config.enabled_pairs
         assert len(pairs) == 1
@@ -122,8 +126,10 @@ class TestReparamConfig:
     def test_enabled_pairs_v_ref_only(self) -> None:
         """Only v0/beta pair when others disabled."""
         config = ReparamConfig(
-            t_ref=10.0, enable_d_ref=False,
-            enable_d_sample=False, enable_v_ref=True,
+            t_ref=10.0,
+            enable_d_ref=False,
+            enable_d_sample=False,
+            enable_v_ref=True,
         )
         pairs = config.enabled_pairs
         assert len(pairs) == 1
@@ -139,8 +145,10 @@ class TestReparamConfig:
     def test_all_disabled(self) -> None:
         """All flags False yields empty enabled_pairs."""
         config = ReparamConfig(
-            t_ref=10.0, enable_d_ref=False,
-            enable_d_sample=False, enable_v_ref=False,
+            t_ref=10.0,
+            enable_d_ref=False,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         assert config.enabled_pairs == []
 
@@ -189,7 +197,9 @@ class TestForwardTransform:
         """D0=1000, alpha=0.5, t_ref=0.01 → log_D0_at_tref = log(1000) + 0.5*log(0.01)."""
         t_ref = 0.01
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         values = {"D0_ref": 1000.0, "alpha_ref": 0.5}
         unc = {"D0_ref": 10.0, "alpha_ref": 0.01}
@@ -198,14 +208,18 @@ class TestForwardTransform:
 
         expected_log = math.log(1000.0) + 0.5 * math.log(0.01)
         np.testing.assert_allclose(
-            reparam_vals["log_D0_ref_at_tref"], expected_log, rtol=1e-12,
+            reparam_vals["log_D0_ref_at_tref"],
+            expected_log,
+            rtol=1e-12,
         )
 
     def test_alpha_zero_pure_diffusion(self) -> None:
         """alpha=0 (pure diffusion): log_D0_at_tref = log(D0), independent of t_ref."""
         t_ref = 42.0
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         D0 = 500.0
         values = {"D0_ref": D0, "alpha_ref": 0.0}
@@ -215,21 +229,28 @@ class TestForwardTransform:
 
         # With alpha=0: log(D0 * t_ref^0) = log(D0)
         np.testing.assert_allclose(
-            reparam_vals["log_D0_ref_at_tref"], math.log(D0), rtol=1e-12,
+            reparam_vals["log_D0_ref_at_tref"],
+            math.log(D0),
+            rtol=1e-12,
         )
 
     def test_very_large_d0(self) -> None:
         """Very large D0 produces finite reparameterized value."""
         t_ref = 1.0
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         D0 = 1e10
         values = {"D0_ref": D0, "alpha_ref": 0.5}
         unc = {"D0_ref": 1e8, "alpha_ref": 0.01}
 
         reparam_vals, reparam_unc = transform_nlsq_to_reparam_space(
-            values, unc, t_ref, config,
+            values,
+            unc,
+            t_ref,
+            config,
         )
 
         assert math.isfinite(reparam_vals["log_D0_ref_at_tref"])
@@ -239,14 +260,19 @@ class TestForwardTransform:
         """Very small D0 produces finite reparameterized value."""
         t_ref = 1.0
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         D0 = 1e-10
         values = {"D0_ref": D0, "alpha_ref": 0.5}
         unc = {"D0_ref": 1e-12, "alpha_ref": 0.01}
 
         reparam_vals, reparam_unc = transform_nlsq_to_reparam_space(
-            values, unc, t_ref, config,
+            values,
+            unc,
+            t_ref,
+            config,
         )
 
         assert math.isfinite(reparam_vals["log_D0_ref_at_tref"])
@@ -256,13 +282,18 @@ class TestForwardTransform:
         """Non-reparameterized params pass through unchanged."""
         t_ref = 10.0
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         values = {"D0_ref": 1.0, "alpha_ref": 0.5, "f0": 0.8, "phi0": 3.14}
         unc = {"D0_ref": 0.1, "alpha_ref": 0.05, "f0": 0.01, "phi0": 0.1}
 
         reparam_vals, reparam_unc = transform_nlsq_to_reparam_space(
-            values, unc, t_ref, config,
+            values,
+            unc,
+            t_ref,
+            config,
         )
 
         # f0 and phi0 should pass through identically
@@ -288,12 +319,17 @@ class TestRoundTripTransforms:
         nlsq_uncertainties = {"D0_ref": 0.05, "alpha_ref": 0.1, "f0": 0.01}
 
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
 
         # Forward: physics -> reparam
         reparam_vals, _ = transform_nlsq_to_reparam_space(
-            nlsq_values, nlsq_uncertainties, t_ref, config,
+            nlsq_values,
+            nlsq_uncertainties,
+            t_ref,
+            config,
         )
 
         # Inverse: reparam -> physics (via numpy arrays, as posterior samples would be)
@@ -308,21 +344,32 @@ class TestRoundTripTransforms:
         """Round-trip works for all 3 power-law pairs simultaneously."""
         t_ref = 5.0
         nlsq_values = {
-            "D0_ref": 1.0, "alpha_ref": 0.5,
-            "D0_sample": 0.3, "alpha_sample": 1.2,
-            "v0": 0.01, "beta": 0.7,
-            "D_offset_ref": 0.0, "f0": 1.0,
+            "D0_ref": 1.0,
+            "alpha_ref": 0.5,
+            "D0_sample": 0.3,
+            "alpha_sample": 1.2,
+            "v0": 0.01,
+            "beta": 0.7,
+            "D_offset_ref": 0.0,
+            "f0": 1.0,
         }
         nlsq_uncertainties = {
-            "D0_ref": 0.1, "alpha_ref": 0.05,
-            "D0_sample": 0.03, "alpha_sample": 0.1,
-            "v0": 0.001, "beta": 0.07,
-            "D_offset_ref": 0.0, "f0": 0.01,
+            "D0_ref": 0.1,
+            "alpha_ref": 0.05,
+            "D0_sample": 0.03,
+            "alpha_sample": 0.1,
+            "v0": 0.001,
+            "beta": 0.07,
+            "D_offset_ref": 0.0,
+            "f0": 0.01,
         }
 
         config = ReparamConfig(t_ref=t_ref)
         reparam_vals, _ = transform_nlsq_to_reparam_space(
-            nlsq_values, nlsq_uncertainties, t_ref, config,
+            nlsq_values,
+            nlsq_uncertainties,
+            t_ref,
+            config,
         )
 
         samples = {k: np.array([v]) for k, v in reparam_vals.items()}
@@ -340,9 +387,12 @@ class TestRoundTripTransforms:
         t_ref = 10.0
         config = ReparamConfig(t_ref=t_ref)
         params = {
-            "D0_ref": 2.0, "alpha_ref": 0.6,
-            "v0": 0.05, "beta": 0.3,
-            "D0_sample": 0.1, "alpha_sample": 1.0,
+            "D0_ref": 2.0,
+            "alpha_ref": 0.6,
+            "v0": 0.05,
+            "beta": 0.3,
+            "D0_sample": 0.1,
+            "alpha_sample": 1.0,
         }
 
         sampling = transform_to_sampling_space(params, config)
@@ -356,7 +406,9 @@ class TestRoundTripTransforms:
         """Round-trip with alpha=0 (pure diffusion) recovers D0 exactly."""
         t_ref = 100.0
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         D0 = 42.0
         values = {"D0_ref": D0, "alpha_ref": 0.0}
@@ -386,10 +438,15 @@ class TestDeltaMethodUQ:
         nlsq_uncertainties = {"D0_ref": 0.1, "alpha_ref": 0.05}
 
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         _, reparam_unc = transform_nlsq_to_reparam_space(
-            nlsq_values, nlsq_uncertainties, t_ref, config,
+            nlsq_values,
+            nlsq_uncertainties,
+            t_ref,
+            config,
         )
 
         for name, unc in reparam_unc.items():
@@ -402,10 +459,15 @@ class TestDeltaMethodUQ:
         nlsq_uncertainties = {"D0_ref": 0.0, "alpha_ref": 0.0}
 
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         _, reparam_unc = transform_nlsq_to_reparam_space(
-            nlsq_values, nlsq_uncertainties, t_ref, config,
+            nlsq_values,
+            nlsq_uncertainties,
+            t_ref,
+            config,
         )
 
         assert reparam_unc["log_D0_ref_at_tref"] >= 1e-6
@@ -418,12 +480,15 @@ class TestDeltaMethodUQ:
         sigma_D0, sigma_alpha = 0.1, 0.05
 
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         _, unc = transform_nlsq_to_reparam_space(
             {"D0_ref": D0, "alpha_ref": alpha},
             {"D0_ref": sigma_D0, "alpha_ref": sigma_alpha},
-            t_ref, config,
+            t_ref,
+            config,
         )
 
         # Manual: sqrt((sigma_D0/D0)^2 + (log(t_ref)*sigma_alpha)^2)
@@ -431,7 +496,9 @@ class TestDeltaMethodUQ:
             (sigma_D0 / D0) ** 2 + (math.log(t_ref) * sigma_alpha) ** 2
         )
         np.testing.assert_allclose(
-            unc["log_D0_ref_at_tref"], expected, rtol=1e-10,
+            unc["log_D0_ref_at_tref"],
+            expected,
+            rtol=1e-10,
         )
 
     def test_uncertainty_finite_for_all_pairs(self) -> None:
@@ -439,14 +506,20 @@ class TestDeltaMethodUQ:
         t_ref = 0.01
         config = ReparamConfig(t_ref=t_ref)
         values = {
-            "D0_ref": 1000.0, "alpha_ref": 0.5,
-            "D0_sample": 500.0, "alpha_sample": 0.3,
-            "v0": 1e3, "beta": 0.7,
+            "D0_ref": 1000.0,
+            "alpha_ref": 0.5,
+            "D0_sample": 500.0,
+            "alpha_sample": 0.3,
+            "v0": 1e3,
+            "beta": 0.7,
         }
         unc_in = {
-            "D0_ref": 100.0, "alpha_ref": 0.05,
-            "D0_sample": 50.0, "alpha_sample": 0.03,
-            "v0": 100.0, "beta": 0.07,
+            "D0_ref": 100.0,
+            "alpha_ref": 0.05,
+            "D0_sample": 50.0,
+            "alpha_sample": 0.03,
+            "v0": 100.0,
+            "beta": 0.07,
         }
 
         _, unc_out = transform_nlsq_to_reparam_space(values, unc_in, t_ref, config)
@@ -484,13 +557,18 @@ class TestEdgeCases:
         """Negative prefactor uses log(|a0|) fallback."""
         t_ref = 10.0
         config = ReparamConfig(
-            t_ref=t_ref, enable_d_sample=False, enable_v_ref=False,
+            t_ref=t_ref,
+            enable_d_sample=False,
+            enable_v_ref=False,
         )
         values = {"D0_ref": -0.5, "alpha_ref": 0.8}
         unc = {"D0_ref": 0.1, "alpha_ref": 0.05}
 
         reparam_vals, reparam_unc = transform_nlsq_to_reparam_space(
-            values, unc, t_ref, config,
+            values,
+            unc,
+            t_ref,
+            config,
         )
 
         # Should still produce a finite result
@@ -533,7 +611,9 @@ class TestEdgeCases:
         )
 
         D0_recovered = reparam_to_physics_jax(
-            log_at_tref, jnp.float64(alpha_true), t_ref,
+            log_at_tref,
+            jnp.float64(alpha_true),
+            t_ref,
         )
         np.testing.assert_allclose(float(D0_recovered), D0_true, rtol=1e-10)
 
@@ -556,7 +636,8 @@ class TestEdgeCases:
         _, unc = transform_nlsq_to_reparam_space(
             {"D0_ref": 1.0, "alpha_ref": 0.5},
             {"D0_ref": 0.1, "alpha_ref": 0.05},
-            t_ref, config,
+            t_ref,
+            config,
         )
         assert math.isfinite(unc["log_D0_ref_at_tref"])
         assert unc["log_D0_ref_at_tref"] > 0

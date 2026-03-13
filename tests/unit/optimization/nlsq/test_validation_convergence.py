@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import numpy as np
-import pytest
 
 from heterodyne.optimization.nlsq.config import NLSQConfig
 from heterodyne.optimization.nlsq.results import NLSQResult
@@ -140,8 +137,10 @@ class TestConvergenceValidator:
         report = validator.validate(result)
 
         info_issues = [
-            i for i in report.issues
-            if i.severity == ValidationSeverity.INFO and "condition" in i.message.lower()
+            i
+            for i in report.issues
+            if i.severity == ValidationSeverity.INFO
+            and "condition" in i.message.lower()
         ]
         assert len(info_issues) >= 1
 
@@ -163,9 +162,7 @@ class TestConvergenceValidator:
         validator = ConvergenceValidator()
         report = validator.validate(result)
 
-        residual_issues = [
-            i for i in report.issues if "residual" in i.message.lower()
-        ]
+        residual_issues = [i for i in report.issues if "residual" in i.message.lower()]
         assert len(residual_issues) == 0
 
     def test_no_jacobian_no_warning(self) -> None:

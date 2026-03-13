@@ -16,7 +16,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -307,7 +306,9 @@ class TestNLSQAdapter:
             from heterodyne.optimization.nlsq.adapter import NLSQAdapter
 
             # Ensure scipy.optimize.least_squares is never touched
-            scipy_mock = MagicMock(side_effect=AssertionError("scipy called in NLSQAdapter.fit"))
+            scipy_mock = MagicMock(
+                side_effect=AssertionError("scipy called in NLSQAdapter.fit")
+            )
             with patch.dict(
                 sys.modules, {"scipy.optimize": MagicMock(least_squares=scipy_mock)}
             ):
@@ -566,7 +567,9 @@ class TestNLSQWrapper:
                 side_effect=RuntimeError("everything failed"),
             ),
         ):
-            wrapper = NLSQWrapper(parameter_names=PARAM_NAMES, enable_recovery=False, max_retries=1)
+            wrapper = NLSQWrapper(
+                parameter_names=PARAM_NAMES, enable_recovery=False, max_retries=1
+            )
             result = wrapper.fit(
                 residual_fn=_make_residual_fn(),
                 initial_params=_make_initial_params(),

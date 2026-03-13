@@ -42,10 +42,12 @@ class TestNLSQLibraryVersion:
         """
         try:
             from importlib.metadata import version
+
             nlsq_version = version("nlsq")
         except ImportError:
             # Python < 3.8 fallback
             import nlsq
+
             nlsq_version = getattr(nlsq, "__version__", "0.0.0")
 
         # Parse version
@@ -71,6 +73,7 @@ class TestCurveFitAPI:
     def test_curvefit_exists(self) -> None:
         """Verify CurveFit class is available."""
         from nlsq import CurveFit
+
         assert CurveFit is not None
 
     @pytest.mark.api
@@ -95,9 +98,7 @@ class TestCurveFitAPI:
         """Verify curve_fit method exists on CurveFit."""
         from nlsq import CurveFit
 
-        assert hasattr(CurveFit, "curve_fit"), (
-            "CurveFit missing 'curve_fit' method"
-        )
+        assert hasattr(CurveFit, "curve_fit"), "CurveFit missing 'curve_fit' method"
 
     @pytest.mark.api
     def test_curvefit_curve_fit_method_signature(self) -> None:
@@ -114,9 +115,7 @@ class TestCurveFitAPI:
         required = {"f", "xdata", "ydata", "p0"}
 
         missing = required - params
-        assert not missing, (
-            f"CurveFit.curve_fit missing required parameters: {missing}"
-        )
+        assert not missing, f"CurveFit.curve_fit missing required parameters: {missing}"
 
         # Check optional parameters exist
         optional = {"bounds", "method"}
@@ -331,7 +330,7 @@ class TestBugPrevention_NLSQAdapterAPI:
             fitter = CurveFit()
             # If we get here, nlsq has changed - need to verify behavior
             # Check if flength was auto-set or is required
-            assert hasattr(fitter, '_flength') or True  # Allow if it works
+            assert hasattr(fitter, "_flength") or True  # Allow if it works
         except TypeError as e:
             # Expected: TypeError about missing flength
             assert "flength" in str(e).lower() or "argument" in str(e).lower()

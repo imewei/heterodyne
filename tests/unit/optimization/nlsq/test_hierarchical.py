@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -17,7 +16,6 @@ from heterodyne.optimization.nlsq.hierarchical import (
     _resolve_stage_params,
 )
 from heterodyne.optimization.nlsq.results import NLSQResult
-
 
 # ---------------------------------------------------------------------------
 # HierarchicalConfig
@@ -50,16 +48,17 @@ class TestHierarchicalConfig:
     def test_custom_stages(self) -> None:
         stages = [
             {"name": "ref_only", "groups": ["reference"]},
-            {"name": "all", "groups": ["reference", "sample", "velocity", "fraction", "angle"]},
+            {
+                "name": "all",
+                "groups": ["reference", "sample", "velocity", "fraction", "angle"],
+            },
         ]
         config = HierarchicalConfig(stages=stages)
         assert len(config.stages) == 2
 
     def test_per_stage_config(self) -> None:
         custom_config = NLSQConfig(max_iterations=500)
-        config = HierarchicalConfig(
-            per_stage_config={"transport": custom_config}
-        )
+        config = HierarchicalConfig(per_stage_config={"transport": custom_config})
         assert config.per_stage_config["transport"].max_iterations == 500
 
     def test_skip_failed_stages_default(self) -> None:
@@ -77,14 +76,14 @@ class TestResolveStageParams:
 
     def test_single_group(self) -> None:
         stage = {"name": "ref", "groups": ["reference"]}
-        user_vary = {name: True for name in ALL_PARAM_NAMES}
+        user_vary = dict.fromkeys(ALL_PARAM_NAMES, True)
         result = _resolve_stage_params(stage, user_vary)
 
         assert result == set(PARAM_GROUPS["reference"])
 
     def test_multiple_groups(self) -> None:
         stage = {"name": "transport", "groups": ["reference", "sample"]}
-        user_vary = {name: True for name in ALL_PARAM_NAMES}
+        user_vary = dict.fromkeys(ALL_PARAM_NAMES, True)
         result = _resolve_stage_params(stage, user_vary)
 
         expected = set(PARAM_GROUPS["reference"]) | set(PARAM_GROUPS["sample"])
@@ -93,7 +92,7 @@ class TestResolveStageParams:
     def test_respects_user_vary_flags(self) -> None:
         stage = {"name": "ref", "groups": ["reference"]}
         # Only D0_ref varies, alpha_ref and D_offset_ref are fixed
-        user_vary = {name: False for name in ALL_PARAM_NAMES}
+        user_vary = dict.fromkeys(ALL_PARAM_NAMES, False)
         user_vary["D0_ref"] = True
         result = _resolve_stage_params(stage, user_vary)
 
@@ -101,7 +100,7 @@ class TestResolveStageParams:
 
     def test_no_varying_params(self) -> None:
         stage = {"name": "ref", "groups": ["reference"]}
-        user_vary = {name: False for name in ALL_PARAM_NAMES}
+        user_vary = dict.fromkeys(ALL_PARAM_NAMES, False)
         result = _resolve_stage_params(stage, user_vary)
 
         assert result == set()
@@ -128,7 +127,12 @@ class TestHierarchicalResult:
             best_params={"D0_ref": 1e4, "alpha_ref": 0.5},
             best_cost=0.01,
             stage_results=[
-                {"stage": "transport", "success": True, "cost": 0.05, "n_iterations": 10},
+                {
+                    "stage": "transport",
+                    "success": True,
+                    "cost": 0.05,
+                    "n_iterations": 10,
+                },
                 {"stage": "all", "success": True, "cost": 0.01, "n_iterations": 20},
             ],
             n_stages_completed=2,
@@ -238,8 +242,11 @@ class TestHierarchicalFitter:
         residual_fn = lambda x: np.zeros(10)  # noqa: E731
 
         result = fitter.fit(
-            model, np.ones((10, 10)), phi_angle=0.0,
-            config=config, residual_fn=residual_fn,
+            model,
+            np.ones((10, 10)),
+            phi_angle=0.0,
+            config=config,
+            residual_fn=residual_fn,
         )
 
         assert result.success is True
@@ -258,8 +265,11 @@ class TestHierarchicalFitter:
         residual_fn = lambda x: np.zeros(10)  # noqa: E731
 
         result = fitter.fit(
-            model, np.ones((10, 10)), phi_angle=0.0,
-            config=config, residual_fn=residual_fn,
+            model,
+            np.ones((10, 10)),
+            phi_angle=0.0,
+            config=config,
+            residual_fn=residual_fn,
         )
 
         assert result.success is False
@@ -276,9 +286,12 @@ class TestHierarchicalFitter:
         fitter = HierarchicalFitter(adapter, hier_config)
         residual_fn = lambda x: np.zeros(10)  # noqa: E731
 
-        result = fitter.fit(
-            model, np.ones((10, 10)), phi_angle=0.0,
-            config=config, residual_fn=residual_fn,
+        _result = fitter.fit(
+            model,
+            np.ones((10, 10)),
+            phi_angle=0.0,
+            config=config,
+            residual_fn=residual_fn,
         )
 
         # Should attempt all stages
@@ -295,15 +308,18 @@ class TestHierarchicalFitter:
         residual_fn = lambda x: np.zeros(10)  # noqa: E731
 
         fitter.fit(
-            model, np.ones((10, 10)), phi_angle=0.0,
-            config=config, residual_fn=residual_fn,
+            model,
+            np.ones((10, 10)),
+            phi_angle=0.0,
+            config=config,
+            residual_fn=residual_fn,
         )
 
         # Check that set_vary was called to restore original flags
         pm = model.param_manager
         restore_calls = pm.set_vary.call_args_list
         # The last N calls should restore original flags
-        last_calls = restore_calls[-len(ALL_PARAM_NAMES):]
+        last_calls = restore_calls[-len(ALL_PARAM_NAMES) :]
         restored = {call.args[0]: call.args[1] for call in last_calls}
         for name in ALL_PARAM_NAMES:
             assert restored[name] == (name in vary_names)
@@ -322,8 +338,11 @@ class TestHierarchicalFitter:
         residual_fn = lambda x: np.zeros(10)  # noqa: E731
 
         fitter.fit(
-            model, np.ones((10, 10)), phi_angle=0.0,
-            config=base_config, residual_fn=residual_fn,
+            model,
+            np.ones((10, 10)),
+            phi_angle=0.0,
+            config=base_config,
+            residual_fn=residual_fn,
         )
 
         # First call should use transport_config (passed as keyword arg)
@@ -343,8 +362,11 @@ class TestHierarchicalFitter:
         residual_fn = lambda x: np.zeros(10)  # noqa: E731
 
         result = fitter.fit(
-            model, np.ones((10, 10)), phi_angle=0.0,
-            config=config, residual_fn=residual_fn,
+            model,
+            np.ones((10, 10)),
+            phi_angle=0.0,
+            config=config,
+            residual_fn=residual_fn,
         )
 
         # No stages should have been executed
@@ -362,8 +384,11 @@ class TestHierarchicalFitter:
         residual_fn = lambda x: np.zeros(10)  # noqa: E731
 
         result = fitter.fit(
-            model, np.ones((10, 10)), phi_angle=0.0,
-            config=config, residual_fn=residual_fn,
+            model,
+            np.ones((10, 10)),
+            phi_angle=0.0,
+            config=config,
+            residual_fn=residual_fn,
         )
 
         assert "hierarchical_stages" in result.metadata
@@ -383,9 +408,12 @@ class TestHierarchicalFitter:
         )
         fitter = HierarchicalFitter(adapter, hier_config)
 
-        result = fitter.fit(
-            model, np.ones((10, 10)), phi_angle=45.0,
-            config=config, residual_fn=None,
+        _result = fitter.fit(
+            model,
+            np.ones((10, 10)),
+            phi_angle=45.0,
+            config=config,
+            residual_fn=None,
         )
 
         assert adapter.fit.call_count == 1
@@ -402,13 +430,16 @@ class TestHierarchicalFitter:
 
         with pytest.raises(RuntimeError, match="boom"):
             fitter.fit(
-                model, np.ones((10, 10)), phi_angle=0.0,
-                config=config, residual_fn=residual_fn,
+                model,
+                np.ones((10, 10)),
+                phi_angle=0.0,
+                config=config,
+                residual_fn=residual_fn,
             )
 
         # Vary flags should still be restored
         pm = model.param_manager
         restore_calls = pm.set_vary.call_args_list
         # Last calls should be the restore
-        last_calls = restore_calls[-len(ALL_PARAM_NAMES):]
+        last_calls = restore_calls[-len(ALL_PARAM_NAMES) :]
         assert len(last_calls) == len(ALL_PARAM_NAMES)

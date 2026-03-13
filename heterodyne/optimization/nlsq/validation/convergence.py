@@ -80,7 +80,7 @@ class ConvergenceValidator:
                     ValidationIssue(
                         ValidationSeverity.WARNING,
                         f"Outlier residuals detected: max={max_residual:.2e}, "
-                        f"RMS={rms_residual:.2e} (ratio={max_residual/rms_residual:.0f}x)",
+                        f"RMS={rms_residual:.2e} (ratio={max_residual / rms_residual:.0f}x)",
                         "residual_outliers",
                         max_residual / rms_residual,
                     )

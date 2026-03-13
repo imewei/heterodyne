@@ -32,22 +32,24 @@ N_PARAMS = 14
 
 def _make_params(key: jax.Array | None = None) -> jnp.ndarray:
     """Create a realistic 14-element parameter vector."""
-    return jnp.array([
-        1e4,   # D0_ref
-        1.0,   # alpha_ref
-        0.0,   # D_offset_ref
-        1e4,   # D0_sample
-        1.0,   # alpha_sample
-        0.0,   # D_offset_sample
-        1e3,   # v0
-        1.0,   # beta
-        0.0,   # v_offset
-        0.5,   # f0
-        0.01,  # f1
-        10.0,  # f2
-        0.3,   # f3
-        0.0,   # phi0
-    ])
+    return jnp.array(
+        [
+            1e4,  # D0_ref
+            1.0,  # alpha_ref
+            0.0,  # D_offset_ref
+            1e4,  # D0_sample
+            1.0,  # alpha_sample
+            0.0,  # D_offset_sample
+            1e3,  # v0
+            1.0,  # beta
+            0.0,  # v_offset
+            0.5,  # f0
+            0.01,  # f1
+            10.0,  # f2
+            0.3,  # f3
+            0.0,  # phi0
+        ]
+    )
 
 
 def _make_inputs(
@@ -74,9 +76,11 @@ class TestJITCompilationTime:
     def test_c2_heterodyne_first_call_compiles(self) -> None:
         """First call to compute_c2_heterodyne triggers JIT; must finish < 60s."""
         # Clear any cached compilation by using a fresh jit wrapper
-        fn = jax.jit(compute_c2_heterodyne.__wrapped__
-                     if hasattr(compute_c2_heterodyne, "__wrapped__")
-                     else compute_c2_heterodyne)
+        fn = jax.jit(
+            compute_c2_heterodyne.__wrapped__
+            if hasattr(compute_c2_heterodyne, "__wrapped__")
+            else compute_c2_heterodyne
+        )
         params, t, q, dt, phi_angle = _make_inputs()
 
         start = time.perf_counter()
@@ -85,9 +89,7 @@ class TestJITCompilationTime:
         result.block_until_ready()
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 60.0, (
-            f"First JIT compilation took {elapsed:.1f}s (limit 60s)"
-        )
+        assert elapsed < 60.0, f"First JIT compilation took {elapsed:.1f}s (limit 60s)"
         assert result.shape == (N_TIMES, N_TIMES)
 
     def test_c2_heterodyne_second_call_cached(self) -> None:
@@ -244,9 +246,9 @@ class TestRecompilationAvoidance:
 
         # Variance should be low (no intermittent recompilations)
         mean_t = sum(timings) / len(timings)
-        assert all(
-            abs(t_i - mean_t) < 10 * mean_t for t_i in timings
-        ), f"High variance in cached call times: {timings}"
+        assert all(abs(t_i - mean_t) < 10 * mean_t for t_i in timings), (
+            f"High variance in cached call times: {timings}"
+        )
 
     def test_different_shape_recompiles(self) -> None:
         """Different-shaped inputs trigger recompilation (expected behavior).

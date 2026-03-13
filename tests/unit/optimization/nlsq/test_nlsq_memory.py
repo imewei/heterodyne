@@ -17,7 +17,6 @@ from heterodyne.optimization.nlsq.multistart import (
 )
 from heterodyne.optimization.nlsq.results import NLSQResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

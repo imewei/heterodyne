@@ -32,8 +32,7 @@ def _require_arviz() -> None:
     """Raise ImportError if ArviZ is not installed."""
     if not _HAS_ARVIZ:
         raise ImportError(
-            "arviz is required for CMC diagnostic plots.  "
-            "Install it with: uv add arviz"
+            "arviz is required for CMC diagnostic plots.  Install it with: uv add arviz"
         )
 
 
@@ -152,9 +151,14 @@ def plot_posterior_predictive(
         ax.plot(times, median, "-", color="steelblue", lw=1.5, label="Median")
     else:
         ax.text(
-            0.5, 0.95,
+            0.5,
+            0.95,
             "No posterior_predictive['c2_pred'] in InferenceData",
-            ha="center", va="top", transform=ax.transAxes, fontsize=9, color="gray",
+            ha="center",
+            va="top",
+            transform=ax.transAxes,
+            fontsize=9,
+            color="gray",
         )
 
     ax.set_xlabel("Time")
@@ -243,8 +247,13 @@ def plot_diagnostics_summary(idata: object) -> Figure:
         ax_bfmi.grid(True, axis="y", alpha=0.3)
     else:
         ax_bfmi.text(
-            0.5, 0.5, "No energy data available",
-            ha="center", va="center", transform=ax_bfmi.transAxes, fontsize=11,
+            0.5,
+            0.5,
+            "No energy data available",
+            ha="center",
+            va="center",
+            transform=ax_bfmi.transAxes,
+            fontsize=11,
         )
         ax_bfmi.set_title("BFMI")
 

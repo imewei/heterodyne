@@ -165,7 +165,7 @@ class TestFormatParameterTable:
 # ---------------------------------------------------------------------------
 # parameter_index_mapper
 # ---------------------------------------------------------------------------
-from heterodyne.optimization.nlsq.parameter_index_mapper import ParameterIndexMapper
+from heterodyne.optimization.nlsq.parameter_index_mapper import ParameterIndexMapper  # noqa: E402, I001
 
 
 class TestParameterIndexMapper:
@@ -213,7 +213,9 @@ class TestParameterIndexMapper:
         assert mapper.full_to_varying(1) == 1
         assert mapper.full_to_varying(6) == 2
 
-    def test_full_to_varying_nonvarying_raises(self, mapper: ParameterIndexMapper) -> None:
+    def test_full_to_varying_nonvarying_raises(
+        self, mapper: ParameterIndexMapper
+    ) -> None:
         with pytest.raises(KeyError, match="not varying"):
             mapper.full_to_varying(3)
 
@@ -246,7 +248,9 @@ class TestParameterIndexMapper:
         assert mapper.is_log_transformed(0) is True
         assert mapper.is_log_transformed(1) is False
 
-    def test_is_log_transformed_out_of_range(self, mapper: ParameterIndexMapper) -> None:
+    def test_is_log_transformed_out_of_range(
+        self, mapper: ParameterIndexMapper
+    ) -> None:
         with pytest.raises(IndexError):
             mapper.is_log_transformed(10)
 
@@ -280,7 +284,7 @@ class TestParameterIndexMapper:
 # ---------------------------------------------------------------------------
 # progress
 # ---------------------------------------------------------------------------
-from heterodyne.optimization.nlsq.progress import ProgressRecord, ProgressTracker
+from heterodyne.optimization.nlsq.progress import ProgressRecord, ProgressTracker  # noqa: E402, I001
 
 
 class TestProgressRecord:
@@ -373,7 +377,10 @@ class TestProgressTracker:
 # ---------------------------------------------------------------------------
 # gradient_monitor
 # ---------------------------------------------------------------------------
-from heterodyne.optimization.nlsq.gradient_monitor import GradientMonitor, GradientSnapshot
+from heterodyne.optimization.nlsq.gradient_monitor import (  # noqa: E402
+    GradientMonitor,
+    GradientSnapshot,
+)
 
 
 class TestGradientSnapshot:
@@ -449,7 +456,9 @@ class TestGradientMonitor:
         monitor.record(1, np.array([0.5, 1.0, 0.1]))
         summary = monitor.get_summary()
         assert summary["n_iterations"] == 2
-        assert summary["final_norm"] == pytest.approx(float(np.linalg.norm([0.5, 1.0, 0.1])))
+        assert summary["final_norm"] == pytest.approx(
+            float(np.linalg.norm([0.5, 1.0, 0.1]))
+        )
         assert summary["is_vanishing"] == False  # noqa: E712
         assert summary["is_exploding"] == False  # noqa: E712
         assert len(summary["worst_parameters"]) == 3
@@ -464,7 +473,7 @@ class TestGradientMonitor:
 # ---------------------------------------------------------------------------
 # adaptive_regularization
 # ---------------------------------------------------------------------------
-from heterodyne.optimization.nlsq.adaptive_regularization import (
+from heterodyne.optimization.nlsq.adaptive_regularization import (  # noqa: E402
     AdaptiveRegularizer,
     RegularizationConfig,
 )
@@ -581,7 +590,9 @@ class TestAdaptiveRegularizer:
     def test_regularize_covariance_negative_definite_escalation(self) -> None:
         """Regularize a negative-definite matrix, triggering lambda escalation."""
         reg = AdaptiveRegularizer(
-            config=RegularizationConfig(lambda_init=1e-12, lambda_min=1e-12, lambda_max=1.0)
+            config=RegularizationConfig(
+                lambda_init=1e-12, lambda_min=1e-12, lambda_max=1.0
+            )
         )
         # Matrix with negative eigenvalue
         cov = np.array([[-10.0, 0.0], [0.0, 1.0]])
@@ -603,7 +614,7 @@ class TestAdaptiveRegularizer:
 # ---------------------------------------------------------------------------
 # recovery
 # ---------------------------------------------------------------------------
-from heterodyne.optimization.nlsq.recovery import (
+from heterodyne.optimization.nlsq.recovery import (  # noqa: E402
     CATEGORY_BOUNDS,
     CATEGORY_CONVERGENCE,
     CATEGORY_ILL_CONDITIONED,
@@ -695,7 +706,9 @@ class TestSafeUncertaintiesFromPcov:
 class TestExecuteWithRecovery:
     """Tests for execute_with_recovery()."""
 
-    def _make_result(self, *, success: bool, cost: float = 1.0, message: str = "ok") -> SimpleNamespace:
+    def _make_result(
+        self, *, success: bool, cost: float = 1.0, message: str = "ok"
+    ) -> SimpleNamespace:
         return SimpleNamespace(
             success=success,
             final_cost=cost,

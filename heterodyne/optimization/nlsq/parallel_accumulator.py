@@ -91,12 +91,15 @@ def accumulate_chunks_sequential(
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "Chunk %d failed during accumulation: %s (skipping)",
-                chunk_idx, exc,
+                chunk_idx,
+                exc,
             )
 
     logger.debug(
         "Sequential accumulation: %d chunks, %d total points, cost=%.4e",
-        len(chunks), n_data, cost,
+        len(chunks),
+        n_data,
+        cost,
     )
 
     return GaussNewtonAccumulation(JtJ=JtJ, Jtf=Jtf, cost=cost, n_data=n_data)
@@ -167,7 +170,8 @@ def accumulate_chunks_parallel(
                 except Exception as exc:  # noqa: BLE001
                     logger.warning(
                         "Parallel chunk %d failed: %s (skipping)",
-                        chunk_idx, exc,
+                        chunk_idx,
+                        exc,
                     )
 
     except Exception as exc:  # noqa: BLE001
@@ -179,7 +183,9 @@ def accumulate_chunks_parallel(
 
     logger.debug(
         "Parallel accumulation: %d chunks, %d workers, %d total points",
-        len(chunks), n_workers, n_data,
+        len(chunks),
+        n_workers,
+        n_data,
     )
 
     return GaussNewtonAccumulation(JtJ=JtJ, Jtf=Jtf, cost=cost, n_data=n_data)

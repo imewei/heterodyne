@@ -19,7 +19,6 @@ from heterodyne.optimization.cmc.priors import (
     validate_initial_value_bounds,
 )
 
-
 # ---------------------------------------------------------------------------
 # get_param_names_in_order
 # ---------------------------------------------------------------------------
@@ -89,7 +88,9 @@ class TestValidateInitialValueBounds:
         """Registry-default values are within bounds and produce no warnings."""
         from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
 
-        init_values = {name: DEFAULT_REGISTRY[name].default for name in DEFAULT_REGISTRY}
+        init_values = {
+            name: DEFAULT_REGISTRY[name].default for name in DEFAULT_REGISTRY
+        }
         issues = validate_initial_value_bounds(init_values)
         assert issues == {}
 
@@ -108,9 +109,7 @@ class TestValidateInitialValueBounds:
 
     def test_multiple_invalid_all_reported(self) -> None:
         """All out-of-bounds parameters are reported, not just the first."""
-        issues = validate_initial_value_bounds(
-            {"D0_ref": -1.0, "D0_sample": -1.0}
-        )
+        issues = validate_initial_value_bounds({"D0_ref": -1.0, "D0_sample": -1.0})
         assert "D0_ref" in issues
         assert "D0_sample" in issues
 

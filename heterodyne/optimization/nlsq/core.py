@@ -121,7 +121,12 @@ def fit_nlsq_jax(
     # ------------------------------------------------------------------
     if not _skip_global_selection:
         global_result = _try_global_optimization(
-            model, c2_data, phi_angle, config, weights, use_nlsq_library,
+            model,
+            c2_data,
+            phi_angle,
+            config,
+            weights,
+            use_nlsq_library,
         )
         if global_result is not None:
             return global_result
@@ -186,6 +191,7 @@ def fit_nlsq_multi_phi(
                 FourierReparamConfig,
                 FourierReparameterizer,
             )
+
             fourier_config = FourierReparamConfig(
                 mode=config.per_angle_mode,
                 fourier_order=config.fourier_order,
@@ -203,7 +209,12 @@ def fit_nlsq_multi_phi(
 
     if use_joint:
         return _fit_joint_multi_phi(
-            model, c2_data, phi_angles, config, weights, fourier,
+            model,
+            c2_data,
+            phi_angles,
+            config,
+            weights,
+            fourier,
         )
 
     # ------------------------------------------------------------------
@@ -323,8 +334,13 @@ def _fit_joint_multi_phi(
         all_residuals = []
         for i in range(n_phi):
             residuals_i = compute_residuals(
-                full_jax, t, q, dt, float(phi_angles[i]),
-                c2_data_list[i], weights_list[i],
+                full_jax,
+                t,
+                q,
+                dt,
+                float(phi_angles[i]),
+                c2_data_list[i],
+                weights_list[i],
                 contrast=float(contrast_arr[i]),
                 offset=float(offset_arr[i]),
             )
@@ -402,7 +418,10 @@ def _fit_joint_multi_phi(
     for i in range(n_phi):
         # Compute fitted correlation for this angle
         fitted_c2 = compute_c2_heterodyne(
-            jnp.asarray(full_fitted), t, q, dt,
+            jnp.asarray(full_fitted),
+            t,
+            q,
+            dt,
             float(phi_angles[i]),
             contrast=float(fitted_contrast[i]),
             offset=float(fitted_offset[i]),
@@ -413,8 +432,13 @@ def _fit_joint_multi_phi(
             parameter_names=list(varying_names),
             residuals=np.asarray(
                 compute_residuals(
-                    jnp.asarray(full_fitted), t, q, dt, float(phi_angles[i]),
-                    c2_data_list[i], weights_list[i],
+                    jnp.asarray(full_fitted),
+                    t,
+                    q,
+                    dt,
+                    float(phi_angles[i]),
+                    c2_data_list[i],
+                    weights_list[i],
                     contrast=float(fitted_contrast[i]),
                     offset=float(fitted_offset[i]),
                 )
@@ -486,7 +510,12 @@ def _try_global_optimization(
         if HAS_MULTISTART:
             logger.info("Multi-start enabled, delegating to multi-start optimizer")
             return _fit_multistart(
-                model, c2_data, phi_angle, config, weights, use_nlsq_library,
+                model,
+                c2_data,
+                phi_angle,
+                config,
+                weights,
+                use_nlsq_library,
             )
         logger.warning(
             "Multi-start enabled in config but multistart module not available. "
@@ -524,7 +553,9 @@ def _fit_cmaes(
     initial_varying = np.clip(initial_varying, lower_bounds, upper_bounds)
 
     c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
-    weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+    weights_jax = (
+        jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+    )
     t, q, dt = model.t, model.q, model.dt
     n_data = c2_jax.size
 
@@ -533,9 +564,15 @@ def _fit_cmaes(
         for i, idx in enumerate(param_manager.varying_indices):
             full_params[idx] = varying_params[i]
         residuals = compute_residuals(
-            jnp.asarray(full_params), t, q, dt, phi_angle, c2_jax, weights_jax,
+            jnp.asarray(full_params),
+            t,
+            q,
+            dt,
+            phi_angle,
+            c2_jax,
+            weights_jax,
         )
-        return float(0.5 * jnp.sum(residuals ** 2))
+        return float(0.5 * jnp.sum(residuals**2))
 
     residual_fn = _make_numpy_residual_fn(model, c2_data, phi_angle, weights)
 
@@ -548,7 +585,11 @@ def _fit_cmaes(
     try:
         logger.info("CMA-ES Phase 1: NLSQ warm-start refinement")
         nlsq_result = _fit_local(
-            model, c2_data, phi_angle, config, weights,
+            model,
+            c2_data,
+            phi_angle,
+            config,
+            weights,
             use_nlsq_library=config.use_nlsq_library,
         )
         if nlsq_result.success:
@@ -564,7 +605,11 @@ def _fit_cmaes(
                 nlsq_result.message,
             )
     except (ValueError, RuntimeError, ImportError) as e:
-        logger.warning("NLSQ warm-start raised %s: %s — proceeding with raw p0", type(e).__name__, e)
+        logger.warning(
+            "NLSQ warm-start raised %s: %s — proceeding with raw p0",
+            type(e).__name__,
+            e,
+        )
 
     # Ensure model parameters are reset for CMA-ES (NLSQ may have modified them)
     model.set_params(param_manager.expand_varying_to_full(initial_varying))
@@ -597,20 +642,32 @@ def _fit_cmaes(
     # ------------------------------------------------------------------
     # Phase 3 (Fix #7): Compare NLSQ vs CMA-ES, keep the better result
     # ------------------------------------------------------------------
-    nlsq_cost = float(nlsq_result.final_cost) if (nlsq_result and nlsq_result.success and nlsq_result.final_cost is not None) else float("inf")
-    cmaes_cost = float(cmaes_result.final_cost) if (cmaes_result.success and cmaes_result.final_cost is not None) else float("inf")
+    nlsq_cost = (
+        float(nlsq_result.final_cost)
+        if (nlsq_result and nlsq_result.success and nlsq_result.final_cost is not None)
+        else float("inf")
+    )
+    cmaes_cost = (
+        float(cmaes_result.final_cost)
+        if (cmaes_result.success and cmaes_result.final_cost is not None)
+        else float("inf")
+    )
 
     if nlsq_cost <= cmaes_cost and nlsq_result is not None and nlsq_result.success:
         result = nlsq_result
         winner = "nlsq"
         logger.info(
-            "Phase 3: NLSQ wins (cost=%.6e vs CMA-ES=%.6e)", nlsq_cost, cmaes_cost,
+            "Phase 3: NLSQ wins (cost=%.6e vs CMA-ES=%.6e)",
+            nlsq_cost,
+            cmaes_cost,
         )
     else:
         result = cmaes_result
         winner = "cmaes"
         logger.info(
-            "Phase 3: CMA-ES wins (cost=%.6e vs NLSQ=%.6e)", cmaes_cost, nlsq_cost,
+            "Phase 3: CMA-ES wins (cost=%.6e vs NLSQ=%.6e)",
+            cmaes_cost,
+            nlsq_cost,
         )
 
     # ------------------------------------------------------------------
@@ -651,7 +708,10 @@ def _fit_multistart(
 
     # Build residual function
     residual_fn = _make_numpy_residual_fn(
-        model, c2_data, phi_angle, weights,
+        model,
+        c2_data,
+        phi_angle,
+        weights,
     )
 
     # Select adapter
@@ -676,7 +736,11 @@ def _fit_multistart(
     if result.success:
         full_fitted = param_manager.expand_varying_to_full(result.parameters)
         fitted_c2 = compute_c2_heterodyne(
-            jnp.asarray(full_fitted), model.t, model.q, model.dt, phi_angle,
+            jnp.asarray(full_fitted),
+            model.t,
+            model.q,
+            model.dt,
+            phi_angle,
         )
         result.fitted_correlation = np.asarray(fitted_c2)
         model.set_params(full_fitted)
@@ -726,7 +790,9 @@ def _fit_local(
 
     # Convert data to JAX arrays
     c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
-    weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+    weights_jax = (
+        jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+    )
 
     if weights_jax is not None and weights_jax.shape != c2_jax.shape:
         raise ValueError(
@@ -745,7 +811,13 @@ def _fit_local(
         varying_array = jnp.array(varying_params, dtype=jnp.float64)
         full_params = fixed_values.at[varying_indices].set(varying_array)
         return compute_residuals(
-            full_params, t, q, dt, phi_angle, c2_jax, weights_jax,
+            full_params,
+            t,
+            q,
+            dt,
+            phi_angle,
+            c2_jax,
+            weights_jax,
         )
 
     numpy_residual_fn = _make_numpy_residual_fn(model, c2_data, phi_angle, weights)
@@ -825,7 +897,11 @@ def _fit_local(
     if result.success:
         full_fitted = param_manager.expand_varying_to_full(result.parameters)
         fitted_c2 = compute_c2_heterodyne(
-            jnp.asarray(full_fitted), t, q, dt, phi_angle,
+            jnp.asarray(full_fitted),
+            t,
+            q,
+            dt,
+            phi_angle,
         )
         result.fitted_correlation = np.asarray(fitted_c2)
         model.set_params(full_fitted)
@@ -852,7 +928,9 @@ def _make_numpy_residual_fn(
     """
     param_manager = model.param_manager
     c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
-    weights_jax = jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+    weights_jax = (
+        jnp.asarray(weights, dtype=jnp.float64) if weights is not None else None
+    )
     t, q, dt = model.t, model.q, model.dt
 
     def residual_fn(varying_params: np.ndarray) -> np.ndarray:
@@ -860,7 +938,13 @@ def _make_numpy_residual_fn(
         for i, idx in enumerate(param_manager.varying_indices):
             full_params[idx] = varying_params[i]
         residuals = compute_residuals(
-            jnp.asarray(full_params), t, q, dt, phi_angle, c2_jax, weights_jax,
+            jnp.asarray(full_params),
+            t,
+            q,
+            dt,
+            phi_angle,
+            c2_jax,
+            weights_jax,
         )
         return np.asarray(residuals)
 

@@ -432,7 +432,9 @@ def _compute_lpt_schedule(
         c2 = shard_data_list[i].get("c2_data")
         sizes.append(len(c2) if c2 is not None else 1)
 
-    noises = [float(shard_data_list[i].get("noise_scale", 0.1)) for i in range(n_shards)]
+    noises = [
+        float(shard_data_list[i].get("noise_scale", 0.1)) for i in range(n_shards)
+    ]
 
     max_noise = max(noises) if noises else 1.0
     min_noise = min(noises) if noises else 0.0
@@ -588,12 +590,9 @@ def _init_worker_jax(threads_per_worker: int, num_chains: int) -> None:
     # Set XLA virtual device count to num_chains so parallel chain_method
     # works correctly even without a GPU.
     _xla_flags = os.environ.get("XLA_FLAGS", "")
-    _xla_flags = _re.sub(
-        r"--xla_force_host_platform_device_count=\d+", "", _xla_flags
-    )
+    _xla_flags = _re.sub(r"--xla_force_host_platform_device_count=\d+", "", _xla_flags)
     os.environ["XLA_FLAGS"] = (
-        _xla_flags.strip()
-        + f" --xla_force_host_platform_device_count={num_chains}"
+        _xla_flags.strip() + f" --xla_force_host_platform_device_count={num_chains}"
     )
 
     import jax
@@ -709,9 +708,7 @@ def _run_shard_worker(
         # Convert shard arrays to JAX
         c2_jax = jnp.asarray(shard_data["c2_data"])
         t_raw = shard_data.get("t")
-        t_jax: jnp.ndarray | None = (
-            jnp.asarray(t_raw) if t_raw is not None else None
-        )
+        t_jax: jnp.ndarray | None = jnp.asarray(t_raw) if t_raw is not None else None
 
         sigma_raw = shard_data.get("sigma")
         if sigma_raw is not None:
@@ -833,9 +830,7 @@ def _run_shard_worker(
         }
 
         extra_raw: dict[str, Any] = mcmc.get_extra_fields()
-        extra_np: dict[str, np.ndarray] = {
-            k: np.array(v) for k, v in extra_raw.items()
-        }
+        extra_np: dict[str, np.ndarray] = {k: np.array(v) for k, v in extra_raw.items()}
 
         diverging = extra_np.get("diverging")
         num_divergent = int(np.sum(diverging)) if diverging is not None else 0
@@ -846,9 +841,7 @@ def _run_shard_worker(
         del c2_jax, sigma_jax, t_jax, extra_raw, samples_raw
         mcmc = None  # type: ignore[assignment]
 
-        divergence_str = (
-            f", divergences: {num_divergent}" if num_divergent > 0 else ""
-        )
+        divergence_str = f", divergences: {num_divergent}" if num_divergent > 0 else ""
         worker_logger.info(
             "Shard %d completed in %.2fs: %d samples/chain x %d chains%s",
             shard_idx,
@@ -1258,9 +1251,7 @@ class MultiprocessingBackend(CMCBackend):
 
         devices = jax.devices("cpu")
         if not devices:
-            raise RuntimeError(
-                "MultiprocessingBackend: no JAX CPU devices found."
-            )
+            raise RuntimeError("MultiprocessingBackend: no JAX CPU devices found.")
 
         try:
             mp.get_context(self.spawn_method)
@@ -1271,8 +1262,7 @@ class MultiprocessingBackend(CMCBackend):
             ) from exc
 
         logger.debug(
-            "MultiprocessingBackend.validate_resources: %d CPU device(s), "
-            "n_workers=%d",
+            "MultiprocessingBackend.validate_resources: %d CPU device(s), n_workers=%d",
             len(devices),
             self.n_workers,
         )
@@ -1370,9 +1360,7 @@ class MultiprocessingBackend(CMCBackend):
         n_shards = len(shards)
         actual_workers = min(self.n_workers, n_shards)
         total_threads = mp.cpu_count() or 1
-        threads_per_worker = _compute_threads_per_worker(
-            total_threads, actual_workers
-        )
+        threads_per_worker = _compute_threads_per_worker(total_threads, actual_workers)
 
         run_logger = with_context(
             logger,
@@ -1431,9 +1419,7 @@ class MultiprocessingBackend(CMCBackend):
                         else None
                     ),
                     "t": (
-                        np.asarray(shard["t"])
-                        if shard.get("t") is not None
-                        else None
+                        np.asarray(shard["t"]) if shard.get("t") is not None else None
                     ),
                     "weights": (
                         np.asarray(shard["weights"])
@@ -1450,17 +1436,13 @@ class MultiprocessingBackend(CMCBackend):
         try:
             shared_config_ref = shared_mgr.create_shared_dict("config", config_dict)
             shared_ps_ref = shared_mgr.create_shared_dict("ps", ps_dict)
-            shared_kwargs_ref = shared_mgr.create_shared_dict(
-                "kwargs", shared_kwargs
-            )
+            shared_kwargs_ref = shared_mgr.create_shared_dict("kwargs", shared_kwargs)
             shared_iv_ref: dict[str, Any] | None = None
             if initial_values is not None:
                 shared_iv_ref = shared_mgr.create_shared_dict(
                     "init_vals", initial_values
                 )
-            shared_shard_refs = shared_mgr.create_shared_shard_arrays(
-                shard_data_list
-            )
+            shared_shard_refs = shared_mgr.create_shared_shard_arrays(shard_data_list)
         except Exception:
             shared_mgr.cleanup()
             self._shared_mgr = None
@@ -1483,9 +1465,7 @@ class MultiprocessingBackend(CMCBackend):
             # Pre-generate PRNG keys in parent (batch optimisation)
             seed = config.seed if config.seed is not None else 42
             shard_keys = _generate_shard_keys(n_shards, seed=seed)
-            run_logger.debug(
-                "Pre-generated %d PRNG keys (seed=%d)", n_shards, seed
-            )
+            run_logger.debug("Pre-generated %d PRNG keys (seed=%d)", n_shards, seed)
 
             ctx = mp.get_context(self.spawn_method)
             result_queue: mp.Queue = ctx.Queue()
@@ -1641,9 +1621,7 @@ class MultiprocessingBackend(CMCBackend):
                                     failure_categories,
                                 )
                                 pending_shards.clear()
-                                for _idx, (_proc, _) in list(
-                                    active_processes.items()
-                                ):
+                                for _idx, (_proc, _) in list(active_processes.items()):
                                     run_logger.info(
                                         "Terminating shard %d (early abort)",
                                         _idx,
@@ -1669,10 +1647,7 @@ class MultiprocessingBackend(CMCBackend):
                 # -------------------------------------------------- #
                 # Launch new processes up to capacity
                 # -------------------------------------------------- #
-                while (
-                    len(active_processes) < actual_workers
-                    and pending_shards
-                ):
+                while len(active_processes) < actual_workers and pending_shards:
                     next_shard_idx = pending_shards.popleft()
 
                     process = ctx.Process(
@@ -1698,9 +1673,7 @@ class MultiprocessingBackend(CMCBackend):
                 # -------------------------------------------------- #
                 # Check process health (timeout / heartbeat / crash)
                 # -------------------------------------------------- #
-                for _idx, (_process, _proc_start) in list(
-                    active_processes.items()
-                ):
+                for _idx, (_process, _proc_start) in list(active_processes.items()):
                     if _idx in recorded_shards:
                         del active_processes[_idx]
                         continue
@@ -1862,9 +1835,7 @@ class MultiprocessingBackend(CMCBackend):
                     # Adaptive poll: grow interval during slow periods
                     _since_completion = time.time() - last_completion_time
                     if _since_completion > 30.0:
-                        poll_interval = min(
-                            poll_interval * 1.1, poll_interval_max
-                        )
+                        poll_interval = min(poll_interval * 1.1, poll_interval_max)
 
                     time.sleep(poll_interval)
 
@@ -1893,9 +1864,7 @@ class MultiprocessingBackend(CMCBackend):
         except KeyboardInterrupt:
             run_logger.warning("Interrupted — terminating all active processes")
             for _idx, (_process, _) in active_processes.items():
-                run_logger.debug(
-                    "Terminating shard %d (pid=%s)", _idx, _process.pid
-                )
+                run_logger.debug("Terminating shard %d (pid=%s)", _idx, _process.pid)
                 _process.terminate()
                 _process.join(timeout=2)
             raise
@@ -1905,9 +1874,7 @@ class MultiprocessingBackend(CMCBackend):
                 pbar.close()
             for _idx, (_process, _) in list(active_processes.items()):
                 if _process.is_alive():
-                    run_logger.warning(
-                        "Cleaning up orphan process for shard %d", _idx
-                    )
+                    run_logger.warning("Cleaning up orphan process for shard %d", _idx)
                     _process.terminate()
                     _process.join(timeout=2)
 
@@ -1972,9 +1939,7 @@ class MultiprocessingBackend(CMCBackend):
                         else None
                     ),
                     "t": (
-                        np.asarray(shard["t"])
-                        if shard.get("t") is not None
-                        else None
+                        np.asarray(shard["t"]) if shard.get("t") is not None else None
                     ),
                     "weights": (
                         np.asarray(shard["weights"])
@@ -2102,9 +2067,7 @@ class MultiprocessingBackend(CMCBackend):
             )
 
         valid_durations = [
-            res["duration"]
-            for res in successful
-            if res.get("duration") is not None
+            res["duration"] for res in successful if res.get("duration") is not None
         ]
         if valid_durations:
             _sorted = sorted(valid_durations)

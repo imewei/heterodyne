@@ -128,9 +128,7 @@ def prepare_cmc_data(
         logger.info("1-D correlation data: length=%d", c2_np.shape[0])
     elif c2_np.ndim == 2:
         if c2_np.shape[0] != c2_np.shape[1]:
-            raise ValueError(
-                f"c2_data must be square, got shape {c2_np.shape}"
-            )
+            raise ValueError(f"c2_data must be square, got shape {c2_np.shape}")
         logger.info("2-D correlation matrix: shape=%s", c2_np.shape)
     else:
         raise ValueError(
@@ -141,8 +139,7 @@ def prepare_cmc_data(
     nan_count = int(np.sum(np.isnan(c2_np)))
     if nan_count > 0:
         raise ValueError(
-            f"c2_data contains {nan_count} NaN values; "
-            "clean data before CMC analysis"
+            f"c2_data contains {nan_count} NaN values; clean data before CMC analysis"
         )
 
     # --- Dtype conversion (ensure float64 for numerical stability) ---
@@ -215,9 +212,7 @@ def create_shard_grid(
     if n_shards < 1:
         raise ValueError(f"n_shards must be >= 1, got {n_shards}")
     if n_shards > n_times:
-        raise ValueError(
-            f"n_shards ({n_shards}) exceeds n_times ({n_times})"
-        )
+        raise ValueError(f"n_shards ({n_shards}) exceeds n_times ({n_times})")
 
     # Use numpy's array_split logic for balanced partitioning
     boundaries = np.linspace(0, n_times, n_shards + 1, dtype=int)
@@ -261,9 +256,7 @@ def shard_correlation_data(
     """
     c2_np = np.asarray(c2_data)
     if c2_np.ndim != 2:
-        raise ValueError(
-            f"c2_data must be 2-D for sharding, got shape {c2_np.shape}"
-        )
+        raise ValueError(f"c2_data must be 2-D for sharding, got shape {c2_np.shape}")
 
     n = c2_np.shape[0]
     shards: list[jnp.ndarray] = []
@@ -271,8 +264,7 @@ def shard_correlation_data(
     for start, stop in shard_grid:
         if start < 0 or stop > n:
             raise ValueError(
-                f"Shard indices ({start}, {stop}) out of bounds for "
-                f"matrix size {n}"
+                f"Shard indices ({start}, {stop}) out of bounds for matrix size {n}"
             )
         block = c2_np[start:stop, start:stop]
         shards.append(jnp.asarray(block))
@@ -316,8 +308,7 @@ def merge_shard_results(
             missing = reference_keys - shard_keys
             extra = shard_keys - reference_keys
             raise ValueError(
-                f"Shard {i} has mismatched keys: "
-                f"missing={missing}, extra={extra}"
+                f"Shard {i} has mismatched keys: missing={missing}, extra={extra}"
             )
 
     merged: dict[str, np.ndarray] = {}
@@ -390,9 +381,7 @@ def prepare_data(
     """
     cfg = config or {}
     normalize_weights: bool = bool(cfg.get("normalize_weights", True))
-    require_positive_diagonal: bool = bool(
-        cfg.get("require_positive_diagonal", True)
-    )
+    require_positive_diagonal: bool = bool(cfg.get("require_positive_diagonal", True))
 
     # --- Required keys ---
     for key in ("c2_data", "phi_angles", "time_array", "q", "dt"):
@@ -414,9 +403,7 @@ def prepare_data(
         )
     n_phi, n_t1, n_t2 = c2_raw.shape
     if n_t1 != n_t2:
-        raise ValueError(
-            f"c2_data time dimensions must be equal, got ({n_t1}, {n_t2})"
-        )
+        raise ValueError(f"c2_data time dimensions must be equal, got ({n_t1}, {n_t2})")
 
     if phi_raw.ndim != 1:
         raise ValueError(f"phi_angles must be 1-D, got shape {phi_raw.shape}")
@@ -472,8 +459,11 @@ def prepare_data(
         # Convert mask to weight=0 / weight=1
         weights_raw = (~mask).astype(np.float64)
         n_masked = int(np.sum(mask))
-        logger.info("Applied mask: %d elements excluded (%.1f%%)",
-                    n_masked, 100.0 * n_masked / mask.size)
+        logger.info(
+            "Applied mask: %d elements excluded (%.1f%%)",
+            n_masked,
+            100.0 * n_masked / mask.size,
+        )
 
     if "weights" in raw_data and raw_data["weights"] is not None:
         w = np.asarray(raw_data["weights"], dtype=np.float64)
@@ -503,7 +493,14 @@ def prepare_data(
     logger.info(
         "prepare_data: shape=(%d, %d, %d), n_angles=%d, n_times=%d, "
         "q=%.4f, dt=%.6f, noise_scale=%.4f",
-        n_phi, n_t1, n_t2, n_angles, n_t1, q, dt, noise_scale,
+        n_phi,
+        n_t1,
+        n_t2,
+        n_angles,
+        n_t1,
+        q,
+        dt,
+        noise_scale,
     )
 
     return PreparedData(
@@ -617,7 +614,9 @@ def _contiguous_split(
         shards.append(_build_shard(data, indices))
     logger.info(
         "Contiguous split: %d points -> %d shards (~%d points each)",
-        n, n_shards, n // n_shards,
+        n,
+        n_shards,
+        n // n_shards,
     )
     return shards
 
@@ -757,7 +756,10 @@ def _angle_balanced_split(
     logger.info(
         "Angle-balanced split: %d points -> %d shards; "
         "angle coverage: min=%.0f%%, mean=%.0f%%",
-        len(data.c2_data), len(shards), 100 * min_cov, 100 * mean_cov,
+        len(data.c2_data),
+        len(shards),
+        100 * min_cov,
+        100 * mean_cov,
     )
     return shards
 
@@ -792,7 +794,10 @@ def _random_split(
 
     logger.info(
         "Random split (seed=%d): %d points -> %d shards (~%d points each)",
-        seed, n, n_shards, n // n_shards,
+        seed,
+        n,
+        n_shards,
+        n // n_shards,
     )
     return shards
 
@@ -833,22 +838,17 @@ def validate_shard_data(shard: PreparedData) -> None:
 
     if shard.weights is not None and shard.weights.shape[0] != n:
         raise ValueError(
-            f"weights length {shard.weights.shape[0]} "
-            f"does not match c2_data length {n}"
+            f"weights length {shard.weights.shape[0]} does not match c2_data length {n}"
         )
 
     nan_count = int(np.sum(~np.isfinite(shard.c2_data)))
     if nan_count > 0:
-        raise ValueError(
-            f"Shard c2_data contains {nan_count} non-finite values"
-        )
+        raise ValueError(f"Shard c2_data contains {nan_count} non-finite values")
 
     if shard.weights is not None:
         nan_w = int(np.sum(~np.isfinite(shard.weights)))
         if nan_w > 0:
-            raise ValueError(
-                f"Shard weights contain {nan_w} non-finite values"
-            )
+            raise ValueError(f"Shard weights contain {nan_w} non-finite values")
         if np.any(shard.weights < 0):
             raise ValueError("Shard weights contain negative values")
 
@@ -869,7 +869,9 @@ def validate_shard_data(shard: PreparedData) -> None:
 
     logger.debug(
         "Shard validation passed: n=%d, n_angles=%d, n_times=%d",
-        n, shard.n_angles, shard.n_times,
+        n,
+        shard.n_angles,
+        shard.n_times,
     )
 
 
@@ -898,6 +900,8 @@ def estimate_shard_memory(shard: PreparedData) -> int:
     estimated = total * overhead_factor
     logger.debug(
         "Shard memory estimate: raw=%d B, estimated=%d B (factor=%d)",
-        total, estimated, overhead_factor,
+        total,
+        estimated,
+        overhead_factor,
     )
     return estimated

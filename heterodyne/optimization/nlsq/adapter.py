@@ -352,7 +352,9 @@ class NLSQAdapter(NLSQAdapterBase):
         initial_params = np.clip(initial_params, lower_bounds, upper_bounds)
         n_params = len(initial_params)
 
-        logger.info("NLSQAdapter.fit_jax: %d parameters, %d data points", n_params, n_data)
+        logger.info(
+            "NLSQAdapter.fit_jax: %d parameters, %d data points", n_params, n_data
+        )
 
         try:
             xdata = np.arange(n_data, dtype=np.float64)
@@ -397,9 +399,7 @@ class NLSQAdapter(NLSQAdapterBase):
             final_residuals = np.asarray(final_residuals_jax)
             final_cost = 0.5 * float(np.sum(final_residuals**2))
             n_dof = n_data - n_params
-            reduced_chi2: float | None = (
-                2.0 * final_cost / n_dof if n_dof > 0 else None
-            )
+            reduced_chi2: float | None = 2.0 * final_cost / n_dof if n_dof > 0 else None
 
             success, message, reason = _assess_convergence(
                 fitted_params=base.parameters,
@@ -567,7 +567,9 @@ class NLSQWrapper(NLSQAdapterBase):
             if result is not None:
                 return result
             # Result is None → this tier exhausted all retries; try next
-            last_exc = RuntimeError(f"Tier {tier.value} failed after {self._max_retries} retries")
+            last_exc = RuntimeError(
+                f"Tier {tier.value} failed after {self._max_retries} retries"
+            )
             if not self._enable_recovery:
                 break
 

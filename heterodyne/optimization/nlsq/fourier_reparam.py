@@ -220,7 +220,7 @@ class FourierReparameterizer:
 
         col = 1
         for k in range(1, order + 1):
-            B[:, col] = np.cos(k * self.phi_angles)      # ck term
+            B[:, col] = np.cos(k * self.phi_angles)  # ck term
             B[:, col + 1] = np.sin(k * self.phi_angles)  # sk term
             col += 2
 
@@ -241,7 +241,8 @@ class FourierReparameterizer:
         return self.config.fourier_order
 
     def fourier_to_per_angle(
-        self, fourier_coeffs: np.ndarray,
+        self,
+        fourier_coeffs: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Convert Fourier coefficients to per-angle contrast/offset.
 
@@ -282,7 +283,9 @@ class FourierReparameterizer:
         return contrast, offset
 
     def per_angle_to_fourier(
-        self, contrast: np.ndarray, offset: np.ndarray,
+        self,
+        contrast: np.ndarray,
+        offset: np.ndarray,
     ) -> np.ndarray:
         """Convert per-angle values to Fourier coefficients.
 
@@ -303,19 +306,21 @@ class FourierReparameterizer:
                 f"Expected {self.n_phi} contrast values, got {len(contrast)}"
             )
         if len(offset) != self.n_phi:
-            raise ValueError(
-                f"Expected {self.n_phi} offset values, got {len(offset)}"
-            )
+            raise ValueError(f"Expected {self.n_phi} offset values, got {len(offset)}")
 
         if not self.use_fourier:
             return np.concatenate([contrast, offset])
 
         # Least squares: B @ coeffs = values
         contrast_coeffs, residuals_c, _, _ = np.linalg.lstsq(
-            self._basis_matrix, contrast, rcond=float(self._rcond),
+            self._basis_matrix,
+            contrast,
+            rcond=float(self._rcond),
         )
         offset_coeffs, residuals_o, _, _ = np.linalg.lstsq(
-            self._basis_matrix, offset, rcond=float(self._rcond),
+            self._basis_matrix,
+            offset,
+            rcond=float(self._rcond),
         )
 
         if len(residuals_c) > 0 and residuals_c[0] > 0.01:
@@ -388,7 +393,9 @@ class FourierReparameterizer:
         return lower, upper
 
     def get_initial_coefficients(
-        self, contrast_init: float | np.ndarray, offset_init: float | np.ndarray,
+        self,
+        contrast_init: float | np.ndarray,
+        offset_init: float | np.ndarray,
     ) -> np.ndarray:
         """Get initial Fourier coefficients from initial values.
 
@@ -455,7 +462,9 @@ class FourierReparameterizer:
             return per_angle_values.copy()
 
         coeffs, _, _, _ = np.linalg.lstsq(
-            self._basis_matrix, per_angle_values, rcond=self._rcond,
+            self._basis_matrix,
+            per_angle_values,
+            rcond=self._rcond,
         )
         return coeffs
 
@@ -488,9 +497,7 @@ class FourierReparameterizer:
             "n_phi": self.n_phi,
             "n_coeffs": self.n_coeffs,
             "n_coeffs_per_param": self.n_coeffs_per_param,
-            "fourier_order": (
-                self.config.fourier_order if self.use_fourier else None
-            ),
+            "fourier_order": (self.config.fourier_order if self.use_fourier else None),
             "reduction_ratio": (
                 self.n_coeffs / (2 * self.n_phi) if self.use_fourier else 1.0
             ),

@@ -337,7 +337,6 @@ class TestFitNLSQMultiPhi:
 
         assert len(results) == 2
 
-
     @pytest.mark.integration
     @pytest.mark.requires_jax
     def test_fit_nlsq_multi_phi_fourier_joint_fit(
@@ -463,6 +462,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         phi = np.linspace(0, 2 * np.pi, 20, endpoint=False)
         config = FourierReparamConfig(mode="fourier", fourier_order=2)
         fourier = FourierReparameterizer(phi, config)
@@ -489,6 +489,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         phi = np.linspace(0, np.pi, 5)
         config = FourierReparamConfig(mode="independent")
         fourier = FourierReparameterizer(phi, config)
@@ -510,6 +511,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         config = FourierReparamConfig(mode="auto", auto_threshold=6)
 
         # Below threshold: independent
@@ -528,6 +530,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         phi = np.linspace(0, 2 * np.pi, 12)
         config = FourierReparamConfig(mode="fourier", fourier_order=2)
         fourier = FourierReparameterizer(phi, config)
@@ -549,6 +552,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         phi = np.linspace(0, 2 * np.pi, 10, endpoint=False)
         config = FourierReparamConfig(mode="fourier", fourier_order=2)
         fourier = FourierReparameterizer(phi, config)
@@ -566,6 +570,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         phi = np.linspace(0, 2 * np.pi, 10)
         config = FourierReparamConfig(mode="fourier", fourier_order=2)
         fourier = FourierReparameterizer(phi, config)
@@ -583,6 +588,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         phi = np.linspace(0, 2 * np.pi, 8, endpoint=False)
         config = FourierReparamConfig(mode="fourier", fourier_order=1)
         fourier = FourierReparameterizer(phi, config)
@@ -597,6 +603,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         phi = np.linspace(0, 2 * np.pi, 20)
         config = FourierReparamConfig(mode="fourier", fourier_order=2)
         fourier = FourierReparameterizer(phi, config)
@@ -613,6 +620,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         phi = np.array([0.0, 1.0, 2.0])  # 3 angles < 5 (min for order=2)
         config = FourierReparamConfig(mode="fourier", fourier_order=2)
         fourier = FourierReparameterizer(phi, config)
@@ -624,6 +632,7 @@ class TestFourierReparameterizer:
             FourierReparamConfig,
             FourierReparameterizer,
         )
+
         phi = np.linspace(0, 2 * np.pi, 15, endpoint=False)
         config = FourierReparamConfig(mode="fourier", fourier_order=2)
         fourier = FourierReparameterizer(phi, config)
@@ -637,11 +646,13 @@ class TestFourierReparameterizer:
         """FourierReparamConfig.from_dict creates correct config."""
         from heterodyne.optimization.nlsq.fourier_reparam import FourierReparamConfig
 
-        config = FourierReparamConfig.from_dict({
-            "per_angle_mode": "fourier",
-            "fourier_order": 3,
-            "fourier_auto_threshold": 10,
-        })
+        config = FourierReparamConfig.from_dict(
+            {
+                "per_angle_mode": "fourier",
+                "fourier_order": 3,
+                "fourier_auto_threshold": 10,
+            }
+        )
         assert config.mode == "fourier"
         assert config.fourier_order == 3
         assert config.auto_threshold == 10

@@ -17,7 +17,6 @@ from heterodyne.optimization.nlsq.anti_degeneracy_controller import (
     suggest_regularization,
 )
 
-
 # ---------------------------------------------------------------------------
 # GradientCollapseDetector
 # ---------------------------------------------------------------------------
@@ -50,7 +49,7 @@ class TestGradientCollapseDetector:
         detector = GradientCollapseDetector(threshold=1e-8, window=window)
         near_zero_jac = np.ones((2, 2)) * 1e-12
         # window - 1 calls should not yet trigger
-        for i in range(window - 1):
+        for _ in range(window - 1):
             result = detector.update(near_zero_jac)
         assert result is False
         # The final call completes the window

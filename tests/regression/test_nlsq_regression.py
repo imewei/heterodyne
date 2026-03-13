@@ -20,7 +20,6 @@ from heterodyne.optimization.nlsq.jacobian import (
 )
 from heterodyne.optimization.nlsq.multistart import generate_lhs_starts
 
-
 # ---------------------------------------------------------------------------
 # compute_numerical_jacobian
 # ---------------------------------------------------------------------------
@@ -71,7 +70,7 @@ class TestJacobianDeterministic:
     def test_custom_step_sizes(self) -> None:
         # Verifies that explicit step_sizes parameter is accepted
         def f(x: np.ndarray) -> np.ndarray:
-            return x ** 2
+            return x**2
 
         x0 = np.array([2.0, 4.0])
         steps = np.array([1e-6, 1e-6])

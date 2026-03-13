@@ -153,8 +153,7 @@ def compute_per_parameter_sensitivity(
     """
     col_norms = np.linalg.norm(jacobian, axis=0)
     return {
-        name: float(norm)
-        for name, norm in zip(param_names, col_norms, strict=True)
+        name: float(norm) for name, norm in zip(param_names, col_norms, strict=True)
     }
 
 
@@ -180,10 +179,7 @@ def suggest_step_sizes(
     # Inverse-norm heuristic, clipped for safety
     raw_steps = 1.0 / np.maximum(col_norms, 1e-15)
     clipped = np.clip(raw_steps, 1e-12, 1e-2)
-    return {
-        name: float(step)
-        for name, step in zip(param_names, clipped, strict=True)
-    }
+    return {name: float(step) for name, step in zip(param_names, clipped, strict=True)}
 
 
 # ---------------------------------------------------------------------------
@@ -213,10 +209,7 @@ def compute_gradient_norms(
     """
     grad_fn = jax.grad(lambda p: jnp.sum(residual_fn(p) ** 2))
     grads = grad_fn(param_array)
-    return {
-        name: float(jnp.abs(g))
-        for name, g in zip(param_names, grads, strict=True)
-    }
+    return {name: float(jnp.abs(g)) for name, g in zip(param_names, grads, strict=True)}
 
 
 def compute_optimal_x_scale(
@@ -270,12 +263,16 @@ def compute_optimal_x_scale(
         if ratio > 10.0:
             logger.info(
                 "Parameter %s gradient %.3e is %.1fx above baseline",
-                name, norm, ratio,
+                name,
+                norm,
+                ratio,
             )
         elif ratio < 0.1:
             logger.info(
                 "Parameter %s gradient %.3e is %.1fx below baseline",
-                name, norm, 1.0 / ratio,
+                name,
+                norm,
+                1.0 / ratio,
             )
 
     return scales
@@ -317,7 +314,8 @@ def diagnose_gradient_imbalance(
     if imbalanced:
         logger.warning(
             "Gradient imbalance detected: max/min ratio = %.1f (threshold %.1f)",
-            max_ratio, threshold,
+            max_ratio,
+            threshold,
         )
         recommendations = compute_optimal_x_scale(gradient_norms)
 

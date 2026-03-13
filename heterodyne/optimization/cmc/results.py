@@ -138,9 +138,7 @@ class CMCResult:
         if self.bfmi is not None:
             low_bfmi = [b for b in self.bfmi if b < min_bfmi]
             if low_bfmi:
-                warnings.append(
-                    f"Low BFMI: {min(low_bfmi):.3f} < {min_bfmi}"
-                )
+                warnings.append(f"Low BFMI: {min(low_bfmi):.3f} < {min_bfmi}")
 
         return warnings
 
@@ -167,7 +165,9 @@ class CMCResult:
             r_hat_str = f"{r_hat:.3f}" if not np.isnan(r_hat) else "N/A"
             ess_str = f"{ess:.0f}" if not np.isnan(ess) else "N/A"
 
-            lines.append(f"{name:18s} {mean:12.4e} {std:10.2e} {r_hat_str:>8s} {ess_str:>8s}")
+            lines.append(
+                f"{name:18s} {mean:12.4e} {std:10.2e} {r_hat_str:>8s} {ess_str:>8s}"
+            )
 
         lines.append("-" * 60)
 
@@ -207,12 +207,13 @@ def cmc_result_to_arviz(result: CMCResult) -> Any:
         import arviz as az  # type: ignore[import-untyped]
     except ImportError:
         raise ImportError(
-            "ArviZ is required for cmc_result_to_arviz. "
-            "Install it with: uv add arviz"
+            "ArviZ is required for cmc_result_to_arviz. Install it with: uv add arviz"
         ) from None
 
     if not result.samples:
-        raise ValueError("CMCResult.samples is None or empty; cannot build InferenceData.")
+        raise ValueError(
+            "CMCResult.samples is None or empty; cannot build InferenceData."
+        )
 
     n_chains = max(result.num_chains, 1)
     posterior_dict: dict[str, np.ndarray] = {}
@@ -371,7 +372,7 @@ def merge_shard_cmc_results(
         std = np.asarray(sr.posterior_std, dtype=np.float64)
         # Guard against zero std (degenerate shards)
         std = np.where(std > 0.0, std, np.finfo(np.float64).tiny)
-        precision = 1.0 / (std ** 2)
+        precision = 1.0 / (std**2)
         precision_sum += precision
         mean = np.asarray(sr.posterior_mean, dtype=np.float64)
         weighted_mean_sum += precision * mean
@@ -434,7 +435,9 @@ def merge_shard_cmc_results(
     total_chains = sum(sr.num_chains for sr in shard_results)
     max_warmup = max(sr.num_warmup for sr in shard_results)
     total_wall_time: float | None = None
-    wall_times = [sr.wall_time_seconds for sr in shard_results if sr.wall_time_seconds is not None]
+    wall_times = [
+        sr.wall_time_seconds for sr in shard_results if sr.wall_time_seconds is not None
+    ]
     if wall_times:
         total_wall_time = max(wall_times)  # Parallel shards: wall time = max shard
 
@@ -454,7 +457,10 @@ def merge_shard_cmc_results(
         num_samples=total_samples,
         num_chains=total_chains,
         wall_time_seconds=total_wall_time,
-        metadata={"n_shards": len(shard_results), "combination_method": "inverse_variance"},
+        metadata={
+            "n_shards": len(shard_results),
+            "combination_method": "inverse_variance",
+        },
     )
 
 

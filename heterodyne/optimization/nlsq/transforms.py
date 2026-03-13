@@ -190,8 +190,7 @@ def compress_to_varying(
         Array of varying parameter values
     """
     indices = [
-        i for i, name in enumerate(ALL_PARAM_NAMES)
-        if vary_flags.get(name, True)
+        i for i, name in enumerate(ALL_PARAM_NAMES) if vary_flags.get(name, True)
     ]
     return full_params[indices]
 
