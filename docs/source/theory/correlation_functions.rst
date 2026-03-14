@@ -6,8 +6,8 @@ Correlation Functions
 
 The heterodyne scattering framework defines a hierarchy of correlation
 functions that connect microscopic dynamics to the experimentally measured
-intensity correlations. These follow from PNAS 2024 Eqs. 1--3 and SI
-Eqs. S-1 through S-20.
+intensity correlations [BerneXPCS]_ [SuttonXPCS]_. These follow from
+PNAS 2024 Eqs. 1--3 and SI Eqs. S-1 through S-20.
 
 First-Order Two-Time Correlation
 --------------------------------
@@ -36,8 +36,8 @@ The second-order (intensity) correlation function is (PNAS 2024 Eq. 2):
    \frac{\langle I(q, t_1)\, I(q, t_2) \rangle}
         {\langle I(q, t_1) \rangle\, \langle I(q, t_2) \rangle}
 
-For Gaussian scattered fields, the Siegert relation connects the two
-orders:
+For Gaussian scattered fields, the Siegert relation [SiegertRelation]_
+connects the two orders:
 
 .. math::
 

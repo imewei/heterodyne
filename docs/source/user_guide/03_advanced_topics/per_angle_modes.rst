@@ -12,7 +12,7 @@ fits.
 
 
 Per-Angle Parameters
-====================
+--------------------
 
 For :math:`N_\phi` azimuthal angles the model has:
 
@@ -26,7 +26,7 @@ For a typical 8-angle dataset: :math:`14 + 16 = 30`.
 
 
 ScalingConfig and PerAngleScaling
-==================================
+----------------------------------
 
 The :class:`~heterodyne.core.scaling_utils.ScalingConfig` dataclass
 controls scaling behaviour:
@@ -66,7 +66,7 @@ flat optimiser vector and the per-angle representation.
 
 
 Fourier Reparameterisation
-===========================
+---------------------------
 
 When the per-angle contrast and offset vary smoothly with :math:`\phi`,
 they can be represented as truncated Fourier series:
@@ -107,7 +107,7 @@ Modes:
 
 
 Joint Multi-Angle Fitting
-==========================
+--------------------------
 
 The :func:`~heterodyne.optimization.nlsq.core.fit_nlsq_multi_phi`
 function performs a joint fit across all angles simultaneously.  When
@@ -138,7 +138,7 @@ contrast and offset values reconstructed from the Fourier coefficients.
 
 
 When to Use Fourier Mode
-=========================
+-------------------------
 
 * **Many angles (>= 6)** -- Fourier mode significantly reduces the
   parameter count and regularises the fit.

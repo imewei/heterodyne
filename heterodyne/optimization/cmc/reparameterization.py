@@ -5,10 +5,8 @@ Breaks banana-shaped posteriors for correlated power-law pairs
 D(t_ref) = D0 * t_ref^alpha is well-constrained by data.
 
 Adapted from homodyne/optimization/cmc/reparameterization.py for
-heterodyne's 3 power-law pairs:
-  - D0_ref / alpha_ref
-  - D0_sample / alpha_sample
-  - v0 / beta
+heterodyne's 3 power-law pairs --
+D0_ref/alpha_ref, D0_sample/alpha_sample, and v0/beta.
 """
 
 from __future__ import annotations

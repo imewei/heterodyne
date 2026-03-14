@@ -11,7 +11,7 @@ objects that can be further customised.
 
 
 NLSQ Plots
-===========
+-----------
 
 plot_nlsq_fit
 -------------
@@ -89,7 +89,7 @@ with the optimum marked.
 
 
 CMC Plots
-=========
+---------
 
 plot_trace
 ----------
@@ -173,7 +173,7 @@ Compares posterior means across CMC shards to detect bimodality.
 
 
 Diagnostic Dashboards
-=====================
+---------------------
 
 plot_convergence_diagnostics
 ----------------------------
@@ -202,7 +202,7 @@ summary, and shard comparison in a single multi-panel figure.
 
 
 Experimental Data Plots
-========================
+------------------------
 
 These functions visualise the raw or preprocessed data before fitting.
 
@@ -244,7 +244,7 @@ with azimuthal angle :math:`\phi`.
 
 
 ArviZ Integration
-=================
+-----------------
 
 For users who prefer ArviZ's built-in plotting, convert the CMC result
 to an ``InferenceData`` object:

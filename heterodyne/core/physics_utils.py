@@ -8,7 +8,7 @@ Shared utilities used by both the NLSQ meshgrid path and the CMC
 element-wise path:
 - ``trapezoid_cumsum``: O(dt²) cumulative integral
 - ``create_time_integral_matrix``: N×N from cumsum (NLSQ only)
-- ``smooth_abs``: gradient-safe |x| for NUTS
+- ``smooth_abs``: gradient-safe ``|x|`` for NUTS
 - ``compute_transport_rate``: J(t) = D0·t^α + offset
 - ``compute_velocity_rate``: v(t) = v0·t^β + v_offset
 """
@@ -127,7 +127,7 @@ def compute_relative_difference(
     a: jnp.ndarray | np.ndarray,
     b: jnp.ndarray | np.ndarray,
 ) -> jnp.ndarray:
-    """Compute element-wise relative difference |a - b| / max(|a|, |b|, 1e-10).
+    """Compute element-wise relative difference ``|a - b|`` / max(``|a|``, ``|b|``, 1e-10).
 
     Useful for comparing correlation matrices or parameter arrays
     where absolute differences may mislead at different scales.
@@ -175,7 +175,7 @@ def smooth_abs(x: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
         eps: Smoothing parameter. 1e-12 gives ~1e-6 bias on diagonal.
 
     Returns:
-        Smooth |x|, same shape as x.
+        Smooth ``|x|``, same shape as x.
     """
     return jnp.sqrt(x**2 + eps)
 

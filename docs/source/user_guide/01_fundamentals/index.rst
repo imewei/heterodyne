@@ -9,7 +9,7 @@ explains how the **heterodyne** package models two-component dynamics, and
 provides a reference for all 16 model parameters.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    what_is_xpcs
    heterodyne_overview

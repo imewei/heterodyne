@@ -1,5 +1,5 @@
 Architecture Deep Dives
-======================
+=======================
 
 This section collects detailed architecture documents for each major
 subsystem.  These documents describe internal design decisions, data

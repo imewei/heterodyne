@@ -14,7 +14,7 @@ interpretation.
 
 
 Physics Parameters
-==================
+------------------
 
 All lengths are in Angstroms (|AA|), consistent with standard
 synchrotron beamline conventions (APS, ESRF, PETRA III).
@@ -186,7 +186,7 @@ Flow Geometry
 
 
 Scaling Parameters (Per Angle)
-==============================
+------------------------------
 
 Each azimuthal angle :math:`\phi_i` carries two additional parameters
 that account for angle-dependent optical effects.
@@ -218,7 +218,7 @@ that account for angle-dependent optical effects.
 
 
 Parameter Count Summary
-========================
+------------------------
 
 For an analysis with :math:`N_\phi` azimuthal angles:
 
@@ -231,7 +231,7 @@ parameters.
 
 
 Interpreting Fitted Values
-==========================
+--------------------------
 
 Diffusion prefactors
    Compare :math:`D_{0,r}` and :math:`D_{0,s}` to estimate relative

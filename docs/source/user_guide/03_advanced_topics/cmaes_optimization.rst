@@ -1,8 +1,8 @@
 .. _cmaes-optimization:
 
-========================
+==========================
 CMA-ES Global Optimisation
-========================
+==========================
 
 Covariance Matrix Adaptation Evolution Strategy (CMA-ES) is a
 derivative-free global optimisation algorithm.  The heterodyne package
@@ -11,7 +11,7 @@ for cases where gradient-based NLSQ fails to find the global minimum.
 
 
 When to Use CMA-ES
-===================
+-------------------
 
 CMA-ES is most useful when:
 
@@ -34,7 +34,7 @@ CMA-ES is **not** recommended as the default optimiser because:
 
 
 CMAESConfig
-===========
+-----------
 
 The :class:`~heterodyne.optimization.nlsq.cmaes_wrapper.CMAESConfig`
 dataclass controls the algorithm:
@@ -74,7 +74,7 @@ Key parameters:
 
 
 Running CMA-ES
-==============
+--------------
 
 The :func:`~heterodyne.optimization.nlsq.cmaes_wrapper.fit_with_cmaes`
 function accepts an objective function, initial parameters, and bounds:
@@ -101,7 +101,7 @@ directly as input to the Bayesian pipeline.
 
 
 Sigma Scheduling
-================
+----------------
 
 CMA-ES adapts the covariance matrix of its search distribution
 automatically.  The step-size :math:`\sigma` evolves according to the
@@ -122,7 +122,7 @@ diagnose convergence problems:
 
 
 Combining CMA-ES with NLSQ
-===========================
+---------------------------
 
 A common pattern is to use CMA-ES for coarse global search, then
 refine with NLSQ:

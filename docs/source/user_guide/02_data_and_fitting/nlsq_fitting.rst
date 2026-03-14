@@ -11,7 +11,7 @@ for Bayesian inference.
 
 
 Algorithm Overview
-==================
+------------------
 
 The NLSQ fitter minimises:
 
@@ -29,7 +29,7 @@ implemented in ``scipy.optimize.least_squares``.  JAX provides:
 
 
 Upper-Triangle Optimisation
-===========================
+---------------------------
 
 Because :math:`C_2` is symmetric, only the upper triangle
 (:math:`i \le j`) is fitted.  This halves the number of residual
@@ -37,7 +37,7 @@ evaluations and avoids double-counting correlations.
 
 
 Strategy Selection
-==================
+------------------
 
 The fitter automatically selects a computational strategy based on the
 size of the :math:`C_2` matrix:
@@ -71,7 +71,7 @@ Override the automatic selection via :class:`~heterodyne.optimization.nlsq.confi
 
 
 Multi-Start Optimisation
-=========================
+-------------------------
 
 The 14-parameter landscape can have local minima.  Multi-start
 optimisation mitigates this by launching multiple fits from different
@@ -88,7 +88,7 @@ The best result (lowest :math:`\chi^2`) is returned.
 
 
 Fourier Reparameterisation
-==========================
+--------------------------
 
 When fitting multiple azimuthal angles jointly, the per-angle contrast
 and offset can be expressed as truncated Fourier series in :math:`\phi`.
@@ -112,7 +112,7 @@ Joint multi-angle fitting is invoked via
 
 
 CMA-ES Fallback
-================
+----------------
 
 For strongly multi-modal problems where gradient-based NLSQ fails to
 find the global minimum, the package provides a CMA-ES (Covariance
@@ -121,7 +121,7 @@ Matrix Adaptation Evolution Strategy) wrapper.  See
 
 
 Basic Example
-=============
+-------------
 
 .. code-block:: python
 

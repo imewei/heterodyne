@@ -8,7 +8,7 @@ This section covers the practical workflow: loading correlation data,
 running NLSQ fits, and interpreting the results.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    data_loading
    nlsq_fitting

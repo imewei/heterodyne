@@ -1,8 +1,8 @@
 .. _heterodyne-overview:
 
-=========================
+===========================
 Heterodyne Package Overview
-=========================
+===========================
 
 The **heterodyne** package fits two-time correlation matrices
 :math:`C_2(t_1, t_2)` to extract physical parameters for systems with
@@ -13,7 +13,7 @@ philosophy of the package.
 
 
 The Inverse Problem
-===================
+-------------------
 
 Given a measured :math:`C_2` matrix at one or more azimuthal angles
 :math:`\phi`, the package solves for:
@@ -32,7 +32,7 @@ angles, plus **2 scaling parameters** (contrast and offset) per angle.
 
 
 Three-Term Model
-================
+----------------
 
 The heterodyne correlation function is the sum of three contributions:
 
@@ -55,7 +55,7 @@ each component as a function of measurement time.
 
 
 Two Optimisation Pathways
-=========================
+-------------------------
 
 The package provides two complementary fitting strategies:
 
@@ -76,7 +76,7 @@ The package provides two complementary fitting strategies:
 
 
 Two-Path Computational Architecture
-====================================
+------------------------------------
 
 Both optimisation pathways ultimately evaluate the same physics, but
 they use different computational strategies optimised for their
@@ -100,7 +100,7 @@ is guaranteed to be identical.
 
 
 What Is Not In Scope
-====================
+--------------------
 
 The heterodyne package focuses exclusively on the fitting of
 pre-computed :math:`C_2` matrices.  The following are explicitly **out
@@ -116,7 +116,7 @@ of scope**:
 
 
 Design Philosophy
-=================
+-----------------
 
 * **JAX-first** -- All physics computations use JAX arrays and are
   JIT-compiled for performance.  Automatic differentiation provides

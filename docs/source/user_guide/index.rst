@@ -15,7 +15,7 @@ matrices to interpreting Bayesian posteriors.
 
 
 Learning Pathways
-=================
+-----------------
 
 Path A -- New to XPCS
 ----------------------
@@ -70,10 +70,10 @@ Optimise configurations, tune performance, and explore global optimisation.
 
 
 Guide Contents
-==============
+--------------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    01_fundamentals/index
    02_data_and_fitting/index

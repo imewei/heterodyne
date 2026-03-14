@@ -9,7 +9,7 @@ package and their recommended solutions.
 
 
 NLSQ Convergence Failure
-=========================
+-------------------------
 
 **Symptom:** ``result.success`` is ``False``; the solver reports
 "Maximum number of function evaluations reached" or "Cost function
@@ -37,7 +37,7 @@ not decreasing."
 
 
 CMC Divergent Transitions
-=========================
+-------------------------
 
 **Symptom:** NumPyro reports divergent transitions during NUTS sampling;
 ``result.convergence_passed`` is ``False``.
@@ -60,7 +60,7 @@ CMC Divergent Transitions
 
 
 Memory Errors
-=============
+-------------
 
 **Symptom:** ``MemoryError`` or the process is killed by the OOM killer.
 
@@ -90,7 +90,7 @@ Memory Errors
 
 
 JAX Compilation Slow
-====================
+--------------------
 
 **Symptom:** The first NLSQ call takes minutes before any fitting
 begins.
@@ -114,7 +114,7 @@ begins.
 
 
 Parameter at Bounds
-===================
+-------------------
 
 **Symptom:** A fitted parameter is exactly at its lower or upper
 bound; ``result.validate()`` may not flag this directly, but
@@ -136,7 +136,7 @@ uncertainties for that parameter will be unreliable.
 
 
 Poor R-hat After CMC
-====================
+--------------------
 
 **Symptom:** :math:`\hat{R} > 1.1` for one or more parameters.
 
@@ -156,7 +156,7 @@ Poor R-hat After CMC
 
 
 NaN or Inf in Results
-=====================
+---------------------
 
 **Symptom:** Fitted parameters contain ``NaN`` or ``Inf``.
 

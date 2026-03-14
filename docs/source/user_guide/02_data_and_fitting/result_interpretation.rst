@@ -10,7 +10,7 @@ explains how to read and validate those results.
 
 
 NLSQ Results
-============
+------------
 
 :class:`~heterodyne.optimization.nlsq.results.NLSQResult` is returned
 by ``fit_nlsq_jax`` and ``fit_nlsq_multi_phi``.
@@ -71,7 +71,7 @@ Convenience methods
 
 
 CMC Results
-===========
+-----------
 
 :class:`~heterodyne.optimization.cmc.results.CMCResult` is returned by
 the Bayesian pipeline.
@@ -130,7 +130,7 @@ Convenience methods
 
 
 Goodness of Fit
-================
+----------------
 
 Reduced chi-squared
 -------------------
@@ -156,7 +156,7 @@ degrees of freedom.
 
 
 Parameter Uncertainties
-========================
+------------------------
 
 From NLSQ (covariance matrix)
 ------------------------------
@@ -190,7 +190,7 @@ traditional reporting.
 
 
 Comparing NLSQ and CMC
-========================
+------------------------
 
 When both results are available, compare them to validate consistency:
 

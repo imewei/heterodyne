@@ -251,7 +251,7 @@ html_show_sourcelink = False
 htmlhelp_basename = "heterodynedoc"
 
 # -- Options for LaTeX output ------------------------------------------------
-latex_engine = "xelatex"
+latex_engine = "lualatex"
 latex_use_xindy = False
 
 latex_elements = {
@@ -262,6 +262,12 @@ latex_elements = {
 \usepackage{fontspec}
 \usepackage{unicode-math}
 \setmonofont{DejaVu Sans Mono}
+% Prevent deep toctree nesting from crashing xelatex.
+% Sphinx emits \paragraph/\subparagraph for deeply nested headings; if the
+% toctree exceeds 6 levels the \@writefile for ToC entries can overflow.
+% Capping tocdepth prevents the crash even though headings are still rendered.
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{3}
 % Suppress cosmetic box warnings from auto-generated code blocks and API docs
 \hbadness=10000
 \vbadness=10000

@@ -1,21 +1,23 @@
 .. Heterodyne documentation master file
 
-.. image:: https://img.shields.io/badge/python-3.12%2B-blue
-   :alt: Python 3.12+
+.. only:: html
 
-.. image:: https://img.shields.io/badge/JAX-CPU--only-orange
-   :alt: JAX CPU-only
+   .. image:: https://img.shields.io/badge/python-3.12%2B-blue
+      :alt: Python 3.12+
 
-.. image:: https://img.shields.io/badge/license-MIT-green
-   :alt: MIT License
+   .. image:: https://img.shields.io/badge/JAX-CPU--only-orange
+      :alt: JAX CPU-only
 
-.. image:: https://img.shields.io/badge/DOI-10.1073%2Fpnas.2401162121-blue
-   :target: https://doi.org/10.1073/pnas.2401162121
-   :alt: PNAS 2024
+   .. image:: https://img.shields.io/badge/license-MIT-green
+      :alt: MIT License
 
-.. image:: https://img.shields.io/badge/DOI-10.1073%2Fpnas.2514216122-blue
-   :target: https://doi.org/10.1073/pnas.2514216122
-   :alt: PNAS 2025
+   .. image:: https://img.shields.io/badge/DOI-10.1073%2Fpnas.2401162121-blue
+      :target: https://doi.org/10.1073/pnas.2401162121
+      :alt: PNAS 2024
+
+   .. image:: https://img.shields.io/badge/DOI-10.1073%2Fpnas.2514216122-blue
+      :target: https://doi.org/10.1073/pnas.2514216122
+      :alt: PNAS 2025
 
 Heterodyne
 ==========
@@ -117,11 +119,7 @@ Documentation
    :maxdepth: 2
    :caption: User Guide
 
-   user_guide/01_fundamentals/index
-   user_guide/02_data_and_fitting/index
-   user_guide/03_advanced_topics/index
-   user_guide/04_practical_guides/index
-   user_guide/05_appendices/index
+   user_guide/index
 
 .. toctree::
    :maxdepth: 2

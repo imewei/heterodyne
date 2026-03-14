@@ -6,7 +6,7 @@ Frequently Asked Questions
 
 
 What is the difference between homodyne and heterodyne?
-========================================================
+--------------------------------------------------------
 
 **Homodyne** scattering involves a single scattering component.  The
 standard Siegert relation directly yields the dynamics of that component
@@ -23,7 +23,7 @@ package instead.
 
 
 Why is heterodyne CPU-only?
-============================
+----------------------------
 
 The :math:`C_2` matrices from typical beamline XPCS experiments have
 dimensions of hundreds to a few thousand frames.  At this scale:
@@ -41,7 +41,7 @@ making GPU unnecessary even for very long measurements.
 
 
 How many parameters does the model have?
-=========================================
+-----------------------------------------
 
 The model has **14 physics parameters** (shared across all angles):
 
@@ -61,7 +61,7 @@ See :doc:`../01_fundamentals/parameter_guide` for full details.
 
 
 When should I use CMC vs. NLSQ?
-=================================
+---------------------------------
 
 Use **NLSQ** when:
 
@@ -84,7 +84,7 @@ CMC for final results.
 
 
 What units does heterodyne use?
-================================
+--------------------------------
 
 All lengths are in **Angstroms** (1 |AA| = 10\ :sup:`-10` m):
 
@@ -104,7 +104,7 @@ Times (timestamps, :math:`f_1`, :math:`f_2`) are in **seconds**.
 
 
 Can I fix some parameters and fit the rest?
-============================================
+--------------------------------------------
 
 Yes.  In the YAML configuration, set ``vary: false`` and provide a
 fixed ``value``:
@@ -122,7 +122,7 @@ of the problem.
 
 
 How do I handle data with different numbers of frames per angle?
-=================================================================
+-----------------------------------------------------------------
 
 The joint multi-angle fitter (``fit_nlsq_multi_phi``) requires all
 angles to have the same :math:`C_2` dimensions.  If your angles have

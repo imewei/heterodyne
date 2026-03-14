@@ -152,17 +152,16 @@ def fit_nlsq_multi_phi(
 
     Two modes of operation controlled by ``config.per_angle_mode``:
 
-    **Joint fit** (``"fourier"``, ``"independent"``, or ``"auto"``
-    with multiple angles):
-        All angles are fit simultaneously in a single optimization.
-        In ``"fourier"`` mode, the optimizer vector is
-        ``[physics_varying | fourier_contrast_coeffs | fourier_offset_coeffs]``,
-        where the Fourier basis constrains smooth angular variation.
-        In ``"independent"`` mode, each angle has its own contrast/offset
-        (2*n_phi scaling parameters), all optimized jointly.
+    - **Joint fit** (``"fourier"``, ``"independent"``, or ``"auto"``
+      with multiple angles) -- All angles are fit simultaneously in a
+      single optimization.  In ``"fourier"`` mode, the optimizer vector is
+      ``[physics_varying | fourier_contrast_coeffs | fourier_offset_coeffs]``,
+      where the Fourier basis constrains smooth angular variation.
+      In ``"independent"`` mode, each angle has its own contrast/offset
+      (``2*n_phi`` scaling parameters), all optimized jointly.
 
-    **Sequential mode** (single angle or fallback):
-        Angles are fit one at a time with warm-starting.
+    - **Sequential mode** (single angle or fallback) -- Angles are fit one
+      at a time with warm-starting.
 
     Args:
         model: HeterodyneModel instance.

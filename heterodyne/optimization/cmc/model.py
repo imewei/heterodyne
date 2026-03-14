@@ -793,25 +793,22 @@ def estimate_sigma(
 ) -> jnp.ndarray:
     """Estimate measurement uncertainty from data.
 
-    Methods
-    -------
-    ``"diagonal"``
-        Uses the standard deviation of the diagonal of ``c2_data`` relative
-        to its mean, floored at 1 % of the data's overall scale.  Fast and
-        requires no additional information.
-    ``"constant"``
-        Returns the overall standard deviation of ``c2_data`` as a scalar.
-    ``"local"``
-        Computes a spatially smoothed local variance via
-        ``scipy.ndimage.uniform_filter``.  Requires SciPy.
-    ``"residual"``
-        Estimates sigma from the RMS of NLSQ residuals.  Requires
-        ``nlsq_result`` with a non-``None`` ``residuals`` field.  Falls back
-        to ``"diagonal"`` if residuals are unavailable.
-    ``"bootstrap"``
-        Draws ``n_bootstrap`` bootstrap replicates of the diagonal and
-        returns the standard deviation of per-replicate means as the noise
-        estimate.  Useful when the diagonal has enough points to bootstrap.
+    Supported methods:
+
+    - ``"diagonal"`` -- Uses the standard deviation of the diagonal of
+      ``c2_data`` relative to its mean, floored at 1 % of the data's
+      overall scale.  Fast and requires no additional information.
+    - ``"constant"`` -- Returns the overall standard deviation of
+      ``c2_data`` as a scalar.
+    - ``"local"`` -- Computes a spatially smoothed local variance via
+      ``scipy.ndimage.uniform_filter``.  Requires SciPy.
+    - ``"residual"`` -- Estimates sigma from the RMS of NLSQ residuals.
+      Requires ``nlsq_result`` with a non-``None`` ``residuals`` field.
+      Falls back to ``"diagonal"`` if residuals are unavailable.
+    - ``"bootstrap"`` -- Draws ``n_bootstrap`` bootstrap replicates of the
+      diagonal and returns the standard deviation of per-replicate means as
+      the noise estimate.  Useful when the diagonal has enough points to
+      bootstrap.
 
     Args:
         c2_data: Correlation data, shape ``(n_t,)`` or ``(n_phi, n_t)``.

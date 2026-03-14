@@ -10,7 +10,7 @@ throughput and memory usage.
 
 
 XLA Configuration
-=================
+-----------------
 
 The ``heterodyne-config-xla`` command-line tool configures XLA compiler
 flags for optimal CPU performance on the current machine:
@@ -34,7 +34,7 @@ and intra-op parallelism.
 
 
 NUMA Awareness
-==============
+--------------
 
 On multi-socket systems (common in workstations and compute nodes),
 NUMA-aware thread pinning prevents cross-socket memory access penalties.
@@ -54,7 +54,7 @@ node.
 
 
 Thread Count Optimisation
-=========================
+-------------------------
 
 JAX and the underlying BLAS libraries use ``OMP_NUM_THREADS`` to
 control parallelism.  The optimal value depends on the workload:
@@ -84,7 +84,7 @@ control parallelism.  The optimal value depends on the workload:
 
 
 Memory Management
-=================
+-----------------
 
 Large :math:`C_2` matrices can consume significant memory.  Key
 strategies:
@@ -132,7 +132,7 @@ A typical starting point is ``num_shards = 4 * num_chains``.
 
 
 CMC Backend Selection
-=====================
+---------------------
 
 The CMC runner supports two execution modes:
 
@@ -155,7 +155,7 @@ The CMC runner supports two execution modes:
 
 
 Profiling Tips
-==============
+--------------
 
 JIT compilation time
    The first call to a JIT-compiled function incurs compilation

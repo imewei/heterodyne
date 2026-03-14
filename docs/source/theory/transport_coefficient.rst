@@ -1,8 +1,8 @@
 .. _transport-coefficient:
 
-========================
+==========================
 Transport Coefficient J(t)
-========================
+==========================
 
 The transport coefficient :math:`J(t)` is the central quantity connecting
 microscopic particle dynamics to measurable scattering correlations. It
@@ -27,8 +27,8 @@ to the variance of a Gaussian process.
 Green-Kubo Formula
 ------------------
 
-The transport coefficient admits a Green-Kubo integral representation
-(PNAS 2024 SI Eq. S-38):
+The transport coefficient admits a Green-Kubo [GreenKubo]_ integral
+representation (PNAS 2024 SI Eq. S-38):
 
 .. math::
 

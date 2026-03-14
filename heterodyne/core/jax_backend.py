@@ -5,18 +5,15 @@ heterodyne correlation function using the integral formulation (PNAS Eq. S-95).
 All functions are designed to be stateless and compatible with JAX
 transformations (jit, vmap, grad).
 
-The correlation is computed as:
-    c2 = offset + contrast × [ref + sample + cross] / f²
-
+The correlation is computed as
+``c2 = offset + contrast × [ref + sample + cross] / f²``,
 where transport terms use the integral of the rate J(t):
-    half_tr[i,j] = exp(-½q² × |∫_{t_i}^{t_j} J_rate(t') dt'|)
+``half_tr[i,j] = exp(-½q² × |∫ J_rate(t') dt'|)``.
 
-The 14 model parameters in canonical order:
-0: D0_ref, 1: alpha_ref, 2: D_offset_ref
-3: D0_sample, 4: alpha_sample, 5: D_offset_sample
-6: v0, 7: beta, 8: v_offset
-9: f0, 10: f1, 11: f2, 12: f3
-13: phi0
+The 14 model parameters in canonical order are
+D0_ref, alpha_ref, D_offset_ref,
+D0_sample, alpha_sample, D_offset_sample,
+v0, beta, v_offset, f0, f1, f2, f3, phi0.
 """
 
 from __future__ import annotations
@@ -170,7 +167,7 @@ def compute_transport_integral_matrix(
 ) -> jnp.ndarray:
     """JIT-compiled transport integral matrix (NLSQ meshgrid path).
 
-    Computes M[i,j] = |∫_{t_i}^{t_j} J_rate(t') dt'|
+    Computes ``M[i,j] = |∫_{t_i}^{t_j} J_rate(t') dt'|``
     where J_rate(t) = D0 * t^alpha + offset
 
     Uses shared ``compute_transport_rate`` → ``trapezoid_cumsum`` →
@@ -206,19 +203,16 @@ def compute_c2_heterodyne(
 
     Computes c2 = offset + contrast × [ref + sample + cross] / f²
 
-    Uses the integral formulation (PNAS Eq. S-95):
-        half_tr[i,j] = exp(-½q² × |∫_{t_i}^{t_j} J_rate(t') dt'|)
+    Uses the integral formulation (PNAS Eq. S-95),
+    ``half_tr[i,j] = exp(-½q² × |∫ J_rate(t') dt'|)``.
 
     Self-terms use half_tr² to recover exp(-q²∫J), and cross-terms
     multiply half_tr_ref × half_tr_sample.
 
     Args:
-        params: Parameter array of shape (14,) in canonical order:
-            [D0_ref, alpha_ref, D_offset_ref,
-             D0_sample, alpha_sample, D_offset_sample,
-             v0, beta, v_offset,
-             f0, f1, f2, f3,
-             phi0]
+        params: Parameter array of shape ``(14,)`` in canonical order:
+            ``[D0_ref, alpha_ref, D_offset_ref, D0_sample, alpha_sample,
+            D_offset_sample, v0, beta, v_offset, f0, f1, f2, f3, phi0]``.
         t: Time array, shape (N,)
         q: Scattering wavevector magnitude
         dt: Time step

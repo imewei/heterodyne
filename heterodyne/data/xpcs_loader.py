@@ -89,7 +89,7 @@ def validate_loaded_data(data: XPCSData) -> list[str]:
        dimensions of c2.  If q_values is set, its length must match
        ``c2.shape[0]``.
     3. **Symmetry** - For 2-D c2 the matrix should be approximately symmetric
-       (max |c2 - c2.T| / max(|c2|) < 1e-6).  A warning is issued but no
+       (max ``|c2 - c2.T|`` / max(``|c2|``) < 1e-6).  A warning is issued but no
        exception is raised.
     4. **Positive diagonal** - All diagonal elements of c2 (or each slice for
        3-D) must be positive.

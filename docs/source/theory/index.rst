@@ -9,12 +9,12 @@ scattering theory developed by He *et al.* for studying nonequilibrium
 dynamics under flow conditions. The theoretical foundation spans two
 publications:
 
-- **PNAS 2024** (doi:`10.1073/pnas.2401162121 <https://doi.org/10.1073/pnas.2401162121>`_):
+- [He2024]_ (doi:`10.1073/pnas.2401162121 <https://doi.org/10.1073/pnas.2401162121>`_):
   Introduces the generalized two-time correlation framework, the transport
   coefficient :math:`J(t)`, and the integral formulation connecting
   microscopic velocity statistics to measurable scattering correlations.
 
-- **PNAS 2025** (doi:`10.1073/pnas.2514216122 <https://doi.org/10.1073/pnas.2514216122>`_):
+- [He2025]_ (doi:`10.1073/pnas.2514216122 <https://doi.org/10.1073/pnas.2514216122>`_):
   Extends the theory to multi-component heterodyne detection, derives the
   two-component interference model, and demonstrates extraction of flow
   velocity from cross-correlation oscillations.

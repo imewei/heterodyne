@@ -10,7 +10,7 @@ page documents each section of the configuration file.
 
 
 Configuration File Structure
-=============================
+-----------------------------
 
 A complete YAML configuration contains the following top-level sections:
 
@@ -35,7 +35,7 @@ A complete YAML configuration contains the following top-level sections:
 
 
 Section Reference
-=================
+-----------------
 
 metadata
 --------
@@ -171,7 +171,7 @@ Controls for result storage and reporting.
 
 
 Loading Configuration
-=====================
+---------------------
 
 .. code-block:: python
 
@@ -188,7 +188,7 @@ objects.
 
 
 Environment Variables
-=====================
+---------------------
 
 Some settings can also be controlled via environment variables,
 which take precedence over YAML values:

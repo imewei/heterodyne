@@ -64,8 +64,6 @@ NLSQ warm-start and Bayesian posterior sampling pipelines.
    :maxdepth: 2
 
    optimization
-   nlsq
-   cmc
 
 Infrastructure
 --------------

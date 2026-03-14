@@ -10,7 +10,7 @@ analysis, and multimodality detection.
 
 
 Pipeline Overview
-=================
+-----------------
 
 The recommended workflow is:
 
@@ -26,7 +26,7 @@ The recommended workflow is:
 
 
 Consensus Monte Carlo (CMC)
-=============================
+-----------------------------
 
 For large :math:`C_2` matrices, running a single NUTS chain on the full
 dataset is prohibitively expensive.  The **Consensus Monte Carlo** (CMC)
@@ -46,7 +46,7 @@ problems.
 
 
 Element-Wise ShardGrid Evaluation
-==================================
+----------------------------------
 
 Each shard evaluates the model only at the :math:`O(n_\text{pairs})`
 grid points it needs, rather than constructing the full
@@ -57,7 +57,7 @@ lookup, keeping memory usage proportional to the shard size.
 
 
 CMCConfig
-=========
+---------
 
 The :class:`~heterodyne.optimization.cmc.config.CMCConfig` dataclass
 controls every aspect of the CMC pipeline:
@@ -104,7 +104,7 @@ Example:
 
 
 Sharding Strategy
-=================
+-----------------
 
 Shards are constructed by partitioning the upper triangle of the
 :math:`C_2` matrix into approximately equal-sized blocks.  Each shard
@@ -116,7 +116,7 @@ processes (one per CPU core), coordinated by the CMC runner.
 
 
 ArviZ Diagnostics
-=================
+-----------------
 
 After sampling, convergence is validated using `ArviZ
 <https://python.arviz.org>`_:
@@ -159,7 +159,7 @@ After sampling, convergence is validated using `ArviZ
 
 
 Bimodal Detection
-=================
+-----------------
 
 Post-hoc bimodality detection examines the marginal posterior for each
 parameter across shards.  If a parameter shows two distinct modes

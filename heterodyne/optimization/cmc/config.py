@@ -775,6 +775,7 @@ class CMCConfig:
         1. If ``per_angle_mode != "auto"`` the configured value is returned
            directly (no override from NLSQ).
         2. If ``per_angle_mode == "auto"``:
+
            a. If ``has_nlsq_warmstart`` and ``nlsq_per_angle_mode`` is one of
               the valid non-auto modes, inherit it from NLSQ.
            b. Else if ``n_phi >= constant_scaling_threshold`` → ``"individual"``.

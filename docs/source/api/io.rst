@@ -1,6 +1,6 @@
-============
+=============
 I/O Utilities
-============
+=============
 
 Serialization of NLSQ and MCMC results to JSON, NPZ, and diagnostic
 output formats.

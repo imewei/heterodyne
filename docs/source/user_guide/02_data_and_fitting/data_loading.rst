@@ -10,7 +10,7 @@ file formats produced by synchrotron beamline pipelines.
 
 
 Supported Formats
-=================
+-----------------
 
 The loader auto-detects the file format from the internal structure:
 
@@ -33,7 +33,7 @@ The loader auto-detects the file format from the internal structure:
 
 
 Basic Usage
-===========
+-----------
 
 .. code-block:: python
 
@@ -52,7 +52,7 @@ exposure time, etc.).
 
 
 Multi-Angle Data
-================
+----------------
 
 For heterodyne analysis each azimuthal angle :math:`\phi` typically
 corresponds to a separate file or dataset group.  Load them
@@ -75,7 +75,7 @@ individually and pass the angle values to the fitting functions:
 
 
 Inspecting Loaded Data
-=======================
+-----------------------
 
 Before fitting, verify that the data is well-formed:
 
@@ -99,7 +99,7 @@ Before fitting, verify that the data is well-formed:
 
 
 NPZ Caching
-============
+------------
 
 For large HDF5 files, the loader supports transparent NPZ caching.
 On the first load, a ``.npz`` companion file is written next to the
@@ -117,7 +117,7 @@ is newer than the cache, the cache is regenerated automatically.
 
 
 Memory Management
-=================
+-----------------
 
 For datasets with thousands of frames the :math:`C_2` matrix can
 consume gigabytes of memory.  The loader uses **adaptive chunking**

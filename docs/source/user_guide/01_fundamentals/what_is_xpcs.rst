@@ -11,7 +11,7 @@ conceptual foundation needed to understand the rest of the user guide.
 
 
 Coherent X-rays and Speckle Patterns
-=====================================
+-------------------------------------
 
 When a partially coherent X-ray beam (wavelength on the order of 1 |AA|)
 illuminates a disordered sample, interference among the scattered waves
@@ -31,7 +31,7 @@ Key properties:
 
 
 From Speckles to Dynamics
-==========================
+--------------------------
 
 The fundamental observable is the **intensity--intensity autocorrelation
 function**:
@@ -59,7 +59,7 @@ the measurement.
 
 
 The Siegert Relation
-====================
+--------------------
 
 Under Gaussian statistics the measured intensity correlation is related
 to the *field* (amplitude) autocorrelation :math:`g_1` through the
@@ -77,7 +77,7 @@ velocity fields of the scatterers.
 
 
 Transport Coefficient
-=====================
+---------------------
 
 The field correlation for a single-component diffusive system is:
 
@@ -101,7 +101,7 @@ mean-squared displacement):
 
 
 Homodyne vs. Heterodyne Scattering
-====================================
+------------------------------------
 
 **Homodyne scattering** arises when a single scattering component
 dominates the signal.  The standard Siegert relation applies directly,
@@ -125,7 +125,7 @@ problem solved by this package.
 
 
 Why XPCS?
-==========
+----------
 
 Compared to alternative probes of nanoscale dynamics (DLS, DDM, particle
 tracking), XPCS offers several distinct advantages:

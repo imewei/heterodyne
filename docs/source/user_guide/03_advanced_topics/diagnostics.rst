@@ -11,10 +11,10 @@ analyses.
 
 
 NLSQ Diagnostics
-=================
+-----------------
 
 Jacobian Condition Number
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The condition number of the Jacobian at the optimum indicates how
 sensitive the solution is to perturbations in the data:
@@ -31,7 +31,7 @@ The Jacobian Frobenius norm is logged at DEBUG level and stored in
 ``result.metadata["jacobian_norm"]`` when using the sequential strategy.
 
 Parameter Sensitivity
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 The diagonal of :math:`(\mathbf{J}^T \mathbf{J})^{-1}` gives the
 variance of each parameter.  Parameters with very large variance
@@ -43,7 +43,7 @@ relative to their value are poorly constrained.  Check for:
   (``result.get_correlation_matrix()`` flags :math:`|r| > 0.95`).
 
 Residual Map
-------------
+~~~~~~~~~~~~
 
 The spatial structure of residuals in the :math:`C_2` matrix reveals
 systematic model failures:
@@ -59,10 +59,10 @@ Use :func:`~heterodyne.viz.nlsq_plots.plot_residual_map` or
 
 
 CMC Diagnostics
-===============
+---------------
 
-R-hat (:math:`\hat{R}`)
-------------------------
+R-hat
+~~~~~
 
 The split-:math:`\hat{R}` statistic from ArviZ compares between-chain
 and within-chain variance.  It is computed automatically during CMC
@@ -77,7 +77,7 @@ Interpretation:
   and ``num_samples``, or investigate the model.
 
 Effective Sample Size (ESS)
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ESS accounts for autocorrelation within MCMC chains.  Two variants:
 
@@ -92,7 +92,7 @@ Rules of thumb:
 * ESS < 100 -- Posterior estimates are unreliable.
 
 BFMI (Bayesian Fraction of Missing Information)
--------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 BFMI measures how well the sampler's kinetic energy transitions match
 the marginal energy distribution.  Stored in ``result.bfmi`` (one value
@@ -104,7 +104,7 @@ per chain).
   ``target_accept_prob``.
 
 Divergent Transitions
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 Divergent transitions indicate that the sampler encountered regions
 of very high curvature in the posterior.  Even a small number of
@@ -117,7 +117,7 @@ divergences can bias the posterior.  Remedies:
 
 
 Bimodal Detection
-=================
+~~~~~~~~~~~~~~~~~
 
 After CMC, shard-level posterior means are compared.  If a parameter
 shows two or more distinct clusters of shard means (separated by more
@@ -129,7 +129,7 @@ Bimodality suggests:
 * The likelihood has multiple basins (global optimisation with CMA-ES
   may help identify all modes).
 * A physical degeneracy exists (e.g., :math:`\phi_0` and
-  :math:`\phi_0 + 180\degree` giving equivalent fits).
+  :math:`\phi_0 + 180°` giving equivalent fits).
 * The data are insufficient to distinguish between competing
   parameter combinations.
 
@@ -138,7 +138,7 @@ visualise shard-to-shard agreement.
 
 
 Visualisation Tools
-===================
+-------------------
 
 The ``heterodyne.viz`` module provides a comprehensive set of
 diagnostic plots:

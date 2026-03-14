@@ -155,7 +155,7 @@ class NLSQValidationConfig:
         chi2_fail_high: Reduced chi-squared above this value is treated as a
             hard failure.
         max_relative_uncertainty: Maximum acceptable relative uncertainty
-            (sigma / |param|) for any fitted parameter.  Value of 1.0 means
+            (sigma / ``|param|``) for any fitted parameter.  Value of 1.0 means
             100 %.
         correlation_warn: Off-diagonal correlation coefficient magnitude above
             this threshold triggers a collinearity warning.
