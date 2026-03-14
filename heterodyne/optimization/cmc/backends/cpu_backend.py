@@ -44,7 +44,7 @@ class CPUBackend(CMCBackend):
 
     Runs each MCMC chain one at a time via NumPyro's ``chain_method="sequential"``
     to keep peak memory usage proportional to a single chain. This is the
-    recommended backend for CPU-only machines and HPC nodes without GPUs.
+    recommended backend for single-device CPU machines.
     """
 
     def run(
@@ -104,8 +104,8 @@ class CPUBackend(CMCBackend):
     def get_capabilities(self) -> BackendCapabilities:
         """Return CPU backend capabilities.
 
-        The CPU backend runs chains sequentially (one at a time), does not
-        use GPU acceleration, and does not support cross-device sharding.
+        The CPU backend runs chains sequentially (one at a time) and does
+        not support cross-device sharding.
 
         Returns:
             ``BackendCapabilities`` reflecting sequential CPU execution.
@@ -114,7 +114,6 @@ class CPUBackend(CMCBackend):
             supports_sharding=False,
             supports_parallel_chains=False,
             max_parallel_shards=1,
-            supports_gpu=False,
         )
 
     def validate_resources(self) -> None:
@@ -221,6 +220,6 @@ class CPUBackend(CMCBackend):
 
         The CPU backend holds no persistent state beyond what JAX and
         NumPyro manage internally, so this is a no-op.  Included for
-        API parity with GPU/worker-pool backends.
+        API parity with other backends (PjitBackend, worker-pool).
         """
         logger.debug("CPUBackend.cleanup: nothing to release")

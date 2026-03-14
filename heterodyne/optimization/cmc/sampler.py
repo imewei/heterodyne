@@ -240,7 +240,7 @@ class NUTSSampler:
                 One of ``"init_to_median"``, ``"init_to_sample"``,
                 ``"init_to_value"``.
             chain_method: NumPyro chain execution method.
-                ``"sequential"`` for CPU, ``"parallel"`` for GPU/pmap.
+                ``"sequential"`` for single device, ``"parallel"`` for multi-device.
 
         Returns:
             Configured NUTSSampler ready for :meth:`run`.

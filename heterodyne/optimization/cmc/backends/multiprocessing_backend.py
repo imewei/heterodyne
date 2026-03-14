@@ -28,9 +28,8 @@ Optimizations carried over from homodyne v2.22.2:
 - Persistent compilation cache via ``jax.config.update`` (env var alone
   insufficient in JAX 0.8+, ``min_compile_time`` lowered to 0).
 
-This backend is selected by ``select_backend`` when no GPU is available
-and ``config.num_chains >= 3``, or when ``config.backend_name ==
-"multiprocessing"``.
+This backend is selected when ``config.num_chains >= 3``, or when
+``config.backend_name == "multiprocessing"``.
 """
 
 from __future__ import annotations
@@ -588,7 +587,7 @@ def _init_worker_jax(threads_per_worker: int, num_chains: int) -> None:
     os.environ["JAX_COMPILATION_CACHE_DIR"] = cache_dir
 
     # Set XLA virtual device count to num_chains so parallel chain_method
-    # works correctly even without a GPU.
+    # works correctly with multiple virtual CPU devices.
     _xla_flags = os.environ.get("XLA_FLAGS", "")
     _xla_flags = _re.sub(r"--xla_force_host_platform_device_count=\d+", "", _xla_flags)
     os.environ["XLA_FLAGS"] = (
@@ -1175,7 +1174,7 @@ class MultiprocessingBackend(CMCBackend):
         """Run NUTS sampling for a single shard (standard CMCBackend contract).
 
         For multi-shard CMC, call :meth:`run_shards` instead.  This method
-        provides API parity with :class:`CPUBackend` and :class:`GPUBackend`
+        provides API parity with :class:`CPUBackend` and :class:`PjitBackend`
         using sequential chain execution and no subprocess overhead.
 
         Args:
@@ -1236,13 +1235,12 @@ class MultiprocessingBackend(CMCBackend):
 
         Returns:
             :class:`BackendCapabilities` indicating sharding support,
-            parallel shards equal to ``n_workers``, and no GPU.
+            parallel shards equal to ``n_workers``.
         """
         return BackendCapabilities(
             supports_sharding=True,
             supports_parallel_chains=True,
             max_parallel_shards=self.n_workers,
-            supports_gpu=False,
         )
 
     def validate_resources(self) -> None:

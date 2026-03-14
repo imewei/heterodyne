@@ -206,7 +206,7 @@ class SequentialConfig(TypedDict):
 class HardwareConfig(TypedDict):
     """Hardware and resource configuration."""
 
-    device: NotRequired[str]  # "cpu", "gpu", "tpu"
+    device: NotRequired[str]  # "cpu" (heterodyne is CPU-only)
     n_threads: NotRequired[int]
     memory_limit_gb: NotRequired[float]
     numa_aware: NotRequired[bool]

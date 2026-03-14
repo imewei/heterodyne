@@ -115,7 +115,6 @@ heterodyne/
 │   │       ├── cpu_backend.py        # Sequential NUTS
 │   │       ├── multiprocessing_backend.py  # Process-pool parallel
 │   │       ├── pjit_backend.py       # JAX pjit distributed
-│   │       ├── gpu_backend.py        # GPU wrapper
 │   │       ├── pbs.py                # PBS/Torque cluster
 │   │       └── worker_pool.py        # WorkerPoolBackend
 │   │

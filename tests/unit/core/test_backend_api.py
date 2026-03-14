@@ -64,9 +64,9 @@ class TestBackendConfig:
         assert config.precision == "float64"
 
     def test_custom_values(self) -> None:
-        config = BackendConfig(backend=Backend.NUMPY, device="gpu", precision="float32")
+        config = BackendConfig(backend=Backend.NUMPY, device="cpu", precision="float32")
         assert config.backend is Backend.NUMPY
-        assert config.device == "gpu"
+        assert config.device == "cpu"
         assert config.precision == "float32"
 
 

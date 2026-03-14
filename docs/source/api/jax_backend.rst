@@ -2,7 +2,7 @@
 JAX Backend
 ===========
 
-GPU/CPU-accelerated correlation computation via the NLSQ meshgrid path.
+CPU-accelerated correlation computation via the NLSQ meshgrid path.
 Functions in this module build full N x N integral matrices using
 cumulative trapezoidal sums and are designed for JIT compilation.
 

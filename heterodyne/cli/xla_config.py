@@ -57,17 +57,6 @@ def configure_xla(
         os.environ["JAX_ENABLE_X64"] = "1"
         env_vars["JAX_ENABLE_X64"] = "1"
 
-    # Disable GPU/TPU memory preallocation (only relevant when GPU is present)
-    try:
-        import jax  # noqa: E402
-
-        if any(d.platform == "gpu" for d in jax.devices()):
-            os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
-            env_vars["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
-    except (ImportError, RuntimeError):
-        # JAX not yet importable or no GPU; skip GPU-only flag
-        pass
-
     return env_vars
 
 

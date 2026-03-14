@@ -74,7 +74,7 @@ def _run_shard_worker(
     import jax
     from numpyro.infer import MCMC, NUTS
 
-    # Force CPU in worker to avoid GPU contention
+    # Ensure CPU backend in spawned worker process
     jax.config.update("jax_platform_name", "cpu")
 
     rng_key = jax.random.PRNGKey(seed)

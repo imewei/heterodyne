@@ -1,9 +1,9 @@
 """Multi-device parallel MCMC backend using JAX sharding.
 
-Distributes NUTS chains across multiple JAX devices (CPU or GPU) using
-JAX's modern sharding API (``jax.sharding``), available since JAX 0.4.1.
-This replaces the deprecated ``jax.experimental.pjit`` with the stable
-``jax.jit`` + sharding annotation approach.
+Distributes NUTS chains across multiple CPU devices using JAX's modern
+sharding API (``jax.sharding``), available since JAX 0.4.1.  This
+replaces the deprecated ``jax.experimental.pjit`` with the stable
+``jax.jit`` + sharding annotation approach.  Heterodyne is CPU-only.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class PjitBackend(CMCBackend):
 
     When only a single device is available, this backend transparently
     falls back to running all chains on that device (equivalent to the
-    GPU backend's ``chain_method="parallel"``).
+    single-device ``chain_method="parallel"``).
 
     This backend uses the modern ``jax.sharding`` API (stable since
     JAX 0.4.1), not the deprecated ``jax.experimental.pjit``.
@@ -161,16 +161,14 @@ class PjitBackend(CMCBackend):
         """Return capabilities for multi-device parallel execution.
 
         Returns:
-            BackendCapabilities with sharding and GPU support flags.
+            BackendCapabilities with sharding support flags.
         """
         devices = jax.devices()
-        has_gpu = any(d.platform == "gpu" for d in devices)
 
         return BackendCapabilities(
             supports_sharding=True,
             supports_parallel_chains=True,
             max_parallel_shards=len(devices),
-            supports_gpu=has_gpu,
         )
 
     def validate_resources(self) -> None:
@@ -192,7 +190,7 @@ class PjitBackend(CMCBackend):
             logger.warning(
                 "PjitBackend: only 1 device detected (%s); "
                 "sharding will not provide parallelism. "
-                "Consider using CPUBackend or GPUBackend instead.",
+                "Consider using CPUBackend instead.",
                 devices[0].platform,
             )
         else:

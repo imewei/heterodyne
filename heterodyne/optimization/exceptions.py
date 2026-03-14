@@ -277,7 +277,7 @@ class ShardingError(OptimizationError):
         shard_index: Zero-based index of the shard that failed, or
             ``None`` if the failure occurred outside a specific shard.
         total_shards: Total number of shards, or ``None`` if not known.
-        backend: Name of the CMC backend (e.g. ``"cpu"``, ``"gpu"``),
+        backend: Name of the CMC backend (e.g. ``"cpu"``, ``"pjit"``),
             or ``None`` if not determined.
     """
 
@@ -304,7 +304,7 @@ class BackendError(OptimizationError):
 
     Attributes:
         backend_name: Name of the backend that failed
-            (e.g. ``"cpu"``, ``"gpu"``).
+            (e.g. ``"cpu"``, ``"pjit"``, ``"multiprocessing"``).
         worker_id: Identifier of the worker that failed, or ``None``
             if the failure occurred outside a specific worker.
     """

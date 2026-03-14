@@ -40,21 +40,19 @@ class BackendCapabilities:
             (e.g. via ``pmap`` or a worker pool).
         max_parallel_shards: Maximum number of shards the backend can
             handle simultaneously.  1 means strictly sequential.
-        supports_gpu: True if the backend uses GPU acceleration.
     """
 
     supports_sharding: bool = False
     supports_parallel_chains: bool = True
     max_parallel_shards: int = 1
-    supports_gpu: bool = False
 
 
 @runtime_checkable
 class MCMCBackend(Protocol):
     """Protocol for MCMC execution backends.
 
-    Each backend wraps NumPyro's MCMC machinery with a device-specific
-    execution strategy (sequential for CPU, parallel for GPU).
+    Each backend wraps NumPyro's MCMC machinery with a CPU execution
+    strategy (sequential single-device or parallel multi-device).
     """
 
     def run(
@@ -85,8 +83,8 @@ class MCMCBackend(Protocol):
 class CMCBackend(ABC):
     """Abstract base class for CMC execution backends.
 
-    Concrete subclasses implement device-specific MCMC execution
-    strategies (CPU sequential, GPU parallel, worker-pool, etc.).
+    Concrete subclasses implement CPU MCMC execution strategies
+    (sequential, multi-device parallel, worker-pool, etc.).
     Subclasses must override ``run``, ``get_capabilities``,
     ``validate_resources``, ``estimate_memory``, and ``cleanup``.
     """
@@ -164,12 +162,11 @@ class CMCBackend(ABC):
 
 
 def select_backend(config: CMCConfig) -> MCMCBackend:
-    """Select the appropriate MCMC backend based on available devices.
+    """Select the appropriate MCMC backend based on available CPU devices.
 
-    Selection logic:
-    - Multiple devices (any type) -> PjitBackend (multi-device parallel)
-    - Single GPU -> GPUBackend (parallel chains on one GPU)
-    - Single CPU -> CPUBackend (sequential chains)
+    Heterodyne is CPU-only.  Selection logic:
+    - Multiple CPU devices -> PjitBackend (multi-device parallel)
+    - Single CPU device   -> CPUBackend (sequential chains)
 
     Args:
         config: CMC configuration (reserved for future backend-selection
@@ -179,25 +176,19 @@ def select_backend(config: CMCConfig) -> MCMCBackend:
         An instantiated backend ready for ``run()``.
     """
     from heterodyne.optimization.cmc.backends.cpu_backend import CPUBackend
-    from heterodyne.optimization.cmc.backends.gpu_backend import GPUBackend
     from heterodyne.optimization.cmc.backends.pjit_backend import PjitBackend
 
     devices = jax.devices()
-    has_gpu = any(d.platform == "gpu" for d in devices)
 
     if len(devices) > 1:
         logger.info(
-            "Multiple devices detected (%d), selecting PjitBackend for "
+            "Multiple CPU devices detected (%d), selecting PjitBackend for "
             "multi-device parallel execution",
             len(devices),
         )
         return PjitBackend()
 
-    if has_gpu:
-        logger.info("GPU detected, selecting GPUBackend for parallel chain execution")
-        return GPUBackend()
-
-    logger.info("No GPU detected, selecting CPUBackend for sequential chain execution")
+    logger.info("Single CPU device, selecting CPUBackend for sequential chain execution")
     return CPUBackend()
 
 

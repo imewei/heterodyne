@@ -391,7 +391,6 @@ class PBSBackend(CMCBackend):
             supports_sharding=True,
             supports_parallel_chains=True,
             max_parallel_shards=256,
-            supports_gpu=False,
         )
 
     def validate_resources(self) -> None:

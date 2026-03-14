@@ -42,7 +42,7 @@ _VALID_SHARDING_STRATEGY: frozenset[str] = frozenset(
     {"stratified", "random", "contiguous"}
 )
 _VALID_BACKEND_NAME: frozenset[str] = frozenset(
-    {"auto", "multiprocessing", "pjit", "cpu", "gpu"}
+    {"auto", "multiprocessing", "pjit", "cpu"}
 )
 _VALID_CHAIN_METHOD: frozenset[str] = frozenset({"parallel", "sequential"})
 _VALID_INIT_STRATEGY: frozenset[str] = frozenset(
@@ -113,8 +113,8 @@ class CMCConfig:
     min_points_per_param:
         Minimum ratio of points-to-parameters per shard (heterodyne default: 14).
     backend_name:
-        Worker backend. ``"auto"`` selects ``"pjit"`` when a GPU is present,
-        otherwise ``"multiprocessing"``.
+        Worker backend. ``"auto"`` selects based on available CPU devices
+        and core count.
     enable_checkpoints:
         Persist intermediate shard results to ``checkpoint_dir``.
     checkpoint_dir:
@@ -324,6 +324,18 @@ class CMCConfig:
             self.enable = "always"
         elif self.enable is False:
             self.enable = "never"
+
+        # Coerce removed "gpu" backend to "auto" (heterodyne is CPU-only)
+        if self.backend_name == "gpu":
+            import warnings
+
+            warnings.warn(
+                "backend_name='gpu' is not supported; heterodyne is CPU-only. "
+                "Falling back to 'auto'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.backend_name = "auto"
 
         logger.debug(
             "CMCConfig constructed: enable=%s num_shards=%s backend=%s",
@@ -1011,6 +1023,16 @@ class CMCConfig:
             "chain_method",
         ):
             _pick(_f, config_dict)
+
+        # Coerce removed "gpu" backend to "auto" (heterodyne is CPU-only)
+        if kwargs.get("backend_name") == "gpu":
+            warnings.warn(
+                "backend_name='gpu' is not supported; heterodyne is CPU-only. "
+                "Falling back to 'auto'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["backend_name"] = "auto"
 
         # --- per_shard_mcmc section ------------------------------------
         mcmc = _extract_section("per_shard_mcmc")

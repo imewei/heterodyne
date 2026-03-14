@@ -247,8 +247,7 @@ class NLSQConfig:
         step_bound: Upper bound on the step norm relative to the trust radius.
             ``0.0`` defers to the solver default.
 
-        use_nlsq_library: Prefer the ``nlsq`` GPU-accelerated library over
-            the scipy fallback.
+        use_nlsq_library: Prefer the ``nlsq`` library over the scipy fallback.
         n_params: Number of model parameters.  Fixed at 14 for heterodyne.
         analysis_mode: Which physical model variant to use.  One of
             ``"static_ref"`` (reference beam treated as static background),

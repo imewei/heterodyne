@@ -41,7 +41,6 @@ optimization/cmc/
     ├── cpu_backend.py    # CPUBackend: sequential NUTS chains
     ├── multiprocessing_backend.py  # Process-pool parallel (recommended for CPU)
     ├── pjit_backend.py   # JAX pjit distributed (multi-device)
-    ├── gpu_backend.py    # GPUBackend: parallel chains on GPU
     ├── pbs.py            # PBS/Torque HPC cluster backend
     └── worker_pool.py    # WorkerPoolBackend: manual process management
 ```
@@ -60,8 +59,7 @@ fit_cmc_jax(model, c2_data, phi_angle, config, nlsq_result)
         │
         ├─ select_backend(config)
         │     ├── len(devices) > 1  → PjitBackend
-        │     ├── GPU detected      → GPUBackend
-        │     └── CPU only          → CPUBackend
+        │     └── single CPU device → CPUBackend
         │
         ├─ ReparamConfig + compute_t_ref(dt, t_max)
         │     t_ref = sqrt(dt × t_max)
@@ -339,16 +337,14 @@ runtime:
 jax.devices()
     │
     ├── len(devices) > 1  → PjitBackend (multi-device parallel)
-    ├── any GPU present?  → GPUBackend (parallel chains on GPU)
-    └── CPU only?         → CPUBackend (sequential chains)
+    └── single CPU device → CPUBackend (sequential chains)
 ```
 
 | Backend | Strategy | Use case |
 |---|---|---|
 | `CPUBackend` | Sequential NUTS per chain | Testing/debugging, single CPU |
 | `MultiprocessingBackend` | Process-pool parallel | CPU production (recommended) |
-| `PjitBackend` | JAX pjit distributed | Multiple devices |
-| `GPUBackend` | Parallel chains on GPU | GPU available |
+| `PjitBackend` | JAX pjit distributed | Multiple CPU devices |
 | `PBSBackend` | PBS/Torque scheduler | HPC cluster |
 | `WorkerPoolBackend` | Manual process management | Custom workflows |
 

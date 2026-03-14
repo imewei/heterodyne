@@ -10,7 +10,7 @@ range.
 When to use
 -----------
 - Medium datasets (10 k – 250 k data points).
-- GPU/accelerator available: JIT dispatch routes to the active XLA backend.
+- JIT dispatch routes to the active XLA CPU backend.
 - Repeated fits with the same array shapes (compilation is cached per shape).
 
 Compilation cache

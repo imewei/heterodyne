@@ -45,7 +45,7 @@ class BackendConfig:
 
     Attributes:
         backend: Which backend to use.
-        device: Target device string (e.g., 'cpu', 'gpu').
+        device: Target device string ('cpu'; heterodyne is CPU-only).
         precision: Floating-point precision ('float32' or 'float64').
     """
 
