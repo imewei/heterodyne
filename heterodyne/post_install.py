@@ -48,7 +48,7 @@ def detect_shell_type() -> Literal["bash", "zsh", "fish", "unknown"]:
                 return "bash"
             elif "fish" in pname:
                 return "fish"
-    except (ImportError, Exception):
+    except (ImportError, OSError, AttributeError):
         pass
 
     return "unknown"
@@ -196,14 +196,22 @@ def install_zsh_completion(venv_path: Path, verbose: bool = False) -> bool:
     dest = dest_dir / "heterodyne-completion.zsh"
 
     try:
-        # Create zsh wrapper that sources bash completion
+        # Use the installed copy in the venv rather than the package source
+        # path, so the wrapper survives wheel-based relocations.
+        installed_bash = venv_path / "etc" / "bash_completion.d" / "heterodyne"
+        if not installed_bash.exists():
+            # Ensure the bash completion is installed first
+            install_bash_completion(venv_path, verbose=False)
+
+        # Prefer the venv-local copy; fall back to source if install failed
+        completion_path = installed_bash if installed_bash.exists() else source
         content = f"""# Zsh completion for heterodyne (generated)
 # Source the bash completion in zsh-compatible mode
 
 autoload -Uz bashcompinit
 bashcompinit
 
-source "{source}"
+source "{completion_path}"
 """
         dest.write_text(content)
         if verbose:
@@ -231,27 +239,46 @@ def install_fish_completion(venv_path: Path, verbose: bool = False) -> bool:
     dest = dest_dir / "heterodyne.fish"
 
     try:
-        # Basic fish completion
         content = """# Fish completion for heterodyne (generated)
 
+# heterodyne
 complete -c heterodyne -s c -l config -d 'Configuration file' -F
 complete -c heterodyne -s d -l data-file -d 'Input data file' -F
-complete -c heterodyne -s m -l method -d 'Optimization method' -a 'nlsq cmc'
+complete -c heterodyne -s m -l method -d 'Optimization method' -a 'nlsq cmc both'
+complete -c heterodyne -s o -l output -d 'Output directory' -F
 complete -c heterodyne -s v -l verbose -d 'Verbose output'
 complete -c heterodyne -s q -l quiet -d 'Quiet output'
+complete -c heterodyne -l log-level -d 'Log level' -a 'DEBUG INFO WARNING ERROR'
 complete -c heterodyne -s h -l help -d 'Show help'
 complete -c heterodyne -l version -d 'Show version'
 
+# heterodyne-config
 complete -c heterodyne-config -s o -l output -d 'Output file' -F
 complete -c heterodyne-config -l template -d 'Template type' -a 'default minimal cmc'
+complete -c heterodyne-config -l minimal -d 'Generate minimal config'
+complete -c heterodyne-config -s v -l verbose -d 'Verbose output'
 complete -c heterodyne-config -s h -l help -d 'Show help'
 
-complete -c heterodyne-post-install -l interactive -d 'Interactive setup'
+# heterodyne-post-install
+complete -c heterodyne-post-install -s i -l interactive -d 'Interactive setup'
+complete -c heterodyne-post-install -s s -l shell -d 'Shell type' -a 'bash zsh fish'
+complete -c heterodyne-post-install -l no-completion -d 'Skip shell completion'
+complete -c heterodyne-post-install -l no-xla -d 'Skip XLA configuration'
+complete -c heterodyne-post-install -l xla-mode -d 'XLA mode' -a 'auto nlsq cmc cmc-hpc'
+complete -c heterodyne-post-install -s v -l verbose -d 'Verbose output'
 complete -c heterodyne-post-install -s h -l help -d 'Show help'
 
-complete -c heterodyne-cleanup -l dry-run -d 'Show what would be removed'
-complete -c heterodyne-cleanup -l force -d 'Force cleanup without confirmation'
+# heterodyne-cleanup
+complete -c heterodyne-cleanup -s n -l dry-run -d 'Show what would be removed'
+complete -c heterodyne-cleanup -s f -l force -d 'Force cleanup without confirmation'
+complete -c heterodyne-cleanup -s i -l interactive -d 'Interactive cleanup'
+complete -c heterodyne-cleanup -s v -l verbose -d 'Verbose output'
 complete -c heterodyne-cleanup -s h -l help -d 'Show help'
+
+# heterodyne-validate
+complete -c heterodyne-validate -s v -l verbose -d 'Verbose output'
+complete -c heterodyne-validate -l json -d 'Output results as JSON'
+complete -c heterodyne-validate -s h -l help -d 'Show help'
 """
         dest.write_text(content)
         if verbose:
