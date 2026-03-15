@@ -1,185 +1,1465 @@
-# Heterodyne XPCS Analysis Configuration Template
-# ================================================
-# This template configures the two-component correlation analysis.
-# Copy and modify for your specific experiment.
+# ==============================================================================
+# HETERODYNE MASTER CONFIGURATION TEMPLATE
+# ==============================================================================
+# Complete, maintained reference template for all heterodyne configuration knobs.
+# Configures the two-component correlation analysis with NLSQ optimization and
+# Consensus Monte Carlo (CMC) for uncertainty quantification.
+#
+# HOW TO USE THIS TEMPLATE:
+# -------------------------
+# 1. Copy this file and rename for your experiment (e.g., my_analysis.yaml)
+# 2. Update experimental_data paths to your HDF5 file
+# 3. Set scattering geometry (wavevector_q, phi_angles)
+# 4. Adjust parameter bounds/priors for your system
+# 5. Run NLSQ first: heterodyne --config your_config.yaml
+# 6. For MCMC: heterodyne --config your_config.yaml --method cmc
+#
+# PHYSICS MODEL:
+#   Two-component heterodyne scattering with reference and sample beams.
+#   c2(t1,t2,phi) = offset + contrast × [ref + sample + cross] / f²
+#
+#   Reference: g1_r = exp(-q² × J_r(t))     where J_r(t) = D0_ref · t^α_ref + D_offset_ref
+#   Sample:    g1_s = exp(-q² × J_s(t))     where J_s(t) = D0_sample · t^α_sample + D_offset_sample
+#   Velocity:  v(t) = v0 · t^β + v_offset
+#   Fraction:  f_s(t) = clip(f0 · exp(f1·(t-f2)) + f3, 0, 1)
+#   Angle:     phi0 = flow angle offset relative to q-vector
+#
+# PARAMETER COUNT:
+#   14 physical + 2 per-angle scaling (contrast, offset) × N_angles
+#   Example: 3 angles → 14 + 6 = 20 total parameters
+#
+# VERSION: 2.0.1
+# UPDATED: 2026-03-14
+# ==============================================================================
 
-# Experimental Data
-# -----------------
+# ==============================================================================
+# METADATA (Documentation Only)
+# ==============================================================================
+# Template metadata for documentation and validation.
+# The config_version should match the heterodyne package version.
+metadata:
+  config_version: "2.0.1"
+  description: "Master template - comprehensive reference with all configuration options"
+
+  # Parameter count summary (physical parameters only, excludes per-angle scaling)
+  #   two_component: 14 params [D0_ref, α_ref, D_offset_ref, D0_sample, α_sample,
+  #                              D_offset_sample, v0, β, v_offset, f0, f1, f2, f3, φ0]
+  #   Total with scaling: 14 + 2 × N_angles
+  parameter_count: 14
+
+  # Physics model equations
+  physics_model:
+    reference: "J_r(t) = D0_ref · t^α_ref + D_offset_ref"
+    sample: "J_s(t) = D0_sample · t^α_sample + D_offset_sample"
+    velocity: "v(t) = v0 · t^β + v_offset"
+    fraction: "f_s(t) = clip(f0 · exp(f1·(t - f2)) + f3, 0, 1)"
+    cross_term: "exp(i·q·cos(φ-φ0)·∫v(t')dt')"
+
+  # Numerical methods
+  integration_method: "discrete_numerical"
+  diagonal_correction: "mandatory"
+  nlsq_cmc_physics_match: true
+
+  # Template classification
+  template_type: "reference"
+  complexity: "comprehensive"
+
+  # Auto-filled by CLI tools
+  generated_at: null
+  generated_by: null
+
+# ==============================================================================
+# EXPERIMENTAL DATA (Required)
+# ==============================================================================
+# Paths to your data files. Both absolute and relative paths are supported.
+# Relative paths are resolved from the config file's directory.
+#
+# DATA FORMAT: HDF5 with exchange group structure
+#   /exchange/data      - 3D array (frames, y, x)
+#   /exchange/...       - Additional metadata
+#
 experimental_data:
-  # Path to HDF5/NPZ data file containing correlation matrices
+  # Primary data file path (required)
   file_path: ""
 
-  # Optional: folder containing multiple data files
+  # Legacy composite path (auto-normalized to file_path internally)
   data_folder_path: ""
+  data_file_name: ""
 
   # File format: "hdf5", "npz", or "mat"
   file_format: "hdf5"
 
-# Temporal Settings
-# -----------------
+  # Phi angles file: one angle (degrees) per line, range [-180, 180]
+  phi_angles_path: ""
+  phi_angles_file: ""
+
+  # Caching (processed C2 data, speeds up re-runs)
+  cache_file_path: ""
+  cache_filename_template: "cached_c2_q${wavevector_q}_frames_${start_frame}_${end_frame}.npz"
+  cache_compression: true
+
+  # Data type and exchange key
+  data_type: "float64"       # "float32" or "float64" (recommended)
+  exchange_key: "exchange"   # HDF5 exchange group key
+
+# ==============================================================================
+# TEMPORAL SETTINGS (Required)
+# ==============================================================================
+# Core temporal parameters. These MUST match your measurement setup.
+#
+# CRITICAL: Incorrect dt will shift all fitted parameters!
+#   - Check your detector frame rate
+#   - dt = 1 / (frames per second)
+#
 temporal:
-  # Time step between frames (seconds)
+  # Time step between correlation measurements [seconds]
+  # Common values: 0.001 (1 kHz), 0.01 (100 Hz), 0.1 (10 Hz)
+  # CONSTRAINT: Must be > 0
   dt: 1.0
 
   # Number of time points in correlation matrix
+  # CONSTRAINT: Must be > 0
   time_length: 1000
 
   # Starting time index (optional, default 0)
   t_start: 0
 
-# Scattering Geometry
-# -------------------
+# ==============================================================================
+# SCATTERING GEOMETRY (Required)
+# ==============================================================================
+# Scattering geometry parameters. Must match your beamline/detector setup.
+#
 scattering:
-  # Scattering wavevector magnitude (1/Å)
+  # Wave vector magnitude [Å⁻¹]
+  # Typically 0.001-0.1 for XPCS; get from beamline/sample geometry
+  # CONSTRAINT: Must be > 0
   wavevector_q: 0.01
 
   # Optional: list of phi angles to analyze (degrees)
   # If not specified, analyzes all angles in data
+  # Recommend: 0° (parallel to flow) + 90° (perpendicular) for flow experiments
   # phi_angles: [0, 45, 90, 135, 180]
 
-# Model Parameters (14 physics + 2 scaling = 16 total)
-# =====================================================
+# ==============================================================================
+# PHI ANGLE FILTERING (Optional)
+# ==============================================================================
+# Select which scattering angles to include in analysis.
+#
+# WHY FILTER ANGLES?
+#   - Reduces number of per-angle scaling parameters (2 × N_angles)
+#   - Focuses on angles with strongest signal
+#   - For flow: 0° (parallel) and 90° (perpendicular) capture velocity effects
+#   - For static: 0° and 180° detect anisotropy
+#
+# ANGLE CONVENTION:
+#   - Angles in degrees, range [-180, 180]
+#   - Wrap-aware: [170, -170] captures angles from 170° through 180° to -170°
+#
+phi_filtering:
+  enabled: true
+
+  # Target angle ranges to include
+  target_ranges:
+    - min_angle: -10.0
+      max_angle: 10.0
+      description: "Parallel to flow / primary axis"
+    - min_angle: 85.0
+      max_angle: 95.0
+      description: "Perpendicular to flow"
+    # Uncomment for additional angles:
+    # - min_angle: -95.0
+    #   max_angle: -85.0
+    #   description: "Perpendicular (opposite side)"
+    # - min_angle: 170.0
+    #   max_angle: -170.0
+    #   description: "Antiparallel"
+
+  # If no angles match target_ranges, use all available angles
+  fallback_to_all_angles: true
+
+  # Filtering algorithm settings
+  algorithm: "range_based"
+  tolerance: 3.0               # Degrees; angles within tolerance of range edges included
+
+  # Quality control
+  quality_control:
+    min_angles_required: 1     # Minimum angles needed (≥2 recommended for flow)
+    max_angle_spread: 36.0     # Maximum spread within each range
+    validate_coverage: true    # Warn if ranges are poorly covered
+
+# ==============================================================================
+# MODEL PARAMETERS (14 physics + 2 scaling = 16 total per angle)
+# ==============================================================================
 # Each parameter can be specified as:
 #   value: initial/fixed value
 #   min: lower bound
 #   max: upper bound
 #   vary: true/false (whether to optimize)
 #
-# Physical model:
-#   c2(t1,t2,phi) = offset + contrast × [ref + sample + cross] / f²
-
+# Two-component model:
+#   c2(t1,t2,φ) = offset + contrast × [f_r²·|g1_r|² + f_s²·|g1_s|²
+#                  + 2·f_r·f_s·Re(g1_r*·g1_s·exp(i·q·cos(φ-φ0)·∫v(t')dt'))] / f²
+#
+# WORKFLOW (NLSQ → MCMC):
+#   1. Run NLSQ first with default values (uses registry defaults)
+#   2. Copy fitted parameters from NLSQ output
+#   3. Update values for CMC initialization
+#   4. Run CMC with good starting point
+#
 parameters:
-  # Reference Transport: J_r(t) = D0_ref * t^alpha_ref + D_offset_ref
-  # g1_r = exp(-q² * J_r(t))
+  # --------------------------------------------------------------------------
+  # REFERENCE TRANSPORT: J_r(t) = D0_ref · t^α_ref + D_offset_ref
+  # --------------------------------------------------------------------------
+  # Models the reference (known) scatterer dynamics.
+  # g1_r(t) = exp(-q² × J_r(t))
+  #
+  # Physical meaning: The reference beam probes a known colloidal standard
+  # or stationary scattering medium. For truly static references, fix all
+  # three to zero (D0_ref=0, alpha_ref=0, D_offset_ref=0).
+  #
   reference:
     D0_ref:
-      value: 10000.0
-      min: 100.0
-      max: 1000000.0
+      value: 10000.0           # Reference diffusion prefactor [Å²/s^α]
+      min: 100.0               # Minimum physical diffusion
+      max: 1000000.0           # Maximum physical diffusion
       vary: true
+      # Typical values: 100-100000 Å²/s^α depending on particle size
+      # For 100 nm particles in water at 25°C: D ~ 4000 Å²/s
+
     alpha_ref:
-      value: 0.0
-      min: -2.0
-      max: 2.0
+      value: 0.0               # Reference transport exponent [dimensionless]
+      min: -2.0                # Strong subdiffusion (jammed, arrested)
+      max: 2.0                 # Strong superdiffusion (active, ballistic)
       vary: true
+      # α = 1: Normal (Brownian) diffusion, MSD ~ t
+      # α < 1: Subdiffusion (crowded environments)
+      # α > 1: Superdiffusion (active transport, convection-enhanced)
+      # α = 0: J(t) = D0 (constant, no time dependence)
+
     D_offset_ref:
-      value: 0.0
-      min: -100000.0
+      value: 0.0               # Reference transport offset [Å²]
+      min: -100000.0           # Negative: possible for constrained motion
       max: 100000.0
       vary: true
+      # Usually near zero; non-zero indicates constant-rate contribution
+      # Negative values may indicate arrested dynamics
 
-  # Sample Transport: J_s(t) = D0_sample * t^alpha_sample + D_offset_sample
-  # g1_s = exp(-q² * J_s(t))
+  # --------------------------------------------------------------------------
+  # SAMPLE TRANSPORT: J_s(t) = D0_sample · t^α_sample + D_offset_sample
+  # --------------------------------------------------------------------------
+  # Models the sample (unknown) scatterer dynamics.
+  # g1_s(t) = exp(-q² × J_s(t))
+  #
+  # Physical meaning: The sample beam probes the system under study.
+  # These are the primary parameters of scientific interest.
+  #
   sample:
     D0_sample:
-      value: 10000.0
+      value: 10000.0           # Sample diffusion prefactor [Å²/s^α]
       min: 100.0
       max: 1000000.0
       vary: true
+
     alpha_sample:
-      value: 0.0
+      value: 0.0               # Sample transport exponent [dimensionless]
       min: -2.0
       max: 2.0
       vary: true
+      # Same interpretation as alpha_ref:
+      # α = 1: Normal diffusion, α < 1: subdiffusion, α > 1: superdiffusion
+
     D_offset_sample:
-      value: 0.0
+      value: 0.0               # Sample transport offset [Å²]
       min: -100000.0
       max: 100000.0
       vary: true
 
-  # Velocity Field: v(t) = v0 * t^beta + v_offset
-  # Used in cross-term phase: q * cos(phi) * integral(v(t)dt)
+  # --------------------------------------------------------------------------
+  # VELOCITY FIELD: v(t) = v0 · t^β + v_offset
+  # --------------------------------------------------------------------------
+  # Models the relative velocity between reference and sample beams.
+  # Enters the cross-term as a phase factor:
+  #   exp(i · q · cos(φ - φ0) · ∫v(t')dt')
+  #
+  # Physical meaning: Time-dependent flow or drift velocity.
+  # For constant velocity: set beta=0, then v(t) = v0 + v_offset.
+  # For flow reversal: v_offset can be negative.
+  #
+  # UNITS: All in Å/s (Angstroms per second)
+  #   To convert from μm/s: multiply by 1e4
+  #   To convert from nm/s: multiply by 10
+  #
   velocity:
     v0:
-      value: 1000.0
-      min: 0.000001
-      max: 10000.0
+      value: 1000.0            # Velocity prefactor [Å/s^β]
+      min: 0.000001            # Near-zero velocity (1e-6 Å/s)
+      max: 10000.0             # Maximum velocity
       vary: true
+      # Typical values: 10-10000 Å/s
+      # Note: log-space optimization in CMC (spans orders of magnitude)
+
     beta:
-      value: 0.0
-      min: -2.0
-      max: 2.0
+      value: 0.0               # Velocity exponent [dimensionless]
+      min: -2.0                # Decelerating flow
+      max: 2.0                 # Accelerating flow
       vary: true
+      # β = 0: Constant velocity (steady-state flow)
+      # β > 0: Accelerating (e.g., startup flow, thickening)
+      # β < 0: Decelerating (e.g., relaxation, thinning)
+
     v_offset:
-      value: 0.0
-      min: -100.0
+      value: 0.0               # Velocity offset [Å/s]
+      min: -100.0              # Negative for flow reversal
       max: 100.0
       vary: true
+      # Allows modeling of flow direction reversal
+      # Combined velocity: v(t) = v0 · t^β + v_offset
 
-  # Sample Fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3
+  # --------------------------------------------------------------------------
+  # SAMPLE FRACTION: f_s(t) = clip(f0 · exp(f1 · (t - f2)) + f3, 0, 1)
+  # --------------------------------------------------------------------------
+  # Models the time-dependent sample scattering fraction.
   # Reference fraction: f_r(t) = 1 - f_s(t)
-  # Fraction is clipped to [0, 1]
+  # The fraction is always clipped to [0, 1].
+  #
+  # Physical meaning: Relative scattering power of sample vs reference.
+  # For constant fraction (most common): set f1=0, f2=0, f3=0, then f_s = f0.
+  # Time-dependent fraction models drying, sedimentation, flow displacement.
+  #
   fraction:
     f0:
-      value: 0.5
-      min: 0.0
-      max: 1.0
+      value: 0.5               # Fraction amplitude [dimensionless]
+      min: 0.0                 # Pure reference beam
+      max: 1.0                 # Pure sample beam
       vary: true
+      # f0 = 0.5: Equal reference/sample scattering (typical starting point)
+      # f0 → 0: Dominated by reference beam
+      # f0 → 1: Dominated by sample beam
+
     f1:
-      value: 0.0
-      min: -10.0
-      max: 10.0
+      value: 0.0               # Exponential rate [s⁻¹]
+      min: -10.0               # Decreasing fraction
+      max: 10.0                # Increasing fraction
       vary: true
+      # f1 = 0: Constant fraction (most common)
+      # f1 > 0: Sample fraction grows exponentially
+      # f1 < 0: Sample fraction decays exponentially
+
     f2:
-      value: 0.0
+      value: 0.0               # Time shift [s]
       min: -10000.0
       max: 10000.0
       vary: true
+      # Centers the exponential onset; often set to mid-experiment time
+
     f3:
-      value: 0.0
+      value: 0.0               # Baseline offset [dimensionless]
       min: 0.0
       max: 1.0
       vary: true
+      # Adds constant baseline to fraction: f_s(t) = f0·exp(...) + f3
 
-  # Flow Angle: angle between q-vector and flow direction
+  # --------------------------------------------------------------------------
+  # FLOW ANGLE: angle between q-vector and flow direction
+  # --------------------------------------------------------------------------
+  # Controls the angular dependence of the velocity cross-term:
+  #   cos(φ_measured - φ0) weights the velocity contribution
+  #
+  # Physical meaning: Misalignment between the flow direction and the
+  # nominal detector axis. For well-aligned experiments, φ0 ≈ 0.
+  #
   angle:
     phi0:
-      value: 0.0
-      min: -10.0
-      max: 10.0
+      value: 0.0               # Flow angle offset [degrees]
+      min: -10.0               # Tight bounds help convergence
+      max: 10.0                # Widen if large misalignment suspected
       vary: true
 
-  # Scaling: speckle contrast and baseline offset
+  # --------------------------------------------------------------------------
+  # SCALING: speckle contrast and baseline offset (per-angle)
+  # --------------------------------------------------------------------------
+  # Applied per-angle to account for detector geometry and beam properties.
   # c2 = offset + contrast × [ref + sample + cross] / f²
+  #
+  # contrast: Optical coherence factor (β in literature)
+  #   Depends on coherent fraction, detector geometry, beam divergence
+  #   Typical XPCS values: 0.01-0.2
+  #
+  # offset: Baseline of the normalized correlation function
+  #   Ideally 1.0; deviations indicate normalization issues
+  #
   scaling:
     contrast:
-      value: 0.5
-      min: 0.0
-      max: 1.0
+      value: 0.5               # Speckle contrast [dimensionless]
+      min: 0.0                 # Physical minimum (no contrast)
+      max: 1.0                 # Physical maximum (fully coherent)
       vary: true
+
     offset:
-      value: 1.0
-      min: 0.5
+      value: 1.0               # Baseline offset [dimensionless]
+      min: 0.5                 # Allow variation from ideal 1.0
       max: 1.5
       vary: true
 
-# Optimization Settings
-# ---------------------
+# ==============================================================================
+# PARAMETER SPACE (Required for CMC)
+# ==============================================================================
+# Parameter bounds and prior distributions for Bayesian inference.
+#
+# PRIOR DISTRIBUTIONS:
+#   - TruncatedNormal (default): Bounded Gaussian, recommended for most parameters
+#   - LogNormal: For log-space parameters (D0_ref, D0_sample, v0)
+#   - Uniform: Non-informative within bounds
+#   - HalfNormal: Positive-only parameters
+#   - BetaScaled: Beta distribution affine-transformed to parameter bounds
+#
+# BOUNDS GUIDELINES:
+#   - Too narrow: May miss true optimum
+#   - Too wide: Slow convergence, numerical issues
+#   - Start with template bounds, tighten for MCMC if posteriors wander
+#
+# DUAL PRIOR SYSTEM:
+#   Both parameter_registry.py (prior_mean/prior_std) and parameter_space.py
+#   (_DEFAULT_PRIOR_SPECS) must stay in sync. Values below match both sources.
+#
+parameter_space:
+  bounds:
+    # -----------------------------------------------------------------------
+    # SCALING PARAMETERS (applied per angle)
+    # -----------------------------------------------------------------------
+    - name: contrast
+      min: 0.0
+      max: 1.0
+      type: TruncatedNormal
+      prior_mu: 0.5
+      prior_sigma: 0.25
+      # Typical XPCS values: 0.01-0.2
+
+    - name: offset
+      min: 0.5
+      max: 1.5
+      type: TruncatedNormal
+      prior_mu: 1.0
+      prior_sigma: 0.25
+      # Baseline near 1.0
+
+    # -----------------------------------------------------------------------
+    # REFERENCE TRANSPORT PARAMETERS
+    # -----------------------------------------------------------------------
+    - name: D0_ref
+      min: 100.0
+      max: 1000000.0
+      type: TruncatedNormal
+      prior_mu: 10000.0
+      prior_sigma: 5000.0
+      unit: "Å²/s^α"
+      log_space: true          # Optimized in log-space for CMC
+      # Physical meaning: Reference diffusion coefficient magnitude
+
+    - name: alpha_ref
+      min: -2.0
+      max: 2.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 1.0
+      unit: "dimensionless"
+      # Physical meaning: Reference anomalous diffusion exponent
+      #   α = 1: Normal (Brownian) diffusion
+      #   α < 1: Subdiffusion (crowded, jammed)
+      #   α > 1: Superdiffusion (active, convective)
+
+    - name: D_offset_ref
+      min: -100000.0
+      max: 100000.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 1000.0
+      unit: "Å²"
+      # Physical meaning: Constant reference diffusion baseline
+
+    # -----------------------------------------------------------------------
+    # SAMPLE TRANSPORT PARAMETERS
+    # -----------------------------------------------------------------------
+    - name: D0_sample
+      min: 100.0
+      max: 1000000.0
+      type: TruncatedNormal
+      prior_mu: 10000.0
+      prior_sigma: 5000.0
+      unit: "Å²/s^α"
+      log_space: true          # Optimized in log-space for CMC
+      # Physical meaning: Sample diffusion coefficient magnitude
+
+    - name: alpha_sample
+      min: -2.0
+      max: 2.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 1.0
+      unit: "dimensionless"
+      # Physical meaning: Sample anomalous diffusion exponent
+
+    - name: D_offset_sample
+      min: -100000.0
+      max: 100000.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 1000.0
+      unit: "Å²"
+      # Physical meaning: Constant sample diffusion baseline
+
+    # -----------------------------------------------------------------------
+    # VELOCITY PARAMETERS
+    # -----------------------------------------------------------------------
+    - name: v0
+      min: 0.000001
+      max: 10000.0
+      type: TruncatedNormal
+      prior_mu: 1000.0
+      prior_sigma: 500.0
+      unit: "Å/s^β"
+      log_space: true          # Optimized in log-space for CMC
+      # Physical meaning: Velocity magnitude
+      # v(t) = v0 · t^β + v_offset
+
+    - name: beta
+      min: -2.0
+      max: 2.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 1.0
+      unit: "dimensionless"
+      # Physical meaning: Velocity time exponent
+      #   β = 0: Constant velocity (steady-state)
+      #   β > 0: Accelerating flow
+      #   β < 0: Decelerating flow
+
+    - name: v_offset
+      min: -100.0
+      max: 100.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 25.0
+      unit: "Å/s"
+      # Physical meaning: Constant velocity offset (negative for reversal)
+
+    # -----------------------------------------------------------------------
+    # FRACTION PARAMETERS
+    # -----------------------------------------------------------------------
+    - name: f0
+      min: 0.0
+      max: 1.0
+      type: TruncatedNormal
+      prior_mu: 0.5
+      prior_sigma: 0.25
+      unit: "dimensionless"
+      # Physical meaning: Sample fraction amplitude
+
+    - name: f1
+      min: -10.0
+      max: 10.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 5.0
+      unit: "s⁻¹"
+      # Physical meaning: Exponential rate (0 = constant fraction)
+
+    - name: f2
+      min: -10000.0
+      max: 10000.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 1000.0
+      unit: "s"
+      # Physical meaning: Time shift for fraction onset
+
+    - name: f3
+      min: 0.0
+      max: 1.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 0.5
+      unit: "dimensionless"
+      # Physical meaning: Fraction baseline offset
+
+    # -----------------------------------------------------------------------
+    # FLOW ANGLE PARAMETER
+    # -----------------------------------------------------------------------
+    - name: phi0
+      min: -10.0
+      max: 10.0
+      type: TruncatedNormal
+      prior_mu: 0.0
+      prior_sigma: 5.0
+      unit: "degrees"
+      # Physical meaning: Flow direction angle offset
+      # Accounts for misalignment between flow and detector axes
+
+  # Advanced prior specifications (rarely needed)
+  priors: null
+
+# ==============================================================================
+# INITIAL PARAMETERS (Optional)
+# ==============================================================================
+# Starting values for optimization. When null, uses parameter registry defaults.
+#
+# PARAMETER ORDER (14 physical):
+#   [D0_ref, alpha_ref, D_offset_ref,
+#    D0_sample, alpha_sample, D_offset_sample,
+#    v0, beta, v_offset,
+#    f0, f1, f2, f3, phi0]
+#
+initial_parameters:
+  # Physical parameter names (order matters for values list)
+  parameter_names:
+    - D0_ref
+    - alpha_ref
+    - D_offset_ref
+    - D0_sample
+    - alpha_sample
+    - D_offset_sample
+    - v0
+    - beta
+    - v_offset
+    - f0
+    - f1
+    - f2
+    - f3
+    - phi0
+
+  # Initial values: list matching parameter_names order, or null for defaults
+  # null = uses registry defaults (recommended for first run)
+  values: null
+
+  # Per-angle scaling initialization (one value per filtered angle)
+  # When null, uses quantile-based initialization to compute robust
+  # initial values from experimental data
+  per_angle_scaling:
+    contrast: null             # null = quantile-based init, or [0.05, 0.06] for 2 angles
+    offset: null               # null = quantile-based init, or [1.0, 0.99] for 2 angles
+
+  # Units for documentation (not used by optimizer)
+  units:
+    - "Å²/s^α"
+    - "dimensionless"
+    - "Å²"
+    - "Å²/s^α"
+    - "dimensionless"
+    - "Å²"
+    - "Å/s^β"
+    - "dimensionless"
+    - "Å/s"
+    - "dimensionless"
+    - "s⁻¹"
+    - "s"
+    - "dimensionless"
+    - "degrees"
+
+  # Optional: Optimize only a subset of parameters
+  active_parameters: null      # e.g., ["D0_ref", "D0_sample", "v0"]
+
+  # Optional: Fix parameters at specific values
+  fixed_parameters: null       # e.g., {"f1": 0.0, "f2": 0.0, "f3": 0.0, "beta": 0.0}
+
+# ==============================================================================
+# OPTIMIZATION (NLSQ + CMC)
+# ==============================================================================
+# Optimization method selection and configuration.
+#
+# RECOMMENDED WORKFLOW:
+#   1. Run NLSQ first (fast, deterministic)
+#   2. Inspect residuals and fitted C2 heatmaps
+#   3. If poor fit, enable CMA-ES or adjust x_scale_map
+#   4. Run CMC for uncertainty quantification
+#
+# METHOD SELECTION:
+#   "nlsq" - Nonlinear least squares (seconds to minutes)
+#   "cmc"  - Consensus Monte Carlo via NumPyro NUTS (minutes to hours)
+#
 optimization:
-  # Primary method: "nlsq" (non-linear least squares) or "cmc" (Consensus Monte Carlo)
   method: "nlsq"
 
-  # NLSQ Settings
+  # ===========================================================================
+  # NLSQ - Trust-Region Nonlinear Least Squares
+  # ===========================================================================
+  # Fast, deterministic point estimation using Levenberg-Marquardt (TRF).
+  # CPU-optimized with JAX JIT compilation.
+  #
+  # STRATEGY SELECTION (automatic based on dataset size AND memory):
+  # ----------------------------------------------------------------
+  # | Dataset Size  | Strategy     | Description                     |
+  # |---------------|------------- |---------------------------------|
+  # | < 10K points  | RESIDUAL     | Direct evaluation               |
+  # | < 250K points | JIT          | JIT-compiled + Jacobian         |
+  # | > 250K points | CHUNKED      | Memory-adaptive chunking        |
+  #
+  # Memory override: If estimated memory > threshold, uses chunked regardless
+  # of dataset size. Estimate = Jacobian (n × p × 8) × overhead factor.
+  #
+  # KEY FORMAT NOTE:
+  #   All keys below are FLAT (not nested sub-dicts) because NLSQConfig.from_dict()
+  #   reads a flat dictionary. The only parsed sub-dicts are: "recovery",
+  #   "validation", and "x_scale_map".
+  #
   nlsq:
-    max_iterations: 100
-    tolerance: 1.0e-8
-    method: "trf"  # "trf" (trust region) or "lm" (Levenberg-Marquardt)
-    multistart: false
-    multistart_n: 10
+    # -----------------------------------------------------------------------
+    # WORKFLOW AND OPTIMIZATION GOAL
+    # -----------------------------------------------------------------------
+    # workflow: "auto" lets heterodyne decide based on dataset size and memory
+    #   "auto"        - Automatic strategy selection (recommended)
+    #   "auto_global" - Auto with CMA-ES global search when needed
+    #   "hpc"         - Optimized for high-performance compute nodes
+    #
+    # goal: Controls tolerance/quality tradeoff
+    #   "robust"           - Balanced quality and convergence (default)
+    #   "quality"          - Strictest tolerances, best results
+    #   "fast"             - Relaxed tolerances, faster convergence
+    #   "memory_efficient" - Optimized for low-memory environments
+    workflow: "auto"
+    goal: "robust"
 
-  # CMC (Bayesian) Settings
+    # -----------------------------------------------------------------------
+    # ANALYSIS MODE
+    # -----------------------------------------------------------------------
+    # Determines which physical model variant to use.
+    #   "two_component" - Full two-component model (14 physical parameters)
+    #                     Reference beam + sample beam with velocity cross-term
+    #   "static_ref"    - Reference beam treated as static background
+    #                     Fixes D0_ref, alpha_ref, D_offset_ref to static values
+    #   "static_both"   - Both beams treated as static
+    #                     Only velocity and fraction parameters vary
+    analysis_mode: "two_component"
+
+    # -----------------------------------------------------------------------
+    # MEMORY CONFIGURATION
+    # -----------------------------------------------------------------------
+    # Environment variable override: NLSQ_MEMORY_FRACTION (0.1-0.9)
+    nlsq_memory_fraction: 0.75           # Use 75% of available RAM
+    nlsq_memory_fallback_gb: 16.0        # Fallback if auto-detection fails
+
+    # -----------------------------------------------------------------------
+    # CONVERGENCE SETTINGS
+    # -----------------------------------------------------------------------
+    max_iterations: 1000       # Maximum optimizer iterations (>= 1)
+    tolerance: 1.0e-8          # Function tolerance (ftol)
+    xtol: 1.0e-8              # Parameter tolerance
+    gtol: 1.0e-8              # Gradient tolerance
+    verbose: 1                 # 0=silent, 1=summary, 2=detailed
+
+    # Solver method
+    method: "trf"              # "trf" (trust region, recommended) or "lm" (Levenberg-Marquardt)
+                               # Note: "dogbox" is coerced to "trf" internally
+
+    # Jacobian
+    use_jac: true              # Supply analytic Jacobian (faster, more accurate)
+    x_scale: "jac"             # "jac" = Jacobian-based scaling, or list of floats
+
+    # Advanced solver options
+    # diff_step: null          # Finite-difference step (null = auto)
+    # max_nfev: null           # Max function evaluations (null = unlimited)
+    # chunk_size: null         # Points per chunk (null = auto memory selection)
+
+    # -----------------------------------------------------------------------
+    # LOSS FUNCTION
+    # -----------------------------------------------------------------------
+    # Controls how outliers affect the fit. All loss functions are JAX JIT-compiled.
+    #
+    # Options:
+    #   "linear"  - Standard least squares: ρ(z) = z
+    #               No outlier protection; fastest; optimal for clean data
+    #   "huber"   - Huber loss: quadratic for small, linear for large residuals
+    #   "soft_l1" - Soft L1 loss: ρ(z) = 2(√(1+z) - 1)   [RECOMMENDED]
+    #   "cauchy"  - Cauchy/Lorentzian: ρ(z) = ln(1 + z), extremely robust
+    #   "arctan"  - Arctangent: ρ(z) = arctan(z), bounded loss
+    #
+    # SELECTION GUIDE:
+    # | Data Quality            | Recommended Loss |
+    # |-------------------------|------------------|
+    # | Clean, well-characterized | "linear"       |
+    # | Typical XPCS data        | "soft_l1"      |
+    # | Few outliers/artifacts    | "huber"        |
+    # | Severe contamination      | "cauchy"       |
+    #
+    loss: "soft_l1"
+
+    # -----------------------------------------------------------------------
+    # PARAMETER SCALING (x_scale_map)
+    # -----------------------------------------------------------------------
+    # Fixes gradient imbalance: heterodyne has parameters spanning 10+ orders
+    # of magnitude (D0 ~ 1e4, f1 ~ 0.01, v0 ~ 1e3).
+    #
+    # SYMPTOM: Early convergence, flat parameters, missing C2 oscillations
+    #
+    # Set to null to use automatic Jacobian-based scaling ("jac")
+    # Or provide explicit per-parameter scales:
+    x_scale_map: null
+    # x_scale_map:
+    #   D0_ref: 1.0
+    #   alpha_ref: 0.001
+    #   D_offset_ref: 1.0
+    #   D0_sample: 1.0
+    #   alpha_sample: 0.001
+    #   D_offset_sample: 1.0
+    #   v0: 0.01
+    #   beta: 0.001
+    #   v_offset: 0.001
+    #   f0: 0.01
+    #   f1: 0.0001
+    #   f2: 0.01
+    #   f3: 0.01
+    #   phi0: 0.1
+
+    # -----------------------------------------------------------------------
+    # ANTI-DEGENERACY AND DIAGNOSTICS
+    # -----------------------------------------------------------------------
+    # Master switches for degeneracy prevention and post-fit diagnostics.
+    enable_anti_degeneracy: true         # Apply anti-degeneracy constraints
+    enable_diagnostics: true             # Compute post-fit diagnostics
+
+    # -----------------------------------------------------------------------
+    # PER-ANGLE SCALING MODE
+    # -----------------------------------------------------------------------
+    # Controls dimensionality reduction for per-angle contrast/offset.
+    #
+    # MODES:
+    #   "auto" (RECOMMENDED): Auto-selects based on n_phi.
+    #     When n_phi >= fourier_auto_threshold: Uses Fourier basis
+    #     Otherwise: Independent per-angle params
+    #
+    #   "fourier": Fourier basis for smooth angle variation.
+    #     contrast(φ) = c0 + Σ_k [ck·cos(k·φ) + sk·sin(k·φ)]
+    #
+    #   "independent": Independent per-angle params, optimized during fitting.
+    #     Prone to absorption with many angles. Use with caution.
+    #
+    # PARAMETER COUNT (n_phi=10):
+    #   - auto/fourier (order=2): 14 + 10 Fourier coeffs = 24 params
+    #   - individual:             14 + 20 per-angle = 34 params
+    #
+    per_angle_mode: "auto"
+    fourier_order: 2                     # Number of Fourier harmonics (>= 1)
+    fourier_auto_threshold: 6            # Min angles for Fourier mode (>= 1)
+    constant_scaling_threshold: 0.05     # Threshold fraction for constant mode
+
+    # -----------------------------------------------------------------------
+    # HIERARCHICAL OPTIMIZATION
+    # -----------------------------------------------------------------------
+    # Alternates between physical and per-angle parameter optimization
+    # to prevent parameter absorption degeneracy.
+    enable_hierarchical: false
+    hierarchical_max_outer_iterations: 20          # Outer loop iterations (>= 1)
+    hierarchical_inner_tolerance: 1.0e-6           # Inner convergence tolerance
+    hierarchical_outer_tolerance: 1.0e-4           # Outer convergence tolerance
+
+    # -----------------------------------------------------------------------
+    # ADAPTIVE REGULARIZATION
+    # -----------------------------------------------------------------------
+    # CV-based regularization that scales with data variance.
+    regularization_mode: "none"          # "none" | "tikhonov" | "adaptive"
+    group_variance_lambda: 0.01          # Base regularization strength (> 0)
+    regularization_target_cv: 0.5        # Target coefficient of variation (0, 1)
+
+    # -----------------------------------------------------------------------
+    # GRADIENT COLLAPSE DETECTION
+    # -----------------------------------------------------------------------
+    # Monitors gradient norms to detect when physical parameter gradients
+    # vanish relative to scaling parameter gradients.
+    enable_gradient_monitoring: false
+    gradient_ratio_threshold: 100.0      # Trigger if ratio exceeds this (> 0)
+    gradient_consecutive_triggers: 3     # Must trigger N times consecutively (> 0)
+
+    # -----------------------------------------------------------------------
+    # MULTI-START OPTIMIZATION
+    # -----------------------------------------------------------------------
+    # Explores parameter space from multiple starting points using Latin
+    # Hypercube Sampling (LHS) to find global optimum and detect degeneracy.
+    #
+    # DISABLED when CMA-ES is enabled — CMA-ES provides better global
+    # optimization through population-based search.
+    multistart: false                    # Enable multi-start optimization
+    multistart_n: 10                     # Number of LHS starting points (> 0)
+    sampling_strategy: "lhs"             # "lhs" | "sobol" | "random"
+    screen_keep_fraction: 0.5            # Keep top 50% after screening (0, 1]
+    refine_top_k: 3                      # Refine top K solutions (>= 1)
+
+    # -----------------------------------------------------------------------
+    # CMA-ES GLOBAL OPTIMIZATION
+    # -----------------------------------------------------------------------
+    # Covariance Matrix Adaptation Evolution Strategy for global optimization.
+    #
+    # WHEN TO USE CMA-ES:
+    #   - Parameters spanning vastly different scales (D0 ~ 1e4, f1 ~ 0.01)
+    #   - When multi-start optimization finds inconsistent minima
+    #   - For the 14-parameter heterodyne model: RECOMMENDED for first exploration
+    #
+    # REQUIRES: pip install nlsq[evosax]
+    #
+    # TWO-PHASE ARCHITECTURE:
+    #   Phase 1: CMA-ES Global Search (population-based exploration)
+    #   Phase 2: NLSQ TRF Refinement (local precision, optional)
+    enable_cmaes: false                  # Enable CMA-ES global optimization
+    cmaes_sigma0: 0.3                    # Initial step size (fraction of range, > 0)
+    cmaes_max_iterations: 1000           # Maximum generations (> 0)
+    cmaes_population_size: null          # null = adaptive scaling
+    cmaes_tolx: 1.0e-6                  # Parameter tolerance (> 0)
+    cmaes_tolfun: 1.0e-8                # Function value tolerance (> 0)
+    cmaes_diagonal_filtering: "none"     # "none" | "remove"
+    cmaes_anti_degeneracy: false         # Enable within CMA-ES evaluation
+
+    # -----------------------------------------------------------------------
+    # HYBRID STREAMING OPTIMIZER
+    # -----------------------------------------------------------------------
+    # Four-phase optimizer for large datasets (>10M points):
+    #   Phase 0: Parameter normalization setup
+    #   Phase 1: L-BFGS warmup with adaptive switching
+    #   Phase 2: Streaming Gauss-Newton (quadratic convergence)
+    #   Phase 3: Denormalization and covariance transform
+    #
+    # Memory: Bounded at ~2 GB regardless of dataset size
+    hybrid_enable: false                 # Enable for large datasets
+    hybrid_warmup_fraction: 0.1          # L-BFGS warmup fraction (0, 1)
+    hybrid_normalization: true           # Enable parameter normalization
+    hybrid_method: "gauss_newton"        # "gauss_newton" | "lbfgs"
+    hybrid_lbfgs_memory: 10              # L-BFGS history size
+    hybrid_convergence_window: 5         # Window for convergence check
+    hybrid_convergence_threshold: 1.0e-6 # Convergence tolerance
+    hybrid_max_phases: 4                 # Maximum number of phases
+
+    # -----------------------------------------------------------------------
+    # STREAMING AND STRATIFIED SAMPLING
+    # -----------------------------------------------------------------------
+    enable_streaming: false              # Process data in streaming chunks
+    streaming_chunk_size: 50000          # Points per streaming chunk (> 0)
+    enable_stratified: false             # Use angle-stratified chunking
+    target_chunk_size: 10000             # Target points per chunk (> 0)
+
+    # -----------------------------------------------------------------------
+    # RECOVERY SETTINGS (nested sub-dict parsed by from_dict)
+    # -----------------------------------------------------------------------
+    # Automatic error recovery with progressively conservative settings.
+    # Each retry k applies: lr × lr_decay^k, lambda × lambda_growth^k,
+    # trust_radius × trust_decay^k.
+    enable_recovery: true
+    max_recovery_attempts: 3
+    recovery:
+      max_retries: 3                     # Maximum retry attempts (>= 0)
+      lr_decay: 0.5                      # Learning rate multiplier per retry
+      lambda_growth: 10.0                # Regularization multiplier per retry
+      trust_decay: 0.5                   # Trust region multiplier per retry
+      perturb_scale: 0.1                 # Parameter perturbation fraction
+
+    # -----------------------------------------------------------------------
+    # FIT QUALITY VALIDATION (nested sub-dict parsed by from_dict)
+    # -----------------------------------------------------------------------
+    # Post-optimization quality checks with configurable thresholds.
+    validation:
+      chi2_warn_low: 0.5                 # Warn if χ²_red below this (over-fitting)
+      chi2_warn_high: 2.0                # Warn if χ²_red above this (under-fitting)
+      chi2_fail_high: 10.0               # Fail if χ²_red above this
+      max_relative_uncertainty: 1.0      # Max σ/|param| (100%)
+      correlation_warn: 0.95             # Collinearity warning threshold
+
+    # -----------------------------------------------------------------------
+    # NLSQ LIBRARY INTEGRATION
+    # -----------------------------------------------------------------------
+    # Configuration for the nlsq package (NLSQ 0.6.10+).
+    use_nlsq_library: true               # Prefer nlsq library over scipy fallback
+    nlsq_stability: "auto"              # "auto" | "check" | "off"
+    nlsq_rescale_data: false             # xdata is indices, not physical
+    nlsq_x_scale: "jac"                 # Trust-region scaling strategy
+
+  # ===========================================================================
+  # CMC - Consensus Monte Carlo (Bayesian Path)
+  # ===========================================================================
+  # Parallelizes MCMC across data shards using per-shard NUTS sampling.
+  # Combines subposteriors via Consensus Monte Carlo (precision-weighted means).
+  #
+  # AUTOMATIC NLSQ WARM-START:
+  #   When using CLI: heterodyne --config config.yaml --method cmc
+  #   NLSQ is run AUTOMATICALLY first, and results are used as CMC initial values.
+  #   This reduces divergence rate from ~28% to <5%.
+  #
+  # AUTO-ACTIVATION:
+  #   CMC used when: enable="auto" AND dataset ≥ min_points_for_cmc
+  #
+  # DIMENSIONALITY NOTE:
+  #   Heterodyne has 14 physical parameters (vs. 7 in homodyne).
+  #   All shard sizing formulas account for this increased dimensionality:
+  #   min shard = min_points_per_param × 14 = 21,000 points (default)
+  #
+  # KEY FORMAT NOTE:
+  #   CMCConfig.from_dict() uses nested sections. The recognised section keys are:
+  #   per_angle, sharding, backend_config, per_shard_mcmc, validation, nlsq,
+  #   combination, timeout, reparameterization. Within each section, use the
+  #   canonical field names shown below.
+  #
   cmc:
-    # "auto": run if data supports it, "always": force CMC, "never": skip
-    enable: "auto"
-    num_warmup: 500
-    num_samples: 1000
-    num_chains: 4
-    target_accept: 0.8
+    enable: "auto"             # "auto" | "always" | "never"
+    min_points_for_cmc: 100000           # Threshold for auto-enable
+    run_id: null               # Optional run tag for checkpoints
 
-# Output Settings
-# ---------------
+    # Prior tempering
+    # Scales priors by 1/K per shard to prevent prior double-counting.
+    # Without tempering, K shards each apply the full prior → combined = prior^K.
+    # With tempering, each shard uses prior^(1/K) → combined = prior × likelihood.
+    prior_tempering: true
+
+    # -----------------------------------------------------------------------
+    # ANTI-DEGENERACY: PER-ANGLE SCALING MODE
+    # -----------------------------------------------------------------------
+    # Controls how per-angle contrast/offset are handled in CMC.
+    # Same as NLSQ per-angle mode except CMC does NOT have "fourier".
+    #
+    # MODES:
+    #   "auto" (RECOMMENDED): Auto-selects based on n_phi threshold
+    #   "constant": Per-angle values from quantile estimation, fixed
+    #   "constant_averaged": Quantile values averaged across angles
+    #   "individual": Independent per-angle params, all sampled
+    #
+    # PARAMETER COUNT (n_phi=10):
+    #   - auto (n_phi >= 3):   16 params (14 physical + 2 averaged + sigma)
+    #   - constant:            15 params (14 physical + sigma)
+    #   - individual:          35 params (14 physical + 20 scaling + sigma)
+    #
+    per_angle:
+      per_angle_mode: "auto"
+      constant_scaling_threshold: 3      # Use constant when n_phi >= this (>= 1)
+
+    # -----------------------------------------------------------------------
+    # BACKEND CONFIGURATION
+    # -----------------------------------------------------------------------
+    backend_config:
+      backend_name: "auto"               # "auto" | "multiprocessing" | "pjit" | "cpu"
+      enable_checkpoints: true
+      checkpoint_dir: "./checkpoints/cmc"
+      chain_method: "parallel"           # "parallel" (JAX vmap) or "sequential"
+
+    # -----------------------------------------------------------------------
+    # DATA SHARDING
+    # -----------------------------------------------------------------------
+    # CRITICAL: NUTS is O(n) per leapfrog step. Never use 100K+ shard size.
+    #
+    # For heterodyne (14 params):
+    #   min shard = 1500 × 14 = 21,000 points
+    #   recommended: 21K-50K per shard for flow experiments
+    #
+    sharding:
+      sharding_strategy: "random"        # "random" | "stratified" | "contiguous"
+      num_shards: "auto"                 # "auto" calculates from dataset size
+      max_points_per_shard: "auto"       # "auto" → dynamic (ALWAYS use auto)
+      min_points_per_shard: 10000        # Enforced minimum (>= 1000)
+      min_points_per_param: 1500         # Ratio: points/parameter per shard
+                                         # For 14 params: min = 1500 × 14 = 21K
+
+    # -----------------------------------------------------------------------
+    # PER-SHARD MCMC SETTINGS
+    # -----------------------------------------------------------------------
+    per_shard_mcmc:
+      num_warmup: 500                    # Warmup samples per chain (> 0)
+      num_samples: 1000                  # Posterior samples per chain (> 0)
+      num_chains: 4                      # Number of chains (≥2 for R-hat, 4 recommended)
+      target_accept_prob: 0.8            # NUTS acceptance target (0.5, 0.99)
+      max_tree_depth: 10                 # NUTS binary tree depth [1, 15]
+      dense_mass: false                  # Full vs diagonal mass matrix
+      init_strategy: "init_to_median"    # "init_to_median" | "init_to_sample" | "init_to_value"
+      seed: null                         # Random seed (null = non-deterministic)
+
+      # Adaptive sampling (reduces overhead for small shards)
+      # scale_factor = min(1.0, shard_size / 10000)
+      # scaled_warmup = num_warmup × scale_factor
+      adaptive_sampling: true
+      min_warmup: 100                    # Floor on adaptive warmup (>= 10)
+      min_samples: 200                   # Floor on adaptive samples (>= 50)
+
+    # -----------------------------------------------------------------------
+    # PER-SHARD TIMEOUT
+    # -----------------------------------------------------------------------
+    # | Dataset Size | Shard Size | Recommended Timeout |
+    # |------------- |------------|---------------------|
+    # | < 2M points  | 21K auto   | 3600s (1 hour)     |
+    # | 2M - 10M     | 21K auto   | 3600s (1 hour)     |
+    # | 10M - 50M    | 21K auto   | 7200s (2 hours)    |
+    # | > 50M        | 21K        | 10800s (3 hours)   |
+    #
+    timeout:
+      per_shard_timeout: 3600            # Seconds per shard (> 60)
+      heartbeat_timeout: 600             # Silence timeout before killing worker (> 60)
+
+    # -----------------------------------------------------------------------
+    # CONVERGENCE VALIDATION
+    # -----------------------------------------------------------------------
+    validation:
+      max_r_hat: 1.1                     # Gelman-Rubin convergence diagnostic
+      min_ess: 100                       # Minimum effective sample size per parameter
+      min_bfmi: 0.3                      # Bayesian Fraction of Missing Information
+      max_divergence_rate: 0.10          # Max fraction of divergent transitions
+      max_parameter_cv: 1.0              # Max coefficient of variation across shards
+      heterogeneity_abort: true          # Abort if shards too heterogeneous
+      require_nlsq_warmstart: false      # Fail if NLSQ unavailable
+
+    # -----------------------------------------------------------------------
+    # NLSQ WARM-START & INFORMED PRIORS
+    # -----------------------------------------------------------------------
+    # IMPORTANT: NLSQ warm-start is AUTOMATIC when using the CLI.
+    # This reduces divergence rate from ~28% to <5%.
+    nlsq:
+      use_nlsq_warmstart: true           # Initialize from NLSQ MAP estimate
+      use_nlsq_informed_priors: true     # Center priors on NLSQ estimates
+      nlsq_prior_width_factor: 2.0       # Width = NLSQ_std × factor [1.0, 10.0]
+                                         # ~95.4% coverage at factor=2.0
+
+    # -----------------------------------------------------------------------
+    # SUBPOSTERIOR COMBINATION
+    # -----------------------------------------------------------------------
+    combination:
+      combination_method: "robust_consensus_mc"    # "consensus_mc" | "robust_consensus_mc"
+                                                   #   | "weighted_gaussian" | "simple_average"
+      min_success_rate: 0.90                       # Require 90% shard convergence [0, 1]
+      min_success_rate_warning: 0.80               # Warning threshold [0, 1]
+
+    # -----------------------------------------------------------------------
+    # REPARAMETERIZATION
+    # -----------------------------------------------------------------------
+    # Transforms sampling space to break parameter degeneracies.
+    #
+    # D_total: Sample D_total = D0 + D_offset instead of independently.
+    #   Breaks the linear degeneracy between D0 and D_offset.
+    #   Applied to both reference and sample transport groups.
+    #
+    # Log-gamma: Sample log(v0) instead of v0 directly.
+    #   Improves NUTS sampling for velocity spanning orders of magnitude.
+    #
+    # Bimodal detection: Checks marginal posteriors for bimodality
+    #   using Gaussian Mixture Models (GMM).
+    #
+    reparameterization:
+      use_reparam: true                            # Apply reparameterization transforms
+      reparameterization_d_total: true             # Sample D_total = D0 + D_offset
+      reparameterization_log_gamma: true           # Sample log(v0) for scale spanning
+      bimodal_min_weight: 0.2                      # Min GMM component weight (0, 0.5]
+      bimodal_min_separation: 0.5                  # Min relative mode separation (0, 2.0]
+
+# ==============================================================================
+# NOISE ESTIMATION (Optional)
+# ==============================================================================
+# Automatic noise variance estimation for improved fit weighting.
+#
+noise_estimation:
+  enabled: false
+  model: "per_angle"           # "per_angle" | "global"
+
+  adam_config:
+    learning_rate: 0.01
+    max_epochs: 500
+    convergence_threshold: 1.0e-6
+    early_stopping: true
+
+  posterior_samples: 1200
+
+  validation:
+    check_convergence: true
+    reasonable_range: [1.0e-4, 1.0]
+    warn_outliers: true
+
+# ==============================================================================
+# PERFORMANCE (CPU Only)
+# ==============================================================================
+# Memory management and computation settings.
+# Heterodyne is CPU-only — no GPU support.
+#
+performance:
+  strategy_override: null      # null | "residual" | "jit" | "chunked"
+  memory_limit_gb: null        # null = auto-detect
+
+  memory_optimization:
+    enabled: true
+    max_memory_usage_gb: 6.0
+    chunk_size: 8000
+    enable_caching: true
+    cache_strategy: "adaptive" # "adaptive" | "aggressive" | "conservative"
+
+  computation:
+    enable_jit: true           # JAX JIT compilation
+    cpu_threads: "auto"        # "auto" or positive int
+    vectorization_level: "high"          # "low" | "medium" | "high"
+
+# ==============================================================================
+# LOGGING
+# ==============================================================================
+# Logging configuration for analysis monitoring.
+#
+logging:
+  enabled: true
+  level: "INFO"                # "DEBUG" | "INFO" | "WARNING" | "ERROR"
+
+  console:
+    enabled: true
+    level: "INFO"
+    format: "detailed"         # "simple" | "detailed"
+    colors: true
+    show_progress: true
+
+  file:
+    enabled: false
+    level: "DEBUG"
+    path: "./logs/"
+    filename: "heterodyne_analysis.log"
+    max_size_mb: 10
+    backup_count: 5
+
+  # Module-specific log levels
+  modules:
+    "heterodyne.data": "INFO"
+    "heterodyne.optimization.nlsq": "INFO"
+    "heterodyne.optimization.cmc": "INFO"
+    "jax._src": "WARNING"     # Suppress JAX internal messages
+
+# ==============================================================================
+# QUALITY CONTROL (Optional)
+# ==============================================================================
+# Data validation and analysis quality checks.
+#
+quality_control:
+  enabled: false
+
+  angle_quality:
+    validate_angle_coverage: true
+    min_angles_per_range: 1
+    check_angle_distribution: true
+
+  multi_angle_validation:
+    check_correlation_consistency: true
+    validate_angle_dependencies: true
+    detect_anomalous_angles: true
+
+# ==============================================================================
+# PLOTTING (Visualization)
+# ==============================================================================
+# Plot generation and output settings.
+#
+plotting:
+  save_plots: true
+  show_plots: false
+  format: "png"               # "png" | "pdf" | "svg"
+  dpi: 300
+  style: "publication"
+
+  # Color scale for correlation heatmaps
+  color_scale:
+    mode: "legacy"             # "legacy" | "adaptive"
+    pin_legacy_range: true
+    percentile_min: 1.0
+    percentile_max: 99.0
+    fixed_min: 1.0
+    fixed_max: 1.5
+
+  # Plot backends
+  matplotlib:
+    interpolation: "bilinear"  # "none" | "bilinear" | "bicubic"
+    use_tight_layout: true
+    savefig_kwargs:
+      bbox_inches: "tight"
+      pad_inches: 0.1
+
+  # Plot types to generate
+  correlation_function: true   # C1(t) and C2(t1,t2)
+  fit_quality: true            # Residuals and fitted vs data
+  parameter_distributions: true          # MCMC posteriors
+  residual_analysis: true
+  angle_coverage: true
+  angle_correlation: true
+
+# ==============================================================================
+# OUTPUT
+# ==============================================================================
+# Result file configuration.
+#
 output:
   output_dir: "./output"
-  save_correlation: true
-  save_residuals: true
-  format: "both"  # "json", "npz", or "both"
+  base_directory: "./heterodyne_results/"
+
+  formats:
+    json: true                 # Human-readable parameter results
+    npz: true                  # NumPy binary arrays (correlation, residuals)
+
+  save_correlation: true       # Save fitted correlation matrices
+  save_residuals: true         # Save residual maps
+
+  create_subdirs: true         # Creates nlsq/, cmc/ subdirectories
+  timestamp_dirs: false        # Timestamp output directories
+
+# ==============================================================================
+# VALIDATION (Optional)
+# ==============================================================================
+# Configuration validation settings.
+#
+validation:
+  strict_mode: false           # Fail on warnings
+  check_file_existence: true
+  validate_parameter_ranges: true
+  check_mode_compatibility: true
+
+  angle_validation:
+    require_multiple_angles: false
+    min_angle_count: 1
+    validate_angle_ranges: true
+
+# ==============================================================================
+# ENVIRONMENT VARIABLE OVERRIDES
+# ==============================================================================
+# The following environment variables can override configuration settings:
+#
+# JAX_ENABLE_X64=1             - Float64 precision (set automatically)
+# NLSQ_MEMORY_FRACTION         - Memory fraction (0.1-0.9)
+#
+# Example:
+#   export NLSQ_MEMORY_FRACTION=0.6
+#   heterodyne --config your_config.yaml
+#
+
+# ==============================================================================
+# USAGE NOTES & TROUBLESHOOTING
+# ==============================================================================
+#
+# QUICK START WORKFLOW:
+# ---------------------
+# 1. Copy this template and update experimental_data paths
+# 2. Set scattering geometry (wavevector_q)
+# 3. Run NLSQ: heterodyne --config your_config.yaml
+# 4. Check output plots for fit quality
+# 5. If poor fit, see troubleshooting sections below
+# 6. For publication: heterodyne --config your_config.yaml --method cmc
+#
+# ---------------------------------------------------------------------------
+# TWO-COMPONENT MODEL OVERVIEW
+# ---------------------------------------------------------------------------
+# The heterodyne model decomposes the measured correlation function into:
+#
+#   c2(t1,t2,φ) = offset + contrast × [
+#     f_r² · |g1_r(t1,t2)|²                           (reference auto-correlation)
+#   + f_s² · |g1_s(t1,t2)|²                           (sample auto-correlation)
+#   + 2·f_r·f_s · Re(g1_r*·g1_s·exp(iΦ))             (cross-correlation)
+#   ] / (f_r + f_s)²
+#
+# where Φ = q·cos(φ-φ0)·∫v(t')dt' is the velocity phase.
+#
+# The 14 parameters control 5 physical groups:
+#   Reference transport (3): D0_ref, alpha_ref, D_offset_ref
+#   Sample transport (3):    D0_sample, alpha_sample, D_offset_sample
+#   Velocity field (3):      v0, beta, v_offset
+#   Sample fraction (4):     f0, f1, f2, f3
+#   Flow angle (1):          phi0
+#
+# ---------------------------------------------------------------------------
+# METHOD SELECTION DECISION TREE
+# ---------------------------------------------------------------------------
+#
+#   Start with NLSQ (fast, deterministic point estimate)
+#   ├─ Good fit? (χ²_red < 2, no boundary hits)
+#   │  └─ YES → Run CMC for uncertainty quantification
+#   │  └─ NO → Check diagnostics:
+#   │     ├─ Parameters at bounds? → Widen bounds
+#   │     ├─ Early convergence? → Enable CMA-ES for global search
+#   │     ├─ Scaling absorption? → Enable hierarchical optimization
+#   │     └─ Multi-scale issue? → Set x_scale_map
+#   └─ Run CMC with NLSQ warm-start (automatic via CLI)
+#
+# ---------------------------------------------------------------------------
+# GRADIENT IMBALANCE FIX (14-parameter model)
+# ---------------------------------------------------------------------------
+# SYMPTOM: Early convergence, missing C2 features, flat velocity parameters
+#
+# SOLUTIONS (in order of preference):
+#   1. Enable CMA-ES: enable_cmaes: true
+#   2. Compute x_scale_map from gradient diagnosis
+#   3. Enable hierarchical optimization: enable_hierarchical: true
+#   4. Fix non-essential parameters (f1=0, f2=0, f3=0 for constant fraction)
+#
+# ---------------------------------------------------------------------------
+# CMC CONVERGENCE ISSUES
+# ---------------------------------------------------------------------------
+# If shards fail validation (ESS/R-hat):
+#   - Increase per_shard_mcmc.num_warmup and num_samples
+#   - Tighten phi0 bounds for faster MCMC mixing
+#   - Fix fraction parameters if constant (reduces dimensionality by 3)
+#   - Check for multimodal posteriors (may need different priors)
+#
+# ---------------------------------------------------------------------------
+# OUT OF MEMORY (OOM) ERRORS
+# ---------------------------------------------------------------------------
+# SYMPTOM: JAX or Python crashes with memory error
+#
+# SOLUTIONS:
+#   1. Reduce nlsq_memory_fraction to 0.5 (default 0.75)
+#   2. Enable chunked strategy: performance.strategy_override: "chunked"
+#   3. For CMC: Reduce sharding.max_points_per_shard
+#   4. Enable hybrid streaming for >10M points: hybrid_enable: true
+#
+# ---------------------------------------------------------------------------
+# PARAMETER COUNTING
+# ---------------------------------------------------------------------------
+#   two_component: 14 physical + 2 × N_angles = 14 + 2N
+#
+#   Examples:
+#     2 angles: 14 + 4 = 18 total parameters
+#     3 angles: 14 + 6 = 20 total parameters
+#     10 angles: 14 + 20 = 34 total parameters
+#
+#   With per-angle mode "constant": 14 physical only (scaling fixed)
+#   With Fourier (order=2): 14 + 2×(2×2+1) = 24 total
+#
+# ---------------------------------------------------------------------------
+# ANGLE SELECTION GUIDELINES
+# ---------------------------------------------------------------------------
+# Flow experiments (typical):
+#   - 0° (parallel): Maximum velocity cross-term effects
+#   - 90° (perpendicular): Velocity cross-term vanishes (diffusion only)
+#   - Both required for proper velocity/diffusion decoupling
+#
+# Static experiments:
+#   - 0° and 180° for anisotropy detection
+#   - All angles if isotropic behavior expected
+#
+# ---------------------------------------------------------------------------
+# DATASET SIZE STRATEGIES
+# ---------------------------------------------------------------------------
+# | Dataset Size   | Strategy   | Memory  | Description                    |
+# |----------------|------------|---------|--------------------------------|
+# | < 10K points   | RESIDUAL   | ~1 GB   | Direct evaluation              |
+# | < 250K points  | JIT        | ~4 GB   | JIT-compiled + Jacobian        |
+# | > 250K points  | CHUNKED    | ~6 GB   | Memory-adaptive chunking       |
+# | > 10M points   | HYBRID     | ~2 GB   | Streaming (if enabled)         |
+#
+# ---------------------------------------------------------------------------
+# PLATFORM REQUIREMENTS
+# ---------------------------------------------------------------------------
+#   - Python 3.12+
+#   - JAX >= 0.8.2 (CPU-only)
+#   - NumPy >= 2.3
+#   - NLSQ >= 0.6.10
+#   - For CMA-ES: pip install nlsq[evosax]
+#
+# ---------------------------------------------------------------------------
+# CONFIGURATION VALIDATION
+# ---------------------------------------------------------------------------
+#   heterodyne-config --validate your_config.yaml
+#   heterodyne-validate --quick
+#
+# ---------------------------------------------------------------------------
+# TWO-PATH INTEGRAL ARCHITECTURE
+# ---------------------------------------------------------------------------
+# The physics model uses two distinct integral evaluation paths:
+#
+# 1. Meshgrid path (NLSQ): core/jax_backend.py builds N×N time-integral matrix
+#    via create_time_integral_matrix(). Fast for JIT-compiled least-squares
+#    but O(N²) memory.
+#
+# 2. Element-wise path (CMC): core/physics_cmc.py uses ShardGrid +
+#    precompute_shard_grid() for O(n_pairs) cumsum lookup. No N×N matrix —
+#    designed for per-shard NUTS evaluation.
+#
+# Both paths share primitives from core/physics_utils.py.
+#
+# ==============================================================================
+# END OF MASTER TEMPLATE
+# ==============================================================================
