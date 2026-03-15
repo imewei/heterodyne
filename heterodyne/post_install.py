@@ -279,6 +279,19 @@ complete -c heterodyne-cleanup -s h -l help -d 'Show help'
 complete -c heterodyne-validate -s v -l verbose -d 'Verbose output'
 complete -c heterodyne-validate -l json -d 'Output results as JSON'
 complete -c heterodyne-validate -s h -l help -d 'Show help'
+
+# Short aliases (ht = heterodyne)
+complete -c ht -w heterodyne
+complete -c ht-config -w heterodyne-config
+complete -c ht-post-install -w heterodyne-post-install
+complete -c ht-cleanup -w heterodyne-cleanup
+complete -c ht-validate -w heterodyne-validate
+
+# Plotting aliases
+alias hexp 'heterodyne --plot-experimental-data'
+alias hsim 'heterodyne --plot-simulated-data'
+complete -c hexp -w heterodyne
+complete -c hsim -w heterodyne
 """
         dest.write_text(content)
         if verbose:

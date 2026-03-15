@@ -171,3 +171,16 @@ complete -F _heterodyne_config heterodyne-config
 complete -F _heterodyne_post_install heterodyne-post-install
 complete -F _heterodyne_cleanup heterodyne-cleanup
 complete -F _heterodyne_validate heterodyne-validate
+
+# Short aliases (ht = heterodyne)
+complete -F _heterodyne ht
+complete -F _heterodyne_config ht-config
+complete -F _heterodyne_post_install ht-post-install
+complete -F _heterodyne_cleanup ht-cleanup
+complete -F _heterodyne_validate ht-validate
+
+# Plotting aliases
+alias hexp='heterodyne --plot-experimental-data'
+alias hsim='heterodyne --plot-simulated-data'
+complete -F _heterodyne hexp
+complete -F _heterodyne hsim

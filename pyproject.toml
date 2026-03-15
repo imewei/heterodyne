@@ -117,6 +117,13 @@ heterodyne-config-xla = "heterodyne.cli.xla_config:main"
 heterodyne-post-install = "heterodyne.post_install:main"
 heterodyne-cleanup = "heterodyne.uninstall_scripts:main"
 heterodyne-validate = "heterodyne.runtime.utils.system_validator:main"
+# Short aliases
+ht = "heterodyne.cli.main:main"
+ht-config = "heterodyne.cli.config_generator:main"
+ht-config-xla = "heterodyne.cli.xla_config:main"
+ht-post-install = "heterodyne.post_install:main"
+ht-cleanup = "heterodyne.uninstall_scripts:main"
+ht-validate = "heterodyne.runtime.utils.system_validator:main"
 
 [tool.setuptools_scm]
 write_to = "heterodyne/_version.py"
