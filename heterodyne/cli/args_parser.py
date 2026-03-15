@@ -149,6 +149,30 @@ Examples:
         help="Skip plot generation",
     )
 
+    # Standalone plot modes (skip optimization)
+    parser.add_argument(
+        "--plot-experimental-data",
+        action="store_true",
+        help="Plot experimental data for quality checking (skip optimization)",
+    )
+    parser.add_argument(
+        "--plot-simulated-data",
+        action="store_true",
+        help="Plot simulated C2 heatmaps from config parameters (skip optimization)",
+    )
+    parser.add_argument(
+        "--contrast",
+        type=float,
+        default=0.3,
+        help="Contrast for simulated data (default: %(default)s, requires --plot-simulated-data)",
+    )
+    parser.add_argument(
+        "--offset-sim",
+        type=float,
+        default=1.0,
+        help="Offset for simulated data (default: %(default)s, requires --plot-simulated-data)",
+    )
+
     # Version
     from heterodyne._version import __version__
 

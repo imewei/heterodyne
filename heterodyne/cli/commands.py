@@ -208,6 +208,52 @@ def dispatch_command(args: argparse.Namespace) -> int:
         summary.start_phase("data_loading")
         summary.end_phase("data_loading", memory_peak_gb=phase.memory_peak_gb)
 
+        # --- Plot-experimental-data mode --------------------------------------
+        plot_exp = getattr(args, "plot_experimental_data", False)
+        plot_sim = getattr(args, "plot_simulated_data", False)
+
+        if plot_exp and not plot_sim:
+            logger.info("--plot-experimental-data: plotting data and exiting")
+            with log_phase("plotting", logger=logger):
+                dispatch_plots(
+                    model=model,
+                    c2_data=data.c2,
+                    output_dir=output_dir,
+                    mode="experimental",
+                    phi_angles=phi_angles,
+                )
+            summary.set_convergence_status("completed")
+            summary.log_summary(logger)
+            return 0
+
+        if plot_sim and not plot_exp:
+            logger.info("--plot-simulated-data: plotting simulated data and exiting")
+            with log_phase("plotting", logger=logger):
+                dispatch_plots(
+                    model=model,
+                    c2_data=data.c2,
+                    output_dir=output_dir,
+                    mode="simulated",
+                    phi_angles=phi_angles,
+                )
+            summary.set_convergence_status("completed")
+            summary.log_summary(logger)
+            return 0
+
+        if plot_exp and plot_sim:
+            logger.info("Plotting both experimental and simulated data and exiting")
+            with log_phase("plotting", logger=logger):
+                dispatch_plots(
+                    model=model,
+                    c2_data=data.c2,
+                    output_dir=output_dir,
+                    mode="both",
+                    phi_angles=phi_angles,
+                )
+            summary.set_convergence_status("completed")
+            summary.log_summary(logger)
+            return 0
+
         # --- Simulate-only mode ----------------------------------------------
         if getattr(args, "simulate_only", False):
             logger.info("--simulate-only: saving simulated data and exiting")
