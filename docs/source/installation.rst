@@ -215,7 +215,9 @@ hierarchy):
 
 This detects your hardware and writes optimal XLA flags for thread allocation,
 intra-op parallelism, and memory layout. The configuration is stored in
-``~/.heterodyne_xla_mode`` and sourced automatically on subsequent runs.
+``$VIRTUAL_ENV/etc/heterodyne/xla_mode`` (or ``$CONDA_PREFIX/etc/heterodyne/xla_mode``
+in conda/mamba environments, or ``~/.config/heterodyne/xla_mode`` outside any
+environment) and sourced automatically on subsequent runs.
 
 For HPC environments with many cores (36--128+), this step is strongly
 recommended before running any analysis.

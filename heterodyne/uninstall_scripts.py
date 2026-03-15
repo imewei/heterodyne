@@ -54,11 +54,13 @@ def find_cleanup_targets() -> list[CleanupTarget]:
     """
     targets: list[CleanupTarget] = []
 
-    # Home directory files
+    # XLA mode configuration — check all possible locations
     home = Path.home()
 
-    # XLA mode configuration
-    xla_mode_file = home / ".heterodyne_xla_mode"
+    # New location: per-env or XDG
+    from heterodyne.post_install import get_xla_mode_path
+
+    xla_mode_file = get_xla_mode_path()
     targets.append(
         CleanupTarget(
             path=xla_mode_file,
@@ -66,6 +68,17 @@ def find_cleanup_targets() -> list[CleanupTarget]:
             exists=xla_mode_file.exists(),
         )
     )
+
+    # Legacy location
+    legacy_xla = home / ".heterodyne_xla_mode"
+    if legacy_xla.exists():
+        targets.append(
+            CleanupTarget(
+                path=legacy_xla,
+                description="XLA mode configuration (legacy)",
+                exists=True,
+            )
+        )
 
     # Virtual environment files
     venv_path = get_venv_path()
@@ -186,22 +199,28 @@ def cleanup_xla_config(
     """
     removed: list[Path] = []
 
-    # XLA mode file
-    xla_mode_file = Path.home() / ".heterodyne_xla_mode"
-    if xla_mode_file.exists():
-        if verbose:
-            action = "Would remove" if dry_run else "Removing"
-            print(f"{action}: {xla_mode_file} (XLA mode configuration)")
+    # XLA mode file — remove from all locations
+    from heterodyne.post_install import get_xla_mode_path
 
-        if not dry_run:
-            try:
-                xla_mode_file.unlink()
+    for xla_mode_file in [get_xla_mode_path(), Path.home() / ".heterodyne_xla_mode"]:
+        if xla_mode_file.exists():
+            if verbose:
+                action = "Would remove" if dry_run else "Removing"
+                print(f"{action}: {xla_mode_file} (XLA mode configuration)")
+
+            if not dry_run:
+                try:
+                    xla_mode_file.unlink()
+                    removed.append(xla_mode_file)
+                    # Clean up empty parent dir
+                    parent = xla_mode_file.parent
+                    if parent.exists() and not any(parent.iterdir()):
+                        parent.rmdir()
+                except OSError as e:
+                    if verbose:
+                        print(f"  Failed: {e}")
+            else:
                 removed.append(xla_mode_file)
-            except OSError as e:
-                if verbose:
-                    print(f"  Failed: {e}")
-        else:
-            removed.append(xla_mode_file)
 
     return removed
 

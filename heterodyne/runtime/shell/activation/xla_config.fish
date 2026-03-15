@@ -15,7 +15,20 @@
 #   <N>   - Explicit number of devices
 
 # Configuration file for persistent mode
-set -g _HETERODYNE_XLA_MODE_FILE "$HOME/.heterodyne_xla_mode"
+# Priority: venv/conda env > XDG config > legacy home dotfile
+function _heterodyne_resolve_mode_file
+    if set -q VIRTUAL_ENV
+        echo "$VIRTUAL_ENV/etc/heterodyne/xla_mode"
+    else if set -q CONDA_PREFIX
+        echo "$CONDA_PREFIX/etc/heterodyne/xla_mode"
+    else
+        set -l xdg_config (set -q XDG_CONFIG_HOME; and echo $XDG_CONFIG_HOME; or echo "$HOME/.config")
+        echo "$xdg_config/heterodyne/xla_mode"
+    end
+end
+
+# Legacy file for migration
+set -g _HETERODYNE_XLA_LEGACY_FILE "$HOME/.heterodyne_xla_mode"
 
 # Get CPU core count
 function _heterodyne_get_cpu_count
@@ -82,13 +95,24 @@ end
 # Save mode to config file
 function _heterodyne_save_xla_mode
     set -l mode $argv[1]
-    echo $mode > $_HETERODYNE_XLA_MODE_FILE
+    set -l mode_file (_heterodyne_resolve_mode_file)
+    mkdir -p (dirname $mode_file)
+    echo $mode > $mode_file
+
+    # Clean up legacy file
+    if test -f $_HETERODYNE_XLA_LEGACY_FILE
+        rm -f $_HETERODYNE_XLA_LEGACY_FILE
+    end
 end
 
 # Load mode from config file
 function _heterodyne_load_xla_mode
-    if test -f $_HETERODYNE_XLA_MODE_FILE
-        cat $_HETERODYNE_XLA_MODE_FILE
+    set -l mode_file (_heterodyne_resolve_mode_file)
+    if test -f $mode_file
+        cat $mode_file
+    else if test -f $_HETERODYNE_XLA_LEGACY_FILE
+        # Migrate legacy file
+        cat $_HETERODYNE_XLA_LEGACY_FILE
     else
         echo "auto"
     end

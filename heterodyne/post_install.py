@@ -459,8 +459,44 @@ end
         return False
 
 
+def get_xla_mode_path() -> Path:
+    """Get the path for the XLA mode configuration file.
+
+    Uses the virtual environment if active, otherwise XDG config directory.
+    Priority: $VIRTUAL_ENV or $CONDA_PREFIX > $XDG_CONFIG_HOME/heterodyne.
+
+    Returns:
+        Path to the XLA mode file.
+    """
+    # Prefer per-environment config
+    venv = os.environ.get("VIRTUAL_ENV") or os.environ.get("CONDA_PREFIX")
+    if venv:
+        return Path(venv) / "etc" / "heterodyne" / "xla_mode"
+
+    # Fall back to XDG config directory
+    xdg_config = os.environ.get("XDG_CONFIG_HOME", "")
+    if not xdg_config:
+        xdg_config = str(Path.home() / ".config")
+    return Path(xdg_config) / "heterodyne" / "xla_mode"
+
+
+def _migrate_legacy_xla_mode(new_path: Path) -> None:
+    """Migrate legacy ~/.heterodyne_xla_mode to new location if it exists."""
+    legacy = Path.home() / ".heterodyne_xla_mode"
+    if legacy.exists() and not new_path.exists():
+        try:
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+            mode = legacy.read_text().strip()
+            new_path.write_text(mode)
+            legacy.unlink()
+        except OSError:
+            pass  # Best-effort migration
+
+
 def configure_xla_mode(mode: str = "auto", verbose: bool = False) -> bool:
-    """Configure the XLA mode in the user's home directory.
+    """Configure the XLA mode.
+
+    Stores in the virtual environment (if active) or XDG config directory.
 
     Args:
         mode: XLA mode (auto, nlsq, cmc, cmc-hpc, or a number).
@@ -469,12 +505,21 @@ def configure_xla_mode(mode: str = "auto", verbose: bool = False) -> bool:
     Returns:
         True if configuration succeeded.
     """
-    config_file = Path.home() / ".heterodyne_xla_mode"
+    config_file = get_xla_mode_path()
 
     try:
+        config_file.parent.mkdir(parents=True, exist_ok=True)
         config_file.write_text(mode)
         if verbose:
             print(f"Set XLA mode to '{mode}' in {config_file}")
+
+        # Clean up legacy file if it exists
+        legacy = Path.home() / ".heterodyne_xla_mode"
+        if legacy.exists():
+            legacy.unlink(missing_ok=True)
+            if verbose:
+                print(f"Removed legacy config: {legacy}")
+
         return True
     except OSError as e:
         if verbose:
@@ -518,13 +563,14 @@ def interactive_setup() -> None:
         success = install_shell_completion(shell, verbose=True)
         if success:
             print("Shell completion installed successfully!")
+            env_var = "$CONDA_PREFIX" if is_conda else "$VIRTUAL_ENV"
             if shell == "zsh":
                 print(
-                    "Add to ~/.zshrc: source $VIRTUAL_ENV/etc/zsh/heterodyne-completion.zsh"
+                    f"Add to ~/.zshrc: source {env_var}/etc/zsh/heterodyne-completion.zsh"
                 )
             elif shell == "bash":
                 print(
-                    "Add to ~/.bashrc: source $VIRTUAL_ENV/etc/bash_completion.d/heterodyne"
+                    f"Add to ~/.bashrc: source {env_var}/etc/bash_completion.d/heterodyne"
                 )
         else:
             print("Shell completion installation failed.")

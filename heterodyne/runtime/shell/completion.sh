@@ -18,6 +18,29 @@ _heterodyne_ensure_cache() {
     [[ -d "$_HETERODYNE_CACHE_DIR" ]] || mkdir -p "$_HETERODYNE_CACHE_DIR"
 }
 
+# Fallback for _init_completion when bash-completion is not loaded
+# (common in conda/mamba environments)
+if ! type _init_completion &>/dev/null; then
+    _init_completion() {
+        COMPREPLY=()
+        cur="${COMP_WORDS[COMP_CWORD]}"
+        prev="${COMP_WORDS[COMP_CWORD-1]}"
+        words=("${COMP_WORDS[@]}")
+        cword=$COMP_CWORD
+    }
+
+    # Fallback for _filedir (directory completion)
+    if ! type _filedir &>/dev/null; then
+        _filedir() {
+            if [[ "$1" == "-d" ]]; then
+                mapfile -t COMPREPLY < <(compgen -d -- "${cur}")
+            else
+                mapfile -t COMPREPLY < <(compgen -f -- "${cur}")
+            fi
+        }
+    fi
+fi
+
 # Get cached config files or update cache
 _heterodyne_get_config_files() {
     _heterodyne_ensure_cache
