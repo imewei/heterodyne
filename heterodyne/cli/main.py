@@ -84,5 +84,15 @@ def main(argv: list[str] | None = None) -> int:
     return exit_code
 
 
+def main_hexp() -> int:
+    """Entry point for ``hexp`` — plot experimental data."""
+    return main(["--plot-experimental-data"] + sys.argv[1:])
+
+
+def main_hsim() -> int:
+    """Entry point for ``hsim`` — plot simulated data."""
+    return main(["--plot-simulated-data"] + sys.argv[1:])
+
+
 if __name__ == "__main__":
     sys.exit(main())

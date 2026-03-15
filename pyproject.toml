@@ -124,6 +124,9 @@ ht-config-xla = "heterodyne.cli.xla_config:main"
 ht-post-install = "heterodyne.post_install:main"
 ht-cleanup = "heterodyne.uninstall_scripts:main"
 ht-validate = "heterodyne.runtime.utils.system_validator:main"
+# Plotting shortcuts
+hexp = "heterodyne.cli.main:main_hexp"
+hsim = "heterodyne.cli.main:main_hsim"
 
 [tool.setuptools_scm]
 write_to = "heterodyne/_version.py"
