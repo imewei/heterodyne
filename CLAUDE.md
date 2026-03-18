@@ -97,7 +97,7 @@ All 14 physics parameters + 2 scaling (contrast, offset) per angle, organized in
 
 | Parameter | Description | Default | Units |
 |-----------|-------------|---------|-------|
-| D0_ref | Reference diffusion prefactor | 1e4 | Å²/s^α |
+| D0_ref | Reference diffusion prefactor | 1e4 | Å²/s^(α+1) |
 | alpha_ref | Reference transport exponent | 0.0 | — |
 | D_offset_ref | Reference transport rate offset | 0.0 | Å²/s |
 
@@ -105,7 +105,7 @@ All 14 physics parameters + 2 scaling (contrast, offset) per angle, organized in
 
 | Parameter | Description | Default | Units |
 |-----------|-------------|---------|-------|
-| D0_sample | Sample diffusion prefactor | 1e4 | Å²/s^α |
+| D0_sample | Sample diffusion prefactor | 1e4 | Å²/s^(α+1) |
 | alpha_sample | Sample transport exponent | 0.0 | — |
 | D_offset_sample | Sample transport rate offset | 0.0 | Å²/s |
 
@@ -113,7 +113,7 @@ All 14 physics parameters + 2 scaling (contrast, offset) per angle, organized in
 
 | Parameter | Description | Default | Units |
 |-----------|-------------|---------|-------|
-| v0 | Velocity prefactor | 1e3 | Å/s^β |
+| v0 | Velocity prefactor | 1e3 | Å/s^(β+1) |
 | beta | Velocity exponent (0 = constant velocity) | 0.0 | — |
 | v_offset | Velocity offset (negative for reversal) | 0.0 | Å/s |
 
@@ -132,7 +132,7 @@ All 14 physics parameters + 2 scaling (contrast, offset) per angle, organized in
 |-----------|-------------|---------|-------|
 | phi0 | Flow angle offset relative to q-vector | 0.0 | degrees |
 
-Units: All in Angstroms (Å). q in Å⁻¹, D₀ in Å²/s^α, velocities in Å/s.
+Units: All in Angstroms (Å). q in Å⁻¹, D₀ in Å²/s^(α+1), velocities in Å/s.
 
 ## NLSQ Optimization
 
