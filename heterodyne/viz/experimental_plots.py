@@ -3,13 +3,25 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
+
+# Preserve interactive backend if already active; fall back to Agg otherwise
+_current_backend = matplotlib.get_backend().lower()
+_interactive_backends = ("qt", "gtk", "wx", "tk", "macosx", "nbagg", "webagg")
+if not any(_current_backend.startswith(b) for b in _interactive_backends):
+    matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402
+
+from heterodyne.utils.logging import get_logger  # noqa: E402
 
 if TYPE_CHECKING:
     from heterodyne.core.heterodyne_model import HeterodyneModel
+
+logger = get_logger(__name__)
 
 
 def plot_correlation(
@@ -250,3 +262,289 @@ def plot_phi_dependence(
         plt.close(fig)
 
     return fig
+
+
+# ---------------------------------------------------------------------------
+# Top-level experimental data entry point (homodyne parity)
+# ---------------------------------------------------------------------------
+
+
+def plot_experimental_data(
+    data: dict[str, Any],
+    plots_dir: Path,
+    angle_filter_func: Any | None = None,
+) -> None:
+    """Generate validation plots of experimental data.
+
+    Handles 1D, 2D, and 3D (multi-phi) correlation data. For 3D data,
+    generates per-angle heatmaps and a combined diagonal comparison plot.
+
+    Args:
+        data: Dictionary containing ``c2_exp`` (correlation matrix),
+            ``t1`` and ``t2`` (time arrays), ``phi_angles_list`` (angles).
+        plots_dir: Output directory for plot files.
+        angle_filter_func: Optional filter with signature
+            ``(phi_angles, c2_exp, data) -> (indices, filtered_phi, filtered_c2)``.
+    """
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    c2_exp = np.asarray(data.get("c2_exp", data.get("c2", np.array([]))))
+    if c2_exp.size == 0:
+        logger.warning("Empty c2 data — skipping experimental plots")
+        return
+
+    t1 = data.get("t1")
+    t2 = data.get("t2")
+    phi_angles_list = data.get("phi_angles_list", data.get("phi_angles"))
+
+    # Physical time extent for axis labels
+    if t1 is not None and t2 is not None and len(t1) > 0 and len(t2) > 0:
+        t1 = np.asarray(t1)
+        t2 = np.asarray(t2)
+        extent: list[float] | None = [
+            float(t2[0]),
+            float(t2[-1]),
+            float(t1[-1]),
+            float(t1[0]),
+        ]
+        xlabel, ylabel = "t₂ (s)", "t₁ (s)"
+    else:
+        extent = None
+        xlabel, ylabel = "t₂ index", "t₁ index"
+
+    if c2_exp.ndim == 3 and phi_angles_list is not None:
+        phi_angles_list = np.asarray(phi_angles_list)
+
+        # Apply optional angle filtering
+        if angle_filter_func is not None:
+            try:
+                _, phi_angles_list, c2_exp = angle_filter_func(
+                    phi_angles_list, c2_exp, data
+                )
+            except Exception:
+                logger.warning("Angle filtering failed; using all angles")
+
+        _plot_3d_experimental_data(
+            c2_exp, phi_angles_list, t1, extent, xlabel, ylabel, plots_dir
+        )
+    elif c2_exp.ndim == 2:
+        _plot_2d_experimental_data(c2_exp, extent, xlabel, ylabel, plots_dir)
+    elif c2_exp.ndim == 1:
+        _plot_1d_experimental_data(c2_exp, plots_dir)
+    else:
+        logger.warning("Unexpected c2 shape %s — skipping plots", c2_exp.shape)
+
+
+def _plot_3d_experimental_data(
+    c2_exp: np.ndarray,
+    phi_angles_list: np.ndarray,
+    t1: np.ndarray | None,
+    extent: list[float] | None,
+    xlabel: str,
+    ylabel: str,
+    plots_dir: Path,
+) -> None:
+    """Plot per-angle heatmaps and diagonal comparison for 3D c2."""
+    n_phi = c2_exp.shape[0]
+
+    for i in range(n_phi):
+        phi_deg = float(phi_angles_list[i])
+        mat = c2_exp[i]
+
+        fig, ax = plt.subplots(figsize=(8, 7))
+        im = ax.imshow(
+            mat,
+            extent=extent,
+            aspect="auto",
+            cmap="jet",
+            origin="lower",
+        )
+        ax.set_xlabel(xlabel, fontsize=12)
+        ax.set_ylabel(ylabel, fontsize=12)
+        ax.set_title(f"Experimental C₂ — φ = {phi_deg:.1f}°", fontsize=14)
+
+        cbar = plt.colorbar(im, ax=ax, shrink=0.9)
+        cbar.set_label("c₂(t₁, t₂)", fontsize=12)
+
+        # Stats overlay
+        finite_vals = mat[np.isfinite(mat)]
+        if finite_vals.size > 0:
+            stats_text = (
+                f"mean={np.nanmean(finite_vals):.4g}\n"
+                f"range=[{np.nanmin(finite_vals):.4g}, {np.nanmax(finite_vals):.4g}]"
+            )
+            ax.text(
+                0.02,
+                0.98,
+                stats_text,
+                transform=ax.transAxes,
+                fontsize=9,
+                verticalalignment="top",
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
+            )
+
+        plt.tight_layout()
+        fig.savefig(
+            plots_dir / f"experimental_data_phi_{phi_deg:.1f}.png",
+            dpi=150,
+            bbox_inches="tight",
+        )
+        plt.close(fig)
+
+    # Diagonal comparison plot (cap at 10 angles for readability)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    n_diag = min(n_phi, 10)
+    for i in range(n_diag):
+        phi_deg = float(phi_angles_list[i])
+        diag = np.diag(c2_exp[i])
+        t_axis = t1 if t1 is not None and len(t1) == len(diag) else np.arange(len(diag))
+        ax.plot(t_axis, diag, label=f"φ={phi_deg:.1f}°")
+
+    ax.set_xlabel("Time (s)" if t1 is not None else "Index")
+    ax.set_ylabel("c₂(t, t)")
+    ax.set_title("Diagonal (Autocorrelation) — All Angles")
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    fig.savefig(
+        plots_dir / "experimental_data_diagonal.png", dpi=150, bbox_inches="tight"
+    )
+    plt.close(fig)
+
+    logger.info("Saved %d per-angle heatmaps + diagonal plot", n_phi)
+
+
+def _plot_2d_experimental_data(
+    c2_exp: np.ndarray,
+    extent: list[float] | None,
+    xlabel: str,
+    ylabel: str,
+    plots_dir: Path,
+) -> None:
+    """Plot single 2D correlation heatmap."""
+    fig, ax = plt.subplots(figsize=(8, 7))
+    im = ax.imshow(c2_exp, extent=extent, aspect="auto", cmap="jet", origin="lower")
+    ax.set_xlabel(xlabel, fontsize=12)
+    ax.set_ylabel(ylabel, fontsize=12)
+    ax.set_title("Experimental C₂", fontsize=14)
+
+    cbar = plt.colorbar(im, ax=ax, shrink=0.9)
+    cbar.set_label("c₂(t₁, t₂)", fontsize=12)
+
+    finite_vals = c2_exp[np.isfinite(c2_exp)]
+    if finite_vals.size > 0:
+        stats_text = (
+            f"mean={np.nanmean(finite_vals):.4g}\n"
+            f"range=[{np.nanmin(finite_vals):.4g}, {np.nanmax(finite_vals):.4g}]"
+        )
+        ax.text(
+            0.02,
+            0.98,
+            stats_text,
+            transform=ax.transAxes,
+            fontsize=9,
+            verticalalignment="top",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
+        )
+
+    plt.tight_layout()
+    fig.savefig(plots_dir / "experimental_data.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+    logger.info("Saved experimental_data.png")
+
+
+def _plot_1d_experimental_data(
+    c2_exp: np.ndarray,
+    plots_dir: Path,
+) -> None:
+    """Plot 1D correlation data as a line plot."""
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(c2_exp, "bo-", markersize=3, alpha=0.7)
+    ax.set_xlabel("Index")
+    ax.set_ylabel("c₂")
+    ax.set_title("Experimental Correlation (1D)")
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    fig.savefig(plots_dir / "experimental_data.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+    logger.info("Saved experimental_data.png (1D)")
+
+
+def plot_fit_comparison(
+    result: Any,
+    data: dict[str, Any],
+    plots_dir: Path,
+) -> None:
+    """Generate side-by-side comparison of experimental data and fit.
+
+    Args:
+        result: Optimization result with ``c2_fitted`` or ``fitted_params`` attribute.
+        data: Data dictionary with ``c2_exp``, ``t1``, ``t2``.
+        plots_dir: Output directory for the plot.
+    """
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    c2_exp = np.asarray(data.get("c2_exp", data.get("c2", np.array([]))))
+    if c2_exp.size == 0:
+        logger.warning("Empty c2 data — skipping fit comparison plot")
+        return
+
+    # Use first slice for 3D data
+    if c2_exp.ndim == 3:
+        c2_exp = c2_exp[0]
+
+    t1 = data.get("t1")
+    t2 = data.get("t2")
+    if t1 is not None and t2 is not None and len(t1) > 0 and len(t2) > 0:
+        t1, t2 = np.asarray(t1), np.asarray(t2)
+        extent: list[float] | None = [
+            float(t2[0]),
+            float(t2[-1]),
+            float(t1[-1]),
+            float(t1[0]),
+        ]
+    else:
+        extent = None
+
+    if c2_exp.ndim == 1:
+        # 1D comparison
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+        axes[0].plot(c2_exp, "b-", lw=1.5, label="Experimental")
+        axes[0].set_title("Experimental Data")
+        axes[0].set_xlabel("Index")
+        axes[0].set_ylabel("c₂")
+        axes[0].grid(True, alpha=0.3)
+
+        axes[1].set_title("Fit (placeholder)")
+        axes[1].text(
+            0.5, 0.5, "Fit data", ha="center", va="center", transform=axes[1].transAxes
+        )
+    else:
+        # 2D heatmap comparison
+        fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+        im = axes[0].imshow(
+            c2_exp,
+            extent=extent,
+            aspect="auto",
+            cmap="jet",
+            vmin=1.0,
+            vmax=1.5,
+            origin="lower",
+        )
+        axes[0].set_title("Experimental Data", fontsize=14)
+        axes[0].set_xlabel("t₂ (s)", fontsize=12)
+        axes[0].set_ylabel("t₁ (s)", fontsize=12)
+        plt.colorbar(im, ax=axes[0], shrink=0.9)
+
+        axes[1].set_title("Fit (placeholder)", fontsize=14)
+        axes[1].text(
+            0.5, 0.5, "Fit data", ha="center", va="center", transform=axes[1].transAxes
+        )
+
+    plt.tight_layout()
+    fig.savefig(plots_dir / "fit_comparison.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+    logger.info("Saved fit_comparison.png")

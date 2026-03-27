@@ -933,3 +933,342 @@ def plot_multistart_summary(
     plt.tight_layout()
     _save_fig(fig, save_path, dpi=dpi)
     return fig
+
+
+# ---------------------------------------------------------------------------
+# Homodyne-parity functions: simulated data, 3-panel heatmaps, fitted sims
+# ---------------------------------------------------------------------------
+
+
+def plot_simulated_data(
+    config: dict[str, Any],
+    contrast: float,
+    offset: float,
+    phi_angles_str: str | None,
+    plots_dir: Path,
+    data: dict[str, Any] | None = None,
+) -> None:
+    """Generate heatmap plots of theoretical/simulated C2 data.
+
+    Constructs the heterodyne model from *config*, evaluates the forward
+    model for each phi angle, and saves per-angle heatmaps plus a
+    combined diagonal plot.
+
+    Args:
+        config: Configuration dictionary with model parameters.
+        contrast: Optical contrast for scaling.
+        offset: Baseline offset.
+        phi_angles_str: Comma-separated phi angles (e.g. ``"0,45,90"``).
+        plots_dir: Output directory for plots.
+        data: Optional experimental data dict for extracting phi angles.
+    """
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
+    from heterodyne.core.heterodyne_model import HeterodyneModel
+
+    try:
+        model = HeterodyneModel.from_config(config)
+    except Exception:
+        logger.exception("Cannot create model from config — skipping simulated plots")
+        return
+
+    # Determine phi angles
+    if phi_angles_str is not None:
+        phi_list = [float(x.strip()) for x in phi_angles_str.split(",")]
+    elif data is not None:
+        phi_raw = data.get("phi_angles_list", data.get("phi_angles"))
+        if phi_raw is not None:
+            phi_list = list(np.asarray(phi_raw, dtype=float))
+        else:
+            phi_list = list(np.linspace(0, 180, 8))
+    else:
+        phi_list = list(np.linspace(0, 180, 8))
+
+    phi_angles_arr = np.asarray(phi_list)
+
+    # Time arrays from model or data
+    t = np.asarray(model.t) if hasattr(model, "t") else None
+    if t is None and data is not None:
+        t1_raw = data.get("t1")
+        if t1_raw is not None:
+            t = np.asarray(t1_raw)
+    if t is None:
+        t = np.arange(1, 101, dtype=float)
+
+    n_t = len(t)
+    extent = [float(t[0]), float(t[-1]), float(t[-1]), float(t[0])]
+
+    # Collect simulated C2 for each angle
+    c2_all: list[np.ndarray] = []
+    for phi_deg in phi_list:
+        try:
+            c2_sim = np.asarray(model.compute_c2(phi=phi_deg))
+            c2_scaled = offset + contrast * (c2_sim - 1.0)
+        except Exception:
+            logger.warning("Forward model failed for phi=%.1f; using zeros", phi_deg)
+            c2_scaled = np.ones((n_t, n_t)) * offset
+        c2_all.append(c2_scaled)
+
+    # Global color scale from percentiles
+    all_vals = np.concatenate([c.ravel() for c in c2_all])
+    finite = all_vals[np.isfinite(all_vals)]
+    if finite.size > 0:
+        vmin = float(np.percentile(finite, 1.0))
+        vmax = float(np.percentile(finite, 99.0))
+    else:
+        vmin, vmax = 1.0, 1.6
+
+    # Per-angle heatmaps
+    for i, (phi_deg, c2_mat) in enumerate(zip(phi_list, c2_all, strict=True)):
+        fig, ax = plt.subplots(figsize=(8, 7))
+        im = ax.imshow(
+            c2_mat,
+            extent=extent,
+            aspect="auto",
+            cmap="jet",
+            vmin=vmin,
+            vmax=vmax,
+            origin="lower",
+        )
+        ax.set_xlabel("t₂ (s)", fontsize=12)
+        ax.set_ylabel("t₁ (s)", fontsize=12)
+        ax.set_title(
+            f"Simulated C₂ — φ = {phi_deg:.1f}° (β={contrast:.2f})",
+            fontsize=14,
+        )
+        plt.colorbar(im, ax=ax, shrink=0.9)
+        plt.tight_layout()
+        fig.savefig(
+            plots_dir / f"simulated_c2_phi_{phi_deg:.1f}.png",
+            dpi=150,
+            bbox_inches="tight",
+        )
+        plt.close(fig)
+
+    # Diagonal comparison plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+    for phi_deg, c2_mat in zip(phi_list, c2_all, strict=True):
+        diag = np.diag(c2_mat)
+        t_diag = t[: len(diag)]
+        ax.plot(t_diag, diag, label=f"φ={phi_deg:.1f}°")
+
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("c₂(t, t)")
+    ax.set_title("Simulated Diagonal — All Angles")
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    fig.savefig(
+        plots_dir / "simulated_c2_diagonal.png", dpi=150, bbox_inches="tight"
+    )
+    plt.close(fig)
+
+    logger.info("Saved %d simulated C2 heatmaps + diagonal", len(phi_list))
+
+
+def generate_nlsq_plots(
+    phi_angles: np.ndarray,
+    c2_exp: np.ndarray,
+    c2_theoretical_scaled: np.ndarray,
+    residuals: np.ndarray,
+    t1: np.ndarray,
+    t2: np.ndarray,
+    output_dir: Path,
+    config: Any = None,
+    use_datashader: bool = True,
+    parallel: bool = True,
+    *,
+    c2_solver_scaled: np.ndarray | None = None,
+) -> None:
+    """Generate 3-panel heatmaps (experimental | fit | residuals) per angle.
+
+    For each phi angle, creates a ``1x3`` subplot figure showing
+    experimental data, theoretical fit, and residuals side by side.
+
+    Args:
+        phi_angles: Scattering angles in degrees, shape ``(n_angles,)``.
+        c2_exp: Experimental correlation, shape ``(n_angles, n_t1, n_t2)``.
+        c2_theoretical_scaled: Scaled theoretical fits, same shape.
+        residuals: Residuals ``exp - fit``, same shape.
+        t1: First time array in seconds.
+        t2: Second time array in seconds.
+        output_dir: Directory for output PNG files.
+        config: Optional config for color scaling options.
+        use_datashader: Reserved for future Datashader backend.
+        parallel: Reserved for future parallel generation.
+        c2_solver_scaled: Optional solver-computed C2 to display instead
+            of *c2_theoretical_scaled*.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    phi_angles = np.asarray(phi_angles)
+
+    c2_fit = c2_solver_scaled if c2_solver_scaled is not None else c2_theoretical_scaled
+
+    extent = [float(t2[0]), float(t2[-1]), float(t1[-1]), float(t1[0])]
+
+    for i, phi_deg in enumerate(phi_angles):
+        if i >= c2_exp.shape[0]:
+            break
+
+        exp_i = c2_exp[i]
+        fit_i = c2_fit[i] if c2_fit.ndim == 3 else c2_fit
+        res_i = residuals[i] if residuals.ndim == 3 else residuals
+
+        fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+
+        # Panel 1: Experimental
+        vmin_e, vmax_e = _resolve_color_limits(exp_i)
+        im0 = axes[0].imshow(
+            exp_i, extent=extent, aspect="auto", cmap="jet",
+            vmin=vmin_e, vmax=vmax_e, origin="lower",
+        )
+        axes[0].set_title(f"Experimental — φ={float(phi_deg):.1f}°", fontsize=12)
+        axes[0].set_xlabel("t₂ (s)")
+        axes[0].set_ylabel("t₁ (s)")
+        plt.colorbar(im0, ax=axes[0], shrink=0.8)
+
+        # Panel 2: Fit
+        vmin_f, vmax_f = _resolve_color_limits(fit_i)
+        im1 = axes[1].imshow(
+            fit_i, extent=extent, aspect="auto", cmap="jet",
+            vmin=vmin_f, vmax=vmax_f, origin="lower",
+        )
+        axes[1].set_title("Fit", fontsize=12)
+        axes[1].set_xlabel("t₂ (s)")
+        plt.colorbar(im1, ax=axes[1], shrink=0.8)
+
+        # Panel 3: Residuals
+        vmin_r, vmax_r = _resolve_color_limits(res_i)
+        im2 = axes[2].imshow(
+            res_i, extent=extent, aspect="auto", cmap="RdBu_r",
+            vmin=-max(abs(vmin_r), abs(vmax_r)),
+            vmax=max(abs(vmin_r), abs(vmax_r)),
+            origin="lower",
+        )
+        axes[2].set_title("Residuals", fontsize=12)
+        axes[2].set_xlabel("t₂ (s)")
+        plt.colorbar(im2, ax=axes[2], shrink=0.8)
+
+        plt.tight_layout()
+        fig.savefig(
+            output_dir / f"c2_heatmaps_phi_{float(phi_deg):.1f}deg.png",
+            dpi=300,
+            bbox_inches="tight",
+        )
+        plt.close(fig)
+
+    logger.info(
+        "Saved %d 3-panel heatmap(s) to %s", len(phi_angles), output_dir
+    )
+
+
+def generate_and_plot_fitted_simulations(
+    result: Any,
+    data: dict[str, Any],
+    config: dict[str, Any],
+    output_dir: Path,
+    angle_filter_func: Any | None = None,
+) -> None:
+    """Generate forward simulations from fitted parameters and plot.
+
+    Uses the fitted parameters from *result* to evaluate the heterodyne
+    model, saves the simulated C2 to NPZ, and generates per-angle
+    heatmap plots.
+
+    Args:
+        result: Optimization result with fitted parameters.
+        data: Experimental data dictionary.
+        config: Configuration dictionary.
+        output_dir: Root output directory (``simulated_data/`` subdirectory
+            is created automatically).
+        angle_filter_func: Optional angle filter applied to data before
+            simulation.
+    """
+    sim_dir = output_dir / "simulated_data"
+    sim_dir.mkdir(parents=True, exist_ok=True)
+
+    from heterodyne.core.heterodyne_model import HeterodyneModel
+
+    try:
+        model = HeterodyneModel.from_config(config)
+    except Exception:
+        logger.exception("Cannot create model — skipping fitted simulation plots")
+        return
+
+    # Apply optional angle filtering
+    if angle_filter_func is not None:
+        try:
+            phi_raw = data.get("phi_angles_list", data.get("phi_angles"))
+            c2_raw = data.get("c2_exp", data.get("c2"))
+            if phi_raw is not None and c2_raw is not None:
+                _, filtered_phi, filtered_c2 = angle_filter_func(
+                    np.asarray(phi_raw), np.asarray(c2_raw), data
+                )
+                data = {**data, "phi_angles_list": filtered_phi, "c2_exp": filtered_c2}
+        except Exception:
+            logger.warning("Angle filtering failed; using unfiltered data")
+
+    phi_angles = data.get("phi_angles_list", data.get("phi_angles"))
+    if phi_angles is None:
+        phi_angles = [0.0]
+    phi_angles = np.asarray(phi_angles, dtype=float)
+
+    t = np.asarray(model.t) if hasattr(model, "t") else None
+    if t is None:
+        t1_raw = data.get("t1")
+        t = np.asarray(t1_raw) if t1_raw is not None else np.arange(1, 101, dtype=float)
+
+    n_t = len(t)
+    extent = [float(t[0]), float(t[-1]), float(t[-1]), float(t[0])]
+
+    # Extract fitted parameters
+    params = getattr(result, "parameters", None)
+    if params is None:
+        params = getattr(result, "mean_params", None)
+    if params is None:
+        logger.warning("No fitted parameters found in result — skipping")
+        return
+
+    contrast = getattr(result, "contrast", 0.3)
+    offset_val = getattr(result, "offset", 1.0)
+
+    # Generate and plot per angle
+    c2_fitted_all: list[np.ndarray] = []
+    for phi_deg in phi_angles:
+        try:
+            c2_sim = np.asarray(model.compute_c2(phi=float(phi_deg)))
+            c2_scaled = offset_val + contrast * (c2_sim - 1.0)
+        except Exception:
+            logger.warning("Forward model failed for phi=%.1f", phi_deg)
+            c2_scaled = np.ones((n_t, n_t)) * offset_val
+        c2_fitted_all.append(c2_scaled)
+
+        fig, ax = plt.subplots(figsize=(8, 7))
+        im = ax.imshow(
+            c2_scaled, extent=extent, aspect="auto", cmap="jet", origin="lower"
+        )
+        ax.set_xlabel("t₂ (s)", fontsize=12)
+        ax.set_ylabel("t₁ (s)", fontsize=12)
+        ax.set_title(f"Fitted C₂ — φ = {float(phi_deg):.1f}°", fontsize=14)
+        plt.colorbar(im, ax=ax, shrink=0.9)
+        plt.tight_layout()
+        fig.savefig(
+            sim_dir / f"fitted_c2_phi_{float(phi_deg):.1f}.png",
+            dpi=150,
+            bbox_inches="tight",
+        )
+        plt.close(fig)
+
+    # Save NPZ
+    try:
+        np.savez(
+            sim_dir / "fitted_simulations.npz",
+            c2_fitted=np.array(c2_fitted_all),
+            phi_angles=phi_angles,
+            t=t,
+        )
+        logger.info(
+            "Saved %d fitted simulation(s) to %s", len(phi_angles), sim_dir
+        )
+    except Exception:
+        logger.exception("Failed to save fitted simulation NPZ")
