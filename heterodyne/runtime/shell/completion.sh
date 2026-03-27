@@ -76,7 +76,7 @@ _heterodyne() {
     local global_opts="--config --method --output --output-format --verbose --quiet --help --version"
     local analysis_opts="--phi --multistart --multistart-n --num-samples --num-chains"
     local perf_opts="--threads --no-jit"
-    local plot_opts="--plot --no-plot --plot-experimental-data --plot-simulated-data --contrast --offset-sim"
+    local plot_opts="--plot --no-plot --plot-experimental-data --plot-simulated-data --contrast --offset-sim --save-plots --plotting-backend --parallel-plots --phi-angles"
     local all_opts="${global_opts} ${analysis_opts} ${perf_opts} ${plot_opts}"
 
     case "$prev" in
@@ -95,6 +95,10 @@ _heterodyne() {
             ;;
         --output-format)
             mapfile -t COMPREPLY < <(compgen -W "json npz both" -- "${cur}")
+            return
+            ;;
+        --plotting-backend)
+            mapfile -t COMPREPLY < <(compgen -W "auto matplotlib datashader" -- "${cur}")
             return
             ;;
         --threads|--multistart-n|--num-samples|--num-chains)

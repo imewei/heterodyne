@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from heterodyne.cli.config_handling import load_and_merge_config
 from heterodyne.cli.data_pipeline import load_and_validate_data, resolve_phi_angles
 from heterodyne.cli.optimization_runner import run_cmc, run_nlsq
-from heterodyne.cli.plot_dispatch import dispatch_plots
+from heterodyne.cli.plot_dispatch import _handle_plotting, dispatch_plots
 from heterodyne.core.heterodyne_model import HeterodyneModel
 from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_phase
 
@@ -208,6 +208,21 @@ def dispatch_command(args: argparse.Namespace) -> int:
         summary.start_phase("data_loading")
         summary.end_phase("data_loading", memory_peak_gb=phase.memory_peak_gb)
 
+        # --- Build rich data dict for plotting --------------------------------
+        import numpy as _np
+
+        _data_dict: dict[str, Any] = {
+            "c2_exp": _np.asarray(data.c2),
+            "t1": _np.asarray(data.t1) if data.t1 is not None else None,
+            "t2": _np.asarray(data.t2) if data.t2 is not None else None,
+            "phi_angles_list": (
+                _np.asarray(data.phi_angles)
+                if data.phi_angles is not None
+                else _np.asarray(phi_angles)
+            ),
+            "config": config_manager.raw_config,
+        }
+
         # --- Plot-experimental-data mode --------------------------------------
         plot_exp = getattr(args, "plot_experimental_data", False)
         plot_sim = getattr(args, "plot_simulated_data", False)
@@ -221,6 +236,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     output_dir=output_dir,
                     mode="experimental",
                     phi_angles=phi_angles,
+                    data_dict=_data_dict,
                 )
             summary.set_convergence_status("completed")
             summary.log_summary(logger)
@@ -235,6 +251,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     output_dir=output_dir,
                     mode="simulated",
                     phi_angles=phi_angles,
+                    data_dict=_data_dict,
                 )
             summary.set_convergence_status("completed")
             summary.log_summary(logger)
@@ -249,6 +266,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     output_dir=output_dir,
                     mode="both",
                     phi_angles=phi_angles,
+                    data_dict=_data_dict,
                 )
             summary.set_convergence_status("completed")
             summary.log_summary(logger)
@@ -315,6 +333,17 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     nlsq_results=nlsq_results if method in ("nlsq", "both") else None,
                     cmc_results=cmc_results if method in ("cmc", "both") else None,
                     output_dir=output_dir,
+                    data_dict=_data_dict,
+                )
+
+        # --- Save-plots: fit comparison + fitted simulations ------------------
+        if getattr(args, "save_plots", False):
+            with log_phase("save_plots", logger=logger):
+                _handle_plotting(
+                    args=args,
+                    result=nlsq_results[0] if nlsq_results else None,
+                    data=_data_dict,
+                    config=config_manager.raw_config,
                 )
 
         summary.set_convergence_status("completed")

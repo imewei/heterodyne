@@ -149,6 +149,40 @@ Examples:
         help="Skip plot generation",
     )
 
+    # Post-optimization plot saving
+    parser.add_argument(
+        "--save-plots",
+        action="store_true",
+        help="Save fit comparison and fitted simulation plots to output directory",
+    )
+
+    parser.add_argument(
+        "--plotting-backend",
+        type=str,
+        choices=["auto", "matplotlib", "datashader"],
+        default="auto",
+        help=(
+            "Plotting backend: auto (Datashader if available), "
+            "matplotlib, datashader (default: %(default)s)"
+        ),
+    )
+
+    parser.add_argument(
+        "--parallel-plots",
+        action="store_true",
+        help="Generate plots in parallel using multiprocessing (requires Datashader)",
+    )
+
+    parser.add_argument(
+        "--phi-angles",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated phi angles in degrees for simulated data "
+            "(e.g., '0,45,90,135')"
+        ),
+    )
+
     # Standalone plot modes (skip optimization)
     parser.add_argument(
         "--plot-experimental-data",
@@ -204,5 +238,16 @@ def validate_args(args: argparse.Namespace) -> list[str]:
     if args.verbose > 0 and args.quiet:
         warnings.append("Both --verbose and --quiet specified; using --quiet")
         args.verbose = 0
+
+    # Validate --phi-angles format (comma-separated floats)
+    phi_angles_str = getattr(args, "phi_angles", None)
+    if phi_angles_str is not None:
+        try:
+            [float(x.strip()) for x in phi_angles_str.split(",")]
+        except ValueError:
+            warnings.append(
+                f"--phi-angles must be comma-separated numbers "
+                f"(e.g., '0,45,90,135'), got: '{phi_angles_str}'"
+            )
 
     return warnings
