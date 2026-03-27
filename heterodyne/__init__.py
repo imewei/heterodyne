@@ -9,6 +9,7 @@ import warnings
 
 os.environ.setdefault("JAX_ENABLE_X64", "True")
 os.environ.setdefault("MPLBACKEND", "Agg")
+os.environ.setdefault("NLSQ_SKIP_GPU_CHECK", "1")  # CPU-only package
 
 # Configure XLA flags for multi-core CPU parallelism and stability
 _xla_flags = (
