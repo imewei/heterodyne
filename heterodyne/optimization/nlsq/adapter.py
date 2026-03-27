@@ -212,7 +212,7 @@ class NLSQAdapter(NLSQAdapterBase):
     ) -> NLSQResult:
         """Run NLSQ optimisation using nlsq.CurveFit.
 
-        Wraps the residual function into the ``(xdata, \*params)`` signature
+        Wraps the residual function into the ``(xdata, *params)`` signature
         expected by ``CurveFit.curve_fit`` and normalises the result via
         ``build_result_from_nlsq``.
 
