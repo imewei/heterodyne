@@ -132,6 +132,97 @@ def find_nearest_angle(
     return idx
 
 
+def normalize_angle_to_symmetric_range(
+    angle: float | np.ndarray,
+) -> float | np.ndarray:
+    """Normalize angle(s) to [-180, 180] range.
+
+    Args:
+        angle: Angle(s) in degrees.
+
+    Returns:
+        Normalized angle(s) in [-180, 180].
+    """
+    angle_array = np.asarray(angle)
+    normalized = angle_array % 360
+    normalized = np.where(normalized > 180, normalized - 360, normalized)
+    if np.isscalar(angle):
+        return float(normalized)
+    return normalized  # type: ignore[return-value]
+
+
+def apply_angle_filtering_for_plot(
+    phi_angles: np.ndarray,
+    c2_exp: np.ndarray,
+    data: dict[str, Any],
+) -> tuple[list[int], np.ndarray, np.ndarray]:
+    """Apply angle filtering for plotting, extracting config from data dict.
+
+    This is a convenience wrapper that normalizes angles and applies
+    range-based filtering using the ``phi_filtering`` section of the
+    config stored in *data*.
+
+    Args:
+        phi_angles: Array of phi angles in degrees.
+        c2_exp: Experimental correlation data, shape ``(n_phi, n_t1, n_t2)``.
+        data: Data dictionary; if it contains a ``config`` key with a
+            ``phi_filtering`` section, range filtering is applied.
+
+    Returns:
+        Tuple of ``(filtered_indices, filtered_phi_angles, filtered_c2_exp)``.
+        Returns all angles unchanged when no filtering config is found
+        or when filtering yields no matches.
+    """
+    phi_angles = np.asarray(phi_angles, dtype=float)
+    all_indices = list(range(len(phi_angles)))
+
+    # Extract filtering config
+    config = data.get("config", {})
+    if isinstance(config, dict):
+        phi_cfg = config.get("phi_filtering", {})
+    else:
+        # ConfigManager or similar — try attribute access
+        phi_cfg = getattr(config, "phi_filtering", {}) or {}
+
+    if not phi_cfg or not phi_cfg.get("enabled", False):
+        return all_indices, phi_angles, c2_exp
+
+    target_ranges = phi_cfg.get("target_ranges", [])
+    if not target_ranges:
+        return all_indices, phi_angles, c2_exp
+
+    # Normalize angles to [-180, 180]
+    normalized = normalize_angle_to_symmetric_range(phi_angles)
+
+    # Apply OR logic: angle selected if it falls within ANY target range
+    selected_mask = np.zeros(len(normalized), dtype=bool)
+    for rng in target_ranges:
+        if isinstance(rng, (list, tuple)) and len(rng) == 2:
+            lo = float(normalize_angle_to_symmetric_range(rng[0]))
+            hi = float(normalize_angle_to_symmetric_range(rng[1]))
+            if lo <= hi:
+                selected_mask |= (normalized >= lo) & (normalized <= hi)
+            else:
+                # Wrap-around range (e.g. [170, -170])
+                selected_mask |= (normalized >= lo) | (normalized <= hi)
+
+    if not np.any(selected_mask):
+        logger.warning(
+            "Angle filtering matched no angles; returning all %d angles",
+            len(phi_angles),
+        )
+        return all_indices, phi_angles, c2_exp
+
+    indices = list(np.where(selected_mask)[0])
+    filtered_phi = phi_angles[selected_mask]
+    filtered_c2 = c2_exp[selected_mask] if c2_exp.ndim == 3 else c2_exp
+
+    logger.debug(
+        "Angle filter for plot: selected %d/%d angles", len(indices), len(phi_angles)
+    )
+    return indices, filtered_phi, filtered_c2
+
+
 def compute_angle_quality(
     c2_3d: np.ndarray,
     phi_angles: np.ndarray,
