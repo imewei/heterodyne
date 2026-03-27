@@ -8,7 +8,6 @@ The scripts are installed by the post_install module and can be
 sourced in shell startup files or virtual environment activation scripts.
 """
 
-import os
 from pathlib import Path
 
 # Path to shell scripts

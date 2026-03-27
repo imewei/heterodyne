@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2034  # words/cword set by _init_completion convention
 # Bash completion for heterodyne CLI
 #
 # Installation:
@@ -66,24 +67,17 @@ _heterodyne_get_config_files() {
     } | sort -u | tee "$cache_file"
 }
 
-# Get HDF5 data files
-_heterodyne_get_data_files() {
-    find . -maxdepth 3 \( -name "*.h5" -o -name "*.hdf5" -o -name "*.nxs" \) -type f 2>/dev/null
-}
-
 # Main heterodyne completion
 _heterodyne() {
     local cur prev words cword
     _init_completion -s || return
 
-    # Global options
-    local global_opts="--config --data-file --method --verbose --quiet --help --version"
-
-    # Method options
-    local methods="nlsq cmc both"
-
-    # Subcommands (if any)
-    local subcommands=""
+    # All options grouped by category
+    local global_opts="--config --method --output --output-format --verbose --quiet --help --version"
+    local analysis_opts="--phi --multistart --multistart-n --num-samples --num-chains"
+    local perf_opts="--threads --no-jit"
+    local plot_opts="--plot --no-plot --plot-experimental-data --plot-simulated-data --contrast --offset-sim"
+    local all_opts="${global_opts} ${analysis_opts} ${perf_opts} ${plot_opts}"
 
     case "$prev" in
         --config|-c)
@@ -91,35 +85,36 @@ _heterodyne() {
             mapfile -t COMPREPLY < <(compgen -W "$(_heterodyne_get_config_files)" -- "${cur}")
             return
             ;;
-        --data-file|-d)
-            # Complete with HDF5 files
-            mapfile -t COMPREPLY < <(compgen -W "$(_heterodyne_get_data_files)" -- "${cur}")
-            return
-            ;;
         --method|-m)
-            # Complete with available methods
-            mapfile -t COMPREPLY < <(compgen -W "${methods}" -- "${cur}")
+            mapfile -t COMPREPLY < <(compgen -W "nlsq cmc both" -- "${cur}")
             return
             ;;
         --output|-o)
-            # Complete with directories
             _filedir -d
             return
             ;;
-        --log-level)
-            mapfile -t COMPREPLY < <(compgen -W "DEBUG INFO WARNING ERROR" -- "${cur}")
+        --output-format)
+            mapfile -t COMPREPLY < <(compgen -W "json npz both" -- "${cur}")
+            return
+            ;;
+        --threads|--multistart-n|--num-samples|--num-chains)
+            # Integer arguments — no completion
+            return
+            ;;
+        --phi|--contrast|--offset-sim)
+            # Float arguments — no completion
             return
             ;;
     esac
 
     # If current word starts with -, complete options
     if [[ "$cur" == -* ]]; then
-        mapfile -t COMPREPLY < <(compgen -W "${global_opts}" -- "${cur}")
+        mapfile -t COMPREPLY < <(compgen -W "${all_opts}" -- "${cur}")
         return
     fi
 
     # Default: complete with config files
-    mapfile -t COMPREPLY < <(compgen -W "$(_heterodyne_get_config_files) ${global_opts}" -- "${cur}")
+    mapfile -t COMPREPLY < <(compgen -W "$(_heterodyne_get_config_files) ${all_opts}" -- "${cur}")
 }
 
 # heterodyne-config completion
@@ -127,15 +122,15 @@ _heterodyne_config() {
     local cur prev words cword
     _init_completion -s || return
 
-    local opts="--output --template --minimal --verbose --help"
+    local opts="--output --data --q --dt --time-length --overwrite --show-template --interactive --validate --mode --help"
 
     case "$prev" in
-        --output|-o)
+        --output|-o|--data|-d)
             _filedir
             return
             ;;
-        --template|-t)
-            mapfile -t COMPREPLY < <(compgen -W "default minimal cmc" -- "${cur}")
+        --mode)
+            mapfile -t COMPREPLY < <(compgen -W "full minimal nlsq_only cmc_only" -- "${cur}")
             return
             ;;
     esac
@@ -150,11 +145,15 @@ _heterodyne_post_install() {
     local cur prev words cword
     _init_completion -s || return
 
-    local opts="--interactive --shell --no-completion --no-xla --help"
+    local opts="--interactive --shell --no-completion --no-xla --xla-mode --verbose --help"
 
     case "$prev" in
         --shell|-s)
             mapfile -t COMPREPLY < <(compgen -W "bash zsh fish" -- "${cur}")
+            return
+            ;;
+        --xla-mode)
+            mapfile -t COMPREPLY < <(compgen -W "auto nlsq cmc cmc-hpc" -- "${cur}")
             return
             ;;
     esac
@@ -169,7 +168,7 @@ _heterodyne_cleanup() {
     local cur prev words cword
     _init_completion -s || return
 
-    local opts="--dry-run --force --interactive --help"
+    local opts="--dry-run --force --interactive --verbose --help"
 
     if [[ "$cur" == -* ]]; then
         mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
@@ -188,22 +187,58 @@ _heterodyne_validate() {
     fi
 }
 
+# heterodyne-config-xla completion
+_heterodyne_config_xla() {
+    # shellcheck disable=SC2034  # words/cword used by _init_completion
+    local cur prev words cword
+    _init_completion -s || return
+
+    local opts="--threads --no-x64 --debug --info --help"
+
+    case "$prev" in
+        --threads)
+            # Suggest common thread counts
+            local cpu_count
+            cpu_count=$(nproc 2>/dev/null || echo 4)
+            mapfile -t COMPREPLY < <(compgen -W "1 2 4 8 ${cpu_count}" -- "${cur}")
+            return
+            ;;
+    esac
+
+    if [[ "$cur" == -* ]]; then
+        mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
+    fi
+}
+
 # Register completions
 complete -F _heterodyne heterodyne
 complete -F _heterodyne_config heterodyne-config
+complete -F _heterodyne_config_xla heterodyne-config-xla
 complete -F _heterodyne_post_install heterodyne-post-install
 complete -F _heterodyne_cleanup heterodyne-cleanup
 complete -F _heterodyne_validate heterodyne-validate
 
 # Short aliases (ht = heterodyne)
 complete -F _heterodyne ht
+complete -F _heterodyne ht-nlsq
+complete -F _heterodyne ht-cmc
 complete -F _heterodyne_config ht-config
-complete -F _heterodyne_post_install ht-post-install
-complete -F _heterodyne_cleanup ht-cleanup
+complete -F _heterodyne_config_xla ht-xla
+complete -F _heterodyne_post_install ht-setup
+complete -F _heterodyne_cleanup ht-clean
 complete -F _heterodyne_validate ht-validate
 
 # Plotting aliases
-alias hexp='heterodyne --plot-experimental-data'
-alias hsim='heterodyne --plot-simulated-data'
 complete -F _heterodyne hexp
 complete -F _heterodyne hsim
+
+# Shell aliases
+alias ht='heterodyne'
+alias ht-config='heterodyne-config'
+alias ht-nlsq='heterodyne --method nlsq'
+alias ht-cmc='heterodyne --method cmc'
+alias hexp='heterodyne --plot-experimental-data'
+alias hsim='heterodyne --plot-simulated-data'
+alias ht-xla='heterodyne-config-xla'
+alias ht-setup='heterodyne-post-install'
+alias ht-clean='heterodyne-cleanup'
