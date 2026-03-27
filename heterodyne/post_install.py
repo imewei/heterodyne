@@ -196,24 +196,28 @@ def install_zsh_completion(venv_path: Path, verbose: bool = False) -> bool:
     dest = dest_dir / "heterodyne-completion.zsh"
 
     try:
-        # Use the installed copy in the venv rather than the package source
-        # path, so the wrapper survives wheel-based relocations.
+        # Ensure the bash completion is installed first (prerequisite)
         installed_bash = venv_path / "etc" / "bash_completion.d" / "heterodyne"
         if not installed_bash.exists():
-            # Ensure the bash completion is installed first
             install_bash_completion(venv_path, verbose=False)
 
-        # Prefer the venv-local copy; fall back to source if install failed
-        completion_path = installed_bash if installed_bash.exists() else source
-        content = f"""# Zsh completion for heterodyne (generated)
+        # Use $VIRTUAL_ENV/$CONDA_PREFIX so paths resolve correctly at
+        # activation time and survive venv relocations.
+        content = """# Zsh completion for heterodyne (generated)
 # Source the bash completion in zsh-compatible mode
 
+# Ensure completion system is initialized (may already be loaded from .zshrc)
+if ! type compdef >/dev/null 2>&1; then
+    autoload -Uz compinit
+    compinit -C 2>/dev/null
+fi
 autoload -Uz bashcompinit
 bashcompinit
 
-source "{completion_path}"
+source "${VIRTUAL_ENV:-${CONDA_PREFIX}}/etc/bash_completion.d/heterodyne" 2>/dev/null
+true  # Ensure zero exit code regardless of completion system state
 """
-        dest.write_text(content)
+        dest.write_text(content, encoding="utf-8")
         if verbose:
             print(f"Installed zsh completion to: {dest}")
         return True
@@ -254,9 +258,15 @@ complete -c heterodyne -l version -d 'Show version'
 
 # heterodyne-config
 complete -c heterodyne-config -s o -l output -d 'Output file' -F
-complete -c heterodyne-config -l template -d 'Template type' -a 'default minimal cmc'
-complete -c heterodyne-config -l minimal -d 'Generate minimal config'
-complete -c heterodyne-config -s v -l verbose -d 'Verbose output'
+complete -c heterodyne-config -s d -l data -d 'Data file path' -F
+complete -c heterodyne-config -l q -d 'Wavevector magnitude'
+complete -c heterodyne-config -l dt -d 'Time step'
+complete -c heterodyne-config -l time-length -d 'Number of time points'
+complete -c heterodyne-config -l overwrite -d 'Overwrite existing file'
+complete -c heterodyne-config -l show-template -d 'Print template path'
+complete -c heterodyne-config -s i -l interactive -d 'Interactive config builder'
+complete -c heterodyne-config -s V -l validate -d 'Validate config file'
+complete -c heterodyne-config -l mode -d 'Config mode' -a 'full minimal nlsq_only cmc_only'
 complete -c heterodyne-config -s h -l help -d 'Show help'
 
 # heterodyne-post-install
@@ -283,17 +293,27 @@ complete -c heterodyne-validate -s h -l help -d 'Show help'
 # Short aliases (ht = heterodyne)
 complete -c ht -w heterodyne
 complete -c ht-config -w heterodyne-config
-complete -c ht-post-install -w heterodyne-post-install
-complete -c ht-cleanup -w heterodyne-cleanup
+complete -c ht-nlsq -w heterodyne
+complete -c ht-cmc -w heterodyne
+complete -c ht-xla -w heterodyne-config-xla
+complete -c ht-setup -w heterodyne-post-install
+complete -c ht-clean -w heterodyne-cleanup
 complete -c ht-validate -w heterodyne-validate
 
 # Plotting aliases
+alias ht 'heterodyne'
+alias ht-config 'heterodyne-config'
+alias ht-nlsq 'heterodyne --method nlsq'
+alias ht-cmc 'heterodyne --method cmc'
 alias hexp 'heterodyne --plot-experimental-data'
 alias hsim 'heterodyne --plot-simulated-data'
+alias ht-xla 'heterodyne-config-xla'
+alias ht-setup 'heterodyne-post-install'
+alias ht-clean 'heterodyne-cleanup'
 complete -c hexp -w heterodyne
 complete -c hsim -w heterodyne
 """
-        dest.write_text(content)
+        dest.write_text(content, encoding="utf-8")
         if verbose:
             print(f"Installed fish completion to: {dest}")
         return True
@@ -340,6 +360,120 @@ def install_shell_completion(
         return install_bash_completion(venv_path, verbose)
 
 
+def install_completion_activation(
+    shell: str | None = None,
+    verbose: bool = False,
+) -> bool:
+    """Add completion sourcing to venv activation script.
+
+    Ensures aliases and tab completion are available immediately on
+    ``source activate`` without requiring manual shell init changes.
+
+    Args:
+        shell: Shell type or None for auto-detection.
+        verbose: Print verbose output.
+
+    Returns:
+        True if installation succeeded.
+    """
+    if not is_virtual_environment():
+        if verbose:
+            print("Not in a virtual environment, skipping completion activation")
+        return False
+
+    venv_path = get_venv_path()
+    detected_shell = shell or detect_shell_type()
+
+    if detected_shell in ("bash", "zsh", "unknown"):
+        return _install_completion_bash_activation(venv_path, verbose)
+    elif detected_shell == "fish":
+        return _install_completion_fish_activation(venv_path, verbose)
+    else:
+        return False
+
+
+def _install_completion_bash_activation(
+    venv_path: Path,
+    verbose: bool,
+) -> bool:
+    """Add completion sourcing to bash/zsh activate script."""
+    activate_script = venv_path / "bin" / "activate"
+    if not activate_script.exists():
+        if verbose:
+            print(f"Activate script not found: {activate_script}")
+        return False
+
+    content = activate_script.read_text(encoding="utf-8")
+    marker = "# Heterodyne shell completion (auto-added by heterodyne-post-install)"
+
+    if marker in content:
+        if verbose:
+            print("Completion activation already installed in activate script")
+        return True
+
+    # Use $VIRTUAL_ENV so paths resolve correctly at activation time.
+    # Zsh needs bashcompinit wrapper; bash sources completion directly.
+    # The '2>/dev/null || true' prevents completion system errors (e.g.,
+    # missing compdef in minimal zsh) from breaking 'source activate'.
+    addition = f"""
+{marker}
+if [ -n "$ZSH_VERSION" ] && [ -f "$VIRTUAL_ENV/etc/zsh/heterodyne-completion.zsh" ]; then
+    source "$VIRTUAL_ENV/etc/zsh/heterodyne-completion.zsh" 2>/dev/null || true
+elif [ -f "$VIRTUAL_ENV/etc/bash_completion.d/heterodyne" ]; then
+    source "$VIRTUAL_ENV/etc/bash_completion.d/heterodyne"
+fi
+"""
+
+    try:
+        with open(activate_script, "a", encoding="utf-8") as f:
+            f.write(addition)
+        if verbose:
+            print(f"Added completion activation to: {activate_script}")
+        return True
+    except OSError as e:
+        if verbose:
+            print(f"Failed to modify activate script: {e}")
+        return False
+
+
+def _install_completion_fish_activation(
+    venv_path: Path,
+    verbose: bool,
+) -> bool:
+    """Add completion sourcing to fish activate script."""
+    activate_script = venv_path / "bin" / "activate.fish"
+    if not activate_script.exists():
+        if verbose:
+            print(f"Fish activate script not found: {activate_script}")
+        return False
+
+    content = activate_script.read_text(encoding="utf-8")
+    marker = "# Heterodyne shell completion (auto-added by heterodyne-post-install)"
+
+    if marker in content:
+        if verbose:
+            print("Completion activation already installed in fish activate script")
+        return True
+
+    addition = f"""
+{marker}
+if test -f "$VIRTUAL_ENV/share/fish/vendor_completions.d/heterodyne.fish"
+    source "$VIRTUAL_ENV/share/fish/vendor_completions.d/heterodyne.fish"
+end
+"""
+
+    try:
+        with open(activate_script, "a", encoding="utf-8") as f:
+            f.write(addition)
+        if verbose:
+            print(f"Added completion activation to: {activate_script}")
+        return True
+    except OSError as e:
+        if verbose:
+            print(f"Failed to modify fish activate script: {e}")
+        return False
+
+
 def install_xla_activation(
     shell: str | None = None,
     mode: str = "auto",
@@ -384,7 +518,7 @@ def _install_xla_bash_activation(
         return False
 
     # Check if already installed
-    content = activate_script.read_text()
+    content = activate_script.read_text(encoding="utf-8")
     marker = "# heterodyne XLA configuration"
 
     if marker in content:
@@ -399,12 +533,12 @@ def _install_xla_bash_activation(
     addition = f"""
 {marker}
 if [ -f "{xla_script}" ]; then
-    source "{xla_script}" {mode}
+    source "{xla_script}"
 fi
 """
 
     try:
-        with open(activate_script, "a") as f:
+        with open(activate_script, "a", encoding="utf-8") as f:
             f.write(addition)
         if verbose:
             print(f"Added XLA activation to: {activate_script}")
@@ -428,7 +562,7 @@ def _install_xla_fish_activation(
         return False
 
     # Check if already installed
-    content = activate_script.read_text()
+    content = activate_script.read_text(encoding="utf-8")
     marker = "# heterodyne XLA configuration"
 
     if marker in content:
@@ -443,12 +577,12 @@ def _install_xla_fish_activation(
     addition = f"""
 {marker}
 if test -f "{xla_script}"
-    source "{xla_script}" {mode}
+    source "{xla_script}"
 end
 """
 
     try:
-        with open(activate_script, "a") as f:
+        with open(activate_script, "a", encoding="utf-8") as f:
             f.write(addition)
         if verbose:
             print(f"Added XLA activation to: {activate_script}")
@@ -486,21 +620,28 @@ def _migrate_legacy_xla_mode(new_path: Path) -> None:
     if legacy.exists() and not new_path.exists():
         try:
             new_path.parent.mkdir(parents=True, exist_ok=True)
-            mode = legacy.read_text().strip()
-            new_path.write_text(mode)
+            mode = legacy.read_text(encoding="utf-8").strip()
+            new_path.write_text(mode, encoding="utf-8")
             legacy.unlink()
         except OSError:
             pass  # Best-effort migration
 
 
-def configure_xla_mode(mode: str = "auto", verbose: bool = False) -> bool:
+def configure_xla_mode(
+    mode: str = "auto", verbose: bool = False, force: bool = False
+) -> bool:
     """Configure the XLA mode.
 
     Stores in the virtual environment (if active) or XDG config directory.
+    Preserves existing configuration unless ``force=True``, matching the
+    shell-side behavior in ``xla_config.bash`` where the mode file is only
+    written when an explicit argument is provided.
 
     Args:
         mode: XLA mode (auto, nlsq, cmc, cmc-hpc, or a number).
         verbose: Print verbose output.
+        force: Overwrite existing config. Set to True only when the user
+            explicitly passes ``--xla-mode``.
 
     Returns:
         True if configuration succeeded.
@@ -509,7 +650,17 @@ def configure_xla_mode(mode: str = "auto", verbose: bool = False) -> bool:
 
     try:
         config_file.parent.mkdir(parents=True, exist_ok=True)
-        config_file.write_text(mode)
+
+        # Migrate legacy file if new file doesn't exist yet
+        _migrate_legacy_xla_mode(config_file)
+
+        if config_file.exists() and not force:
+            if verbose:
+                existing = config_file.read_text(encoding="utf-8").strip()
+                print(f"Preserving existing XLA mode '{existing}' in {config_file}")
+            return True
+
+        config_file.write_text(mode, encoding="utf-8")
         if verbose:
             print(f"Set XLA mode to '{mode}' in {config_file}")
 
@@ -562,16 +713,21 @@ def interactive_setup() -> None:
     if response != "n":
         success = install_shell_completion(shell, verbose=True)
         if success:
-            print("Shell completion installed successfully!")
-            env_var = "$CONDA_PREFIX" if is_conda else "$VIRTUAL_ENV"
-            if shell == "zsh":
-                print(
-                    f"Add to ~/.zshrc: source {env_var}/etc/zsh/heterodyne-completion.zsh"
-                )
-            elif shell == "bash":
-                print(
-                    f"Add to ~/.bashrc: source {env_var}/etc/bash_completion.d/heterodyne"
-                )
+            act_success = install_completion_activation(shell, verbose=True)
+            if act_success:
+                print("Shell completion installed and activated!")
+                print("Deactivate and reactivate your venv to load aliases.")
+            else:
+                print("Shell completion installed (activate hook failed).")
+                env_var = "$CONDA_PREFIX" if is_conda else "$VIRTUAL_ENV"
+                if shell == "zsh":
+                    print(
+                        f"Add to ~/.zshrc: source {env_var}/etc/zsh/heterodyne-completion.zsh"
+                    )
+                elif shell == "bash":
+                    print(
+                        f"Add to ~/.bashrc: source {env_var}/etc/bash_completion.d/heterodyne"
+                    )
         else:
             print("Shell completion installation failed.")
     print()
@@ -594,7 +750,7 @@ def interactive_setup() -> None:
             print(f"Invalid mode: {mode}, using 'auto'")
             mode = "auto"
 
-    success = configure_xla_mode(mode, verbose=True)
+    success = configure_xla_mode(mode, verbose=True, force=True)
     if success:
         print(f"XLA mode set to '{mode}'")
 
@@ -654,8 +810,8 @@ Examples:
     parser.add_argument(
         "--xla-mode",
         choices=["auto", "nlsq", "cmc", "cmc-hpc"],
-        default="auto",
-        help="XLA configuration mode (default: auto)",
+        default=None,
+        help="XLA configuration mode (default: preserve existing, or auto)",
     )
     parser.add_argument(
         "-v",
@@ -668,7 +824,10 @@ Examples:
 
     # Run interactive setup if no specific options given
     if args.interactive or (
-        not args.no_completion and not args.no_xla and not args.shell
+        not args.no_completion
+        and not args.no_xla
+        and not args.shell
+        and not args.xla_mode
     ):
         interactive_setup()
         return 0
@@ -681,14 +840,21 @@ Examples:
         if not result:
             print("Shell completion installation failed")
             success = False
+        else:
+            result = install_completion_activation(args.shell, args.verbose)
+            if not result:
+                print("Completion activation hook failed")
+                success = False
 
     if not args.no_xla:
-        result = configure_xla_mode(args.xla_mode, args.verbose)
+        xla_mode = args.xla_mode or "auto"
+        xla_explicit = args.xla_mode is not None
+        result = configure_xla_mode(xla_mode, args.verbose, force=xla_explicit)
         if not result:
             print("XLA mode configuration failed")
             success = False
 
-        result = install_xla_activation(args.shell, args.xla_mode, args.verbose)
+        result = install_xla_activation(args.shell, xla_mode, args.verbose)
         if not result:
             print("XLA activation installation failed")
             success = False

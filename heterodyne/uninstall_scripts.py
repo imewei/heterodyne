@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -225,6 +224,66 @@ def cleanup_xla_config(
     return removed
 
 
+def _remove_heterodyne_blocks(content: str, end_marker: str) -> str:
+    """Remove heterodyne-injected blocks from activate script content.
+
+    Uses a line-by-line state machine instead of regex to correctly handle
+    nested if/fi or if/end structures within injected blocks.
+
+    Args:
+        content: Full text of the activate script.
+        end_marker: Block terminator: "fi" for bash/zsh, "end" for fish.
+
+    Returns:
+        Content with all heterodyne blocks removed.
+    """
+    _HETERODYNE_HEADERS = (
+        "# Heterodyne shell completion (auto-added by heterodyne-post-install)",
+        "# Heterodyne XLA configuration (auto-added by heterodyne-post-install)",
+        "# heterodyne XLA configuration",
+    )
+
+    lines = content.split("\n")
+    result: list[str] = []
+    skipping = False
+    depth = 0
+
+    for line in lines:
+        stripped = line.strip()
+
+        if not skipping:
+            if stripped in _HETERODYNE_HEADERS:
+                skipping = True
+                depth = 0
+                continue
+            result.append(line)
+        else:
+            if end_marker == "fi":
+                if stripped.startswith("if ") or stripped.startswith("if\t"):
+                    depth += 1
+                elif (
+                    stripped == end_marker
+                    or stripped.startswith("fi ")
+                    or stripped.startswith("fi;")
+                ):
+                    depth -= 1
+                    if depth <= 0:
+                        skipping = False
+                        continue
+            else:
+                if stripped in ("if", "for", "while") or any(
+                    stripped.startswith(kw) for kw in ("if ", "for ", "while ")
+                ):
+                    depth += 1
+                elif stripped == end_marker:
+                    depth -= 1
+                    if depth <= 0:
+                        skipping = False
+                        continue
+
+    return "\n".join(result)
+
+
 def cleanup_xla_activation_scripts(
     dry_run: bool = False,
     verbose: bool = False,
@@ -244,52 +303,36 @@ def cleanup_xla_activation_scripts(
     if not venv_path:
         return False
 
-    # Bash/Zsh activate script
-    activate_script = venv_path / "bin" / "activate"
-    if activate_script.exists():
-        content = activate_script.read_text()
+    # (script_name, end_marker) pairs
+    scripts = [
+        ("activate", "fi"),
+        ("activate.fish", "end"),
+    ]
 
-        # Pattern to match the heterodyne XLA configuration block
-        pattern = r"\n# heterodyne XLA configuration\nif \[.*?fi\n"
+    for script_name, end_marker in scripts:
+        script_path = venv_path / "bin" / script_name
+        if not script_path.exists():
+            continue
 
-        if "heterodyne XLA configuration" in content:
-            if verbose:
-                action = "Would modify" if dry_run else "Modifying"
-                print(f"{action}: {activate_script} (removing XLA config)")
+        content = script_path.read_text(encoding="utf-8")
+        if "heterodyne XLA" not in content and "Heterodyne" not in content:
+            continue
 
-            if not dry_run:
-                new_content = re.sub(pattern, "", content, flags=re.DOTALL)
+        if verbose:
+            action = "Would modify" if dry_run else "Modifying"
+            print(f"{action}: {script_path} (removing heterodyne config)")
+
+        if not dry_run:
+            new_content = _remove_heterodyne_blocks(content, end_marker)
+            if new_content != content:
                 try:
-                    activate_script.write_text(new_content)
+                    script_path.write_text(new_content, encoding="utf-8")
                     modified = True
                 except OSError as e:
                     if verbose:
                         print(f"  Failed: {e}")
-            else:
-                modified = True
-
-    # Fish activate script
-    fish_activate = venv_path / "bin" / "activate.fish"
-    if fish_activate.exists():
-        content = fish_activate.read_text()
-
-        pattern = r"\n# heterodyne XLA configuration\nif test.*?end\n"
-
-        if "heterodyne XLA configuration" in content:
-            if verbose:
-                action = "Would modify" if dry_run else "Modifying"
-                print(f"{action}: {fish_activate} (removing XLA config)")
-
-            if not dry_run:
-                new_content = re.sub(pattern, "", content, flags=re.DOTALL)
-                try:
-                    fish_activate.write_text(new_content)
-                    modified = True
-                except OSError as e:
-                    if verbose:
-                        print(f"  Failed: {e}")
-            else:
-                modified = True
+        else:
+            modified = True
 
     return modified
 
@@ -319,13 +362,13 @@ def show_dry_run(verbose: bool = True) -> None:
     venv_path = get_venv_path()
     if venv_path:
         activate = venv_path / "bin" / "activate"
-        if activate.exists() and "heterodyne XLA" in activate.read_text():
+        if activate.exists() and "heterodyne XLA" in activate.read_text(encoding="utf-8"):
             print(f"  {activate} (would modify)")
             if verbose:
                 print("    (remove XLA configuration block)")
 
         fish_activate = venv_path / "bin" / "activate.fish"
-        if fish_activate.exists() and "heterodyne XLA" in fish_activate.read_text():
+        if fish_activate.exists() and "heterodyne XLA" in fish_activate.read_text(encoding="utf-8"):
             print(f"  {fish_activate} (would modify)")
             if verbose:
                 print("    (remove XLA configuration block)")
@@ -356,7 +399,7 @@ def interactive_cleanup() -> None:
     has_activation_mods = False
     if venv_path:
         activate = venv_path / "bin" / "activate"
-        if activate.exists() and "heterodyne XLA" in activate.read_text():
+        if activate.exists() and "heterodyne XLA" in activate.read_text(encoding="utf-8"):
             print(f"  - {activate} contains XLA configuration")
             has_activation_mods = True
 
