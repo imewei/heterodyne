@@ -235,11 +235,13 @@ with log_phase("Optimization"):
 
 ## CLI Entry Points
 
-| Command | Purpose |
-|---------|---------|
-| `heterodyne` | Main analysis (NLSQ/CMC) |
-| `heterodyne-config` | Config generation/validation |
-| `heterodyne-config-xla` | XLA device configuration |
-| `heterodyne-post-install` | Shell completion setup |
-| `heterodyne-cleanup` | Remove shell completion files |
-| `heterodyne-validate` | System validation |
+| Command | Short alias | Purpose |
+|---------|-------------|---------|
+| `heterodyne` | `ht` | Main analysis (NLSQ/CMC) |
+| `heterodyne-config` | `ht-config` | Config generation/validation |
+| `heterodyne-config-xla` | `ht-config-xla` | XLA device configuration |
+| `heterodyne-post-install` | `ht-post-install` | Shell completion setup |
+| `heterodyne-cleanup` | `ht-cleanup` | Remove shell completion files |
+| `heterodyne-validate` | `ht-validate` | System validation |
+| `hexp` | — | Plot experimental data (skip optimization) |
+| `hsim` | — | Plot simulated C2 heatmaps from config |

@@ -204,16 +204,29 @@ optimization:
 
 ## CLI Commands
 
-| Command | Purpose |
-|---------|---------|
-| `heterodyne` | Run XPCS analysis (NLSQ/CMC) |
-| `heterodyne-config` | Generate and validate config files |
-| `heterodyne-config-xla` | Configure XLA device settings |
-| `heterodyne-validate` | System validation |
-| `heterodyne-post-install` | Install shell completion (bash/zsh/fish) |
-| `heterodyne-cleanup` | Remove shell completion files |
+| Command | Short alias | Purpose |
+|---------|-------------|---------|
+| `heterodyne` | `ht` | Run XPCS analysis (NLSQ/CMC) |
+| `heterodyne-config` | `ht-config` | Generate and validate config files |
+| `heterodyne-config-xla` | `ht-config-xla` | Configure XLA device settings |
+| `heterodyne-validate` | `ht-validate` | System validation |
+| `heterodyne-post-install` | `ht-post-install` | Install shell completion (bash/zsh/fish) |
+| `heterodyne-cleanup` | `ht-cleanup` | Remove shell completion files |
+| `hexp` | — | Plot experimental data (skip optimization) |
+| `hsim` | — | Plot simulated C2 heatmaps from config |
 
-Shell completion and aliases are available after running `heterodyne-post-install --interactive`.
+### Plotting Shortcuts
+
+```bash
+# Inspect experimental data before fitting
+hexp --config config.yaml
+
+# Preview simulated C2 heatmaps from current parameters
+hsim --config config.yaml --contrast 0.3 --offset-sim 1.0
+```
+
+Shell completion and additional aliases (e.g. `het`, `het-nlsq`, `het-cmc`) are
+available after running `heterodyne-post-install --interactive`.
 
 ## Development
 

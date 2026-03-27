@@ -127,7 +127,41 @@ aliases:
 
 This installs tab completion for Bash, Zsh, and Fish shells.
 
-**Recommended aliases** (added to your shell profile by ``heterodyne-post-install``):
+**Short aliases** (installed as console scripts via ``pip``/``uv``):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Alias
+     - Equivalent
+     - Purpose
+   * - ``ht``
+     - ``heterodyne``
+     - Main CLI
+   * - ``ht-config``
+     - ``heterodyne-config``
+     - Config generator
+   * - ``ht-config-xla``
+     - ``heterodyne-config-xla``
+     - XLA flag configurator
+   * - ``ht-post-install``
+     - ``heterodyne-post-install``
+     - Post-install setup
+   * - ``ht-cleanup``
+     - ``heterodyne-cleanup``
+     - Cleanup utility
+   * - ``ht-validate``
+     - ``heterodyne-validate``
+     - System validation
+   * - ``hexp``
+     - ``heterodyne --plot-experimental-data``
+     - Plot experimental data
+   * - ``hsim``
+     - ``heterodyne --plot-simulated-data``
+     - Plot simulated C2 heatmaps
+
+**Shell aliases** (added to your profile by ``heterodyne-post-install``):
 
 .. list-table::
    :header-rows: 1
