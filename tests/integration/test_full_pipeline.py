@@ -29,8 +29,12 @@ def _make_small_model(n_times: int = 16):
     from heterodyne.core.heterodyne_model import HeterodyneModel
 
     config = {
-        "temporal": {"dt": 1.0, "time_length": n_times},
-        "scattering": {"wavevector_q": 0.01},
+        "analyzer_parameters": {
+            "dt": 1.0,
+            "start_frame": 1,
+            "end_frame": n_times,
+            "scattering": {"wavevector_q": 0.01},
+        },
         "parameters": {},
     }
     return HeterodyneModel.from_config(config)

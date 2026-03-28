@@ -89,12 +89,13 @@ def base_model_config() -> dict:
         Configuration dict with temporal, scattering, and parameters sections
     """
     return {
-        "temporal": {
+        "analyzer_parameters": {
             "dt": 1.0,
-            "time_length": 50,
-        },
-        "scattering": {
-            "wavevector_q": 0.01,
+            "start_frame": 1,
+            "end_frame": 50,
+            "scattering": {
+                "wavevector_q": 0.01,
+            },
         },
         "parameters": {},
     }
@@ -122,12 +123,13 @@ def small_model_config() -> dict:
         Configuration with only 20 time points
     """
     return {
-        "temporal": {
+        "analyzer_parameters": {
             "dt": 1.0,
-            "time_length": 20,
-        },
-        "scattering": {
-            "wavevector_q": 0.01,
+            "start_frame": 1,
+            "end_frame": 20,
+            "scattering": {
+                "wavevector_q": 0.01,
+            },
         },
         "parameters": {},
     }

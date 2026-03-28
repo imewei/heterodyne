@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Verify JAX CPU-only
+        run: |
+          uv run python -c "
+          import jax
+          print('JAX version:', jax.__version__)
+          print('Devices:', jax.devices())
+          assert all(d.platform == 'cpu' for d in jax.devices()), 'Non-CPU device found'
+          "
+
+      - name: Run smoke tests
+        run: uv run pytest tests/ -m "not slow" -x --timeout=60 -q
+
+      - name: Run integration tests
+        if: matrix.python-version == '3.13' && matrix.os == 'ubuntu-latest'
+        run: uv run pytest tests/integration/ -x --timeout=120 -q
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Build package
+        run: uv build
+
+      - name: Verify wheel installs
+        run: |
+          uv venv /tmp/test-install
+          uv pip install dist/*.whl --python /tmp/test-install/bin/python
+          /tmp/test-install/bin/python -c "import heterodyne; print(heterodyne.__version__)"

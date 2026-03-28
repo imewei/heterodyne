@@ -89,6 +89,23 @@ Both paths share primitives from `core/physics_utils.py` (trapezoid_cumsum, rate
 YAML → ConfigManager → XPCSDataLoader(HDF5) → HeterodyneModel → NLSQ/CMC → Result(JSON+NPZ)
 ```
 
+### Config Structure
+
+The primary config section is `analyzer_parameters` (parity with homodyne):
+
+```yaml
+analyzer_parameters:
+  dt: 0.001                           # Time step [seconds]
+  start_frame: 1000                   # Starting frame (1-indexed)
+  end_frame: 2000                     # Ending frame (inclusive)
+  scattering:
+    wavevector_q: 0.0054              # Wave vector [Å⁻¹]
+  geometry:
+    stator_rotor_gap: 2000000         # Gap [Å] (200 microns)
+```
+
+Legacy `temporal`/`scattering` top-level sections are auto-migrated by `ConfigManager`.
+
 ## 14 Physics Parameters
 
 All 14 physics parameters + 2 scaling (contrast, offset) per angle, organized in five groups:
