@@ -29,12 +29,13 @@ def minimal_config() -> dict:
         "experimental_data": {
             "file_path": "/path/to/data.h5",
         },
-        "temporal": {
+        "analyzer_parameters": {
             "dt": 0.001,
-            "time_length": 100,
-        },
-        "scattering": {
-            "wavevector_q": 0.01,
+            "start_frame": 1,
+            "end_frame": 100,
+            "scattering": {
+                "wavevector_q": 0.01,
+            },
         },
         "parameters": {},
     }
@@ -49,14 +50,17 @@ def full_config() -> dict:
             "data_folder_path": "/path/to/folder",
             "file_format": "hdf5",
         },
-        "temporal": {
+        "analyzer_parameters": {
             "dt": 0.001,
-            "time_length": 100,
-            "t_start": 5,
-        },
-        "scattering": {
-            "wavevector_q": 0.01,
-            "phi_angles": [0.0, 90.0, 180.0],
+            "start_frame": 6,
+            "end_frame": 105,
+            "scattering": {
+                "wavevector_q": 0.01,
+                "phi_angles": [0.0, 90.0, 180.0],
+            },
+            "geometry": {
+                "stator_rotor_gap": 2000000,
+            },
         },
         "parameters": {
             "reference": {
@@ -103,14 +107,24 @@ class TestConfigManagerInit:
     def test_init_with_valid_config(self, minimal_config: dict) -> None:
         """Initialize with valid minimal config."""
         manager = ConfigManager(minimal_config)
-        assert manager.raw_config == minimal_config
+        raw = manager.raw_config
+        # Normalization synthesizes legacy temporal/scattering keys
+        assert raw["analyzer_parameters"]["dt"] == 0.001
+        assert raw["analyzer_parameters"]["start_frame"] == 1
+        assert raw["analyzer_parameters"]["end_frame"] == 100
+        assert raw["temporal"]["dt"] == 0.001
+        assert raw["scattering"]["wavevector_q"] == 0.01
 
     @pytest.mark.unit
     def test_init_missing_experimental_data_raises(self) -> None:
         """Missing experimental_data section raises error."""
         config = {
-            "temporal": {"dt": 0.001, "time_length": 100},
-            "scattering": {"wavevector_q": 0.01},
+            "analyzer_parameters": {
+                "dt": 0.001,
+                "start_frame": 1,
+                "end_frame": 100,
+                "scattering": {"wavevector_q": 0.01},
+            },
             "parameters": {},
         }
         with pytest.raises(ConfigurationError) as excinfo:
@@ -118,28 +132,47 @@ class TestConfigManagerInit:
         assert "experimental_data" in str(excinfo.value)
 
     @pytest.mark.unit
-    def test_init_missing_temporal_raises(self) -> None:
-        """Missing temporal section raises error."""
+    def test_init_missing_analyzer_parameters_raises(self) -> None:
+        """Missing analyzer_parameters (and no legacy temporal/scattering) raises error."""
         config = {
             "experimental_data": {"file_path": "/path"},
-            "scattering": {"wavevector_q": 0.01},
             "parameters": {},
         }
         with pytest.raises(ConfigurationError) as excinfo:
             ConfigManager(config)
-        assert "temporal" in str(excinfo.value)
+        assert "analyzer_parameters" in str(excinfo.value)
 
     @pytest.mark.unit
-    def test_init_missing_scattering_raises(self) -> None:
-        """Missing scattering section raises error."""
+    def test_init_legacy_temporal_scattering_migrated(self) -> None:
+        """Legacy temporal/scattering sections are auto-migrated."""
         config = {
             "experimental_data": {"file_path": "/path"},
             "temporal": {"dt": 0.001, "time_length": 100},
+            "scattering": {"wavevector_q": 0.01},
             "parameters": {},
         }
-        with pytest.raises(ConfigurationError) as excinfo:
-            ConfigManager(config)
-        assert "scattering" in str(excinfo.value)
+        manager = ConfigManager(config)
+        assert manager.dt == 0.001
+        assert manager.wavevector_q == 0.01
+        assert manager.start_frame == 1
+        assert manager.end_frame == 100
+        assert manager.time_length == 100
+        assert manager.t_start == 0
+
+    @pytest.mark.unit
+    def test_init_legacy_temporal_with_t_start_migrated(self) -> None:
+        """Legacy t_start is converted to 1-indexed start_frame."""
+        config = {
+            "experimental_data": {"file_path": "/path"},
+            "temporal": {"dt": 0.001, "time_length": 100, "t_start": 5},
+            "scattering": {"wavevector_q": 0.01},
+            "parameters": {},
+        }
+        manager = ConfigManager(config)
+        assert manager.start_frame == 6  # t_start=5 → start_frame=6
+        assert manager.end_frame == 105  # t_start + time_length
+        assert manager.t_start == 5  # derived back
+        assert manager.time_length == 100  # derived back
 
     @pytest.mark.unit
     def test_init_missing_multiple_sections(self) -> None:
@@ -148,8 +181,7 @@ class TestConfigManagerInit:
         with pytest.raises(ConfigurationError) as excinfo:
             ConfigManager(config)
         error_msg = str(excinfo.value)
-        assert "temporal" in error_msg
-        assert "scattering" in error_msg
+        assert "analyzer_parameters" in error_msg
         assert "parameters" in error_msg
 
 
@@ -166,7 +198,8 @@ class TestConfigManagerFactoryMethods:
         """from_dict creates ConfigManager."""
         manager = ConfigManager.from_dict(minimal_config)
         assert isinstance(manager, ConfigManager)
-        assert manager.raw_config == minimal_config
+        assert manager.dt == 0.001
+        assert manager.wavevector_q == 0.01
 
     @pytest.mark.unit
     def test_from_yaml(self, config_yaml_file: Path) -> None:

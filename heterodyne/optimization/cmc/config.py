@@ -134,7 +134,7 @@ class CMCConfig:
     max_tree_depth:
         Maximum binary tree depth for NUTS leapfrog integration.
     seed:
-        Base random seed. ``None`` uses a non-deterministic seed.
+        Base random seed for deterministic reproducibility.
     dense_mass:
         Use a dense (full-covariance) mass matrix. Expensive but more
         accurate for highly correlated posteriors.
@@ -239,11 +239,11 @@ class CMCConfig:
     # ------------------------------------------------------------------
 
     num_warmup: int = 500
-    num_samples: int = 1000
+    num_samples: int = 1500
     num_chains: int = 4
-    target_accept_prob: float = 0.8
+    target_accept_prob: float = 0.85
     max_tree_depth: int = 10
-    seed: int | None = None
+    seed: int = 42
     dense_mass: bool = False
     init_strategy: str = "init_to_median"
     adaptive_sampling: bool = True
@@ -255,7 +255,7 @@ class CMCConfig:
     # ------------------------------------------------------------------
 
     max_r_hat: float = 1.1
-    min_ess: int = 100
+    min_ess: int = 400
     min_bfmi: float = 0.3
     max_divergence_rate: float = 0.10
     require_nlsq_warmstart: bool = False
@@ -292,7 +292,14 @@ class CMCConfig:
     heartbeat_timeout: int = 600
 
     # ------------------------------------------------------------------
-    # 11. Reparameterization
+    # 11. JAX profiling
+    # ------------------------------------------------------------------
+
+    enable_jax_profiling: bool = False
+    jax_profile_dir: str = "./profiles/jax"
+
+    # ------------------------------------------------------------------
+    # 12. Reparameterization
     # ------------------------------------------------------------------
 
     use_reparam: bool = True
@@ -302,7 +309,7 @@ class CMCConfig:
     bimodal_min_separation: float = 0.5
 
     # ------------------------------------------------------------------
-    # 12. Run identification
+    # 13. Run identification
     # ------------------------------------------------------------------
 
     run_id: str | None = None

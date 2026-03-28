@@ -56,6 +56,9 @@ class ConfigManager:
                 normalized[canonical] = value
             params[group_name] = normalized
 
+        # Normalize legacy temporal/scattering sections into analyzer_parameters
+        self._normalize_analyzer_parameters()
+
         # Normalize CMC config keys
         cmc = self._config.get("optimization", {}).get("cmc", {})
         if isinstance(cmc, dict):
@@ -69,12 +72,101 @@ class ConfigManager:
             if isinstance(opt, dict) and "cmc" in opt:
                 opt["cmc"] = normalized_cmc
 
+    def _normalize_analyzer_parameters(self) -> None:
+        """Merge legacy ``temporal``/``scattering`` sections into ``analyzer_parameters``.
+
+        Supports three config styles:
+        1. **New** — ``analyzer_parameters`` with dt, start_frame, end_frame,
+           scattering, and geometry sub-keys.
+        2. **Legacy** — separate ``temporal`` and ``scattering`` top-level sections.
+        3. **Mixed** — ``analyzer_parameters`` exists but legacy sections also
+           present; legacy values are used as fallbacks only.
+
+        After normalization, ``temporal`` and ``scattering`` top-level keys are
+        synthesized from ``analyzer_parameters`` so downstream code that reads
+        the raw config dict keeps working during migration.
+        """
+        ap = self._config.get("analyzer_parameters", {})
+        temporal = self._config.get("temporal", {})
+        scattering = self._config.get("scattering", {})
+
+        if not ap and not temporal and not scattering:
+            # Nothing to normalize — will fail validation later
+            return
+
+        if not ap and (temporal or scattering):
+            logger.info(
+                "Migrating legacy 'temporal'/'scattering' sections "
+                "into 'analyzer_parameters'"
+            )
+
+        # --- Build canonical analyzer_parameters --------------------------
+        merged: dict[str, Any] = {}
+
+        # dt: top-level in analyzer_parameters (parity with homodyne)
+        merged["dt"] = ap.get("dt", temporal.get("dt", 1.0))
+
+        # Frame range: prefer start_frame/end_frame (1-indexed, inclusive)
+        if "start_frame" in ap:
+            merged["start_frame"] = int(ap["start_frame"])
+        elif "t_start" in temporal:
+            # Legacy: t_start is 0-indexed → start_frame is 1-indexed
+            merged["start_frame"] = int(temporal["t_start"]) + 1
+        else:
+            merged["start_frame"] = 1
+
+        if "end_frame" in ap:
+            merged["end_frame"] = int(ap["end_frame"])
+        elif "time_length" in temporal:
+            # Legacy: end_frame = t_start + time_length (inclusive)
+            t_start = int(temporal.get("t_start", 0))
+            merged["end_frame"] = t_start + int(temporal["time_length"])
+        else:
+            merged["end_frame"] = 1000
+
+        # Scattering sub-section
+        ap_scat = ap.get("scattering", {})
+        merged_scat: dict[str, Any] = {}
+        merged_scat["wavevector_q"] = ap_scat.get(
+            "wavevector_q", scattering.get("wavevector_q", 0.01)
+        )
+        # phi_angles (optional)
+        phi = ap_scat.get("phi_angles", scattering.get("phi_angles"))
+        if phi is not None:
+            merged_scat["phi_angles"] = phi
+        merged["scattering"] = merged_scat
+
+        # Geometry sub-section (new — parity with homodyne)
+        ap_geom = ap.get("geometry", {})
+        if ap_geom:
+            merged["geometry"] = dict(ap_geom)
+
+        self._config["analyzer_parameters"] = merged
+
+        # --- Synthesize legacy keys for downstream raw-config readers -----
+        start_frame = merged["start_frame"]
+        end_frame = merged["end_frame"]
+        t_start = start_frame - 1  # 1-indexed → 0-indexed
+        time_length = end_frame - t_start  # inclusive range length
+
+        self._config["temporal"] = {
+            "dt": merged["dt"],
+            "time_length": time_length,
+            "t_start": t_start,
+        }
+        self._config["scattering"] = {
+            "wavevector_q": merged["scattering"]["wavevector_q"],
+        }
+        if "phi_angles" in merged["scattering"]:
+            self._config["scattering"]["phi_angles"] = merged["scattering"][
+                "phi_angles"
+            ]
+
     def _validate(self) -> None:
         """Validate configuration structure."""
         required_sections = [
             "experimental_data",
-            "temporal",
-            "scattering",
+            "analyzer_parameters",
             "parameters",
         ]
         missing = [s for s in required_sections if s not in self._config]
@@ -94,6 +186,31 @@ class ConfigManager:
                     f"Invalid optimization method '{method}'. "
                     f"Allowed values: {sorted(_ALLOWED_OPTIMIZATION_METHODS)}"
                 )
+
+        # Validate config_version if present
+        self._validate_config_version()
+
+    def _validate_config_version(self) -> None:
+        """Warn if config_version doesn't match package version."""
+        metadata = self._config.get("metadata", {})
+        config_version = metadata.get("config_version")
+        if config_version is None:
+            return
+        try:
+            from heterodyne._version import __version__
+
+            # Compare major.minor only (patch mismatches are fine)
+            cv_parts = str(config_version).split(".")[:2]
+            pkg_parts = __version__.split(".")[:2]
+            if cv_parts != pkg_parts:
+                logger.warning(
+                    "Config version %s does not match package version %s. "
+                    "Some settings may have changed.",
+                    config_version,
+                    __version__,
+                )
+        except ImportError:
+            pass  # Version not available (editable install without SCM)
 
     @classmethod
     def from_yaml(cls, path: Path | str) -> ConfigManager:
@@ -162,35 +279,55 @@ class ConfigManager:
         """Data file format."""
         return cast(str, self._config["experimental_data"].get("file_format", "hdf5"))
 
-    # === Temporal Settings ===
+    # === Analyzer Parameters ===
+
+    @property
+    def _ap(self) -> dict[str, Any]:
+        """Canonical analyzer_parameters section."""
+        return cast(dict[str, Any], self._config["analyzer_parameters"])
 
     @property
     def dt(self) -> float:
-        """Time step."""
-        return float(self._config["temporal"]["dt"])
+        """Time step [seconds]."""
+        return float(self._ap["dt"])
+
+    @property
+    def start_frame(self) -> int:
+        """Starting frame (1-indexed)."""
+        return int(self._ap["start_frame"])
+
+    @property
+    def end_frame(self) -> int:
+        """Ending frame (1-indexed, inclusive)."""
+        return int(self._ap["end_frame"])
 
     @property
     def time_length(self) -> int:
-        """Number of time points."""
-        return int(self._config["temporal"]["time_length"])
+        """Number of time points (derived from frame range)."""
+        return self.end_frame - (self.start_frame - 1)
 
     @property
     def t_start(self) -> int:
-        """Starting time index."""
-        return int(self._config["temporal"].get("t_start", 0))
-
-    # === Scattering Settings ===
+        """Starting time index, 0-indexed (derived from start_frame)."""
+        return self.start_frame - 1
 
     @property
     def wavevector_q(self) -> float:
-        """Scattering wavevector magnitude."""
-        return float(self._config["scattering"]["wavevector_q"])
+        """Scattering wavevector magnitude [Å⁻¹]."""
+        return float(self._ap["scattering"]["wavevector_q"])
 
     @property
     def phi_angles(self) -> list[float] | None:
         """List of phi angles for analysis."""
-        angles = self._config["scattering"].get("phi_angles")
+        angles = self._ap["scattering"].get("phi_angles")
         return [float(a) for a in angles] if angles else None
+
+    @property
+    def stator_rotor_gap(self) -> float | None:
+        """Stator-rotor gap [Å] (optional geometry metadata)."""
+        geom = self._ap.get("geometry", {})
+        gap = geom.get("stator_rotor_gap")
+        return float(gap) if gap is not None else None
 
     # === Parameter Settings ===
 

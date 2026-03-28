@@ -103,42 +103,40 @@ experimental_data:
   exchange_key: "exchange"   # HDF5 exchange group key
 
 # ==============================================================================
-# TEMPORAL SETTINGS (Required)
+# ANALYZER PARAMETERS (Required)
 # ==============================================================================
-# Core temporal parameters. These MUST match your measurement setup.
+# Core experimental parameters. These MUST match your measurement setup.
 #
 # CRITICAL: Incorrect dt will shift all fitted parameters!
 #   - Check your detector frame rate
 #   - dt = 1 / (frames per second)
 #
-temporal:
+analyzer_parameters:
   # Time step between correlation measurements [seconds]
   # Common values: 0.001 (1 kHz), 0.01 (100 Hz), 0.1 (10 Hz)
   # CONSTRAINT: Must be > 0
-  dt: 1.0
+  dt: 0.001
 
-  # Number of time points in correlation matrix
-  # CONSTRAINT: Must be > 0
-  time_length: 1000
+  # Frame range for analysis (1-indexed, inclusive)
+  # Use to exclude startup transients or unstable regions
+  # CONSTRAINTS: start_frame >= 1, end_frame > start_frame
+  start_frame: 1
+  end_frame: 2000
 
-  # Starting time index (optional, default 0)
-  t_start: 0
+  # Scattering geometry
+  scattering:
+    # Wave vector magnitude [Å⁻¹]
+    # Typically 0.001-0.1 for XPCS; get from beamline/sample geometry
+    # CONSTRAINT: Must be > 0
+    wavevector_q: 0.0054
 
-# ==============================================================================
-# SCATTERING GEOMETRY (Required)
-# ==============================================================================
-# Scattering geometry parameters. Must match your beamline/detector setup.
-#
-scattering:
-  # Wave vector magnitude [Å⁻¹]
-  # Typically 0.001-0.1 for XPCS; get from beamline/sample geometry
-  # CONSTRAINT: Must be > 0
-  wavevector_q: 0.01
-
-  # Optional: list of phi angles to analyze (degrees)
-  # If not specified, analyzes all angles in data
-  # Recommend: 0° (parallel to flow) + 90° (perpendicular) for flow experiments
-  # phi_angles: [0, 45, 90, 135, 180]
+  # Shear cell / flow geometry (optional metadata)
+  geometry:
+    # Stator-rotor gap [Å]
+    # 200 microns = 2,000,000 Å; 100 microns = 1,000,000 Å
+    # Used for initial velocity estimates: v ≈ γ̇ × gap
+    # CONSTRAINT: Must be > 0 when specified
+    stator_rotor_gap: 2000000
 
 # ==============================================================================
 # PHI ANGLE FILTERING (Optional)
