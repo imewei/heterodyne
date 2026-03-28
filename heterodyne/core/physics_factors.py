@@ -93,21 +93,41 @@ def create_physics_factors(
 def create_physics_factors_from_config(config: dict) -> PhysicsFactors:
     """Create physics factors from configuration dictionary.
 
+    Reads from ``analyzer_parameters`` (canonical) with fallback to legacy
+    ``temporal``/``scattering`` top-level sections for backwards compatibility.
+
     Args:
-        config: Configuration with 'temporal' and 'scattering' sections
+        config: Configuration with ``analyzer_parameters`` or legacy
+            ``temporal``/``scattering`` sections.
 
     Returns:
         PhysicsFactors instance
     """
+    ap = config.get("analyzer_parameters", {})
     temporal = config.get("temporal", {})
     scattering = config.get("scattering", {})
 
+    # Prefer analyzer_parameters; fall back to legacy sections
+    dt = float(ap.get("dt", temporal.get("dt", 1.0)))
+
+    if "start_frame" in ap:
+        start_frame = int(ap["start_frame"])
+        end_frame = int(ap["end_frame"])
+        t_start = start_frame - 1
+        n_times = end_frame - t_start
+    else:
+        n_times = int(temporal.get("time_length", 1000))
+        t_start = int(temporal.get("t_start", 0))
+
+    ap_scat = ap.get("scattering", {})
+    q = float(ap_scat.get("wavevector_q", scattering.get("wavevector_q", 0.01)))
+
     return create_physics_factors(
-        n_times=int(temporal.get("time_length", 1000)),
-        dt=float(temporal.get("dt", 1.0)),
-        q=float(scattering.get("wavevector_q", 0.01)),
+        n_times=n_times,
+        dt=dt,
+        q=q,
         phi_angle=0.0,  # Set per-fit
-        t_start=float(temporal.get("t_start", 0.0)),
+        t_start=float(t_start),
     )
 
 

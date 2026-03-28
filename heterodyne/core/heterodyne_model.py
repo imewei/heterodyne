@@ -63,15 +63,33 @@ class HeterodyneModel:
         """
         param_manager = ParameterManager.from_config(config)
 
+        # Read from analyzer_parameters (canonical) with legacy fallback
+        ap = config.get("analyzer_parameters", {})
         temporal = config.get("temporal", {})
         scattering = config.get("scattering", {})
 
+        dt = float(ap.get("dt", temporal.get("dt", 1.0)))
+
+        if "start_frame" in ap:
+            start_frame = int(ap["start_frame"])
+            end_frame = int(ap["end_frame"])
+            t_start = start_frame - 1
+            n_times = end_frame - t_start
+        else:
+            n_times = int(temporal.get("time_length", 1000))
+            t_start = int(temporal.get("t_start", 0))
+
+        ap_scat = ap.get("scattering", {})
+        q = float(
+            ap_scat.get("wavevector_q", scattering.get("wavevector_q", 0.01))
+        )
+
         factors = create_physics_factors(
-            n_times=int(temporal.get("time_length", 1000)),
-            dt=float(temporal.get("dt", 1.0)),
-            q=float(scattering.get("wavevector_q", 0.01)),
+            n_times=n_times,
+            dt=dt,
+            q=q,
             phi_angle=0.0,
-            t_start=float(temporal.get("t_start", 0.0)),
+            t_start=float(t_start),
         )
 
         # Per-angle scaling config

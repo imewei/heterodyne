@@ -12,8 +12,12 @@ class TestHeterodyneModel:
         from heterodyne import HeterodyneModel
 
         config = {
-            "temporal": {"dt": 1.0, "time_length": 100},
-            "scattering": {"wavevector_q": 0.01},
+            "analyzer_parameters": {
+                "dt": 1.0,
+                "start_frame": 1,
+                "end_frame": 100,
+                "scattering": {"wavevector_q": 0.01},
+            },
             "parameters": {},
         }
 
@@ -29,8 +33,12 @@ class TestHeterodyneModel:
         from heterodyne import HeterodyneModel
 
         config = {
-            "temporal": {"dt": 1.0, "time_length": 50},
-            "scattering": {"wavevector_q": 0.01},
+            "analyzer_parameters": {
+                "dt": 1.0,
+                "start_frame": 1,
+                "end_frame": 50,
+                "scattering": {"wavevector_q": 0.01},
+            },
             "parameters": {},
         }
 

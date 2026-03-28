@@ -22,13 +22,13 @@ from heterodyne.core.heterodyne_model import HeterodyneModel
 def basic_config() -> dict:
     """Basic configuration for model creation."""
     return {
-        "temporal": {
+        "analyzer_parameters": {
             "dt": 1.0,
-            "time_length": 50,
-            "t_start": 0,
-        },
-        "scattering": {
-            "wavevector_q": 0.01,
+            "start_frame": 1,
+            "end_frame": 50,
+            "scattering": {
+                "wavevector_q": 0.01,
+            },
         },
         "parameters": {
             "reference": {
