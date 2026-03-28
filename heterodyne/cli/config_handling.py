@@ -76,6 +76,18 @@ def apply_cli_overrides(
         config_manager.update_optimization_config("cmc", "num_chains", args.num_chains)
         logger.debug("CLI override: num_chains=%d", args.num_chains)
 
+    if hasattr(args, "cmc_backend") and args.cmc_backend is not None:
+        config_manager.update_optimization_config(
+            "cmc", "backend_name", args.cmc_backend
+        )
+        logger.debug("CLI override: cmc_backend=%s", args.cmc_backend)
+
+    if getattr(args, "no_nlsq_warmstart", False):
+        config_manager.update_optimization_config(
+            "cmc", "use_nlsq_warmstart", False
+        )
+        logger.debug("CLI override: NLSQ warm-start disabled")
+
 
 def _configure_device(args: argparse.Namespace) -> dict[str, Any]:
     """Configure the compute device based on CLI arguments and hardware detection.
@@ -198,7 +210,7 @@ def _get_default_config(args: argparse.Namespace) -> dict[str, Any]:
 
     Returns:
         Config dict with required sections: ``experimental_data``,
-        ``temporal``, ``scattering``, and ``parameters``.
+        ``analyzer_parameters``, and ``parameters``.
     """
     data_path: str = getattr(args, "data_path", "")
     dt: float = getattr(args, "dt", None) or 1.0
@@ -208,12 +220,13 @@ def _get_default_config(args: argparse.Namespace) -> dict[str, Any]:
         "experimental_data": {
             "data_path": data_path,
         },
-        "temporal": {
+        "analyzer_parameters": {
             "dt": dt,
-            "time_length": 1000,
-        },
-        "scattering": {
-            "wavevector_q": q,
+            "start_frame": 1,
+            "end_frame": 1000,
+            "scattering": {
+                "wavevector_q": q,
+            },
         },
         "parameters": {
             "reference": {},

@@ -128,7 +128,7 @@ def _apply_mode_filter(config: dict[str, Any], mode: str) -> dict[str, Any]:
     """
     if mode == "minimal":
         # Keep only data, temporal, and scattering sections
-        keep_sections = {"data", "temporal", "scattering"}
+        keep_sections = {"data", "analyzer_parameters", "temporal", "scattering"}
         return {k: v for k, v in config.items() if k in keep_sections}
 
     if mode == "nlsq_only":
@@ -319,16 +319,19 @@ def interactive_builder() -> dict[str, Any]:
     print("=== Heterodyne Config Builder ===\n")
 
     data_path = _prompt("Data file path", "", required=True)
-    q = _prompt("Wavevector q", "0.01", cast=float)
-    dt = _prompt("Time step dt", "1.0", cast=float)
-    time_length = _prompt("Number of time points", "1000", cast=int)
+    q = _prompt("Wavevector q [Å⁻¹]", "0.01", cast=float)
+    dt = _prompt("Time step dt [seconds]", "1.0", cast=float)
+    start_frame = _prompt("Starting frame (1-indexed)", "1", cast=int)
+    end_frame = _prompt("Ending frame (inclusive)", "2000", cast=int)
 
-    phi_raw = _prompt("Phi angles (comma-separated)", "0.0")
+    phi_raw = _prompt("Phi angles (comma-separated, degrees)", "0.0")
     try:
         phi_angles = [float(p.strip()) for p in phi_raw.split(",")]
     except ValueError:
         print("  Invalid phi angles, using default [0.0].")
         phi_angles = [0.0]
+
+    gap_raw = _prompt("Stator-rotor gap [Å] (0 to skip)", "0", cast=float)
 
     method = _prompt("Optimization method (nlsq/cmc/both)", "nlsq")
     while method not in ("nlsq", "cmc", "both"):
@@ -337,18 +340,24 @@ def interactive_builder() -> dict[str, Any]:
 
     output_dir = _prompt("Output directory", "./output")
 
+    scat: dict[str, Any] = {"wavevector_q": q}
+    if phi_angles:
+        scat["phi_angles"] = phi_angles
+
+    ap: dict[str, Any] = {
+        "dt": dt,
+        "start_frame": start_frame,
+        "end_frame": end_frame,
+        "scattering": scat,
+    }
+    if gap_raw > 0:
+        ap["geometry"] = {"stator_rotor_gap": gap_raw}
+
     config: dict[str, Any] = {
         "data": {
             "file_path": data_path,
         },
-        "temporal": {
-            "dt": dt,
-            "time_length": time_length,
-        },
-        "scattering": {
-            "wavevector_q": q,
-            "phi_angles": phi_angles,
-        },
+        "analyzer_parameters": ap,
         "optimization": {
             "method": method,
         },

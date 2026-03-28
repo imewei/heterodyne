@@ -22,6 +22,12 @@ def main(argv: list[str] | None = None) -> int:
     Returns:
         Exit code (0 for success)
     """
+    import logging as _logging
+
+    # Suppress JAX backend logs (homodyne parity: hide GPU fallback warnings)
+    _logging.getLogger("jax._src.xla_bridge").setLevel(_logging.ERROR)
+    _logging.getLogger("jax._src.compiler").setLevel(_logging.ERROR)
+
     from heterodyne.cli.args_parser import create_parser, validate_args
 
     parser = create_parser()
@@ -64,22 +70,22 @@ def main(argv: list[str] | None = None) -> int:
     # Run analysis
     start_time = time.perf_counter()
 
+    from heterodyne.utils.logging import get_logger, log_exception
+
+    logger = get_logger(__name__)
+
     try:
         exit_code = dispatch_command(args)
     except KeyboardInterrupt:
-        print("\nInterrupted by user", file=sys.stderr)
+        logger.info("Analysis interrupted by user")
         return 130
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        if args.verbose >= 2:
-            import traceback
-
-            traceback.print_exc()
+        log_exception(logger, e, context={"command": "main"})
         return 1
 
     elapsed = time.perf_counter() - start_time
     if not args.quiet:
-        print(f"\nCompleted in {elapsed:.1f} seconds")
+        logger.info("Analysis completed in %.1f seconds", elapsed)
 
     return exit_code
 

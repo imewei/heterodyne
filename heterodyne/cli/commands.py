@@ -199,6 +199,31 @@ def dispatch_command(args: argparse.Namespace) -> int:
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info("Output directory: %s", output_dir)
 
+        # Configure file logging into output directory (homodyne parity)
+        # Creates timestamped log file in logs/ subdirectory
+        from heterodyne.utils.logging import configure_logging
+
+        logs_dir = output_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_file = logs_dir / f"heterodyne_analysis_{run_id}.log"
+
+        # Determine log level from CLI flags (homodyne: -v=INFO, -vv=DEBUG, -vvv=TRACE)
+        verbose_level = getattr(args, "verbose", 0)
+        quiet = getattr(args, "quiet", False)
+        if quiet:
+            log_level = "ERROR"
+        elif verbose_level >= 2:
+            log_level = "DEBUG"
+        elif verbose_level >= 1:
+            log_level = "INFO"
+        else:
+            log_level = "INFO"  # File logging always at INFO minimum
+
+        configure_logging(level=log_level, log_file=log_file)
+        logger.info("[CLI] Log file created: %s", log_file)
+        logger.info("[CLI] Starting heterodyne analysis...")
+        logger.debug("[CLI] Resolved arguments: %s", vars(args))
+
         # --- Data loading ----------------------------------------------------
         with log_phase("data_loading", logger=logger, track_memory=True) as phase:
             data, phi_angles = _load_data(config_manager, args)

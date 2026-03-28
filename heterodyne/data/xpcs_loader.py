@@ -300,40 +300,57 @@ def _apply_diagonal_correction(
 
 
 def _diag_correct_2d(m: np.ndarray, width: int, method: str) -> np.ndarray:
-    """Apply diagonal correction to a single (N, N) matrix."""
+    """Apply diagonal correction to a single (N, N) matrix.
+
+    The ``"interpolate"`` method uses side-band averaging matching homodyne's
+    ``_correct_diagonal`` algorithm: each diagonal element is replaced by the
+    average of its two nearest off-diagonal neighbors ``c2[i-1, i]`` and
+    ``c2[i, i+1]`` (one neighbor at the edges).
+    """
     n = m.shape[0]
-    idx_i, idx_j = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
-    mask = np.abs(idx_i - idx_j) < width
 
     if method == "interpolate":
-        if width == 1:
-            # Fast path: only the main diagonal
-            i_idx = np.arange(n)
-            i_prev = np.maximum(i_idx - 1, 0)
-            i_next = np.minimum(i_idx + 1, n - 1)
-            neighbor_avg = (
-                m[i_prev, i_idx]
-                + m[i_next, i_idx]
-                + m[i_idx, i_prev]
-                + m[i_idx, i_next]
-            ) / 4.0
-            result = m.copy()
-            result[i_idx, i_idx] = neighbor_avg
-            return result
-        # General case
-        diff = idx_i - idx_j
-        shift = width - np.abs(diff)
-        i_above = np.clip(idx_i - shift, 0, n - 1)
-        i_below = np.clip(idx_i + shift, 0, n - 1)
-        interpolated = (m[i_above, idx_j] + m[i_below, idx_j]) / 2.0
-        return np.where(mask, interpolated, m)
+        # Side-band interpolation (homodyne parity)
+        # Extract the first off-diagonal: c2[i, i+1] for i = 0..n-2
+        idx_upper = np.arange(n - 1)
+        idx_lower = np.arange(1, n)
+        side_band = m[idx_upper, idx_lower]
+
+        # Build corrected diagonal: average of left and right neighbors
+        diag_val = np.zeros(n, dtype=m.dtype)
+        diag_val[:-1] += side_band   # contribution from c2[i, i+1]
+        diag_val[1:] += side_band    # contribution from c2[i-1, i]
+
+        # Normalization: interior points have 2 neighbors, edges have 1
+        norm = np.ones(n, dtype=m.dtype)
+        norm[1:-1] = 2.0
+
+        result = m.copy()
+        np.fill_diagonal(result, diag_val / norm)
+
+        if width > 1:
+            # Extend correction to sub-diagonals
+            idx_i, idx_j = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
+            mask = (np.abs(idx_i - idx_j) < width) & (idx_i != idx_j)
+            diff = idx_i - idx_j
+            shift = width - np.abs(diff)
+            i_above = np.clip(idx_i - shift, 0, n - 1)
+            i_below = np.clip(idx_i + shift, 0, n - 1)
+            interpolated = (result[i_above, idx_j] + result[i_below, idx_j]) / 2.0
+            result = np.where(mask, interpolated, result)
+
+        return result
 
     if method == "mask":
+        idx_i, idx_j = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
+        mask = np.abs(idx_i - idx_j) < width
         result = m.copy().astype(np.float64)
         result[mask] = np.nan
         return result
 
     # method == "mirror": c2[i,j] = c2[j,i] for band elements
+    idx_i, idx_j = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
+    mask = np.abs(idx_i - idx_j) < width
     return np.where(mask, m.T, m)
 
 
@@ -505,9 +522,20 @@ def load_xpcs_batch(
 # ---------------------------------------------------------------------------
 
 
-def _cache_path_for(source: Path) -> Path:
-    """Return the NPZ cache path collocated with *source*."""
-    return source.with_name(source.name + _CACHE_SUFFIX)
+def _cache_path_for(
+    source: Path,
+    frame_range: tuple[int, int] | None = None,
+) -> Path:
+    """Return the NPZ cache path collocated with *source*.
+
+    When *frame_range* is given, the cache filename encodes the frame range
+    so that different slices get independent cache files.
+    """
+    if frame_range is not None:
+        suffix = f".frames_{frame_range[0]}_{frame_range[1]}{_CACHE_SUFFIX}"
+    else:
+        suffix = _CACHE_SUFFIX
+    return source.with_name(source.name + suffix)
 
 
 def _source_mtime(source: Path) -> float:
@@ -527,8 +555,24 @@ def _cache_is_valid(source: Path, cache: Path) -> bool:
         return False
 
 
-def _write_cache(cache_path: Path, data: XPCSData, source_mtime: float) -> None:
-    """Persist *data* to an NPZ cache file (allow_pickle=False on read-back)."""
+def _write_cache(
+    cache_path: Path,
+    data: XPCSData,
+    source_mtime: float,
+    compress: bool = True,
+) -> None:
+    """Persist *data* to a compressed NPZ cache file.
+
+    Uses ``np.savez_compressed`` by default for smaller cache files
+    (matching homodyne's ``cache_compression`` behavior).  Read-back
+    uses ``allow_pickle=False`` for safety.
+
+    Args:
+        cache_path: Output path.
+        data: Data to cache.
+        source_mtime: Modification time of the source file for invalidation.
+        compress: Use compressed format for smaller files (default True).
+    """
     arrays: dict[str, np.ndarray] = {
         _CACHE_KEY_MTIME: np.array(source_mtime, dtype=np.float64),
         _CACHE_KEY_C2: data.c2,
@@ -541,8 +585,9 @@ def _write_cache(cache_path: Path, data: XPCSData, source_mtime: float) -> None:
     if data.phi_angles is not None:
         arrays[_CACHE_KEY_PHI] = data.phi_angles
 
-    np.savez(cache_path, **arrays)
-    logger.debug("Cache written: %s", cache_path)
+    save_fn = np.savez_compressed if compress else np.savez
+    save_fn(cache_path, **arrays)
+    logger.info("Cache written: %s (compressed=%s)", cache_path, compress)
 
 
 def _read_cache(cache_path: Path) -> XPCSData:
@@ -646,7 +691,11 @@ class XPCSDataLoader:
         logger.info("Loading XPCS data from %s", self.file_path)
 
         if use_cache and self.format in ("hdf5", "mat"):
-            data = self._load_with_cache(c2_key, time_key, q_key, phi_key)
+            # Cache handles frame_range internally (slices before caching)
+            data = self._load_with_cache(
+                c2_key, time_key, q_key, phi_key, frame_range=frame_range
+            )
+            frame_range = None  # Already applied inside cache path
         elif self.format == "hdf5":
             data = self._load_hdf5(c2_key, time_key, q_key, phi_key)
         elif self.format == "npz":
@@ -820,26 +869,33 @@ class XPCSDataLoader:
         time_key: str,
         q_key: str | None,
         phi_key: str | None,
+        frame_range: tuple[int, int] | None = None,
     ) -> XPCSData:
         """Load from NPZ cache if valid, otherwise load from source and cache.
 
         Cache files sit alongside the original with the suffix
-        ``<filename>.heterodyne_cache.npz``.  Validity is determined by
-        comparing the stored mtime with the current source mtime; no content
-        hashing is performed.  The cache write is non-fatal: if the filesystem
-        is read-only or quota is exceeded, the warning is logged and loading
-        continues normally from the source.
+        ``<filename>.heterodyne_cache.npz``.  When *frame_range* is given, the
+        cache filename includes the frame range so that different slices get
+        independent cache files and the sliced data is cached directly (avoiding
+        re-loading and re-slicing the full dataset on subsequent runs).
+
+        Validity is determined by comparing the stored mtime with the current
+        source mtime; no content hashing is performed.  The cache write is
+        non-fatal: if the filesystem is read-only or quota is exceeded, the
+        warning is logged and loading continues normally from the source.
 
         Args:
             c2_key: Key for correlation data.
             time_key: Key for time array.
             q_key: Optional key for scalar wavevector.
             phi_key: Optional key for phi angles.
+            frame_range: Optional ``(start, end)`` with 1-based inclusive
+                indexing.  Included in the cache key and applied before caching.
 
         Returns:
             XPCSData loaded from cache or from source.
         """
-        cache = _cache_path_for(self.file_path)
+        cache = _cache_path_for(self.file_path, frame_range=frame_range)
         mtime = _source_mtime(self.file_path)
 
         if _cache_is_valid(self.file_path, cache):
@@ -857,6 +913,10 @@ class XPCSDataLoader:
             data = self._load_hdf5(c2_key, time_key, q_key, phi_key)
         else:
             data = self._load_mat(c2_key, time_key, q_key, phi_key)
+
+        # Apply frame slicing before caching so the cache stores the slice
+        if frame_range is not None:
+            data = self._apply_frame_slicing(data, frame_range)
 
         # Write cache; failure is non-fatal
         try:

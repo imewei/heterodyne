@@ -8,7 +8,11 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from heterodyne.data.validation import validate_xpcs_data
-from heterodyne.data.xpcs_loader import XPCSData, load_xpcs_data
+from heterodyne.data.xpcs_loader import (
+    XPCSData,
+    _apply_diagonal_correction,
+    load_xpcs_data,
+)
 from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -94,8 +98,26 @@ def load_and_validate_data(config_manager: ConfigManager) -> XPCSData:
     Raises:
         SystemExit: If data validation fails with errors.
     """
-    logger.info("Loading data from %s", config_manager.data_file_path)
-    data = load_xpcs_data(config_manager.data_file_path)
+    # Extract frame range from analyzer_parameters (1-indexed, inclusive)
+    start_frame = config_manager.start_frame
+    end_frame = config_manager.end_frame
+    frame_range: tuple[int, int] | None = None
+    if start_frame > 1 or end_frame < 100_000:
+        frame_range = (start_frame, end_frame)
+        logger.info(
+            "Loading data from %s (frames %d–%d)",
+            config_manager.data_file_path,
+            start_frame,
+            end_frame,
+        )
+    else:
+        logger.info("Loading data from %s", config_manager.data_file_path)
+
+    data = load_xpcs_data(
+        config_manager.data_file_path,
+        use_cache=True,
+        frame_range=frame_range,
+    )
 
     validation = validate_xpcs_data(data)
     if not validation.is_valid:
@@ -107,6 +129,23 @@ def load_and_validate_data(config_manager: ConfigManager) -> XPCSData:
         logger.warning("Data validation warning: %s", warn)
 
     data = _exclude_t0_from_analysis(data)
+
+    # Mandatory diagonal correction: APS two-time XPCS data has inflated
+    # diagonal elements (detector shot-noise artifact).  Interpolate from
+    # nearest off-diagonal neighbors to bring the diagonal into the
+    # physically correct range.  This matches homodyne's mandatory
+    # correction in load_experimental_data().
+    corrected_c2 = _apply_diagonal_correction(data.c2, width=1, method="interpolate")
+    data = XPCSData(
+        c2=corrected_c2,
+        t1=data.t1,
+        t2=data.t2,
+        q=data.q,
+        phi_angles=data.phi_angles,
+        q_values=data.q_values,
+        metadata=data.metadata,
+    )
+    logger.info("Applied mandatory diagonal correction to C2 data")
 
     return data
 

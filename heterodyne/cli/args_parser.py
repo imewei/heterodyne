@@ -103,6 +103,26 @@ Examples:
         help="Number of CMC chains (overrides config)",
     )
 
+    parser.add_argument(
+        "--cmc-backend",
+        choices=["auto", "cpu", "multiprocessing", "pjit", "pbs"],
+        default=None,
+        help="CMC worker backend (overrides config)",
+    )
+
+    parser.add_argument(
+        "--nlsq-result",
+        type=Path,
+        default=None,
+        help="Path to NLSQ result directory for CMC warm-start",
+    )
+
+    parser.add_argument(
+        "--no-nlsq-warmstart",
+        action="store_true",
+        help="Disable NLSQ warm-start for CMC",
+    )
+
     # Verbosity
     parser.add_argument(
         "--verbose",

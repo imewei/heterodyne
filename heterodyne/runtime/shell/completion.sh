@@ -74,7 +74,7 @@ _heterodyne() {
 
     # All options grouped by category
     local global_opts="--config --method --output --output-format --verbose --quiet --help --version"
-    local analysis_opts="--phi --multistart --multistart-n --num-samples --num-chains"
+    local analysis_opts="--phi --multistart --multistart-n --num-samples --num-chains --cmc-backend --nlsq-result --no-nlsq-warmstart"
     local perf_opts="--threads --no-jit"
     local plot_opts="--plot --no-plot --plot-experimental-data --plot-simulated-data --contrast --offset-sim --save-plots --plotting-backend --parallel-plots --phi-angles"
     local all_opts="${global_opts} ${analysis_opts} ${perf_opts} ${plot_opts}"
@@ -103,6 +103,14 @@ _heterodyne() {
             ;;
         --threads|--multistart-n|--num-samples|--num-chains)
             # Integer arguments — no completion
+            return
+            ;;
+        --cmc-backend)
+            mapfile -t COMPREPLY < <(compgen -W "auto cpu multiprocessing pjit pbs" -- "${cur}")
+            return
+            ;;
+        --nlsq-result)
+            _filedir -d
             return
             ;;
         --phi|--contrast|--offset-sim)
