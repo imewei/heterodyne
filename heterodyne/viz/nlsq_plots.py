@@ -984,7 +984,7 @@ def plot_simulated_data(
     else:
         phi_list = list(np.linspace(0, 180, 8))
 
-    phi_angles_arr = np.asarray(phi_list)
+    np.asarray(phi_list)
 
     # Time arrays from model or data
     t = np.asarray(model.t) if hasattr(model, "t") else None
@@ -1019,7 +1019,7 @@ def plot_simulated_data(
         vmin, vmax = 1.0, 1.6
 
     # Per-angle heatmaps
-    for i, (phi_deg, c2_mat) in enumerate(zip(phi_list, c2_all, strict=True)):
+    for _i, (phi_deg, c2_mat) in enumerate(zip(phi_list, c2_all, strict=True)):
         fig, ax = plt.subplots(figsize=(8, 7))
         im = ax.imshow(
             c2_mat,
