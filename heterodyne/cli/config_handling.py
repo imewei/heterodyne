@@ -88,6 +88,66 @@ def apply_cli_overrides(
         )
         logger.debug("CLI override: NLSQ warm-start disabled")
 
+    # Override initial parameter values (homodyne parity).
+    # Maps CLI argument attr names to (group, param_name) in config["parameters"].
+    _apply_parameter_overrides(config_manager, args)
+
+
+def _apply_parameter_overrides(
+    config_manager: ConfigManager,
+    args: argparse.Namespace,
+) -> None:
+    """Apply CLI initial-parameter overrides into the config dict.
+
+    Implements homodyne parity: CLI ``--initial-D0-ref 5000`` writes into
+    ``config["parameters"]["reference"]["D0_ref"]["value"]`` so that
+    ``ParameterSpace.from_config()`` picks it up with highest precedence.
+
+    Args:
+        config_manager: Configuration manager to modify in-place.
+        args: Parsed CLI arguments with potential ``initial_*`` overrides.
+    """
+    # Maps (CLI attr name -> (group, param_name))
+    _CLI_PARAM_MAP: dict[str, tuple[str, str]] = {
+        "initial_D0_ref": ("reference", "D0_ref"),
+        "initial_alpha_ref": ("reference", "alpha_ref"),
+        "initial_D_offset_ref": ("reference", "D_offset_ref"),
+        "initial_D0_sample": ("sample", "D0_sample"),
+        "initial_alpha_sample": ("sample", "alpha_sample"),
+        "initial_D_offset_sample": ("sample", "D_offset_sample"),
+        "initial_v0": ("velocity", "v0"),
+        "initial_beta": ("velocity", "beta"),
+        "initial_v_offset": ("velocity", "v_offset"),
+        "initial_f0": ("fraction", "f0"),
+        "initial_phi0": ("angle", "phi0"),
+    }
+
+    config = config_manager._config
+    params_section = config.setdefault("parameters", {})
+
+    for attr_name, (group, param_name) in _CLI_PARAM_MAP.items():
+        value = getattr(args, attr_name, None)
+        if value is None:
+            continue
+
+        group_dict = params_section.setdefault(group, {})
+        param_dict = group_dict.setdefault(param_name, {})
+
+        if isinstance(param_dict, dict):
+            old_value = param_dict.get("value")
+            param_dict["value"] = value
+        else:
+            # Plain scalar in config; upgrade to dict format
+            old_value = param_dict
+            group_dict[param_name] = {"value": value}
+
+        if old_value is not None:
+            logger.info(
+                "CLI override: %s = %.6g (was %.6g)", param_name, value, old_value
+            )
+        else:
+            logger.info("CLI override: %s = %.6g", param_name, value)
+
 
 def _configure_device(args: argparse.Namespace) -> dict[str, Any]:
     """Configure the compute device based on CLI arguments and hardware detection.

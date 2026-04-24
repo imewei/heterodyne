@@ -113,10 +113,24 @@ def load_and_validate_data(config_manager: ConfigManager) -> XPCSData:
     else:
         logger.info("Loading data from %s", config_manager.data_file_path)
 
+    # Build template variables for cache filename substitution
+    template_vars: dict[str, str] | None = None
+    cache_template = config_manager.cache_filename_template
+    if cache_template:
+        template_vars = {
+            "wavevector_q": f"{config_manager.wavevector_q:.4f}",
+            "start_frame": str(start_frame),
+            "end_frame": str(end_frame),
+        }
+
     data = load_xpcs_data(
         config_manager.data_file_path,
         use_cache=True,
         frame_range=frame_range,
+        cache_dir=config_manager.cache_file_path,
+        cache_template=cache_template,
+        template_vars=template_vars,
+        cache_compression=config_manager.cache_compression,
     )
 
     validation = validate_xpcs_data(data)

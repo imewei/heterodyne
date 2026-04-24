@@ -123,6 +123,57 @@ Examples:
         help="Disable NLSQ warm-start for CMC",
     )
 
+    # Initial parameter value overrides (homodyne parity)
+    # These take highest precedence: CLI > config file > registry defaults
+    param_group = parser.add_argument_group(
+        "parameter overrides",
+        "Override initial parameter values (highest precedence)",
+    )
+    param_group.add_argument(
+        "--initial-D0-ref", type=float, default=None, metavar="VAL",
+        help="Reference diffusion prefactor D0_ref [Å²/s^α]",
+    )
+    param_group.add_argument(
+        "--initial-alpha-ref", type=float, default=None, metavar="VAL",
+        help="Reference transport exponent alpha_ref",
+    )
+    param_group.add_argument(
+        "--initial-D-offset-ref", type=float, default=None, metavar="VAL",
+        help="Reference transport offset D_offset_ref [Å²]",
+    )
+    param_group.add_argument(
+        "--initial-D0-sample", type=float, default=None, metavar="VAL",
+        help="Sample diffusion prefactor D0_sample [Å²/s^α]",
+    )
+    param_group.add_argument(
+        "--initial-alpha-sample", type=float, default=None, metavar="VAL",
+        help="Sample transport exponent alpha_sample",
+    )
+    param_group.add_argument(
+        "--initial-D-offset-sample", type=float, default=None, metavar="VAL",
+        help="Sample transport offset D_offset_sample [Å²]",
+    )
+    param_group.add_argument(
+        "--initial-v0", type=float, default=None, metavar="VAL",
+        help="Velocity prefactor v0 [Å/s^β]",
+    )
+    param_group.add_argument(
+        "--initial-beta", type=float, default=None, metavar="VAL",
+        help="Velocity exponent beta",
+    )
+    param_group.add_argument(
+        "--initial-v-offset", type=float, default=None, metavar="VAL",
+        help="Velocity offset v_offset [Å/s]",
+    )
+    param_group.add_argument(
+        "--initial-f0", type=float, default=None, metavar="VAL",
+        help="Sample fraction amplitude f0",
+    )
+    param_group.add_argument(
+        "--initial-phi0", type=float, default=None, metavar="VAL",
+        help="Flow angle offset phi0 [degrees]",
+    )
+
     # Verbosity
     parser.add_argument(
         "--verbose",
