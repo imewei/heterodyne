@@ -66,7 +66,7 @@ class ParameterManager:
     _full_values_cache: np.ndarray | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        """Build default bounds lookup from the registry."""
+        """Build default bounds lookup from the registry, then merge config overrides."""
         from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
 
         self._default_bounds: dict[str, BoundDict] = {}
@@ -78,6 +78,39 @@ class ParameterManager:
                 max=info.max_bound,
                 type="TruncatedNormal",
             )
+
+        # Sync _default_bounds with config-overridden bounds from ParameterSpace
+        # so that both sources agree (homodyne parity with _load_config_bounds).
+        self._sync_bounds_from_space()
+
+    def _sync_bounds_from_space(self) -> None:
+        """Merge config-overridden bounds from ParameterSpace into _default_bounds.
+
+        Homodyne parity: equivalent to ``_load_config_bounds()`` which reads
+        ``parameter_space.bounds`` from the config dict and calls ``.update()``
+        on the in-memory bounds.  Here the bounds already live in
+        ``self.space.bounds`` (populated by ``ParameterSpace.from_config``),
+        so we just copy them over.
+        """
+        from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
+
+        for name in ALL_PARAM_NAMES_WITH_SCALING:
+            lo, hi = self.space.bounds.get(
+                name, (DEFAULT_REGISTRY[name].min_bound, DEFAULT_REGISTRY[name].max_bound)
+            )
+            if name in self._default_bounds:
+                reg = DEFAULT_REGISTRY[name]
+                if lo != reg.min_bound or hi != reg.max_bound:
+                    logger.debug(
+                        "Config overrides bounds for %s: [%.4g, %.4g] -> [%.4g, %.4g]",
+                        name,
+                        reg.min_bound,
+                        reg.max_bound,
+                        lo,
+                        hi,
+                    )
+                self._default_bounds[name]["min"] = lo
+                self._default_bounds[name]["max"] = hi
 
     # ------------------------------------------------------------------
     # Core existing API

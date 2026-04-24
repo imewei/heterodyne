@@ -279,6 +279,28 @@ class ConfigManager:
         """Data file format."""
         return cast(str, self._config["experimental_data"].get("file_format", "hdf5"))
 
+    # === Cache Settings ===
+
+    @property
+    def cache_file_path(self) -> Path | None:
+        """Directory for cache files (falls back to data_folder_path, then None)."""
+        path = self._config["experimental_data"].get("cache_file_path", "")
+        if path:
+            return Path(path)
+        # Homodyne parity: fall back to data_folder_path when cache_file_path is empty
+        return self.data_folder_path
+
+    @property
+    def cache_filename_template(self) -> str | None:
+        """Template for cache filenames with ${variable} substitution."""
+        tmpl = self._config["experimental_data"].get("cache_filename_template", "")
+        return tmpl if tmpl else None
+
+    @property
+    def cache_compression(self) -> bool:
+        """Whether to compress cache files."""
+        return bool(self._config["experimental_data"].get("cache_compression", True))
+
     # === Analyzer Parameters ===
 
     @property

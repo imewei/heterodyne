@@ -382,17 +382,43 @@ class ParameterSpace:
     def from_config(cls, config: dict[str, Any]) -> ParameterSpace:
         """Create ParameterSpace from configuration dictionary.
 
+        Supports two input formats (homodyne parity):
+
+        1. **Grouped format** (preferred) — ``parameters.{group}.{param}``::
+
+               parameters:
+                 reference:
+                   D0_ref:
+                     value: 5000.0
+                     min: 200.0
+                     max: 50000.0
+                     vary: true
+
+        2. **Flat format** — ``initial_parameters.parameter_names`` + ``values``::
+
+               initial_parameters:
+                 parameter_names: [D0_ref, alpha_ref]
+                 values: [5000.0, 0.5]
+                 active_parameters: [D0_ref]   # optional vary subset
+
+        When both are present, grouped format takes precedence (it is applied
+        second so its values overwrite flat-format values).
+
         Args:
-            config: Config dict with 'parameters' section
+            config: Config dict with 'parameters' and/or 'initial_parameters'
+                sections.
 
         Returns:
             Configured ParameterSpace
         """
         space = cls()
 
+        # --- Flat format: initial_parameters (homodyne parity) ---------------
+        _apply_initial_parameters(space, config)
+
+        # --- Grouped format: parameters.{group}.{param} (primary) -----------
         params_config = config.get("parameters", {})
 
-        # Process each parameter group
         group_map = {
             "reference": ["D0_ref", "alpha_ref", "D_offset_ref"],
             "sample": ["D0_sample", "alpha_sample", "D_offset_sample"],
@@ -421,12 +447,42 @@ class ParameterSpace:
 
                 pconfig = group_config[param_name]
                 if isinstance(pconfig, dict):
+                    reg_info = DEFAULT_REGISTRY[param_name]
                     if "value" in pconfig:
-                        space.values[param_name] = pconfig["value"]
+                        new_val = pconfig["value"]
+                        if new_val != reg_info.default:
+                            logger.debug(
+                                "Config overrides %s value: %.6g -> %.6g",
+                                param_name,
+                                reg_info.default,
+                                new_val,
+                            )
+                        space.values[param_name] = new_val
                     if "min" in pconfig and "max" in pconfig:
-                        space.bounds[param_name] = (pconfig["min"], pconfig["max"])
+                        new_bounds = (pconfig["min"], pconfig["max"])
+                        if (
+                            new_bounds[0] != reg_info.min_bound
+                            or new_bounds[1] != reg_info.max_bound
+                        ):
+                            logger.debug(
+                                "Config overrides %s bounds: [%.4g, %.4g] -> [%.4g, %.4g]",
+                                param_name,
+                                reg_info.min_bound,
+                                reg_info.max_bound,
+                                new_bounds[0],
+                                new_bounds[1],
+                            )
+                        space.bounds[param_name] = new_bounds
                     if "vary" in pconfig:
-                        space.vary[param_name] = pconfig["vary"]
+                        new_vary = pconfig["vary"]
+                        if new_vary != reg_info.vary_default:
+                            logger.debug(
+                                "Config overrides %s vary: %s -> %s",
+                                param_name,
+                                reg_info.vary_default,
+                                new_vary,
+                            )
+                        space.vary[param_name] = new_vary
                     if "prior" in pconfig:
                         prior_type_str = pconfig["prior"]
                         prior_params = pconfig.get("prior_params", {})
@@ -438,6 +494,77 @@ class ParameterSpace:
                         )
 
         return space
+
+
+def _apply_initial_parameters(space: ParameterSpace, config: dict[str, Any]) -> None:
+    """Apply ``initial_parameters`` flat-format values to *space*.
+
+    Homodyne parity: supports::
+
+        initial_parameters:
+          parameter_names: [D0_ref, alpha_ref, ...]
+          values: [5000.0, 0.5, ...]
+          active_parameters: [D0_ref]   # optional: only these vary
+
+    Args:
+        space: ParameterSpace to modify in-place.
+        config: Full configuration dictionary.
+    """
+    from heterodyne.config.types import PARAMETER_NAME_MAPPING
+
+    initial = config.get("initial_parameters", {})
+    if not initial or not isinstance(initial, dict):
+        return
+
+    param_names_raw = initial.get("parameter_names")
+    param_values = initial.get("values")
+
+    if (
+        not param_names_raw
+        or not isinstance(param_names_raw, list)
+        or param_values is None
+        or not isinstance(param_values, list)
+    ):
+        return
+
+    # Apply name mapping for legacy/alias names
+    param_names = [
+        PARAMETER_NAME_MAPPING.get(str(n), str(n)) for n in param_names_raw
+    ]
+
+    if len(param_names) != len(param_values):
+        logger.warning(
+            "initial_parameters: parameter_names (%d) and values (%d) length mismatch; "
+            "skipping flat-format override",
+            len(param_names),
+            len(param_values),
+        )
+        return
+
+    for name, value in zip(param_names, param_values, strict=True):
+        if name in space.values:
+            space.values[name] = float(value)
+            logger.debug(
+                "initial_parameters: set %s = %.6g (flat-format override)", name, value
+            )
+        else:
+            logger.warning("initial_parameters: unknown parameter '%s', skipping", name)
+
+    # active_parameters: if provided, only these parameters vary
+    active_raw = initial.get("active_parameters")
+    if active_raw and isinstance(active_raw, list):
+        active_names = {
+            PARAMETER_NAME_MAPPING.get(str(n), str(n)) for n in active_raw
+        }
+        for name in ALL_PARAM_NAMES_WITH_SCALING:
+            if name in active_names:
+                space.vary[name] = True
+            elif name in space.vary:
+                space.vary[name] = False
+        logger.debug(
+            "initial_parameters: active_parameters set %d params to vary",
+            len(active_names),
+        )
 
 
 # Default TruncatedNormal prior specifications: (loc, scale)
