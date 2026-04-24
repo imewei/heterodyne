@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import re
+import string
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -16,6 +19,9 @@ logger = get_logger(__name__)
 
 # NPZ cache suffix appended to original filename
 _CACHE_SUFFIX = ".heterodyne_cache.npz"
+
+# Regex for detecting old-style {var} cache template format
+_OLD_FORMAT_RE = re.compile(r"\{(\w+)\}")
 
 # Keys used inside NPZ cache files
 _CACHE_KEY_MTIME = "source_mtime"
@@ -522,15 +528,56 @@ def load_xpcs_batch(
 # ---------------------------------------------------------------------------
 
 
+def _migrate_cache_template(template: str) -> str:
+    """Auto-convert old ``{var}`` format templates to ``${var}`` syntax.
+
+    Returns the template unchanged if it already uses ``$`` syntax.
+    Logs a warning on first migration.
+    """
+    if "$" not in template and _OLD_FORMAT_RE.search(template):
+        migrated = _OLD_FORMAT_RE.sub(r"${\1}", template)
+        logger.warning(
+            "Cache template uses deprecated {var} format; auto-migrated to ${var}. "
+            "Update your YAML config: %r -> %r",
+            template,
+            migrated,
+        )
+        return migrated
+    return template
+
+
 def _cache_path_for(
     source: Path,
     frame_range: tuple[int, int] | None = None,
+    cache_dir: Path | None = None,
+    cache_template: str | None = None,
+    template_vars: dict[str, str] | None = None,
 ) -> Path:
-    """Return the NPZ cache path collocated with *source*.
+    """Return the NPZ cache path.
 
-    When *frame_range* is given, the cache filename encodes the frame range
-    so that different slices get independent cache files.
+    When *cache_template* is provided (from config), the cache filename is
+    built using ``string.Template.safe_substitute`` with *template_vars*.
+    The resulting filename is validated against path traversal attacks.
+
+    When *cache_dir* is ``None``, the cache is placed in the same directory
+    as *source* (matching homodyne's fallback to ``data_folder_path``).
+
+    Otherwise, falls back to the legacy behaviour: collocate the cache file
+    alongside *source* using the ``_CACHE_SUFFIX``.
     """
+    if cache_template and template_vars is not None:
+        migrated = _migrate_cache_template(cache_template)
+        tmpl = string.Template(migrated)
+        filename = tmpl.safe_substitute(template_vars)
+
+        # Security: reject path traversal in generated filename
+        if os.sep in filename or ".." in filename:
+            raise ValueError(f"Unsafe cache filename from template: {filename!r}")
+
+        directory = cache_dir if cache_dir is not None else source.parent
+        return Path(str(directory)) / filename
+
+    # Legacy fallback
     if frame_range is not None:
         suffix = f".frames_{frame_range[0]}_{frame_range[1]}{_CACHE_SUFFIX}"
     else:
@@ -661,6 +708,10 @@ class XPCSDataLoader:
         frame_range: tuple[int, int] | None = None,
         select_q: float | None = None,
         q_tolerance: float | None = None,
+        cache_dir: Path | None = None,
+        cache_template: str | None = None,
+        template_vars: dict[str, str] | None = None,
+        cache_compression: bool = True,
     ) -> XPCSData:
         """Load XPCS data from file.
 
@@ -693,7 +744,12 @@ class XPCSDataLoader:
         if use_cache and self.format in ("hdf5", "mat"):
             # Cache handles frame_range internally (slices before caching)
             data = self._load_with_cache(
-                c2_key, time_key, q_key, phi_key, frame_range=frame_range
+                c2_key, time_key, q_key, phi_key,
+                frame_range=frame_range,
+                cache_dir=cache_dir,
+                cache_template=cache_template,
+                template_vars=template_vars,
+                compress=cache_compression,
             )
             frame_range = None  # Already applied inside cache path
         elif self.format == "hdf5":
@@ -870,14 +926,17 @@ class XPCSDataLoader:
         q_key: str | None,
         phi_key: str | None,
         frame_range: tuple[int, int] | None = None,
+        cache_dir: Path | None = None,
+        cache_template: str | None = None,
+        template_vars: dict[str, str] | None = None,
+        compress: bool = True,
     ) -> XPCSData:
         """Load from NPZ cache if valid, otherwise load from source and cache.
 
-        Cache files sit alongside the original with the suffix
-        ``<filename>.heterodyne_cache.npz``.  When *frame_range* is given, the
-        cache filename includes the frame range so that different slices get
-        independent cache files and the sliced data is cached directly (avoiding
-        re-loading and re-slicing the full dataset on subsequent runs).
+        When *cache_dir* and *cache_template* are provided (from config),
+        the cache filename is built from the template.  Otherwise, cache
+        files sit alongside the original with the suffix
+        ``<filename>.heterodyne_cache.npz``.
 
         Validity is determined by comparing the stored mtime with the current
         source mtime; no content hashing is performed.  The cache write is
@@ -891,11 +950,21 @@ class XPCSDataLoader:
             phi_key: Optional key for phi angles.
             frame_range: Optional ``(start, end)`` with 1-based inclusive
                 indexing.  Included in the cache key and applied before caching.
+            cache_dir: Directory for cache files (None = collocate with source).
+            cache_template: Filename template with ``${key}`` placeholders.
+            template_vars: Substitution values for the template.
+            compress: Whether to compress the cache file.
 
         Returns:
             XPCSData loaded from cache or from source.
         """
-        cache = _cache_path_for(self.file_path, frame_range=frame_range)
+        cache = _cache_path_for(
+            self.file_path,
+            frame_range=frame_range,
+            cache_dir=cache_dir,
+            cache_template=cache_template,
+            template_vars=template_vars,
+        )
         mtime = _source_mtime(self.file_path)
 
         if _cache_is_valid(self.file_path, cache):
@@ -920,7 +989,7 @@ class XPCSDataLoader:
 
         # Write cache; failure is non-fatal
         try:
-            _write_cache(cache, data, mtime)
+            _write_cache(cache, data, mtime, compress=compress)
         except Exception as exc:
             logger.warning("Could not write cache %s: %s", cache.name, exc)
 
@@ -1467,6 +1536,10 @@ def load_xpcs_data(
     frame_range: tuple[int, int] | None = None,
     select_q: float | None = None,
     q_tolerance: float | None = None,
+    cache_dir: Path | None = None,
+    cache_template: str | None = None,
+    template_vars: dict[str, str] | None = None,
+    cache_compression: bool = True,
 ) -> XPCSData:
     """Convenience function to load XPCS data.
 
@@ -1482,6 +1555,10 @@ def load_xpcs_data(
             when the loaded data has multiple q-bins.
         q_tolerance: Maximum absolute deviation from ``select_q`` in Å⁻¹.
             ``None`` selects only the single closest bin.
+        cache_dir: Directory for cache files (None = collocate with source).
+        cache_template: Filename template with ``${key}`` placeholders.
+        template_vars: Substitution values for the template.
+        cache_compression: Whether to compress cache files.
 
     Returns:
         XPCSData container.
@@ -1494,4 +1571,8 @@ def load_xpcs_data(
         frame_range=frame_range,
         select_q=select_q,
         q_tolerance=q_tolerance,
+        cache_dir=cache_dir,
+        cache_template=cache_template,
+        template_vars=template_vars,
+        cache_compression=cache_compression,
     )
