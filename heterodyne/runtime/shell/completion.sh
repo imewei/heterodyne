@@ -75,9 +75,10 @@ _heterodyne() {
     # All options grouped by category
     local global_opts="--config --method --output --output-format --verbose --quiet --help --version"
     local analysis_opts="--phi --multistart --multistart-n --num-samples --num-chains --cmc-backend --nlsq-result --no-nlsq-warmstart"
+    local param_opts="--initial-D0-ref --initial-alpha-ref --initial-D-offset-ref --initial-D0-sample --initial-alpha-sample --initial-D-offset-sample --initial-v0 --initial-beta --initial-v-offset --initial-f0 --initial-phi0"
     local perf_opts="--threads --no-jit"
     local plot_opts="--plot --no-plot --plot-experimental-data --plot-simulated-data --contrast --offset-sim --save-plots --plotting-backend --parallel-plots --phi-angles"
-    local all_opts="${global_opts} ${analysis_opts} ${perf_opts} ${plot_opts}"
+    local all_opts="${global_opts} ${analysis_opts} ${param_opts} ${perf_opts} ${plot_opts}"
 
     case "$prev" in
         --config|-c)
@@ -113,7 +114,7 @@ _heterodyne() {
             _filedir -d
             return
             ;;
-        --phi|--contrast|--offset-sim)
+        --phi|--contrast|--offset-sim|--initial-D0-ref|--initial-alpha-ref|--initial-D-offset-ref|--initial-D0-sample|--initial-alpha-sample|--initial-D-offset-sample|--initial-v0|--initial-beta|--initial-v-offset|--initial-f0|--initial-phi0)
             # Float arguments — no completion
             return
             ;;
