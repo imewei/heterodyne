@@ -92,14 +92,22 @@ class HeterodyneModel:
             t_start=float(t_start),
         )
 
-        # Per-angle scaling config
+        # Per-angle scaling config.
+        # Priority: parameters.scaling values (via ParameterSpace) > scaling
+        # section > registry defaults.  This ensures YAML parameter overrides
+        # propagate to the PerAngleScaling object (homodyne parity).
         scaling_cfg = config.get("scaling", {})
+        space_scaling = param_manager.space.scaling_values
         scaling = PerAngleScaling.from_config(
             ScalingConfig(
                 n_angles=int(scaling_cfg.get("n_angles", 1)),
                 mode=str(scaling_cfg.get("mode", "constant")),
-                initial_contrast=float(scaling_cfg.get("initial_contrast", 0.5)),
-                initial_offset=float(scaling_cfg.get("initial_offset", 1.0)),
+                initial_contrast=float(
+                    scaling_cfg.get("initial_contrast", space_scaling["contrast"])
+                ),
+                initial_offset=float(
+                    scaling_cfg.get("initial_offset", space_scaling["offset"])
+                ),
             )
         )
 
