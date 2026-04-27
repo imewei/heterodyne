@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 from heterodyne.cli.config_handling import load_and_merge_config
 from heterodyne.cli.data_pipeline import load_and_validate_data, resolve_phi_angles
-from heterodyne.cli.optimization_runner import run_cmc, run_nlsq
-from heterodyne.cli.plot_dispatch import _handle_plotting, dispatch_plots
+from heterodyne.cli.optimization_runner import resolve_nlsq_warmstart, run_cmc, run_nlsq
+from heterodyne.cli.plot_dispatch import dispatch_plots, handle_plotting
 from heterodyne.core.heterodyne_model import HeterodyneModel
 from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_phase
 
@@ -81,6 +81,14 @@ def _run_optimization(
     nlsq_results: list[NLSQResult] = []
     cmc_results: list[CMCResult] = []
 
+    import numpy as _np_opt
+
+    _data_phi_angles = (
+        _np_opt.asarray(data.phi_angles, dtype=float)
+        if getattr(data, "phi_angles", None) is not None
+        else None
+    )
+
     if method in ("nlsq", "both"):
         summary.start_phase("nlsq_optimization")
         with log_phase("nlsq_optimization", logger=logger, track_memory=True) as phase:
@@ -92,10 +100,32 @@ def _run_optimization(
                 args=args,
                 output_dir=output_dir,
                 summary=summary,
+                data_phi_angles=_data_phi_angles,
             )
         summary.end_phase("nlsq_optimization", memory_peak_gb=phase.memory_peak_gb)
 
     if method in ("cmc", "both"):
+        # In CMC-only mode nlsq_results is empty. Attempt to load a previously
+        # saved NLSQ result from disk so NUTS can warm-start near the MAP
+        # instead of the prior (which is typically 5-10σ away and causes
+        # complete non-mixing: R-hat >> 1, ESS ≈ n_chains).
+        if method == "cmc" and not nlsq_results:
+            loaded = resolve_nlsq_warmstart(args, output_dir)
+            if loaded is not None:
+                nlsq_results = [loaded] * len(phi_angles)
+                logger.info(
+                    "CMC-only mode: loaded NLSQ warm-start from disk "
+                    "(chi2=%.4g, success=%s)",
+                    loaded.reduced_chi_squared or float("nan"),
+                    loaded.success,
+                )
+            else:
+                logger.warning(
+                    "CMC-only mode: no NLSQ warm-start found. "
+                    "Run NLSQ first (optimizer: nlsq) and re-run CMC, or use "
+                    "optimizer: both to run NLSQ→CMC in one pass."
+                )
+
         summary.start_phase("cmc_optimization")
         with log_phase("cmc_optimization", logger=logger, track_memory=True) as phase:
             cmc_results = run_cmc(
@@ -105,8 +135,9 @@ def _run_optimization(
                 config_manager=config_manager,
                 args=args,
                 output_dir=output_dir,
-                nlsq_results=nlsq_results if method == "both" else None,
+                nlsq_results=nlsq_results if method == "both" else (nlsq_results or None),
                 summary=summary,
+                data_phi_angles=_data_phi_angles,
             )
         summary.end_phase("cmc_optimization", memory_peak_gb=phase.memory_peak_gb)
 
@@ -225,21 +256,33 @@ def dispatch_command(args: argparse.Namespace) -> int:
         logger.debug("[CLI] Resolved arguments: %s", vars(args))
 
         # --- Data loading ----------------------------------------------------
+        summary.start_phase("data_loading")
         with log_phase("data_loading", logger=logger, track_memory=True) as phase:
             data, phi_angles = _load_data(config_manager, args)
             model = HeterodyneModel.from_config(config_manager.raw_config)
 
         summary.set_config_summary(n_phi_angles=len(phi_angles))
-        summary.start_phase("data_loading")
         summary.end_phase("data_loading", memory_peak_gb=phase.memory_peak_gb)
 
         # --- Build rich data dict for plotting --------------------------------
         import numpy as _np
 
+        # Convert frame-index time axis to relative seconds for plotting.
+        # HDF5 loader returns frame indices (0, 1, ..., N-1) relative to
+        # the start of the selected window.  Multiplying by dt gives relative
+        # time in seconds, matching model.t which starts at 1×dt within the
+        # window (parameters are calibrated for relative, not absolute, time).
+        _dt = model.dt
+        _t1_sec = (
+            _np.asarray(data.t1, dtype=float) * _dt
+            if data.t1 is not None
+            else None
+        )
+
         _data_dict: dict[str, Any] = {
             "c2_exp": _np.asarray(data.c2),
-            "t1": _np.asarray(data.t1) if data.t1 is not None else None,
-            "t2": _np.asarray(data.t2) if data.t2 is not None else None,
+            "t1": _t1_sec,
+            "t2": _t1_sec,
             "phi_angles_list": (
                 _np.asarray(data.phi_angles)
                 if data.phi_angles is not None
@@ -254,7 +297,8 @@ def dispatch_command(args: argparse.Namespace) -> int:
 
         if plot_exp and not plot_sim:
             logger.info("--plot-experimental-data: plotting data and exiting")
-            with log_phase("plotting", logger=logger):
+            summary.start_phase("plotting")
+            with log_phase("plotting", logger=logger, track_memory=True) as phase:
                 dispatch_plots(
                     model=model,
                     c2_data=data.c2,
@@ -263,13 +307,35 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     phi_angles=phi_angles,
                     data_dict=_data_dict,
                 )
+            summary.end_phase("plotting", memory_peak_gb=phase.memory_peak_gb)
             summary.set_convergence_status("completed")
             summary.log_summary(logger)
             return 0
 
         if plot_sim and not plot_exp:
             logger.info("--plot-simulated-data: plotting simulated data and exiting")
-            with log_phase("plotting", logger=logger):
+            summary.start_phase("plotting")
+            with log_phase("plotting", logger=logger, track_memory=True) as phase:
+                from heterodyne.cli.plot_dispatch import _plot_simulated_data
+
+                plots_dir = output_dir / "plots"
+                plots_dir.mkdir(parents=True, exist_ok=True)
+                # Use configured scaling values; CLI --contrast/--offset-sim override
+                _sim_contrast, _sim_offset = model.scaling.get_for_angle(0)
+                _cli_contrast = getattr(args, "contrast", None)
+                _cli_offset = getattr(args, "offset_sim", None)
+                if _cli_contrast is not None:
+                    _sim_contrast = float(_cli_contrast)
+                if _cli_offset is not None:
+                    _sim_offset = float(_cli_offset)
+                _plot_simulated_data(
+                    config=config_manager.raw_config,
+                    contrast=_sim_contrast,
+                    offset=_sim_offset,
+                    phi_angles_str=getattr(args, "phi_angles", None),
+                    plots_dir=plots_dir,
+                    data=_data_dict,
+                )
                 dispatch_plots(
                     model=model,
                     c2_data=data.c2,
@@ -278,13 +344,15 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     phi_angles=phi_angles,
                     data_dict=_data_dict,
                 )
+            summary.end_phase("plotting", memory_peak_gb=phase.memory_peak_gb)
             summary.set_convergence_status("completed")
             summary.log_summary(logger)
             return 0
 
         if plot_exp and plot_sim:
             logger.info("Plotting both experimental and simulated data and exiting")
-            with log_phase("plotting", logger=logger):
+            summary.start_phase("plotting")
+            with log_phase("plotting", logger=logger, track_memory=True) as phase:
                 dispatch_plots(
                     model=model,
                     c2_data=data.c2,
@@ -293,6 +361,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     phi_angles=phi_angles,
                     data_dict=_data_dict,
                 )
+            summary.end_phase("plotting", memory_peak_gb=phase.memory_peak_gb)
             summary.set_convergence_status("completed")
             summary.log_summary(logger)
             return 0
@@ -318,7 +387,8 @@ def dispatch_command(args: argparse.Namespace) -> int:
         # --- Plot-only mode --------------------------------------------------
         if getattr(args, "plot_only", False):
             logger.info("--plot-only: generating plots without optimization")
-            with log_phase("plotting", logger=logger):
+            summary.start_phase("plotting")
+            with log_phase("plotting", logger=logger, track_memory=True) as phase:
                 dispatch_plots(
                     model=model,
                     c2_data=data.c2,
@@ -326,6 +396,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     cmc_results=None,
                     output_dir=output_dir,
                 )
+            summary.end_phase("plotting", memory_peak_gb=phase.memory_peak_gb)
             summary.set_convergence_status("completed")
             summary.log_summary(logger)
             return 0
@@ -351,7 +422,8 @@ def dispatch_command(args: argparse.Namespace) -> int:
 
         # --- User-requested plots --------------------------------------------
         if getattr(args, "plot", False):
-            with log_phase("plotting", logger=logger):
+            summary.start_phase("plotting")
+            with log_phase("plotting", logger=logger, track_memory=True) as phase:
                 dispatch_plots(
                     model=model,
                     c2_data=data.c2,
@@ -360,24 +432,36 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     output_dir=output_dir,
                     data_dict=_data_dict,
                 )
+            summary.end_phase("plotting", memory_peak_gb=phase.memory_peak_gb)
 
         # --- Save-plots: fit comparison + fitted simulations ------------------
         if getattr(args, "save_plots", False):
-            with log_phase("save_plots", logger=logger):
-                _handle_plotting(
-                    args=args,
-                    result=nlsq_results[0] if nlsq_results else None,
-                    data=_data_dict,
-                    config=config_manager.raw_config,
-                )
+            summary.start_phase("save_plots")
+            with log_phase("save_plots", logger=logger, track_memory=True) as phase:
+                for _res in (nlsq_results if nlsq_results else [None]):
+                    handle_plotting(
+                        args=args,
+                        result=_res,
+                        data=_data_dict,
+                        config=config_manager.raw_config,
+                    )
+            summary.end_phase("save_plots", memory_peak_gb=phase.memory_peak_gb)
 
         summary.set_convergence_status("completed")
 
-    except Exception:
+    except KeyboardInterrupt:
         summary.set_convergence_status("failed")
+        logger.info("[CLI] Analysis interrupted by user")
         summary.log_summary(logger)
         raise
 
+    except Exception as exc:
+        summary.set_convergence_status("failed")
+        logger.error("[CLI] Analysis failed: %s", exc)
+        summary.log_summary(logger)
+        raise
+
+    logger.info("[CLI] Analysis completed successfully")
     summary.log_summary(logger)
     return 0
 

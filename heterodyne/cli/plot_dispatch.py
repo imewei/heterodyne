@@ -208,6 +208,7 @@ def _dispatch_simulated_plots(
     c2_data: np.ndarray,
     nlsq_results: list[NLSQResult] | None,
     plots_dir: Path,
+    data_phi_angles: np.ndarray | None = None,
 ) -> None:
     """Plot model/fit comparisons and component decompositions.
 
@@ -216,6 +217,7 @@ def _dispatch_simulated_plots(
         c2_data: Correlation data (2D or 3D).
         nlsq_results: NLSQ results (if any).
         plots_dir: Directory for saving plots.
+        data_phi_angles: Phi angles of each c2_data slice (for correct slice selection).
     """
     from heterodyne.viz.experimental_plots import plot_g1_components
     from heterodyne.viz.nlsq_plots import plot_nlsq_fit, plot_residual_map
@@ -228,9 +230,17 @@ def _dispatch_simulated_plots(
 
     # NLSQ plots
     if nlsq_results:
-        c2_2d = c2_data[0] if c2_data.ndim == 3 else c2_data
         for nlsq_result in nlsq_results:
             phi = nlsq_result.metadata.get("phi_angle", 0)
+            # Select the data slice closest to the fitted phi angle
+            if c2_data.ndim == 3:
+                if data_phi_angles is not None and len(data_phi_angles) == c2_data.shape[0]:
+                    idx = int(np.argmin(np.abs(data_phi_angles - float(phi))))
+                    c2_2d = c2_data[idx]
+                else:
+                    c2_2d = c2_data[0]
+            else:
+                c2_2d = c2_data
             suffix = f"_phi{int(phi)}" if len(nlsq_results) > 1 else ""
 
             try:
@@ -257,7 +267,7 @@ def _dispatch_simulated_plots(
 # ---------------------------------------------------------------------------
 
 
-def _handle_plotting(
+def handle_plotting(
     args: Any,
     result: Any,
     data: dict[str, Any],
@@ -358,7 +368,45 @@ def dispatch_plots(
 
     if mode in ("simulated", "both"):
         try:
-            _dispatch_simulated_plots(model, c2_data, filtered_nlsq, plots_dir)
+            _data_phi = (
+                np.asarray(data_dict["phi_angles_list"], dtype=float)
+                if data_dict is not None and "phi_angles_list" in data_dict
+                else None
+            )
+            _dispatch_simulated_plots(model, c2_data, filtered_nlsq, plots_dir, _data_phi)
+            
+            # Generate per-angle fitted simulations from NLSQ results.
+            # Each result is scoped to its own phi angle so that calls do not
+            # overwrite each other and each uses the correct fitted parameters.
+            if filtered_nlsq and data_dict is not None and output_dir is not None:
+                from heterodyne.viz.nlsq_plots import generate_and_plot_fitted_simulations
+
+                config: dict[str, Any] = data_dict.get("config") or {}
+                for i, nlsq_result in enumerate(filtered_nlsq):
+                    try:
+                        phi = nlsq_result.metadata.get("phi_angle", 0)
+                        logger.debug(
+                            "Generating fitted simulations for phi=%s (result %d/%d)",
+                            phi, i + 1, len(filtered_nlsq),
+                        )
+                        # Narrow to this angle only — prevents overwriting other
+                        # angles' outputs and ensures correct per-angle parameters.
+                        phi_data = {
+                            **data_dict,
+                            "phi_angles_list": np.array([float(phi)]),
+                        }
+                        generate_and_plot_fitted_simulations(
+                            result=nlsq_result,
+                            data=phi_data,
+                            config=config,
+                            output_dir=output_dir,
+                            angle_filter_func=None,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Failed to generate fitted simulations for phi=%s",
+                            nlsq_result.metadata.get("phi_angle", 0),
+                        )
         except Exception:
             logger.exception("Failed to generate simulated plots")
 

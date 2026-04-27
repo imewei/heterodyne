@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -30,6 +30,11 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _closest_phi_index(data_phi_angles: np.ndarray, target: float) -> int:
+    """Return the index of the data phi angle closest to *target* (degrees)."""
+    return int(np.argmin(np.abs(data_phi_angles - target)))
+
+
 def run_nlsq(
     model: HeterodyneModel,
     c2_data: np.ndarray,
@@ -38,6 +43,7 @@ def run_nlsq(
     args: argparse.Namespace,
     output_dir: Path,
     summary: AnalysisSummaryLogger | None = None,
+    data_phi_angles: np.ndarray | None = None,
 ) -> list[NLSQResult]:
     """Run NLSQ analysis for all phi angles.
 
@@ -69,7 +75,18 @@ def run_nlsq(
     for i, phi in enumerate(phi_angles):
         logger.info("Fitting phi=%s° (%d/%d)", phi, i + 1, len(phi_angles))
 
-        c2_phi = c2_data[i] if c2_data.ndim == 3 else c2_data
+        if c2_data.ndim == 3:
+            if data_phi_angles is not None and len(data_phi_angles) == c2_data.shape[0]:
+                idx = _closest_phi_index(data_phi_angles, phi)
+                logger.info(
+                    "Selected data slice %d (phi=%.2f°) for fitting phi=%.2f°",
+                    idx, float(data_phi_angles[idx]), phi,
+                )
+                c2_phi = c2_data[idx]
+            else:
+                c2_phi = c2_data[i]
+        else:
+            c2_phi = c2_data
 
         with log_phase(f"nlsq_phi_{i}", logger=logger, track_memory=True) as phase:
             result = fit_nlsq_jax(
@@ -80,6 +97,7 @@ def run_nlsq(
             )
 
         result.metadata["phi_angle"] = phi
+        _warn_nlsq_bound_saturation(result)
         results.append(result)
 
         logger.info(
@@ -93,13 +111,16 @@ def run_nlsq(
                 f"nlsq_chi2_phi{int(phi)}", result.reduced_chi_squared
             )
 
-        print(f"\n{'=' * 50}")
-        print(f"NLSQ Results for phi={phi}°")
-        print(format_nlsq_summary(result))
+        summary_lines = format_nlsq_summary(result)
+        logger.info("NLSQ Results for phi=%s°\n%s\n%s", phi, "=" * 50, summary_lines)
 
         prefix = f"nlsq_phi{int(phi)}" if len(phi_angles) > 1 else "nlsq"
-        save_nlsq_json_files(result, output_dir, prefix=prefix)
-        save_nlsq_npz_file(result, output_dir / f"{prefix}_data.npz")
+        saved_json = save_nlsq_json_files(result, output_dir, prefix=prefix)
+        for label, path in saved_json.items():
+            logger.info("Saved NLSQ %s: %s", label, path)
+        npz_path = output_dir / f"{prefix}_data.npz"
+        save_nlsq_npz_file(result, npz_path)
+        logger.info("Saved NLSQ data: %s", npz_path)
 
     logger.info("NLSQ analysis complete")
     return results
@@ -114,6 +135,7 @@ def run_cmc(
     output_dir: Path,
     nlsq_results: list[NLSQResult] | None = None,
     summary: AnalysisSummaryLogger | None = None,
+    data_phi_angles: np.ndarray | None = None,
 ) -> list[CMCResult]:
     """Run CMC Bayesian analysis for all phi angles.
 
@@ -133,10 +155,12 @@ def run_cmc(
     logger.info("Starting CMC analysis")
 
     if getattr(args, "num_samples", None) is not None:
+        logger.info("Overriding CMC num_samples from CLI: %s", args.num_samples)
         config_manager.update_optimization_config(
             "cmc", "num_samples", args.num_samples
         )
     if getattr(args, "num_chains", None) is not None:
+        logger.info("Overriding CMC num_chains from CLI: %s", args.num_chains)
         config_manager.update_optimization_config("cmc", "num_chains", args.num_chains)
 
     cmc_config = CMCConfig.from_dict(config_manager.cmc_config)
@@ -146,7 +170,18 @@ def run_cmc(
     for i, phi in enumerate(phi_angles):
         logger.info("CMC for phi=%s° (%d/%d)", phi, i + 1, len(phi_angles))
 
-        c2_phi = c2_data[i] if c2_data.ndim == 3 else c2_data
+        if c2_data.ndim == 3:
+            if data_phi_angles is not None and len(data_phi_angles) == c2_data.shape[0]:
+                idx = _closest_phi_index(data_phi_angles, phi)
+                logger.info(
+                    "Selected data slice %d (phi=%.2f°) for CMC phi=%.2f°",
+                    idx, float(data_phi_angles[idx]), phi,
+                )
+                c2_phi = c2_data[idx]
+            else:
+                c2_phi = c2_data[i]
+        else:
+            c2_phi = c2_data
 
         nlsq_result_i = (
             nlsq_results[i] if nlsq_results and i < len(nlsq_results) else None
@@ -183,12 +218,11 @@ def run_cmc(
                 f"cmc_n_samples_phi{int(phi)}", float(cmc_config.num_samples)
             )
 
-        print(f"\n{'=' * 50}")
-        print(f"CMC Results for phi={phi}°")
-        print(format_mcmc_summary(result))
+        logger.info("\n%s\nCMC Results for phi=%s°\n%s", "=" * 50, phi, format_mcmc_summary(result))
 
         prefix = f"cmc_phi{int(phi)}" if len(phi_angles) > 1 else "cmc"
         save_mcmc_results(result, output_dir, prefix=prefix)
+        logger.info("Saved CMC results → %s (prefix=%s)", output_dir, prefix)
 
     logger.info("CMC analysis complete")
     return results
@@ -211,9 +245,11 @@ def resolve_nlsq_warmstart(
     if warmstart_path is None:
         # Try default location
         default_path = output_dir / "nlsq_data.npz"
+        logger.debug("No warmstart path specified; checking default location %s", default_path)
         if default_path.exists():
             warmstart_path = default_path
         else:
+            logger.debug("No NLSQ warm-start available; CMC will use config initial values")
             return None
 
     try:
@@ -272,6 +308,8 @@ def _validate_warmstart_quality(
             "Warm-start NLSQ did not converge: %s", getattr(result, "message", "")
         )
         ok = False
+    elif hasattr(result, "success"):
+        logger.debug("Warm-start convergence: OK")
 
     # --- reduced chi-squared ---
     chi2 = _get_warmstart_reduced_chi2(result)
@@ -312,7 +350,65 @@ def _validate_warmstart_quality(
         # Registry unavailable — skip bounds check
         pass
 
+    if ok:
+        chi2_str = f"{chi2:.3f}" if chi2 is not None else "N/A"
+        logger.info(
+            "NLSQ warm-start accepted (reduced chi²=%s). Using as CMC initial values.",
+            chi2_str,
+        )
+
     return ok
+
+
+def _warn_nlsq_bound_saturation(result: NLSQResult) -> None:
+    """Log a WARNING for each parameter whose uncertainty is zero or near-zero.
+
+    Zero uncertainty in the NLSQ covariance has two causes:
+    1. Parameter hit a bound → Jacobian column is zeroed by the box constraint.
+    2. Fraction model clipped to [0,1] everywhere → Jacobian w.r.t. f1/f2 = 0.
+
+    Both indicate a degenerate solution that will produce a pathological CMC
+    posterior (NUTS step-size collapses, chains freeze at initialization).
+    """
+    if result.uncertainties is None or result.parameter_names is None:
+        return
+    try:
+        from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
+        registry: Any = DEFAULT_REGISTRY
+    except ImportError:
+        registry = None
+
+    params = result.params_dict
+    saturated: list[str] = []
+    for name, unc in zip(result.parameter_names, result.uncertainties, strict=True):
+        if float(unc) < 1e-30:
+            val = params.get(name, float("nan"))
+            hint = ""
+            if registry is not None:
+                try:
+                    info = registry[name]
+                    if abs(val - info.min_bound) < 1e-10 * max(abs(info.min_bound), 1):
+                        hint = " [AT LOWER BOUND]"
+                    elif abs(val - info.max_bound) < 1e-10 * max(abs(info.max_bound), 1):
+                        hint = " [AT UPPER BOUND]"
+                    else:
+                        hint = " [DEGENERATE JACOBIAN — check clipping]"
+                except KeyError:
+                    pass
+            logger.warning(
+                "NLSQ bound saturation: %s = %.4g ± 0%s — "
+                "posterior will be unreliable; CMC chains may freeze",
+                name, val, hint,
+            )
+            saturated.append(name)
+
+    if saturated:
+        logger.warning(
+            "%d parameter(s) saturated at bounds or degenerate: %s. "
+            "Consider tightening bounds, adjusting initial values, or fixing "
+            "these parameters before running CMC.",
+            len(saturated), saturated,
+        )
 
 
 _WARMSTART_LOG_PARAMS = ("D0_ref", "D0_sample", "v0", "alpha_ref", "alpha_sample")
