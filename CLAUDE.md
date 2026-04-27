@@ -101,7 +101,7 @@ analyzer_parameters:
   scattering:
     wavevector_q: 0.0054              # Wave vector [Å⁻¹]
   geometry:
-    stator_rotor_gap: 2000000         # Gap [Å] (200 microns)
+    stator_rotor_gap: 2000000         # Gap [Å] (200 microns) — instrument metadata only, not used by physics model
 ```
 
 Legacy `temporal`/`scattering` top-level sections are auto-migrated by `ConfigManager`.
