@@ -334,3 +334,107 @@ class TestBugPrevention_NLSQAdapterAPI:
         except TypeError as e:
             # Expected: TypeError about missing flength
             assert "flength" in str(e).lower() or "argument" in str(e).lower()
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: loss keyword must be propagated / excluded correctly
+# ---------------------------------------------------------------------------
+
+
+class TestBugPrevention_LossKwarg:
+    """Regression tests for loss kwarg propagation (RCA 2026-04-26).
+
+    BUG: config.loss was silently dropped — every optimizer call only passed
+    method=, so nlsq defaulted to loss='linear' regardless of config.
+
+    BUG: NLSQWrapper STANDARD tier passed loss='soft_l1' to nlsq.curve_fit,
+    which JIT-compiled the loss wrapper over the numpy residual function,
+    causing TracerArrayConversionError.
+    """
+
+    @pytest.mark.unit
+    @pytest.mark.api
+    def test_adapter_fitjax_passes_loss_kwarg(self) -> None:
+        """config.loss must appear in kwargs forwarded to CurveFit.curve_fit."""
+        from unittest.mock import MagicMock, patch
+
+        import jax.numpy as jnp
+
+        from heterodyne.optimization.nlsq.adapter import NLSQAdapter
+        from heterodyne.optimization.nlsq.config import NLSQConfig
+
+        config = NLSQConfig(loss="soft_l1")
+        adapter = NLSQAdapter(parameter_names=["p0", "p1"])
+
+        mock_fitter = MagicMock()
+        # Return a (popt, pcov) tuple that build_result_from_nlsq can parse
+        mock_fitter.curve_fit.return_value = (np.array([2.0, 3.0]), np.eye(2))
+
+        with patch(
+            "heterodyne.optimization.nlsq.adapter.get_or_create_fitter",
+            return_value=(mock_fitter, False),
+        ):
+            try:
+                adapter.fit_jax(
+                    jax_residual_fn=lambda x, *p: jnp.zeros(9),
+                    initial_params=np.ones(2),
+                    bounds=(np.zeros(2), np.full(2, 10.0)),
+                    config=config,
+                    n_data=9,
+                )
+            except Exception:
+                pass  # Only care about call args, not downstream processing
+
+        assert mock_fitter.curve_fit.called, "CurveFit.curve_fit was never called"
+        call_kwargs = mock_fitter.curve_fit.call_args.kwargs
+        assert "loss" in call_kwargs, (
+            f"'loss' kwarg missing from CurveFit.curve_fit call. Got: {call_kwargs}"
+        )
+        assert call_kwargs["loss"] == "soft_l1", (
+            f"Expected loss='soft_l1', got: {call_kwargs['loss']}"
+        )
+
+    @pytest.mark.unit
+    @pytest.mark.api
+    def test_wrapper_standard_tier_omits_loss(self) -> None:
+        """NLSQWrapper STANDARD tier must NOT forward loss to nlsq.curve_fit.
+
+        nlsq.curve_fit applies robust loss by JAX-JIT-compiling a mask over the
+        residual function.  The numpy-wrapped residual calls np.array(params)
+        inside that trace, causing TracerArrayConversionError.
+        """
+        from unittest.mock import patch
+
+        from heterodyne.optimization.nlsq.adapter import NLSQStrategy, NLSQWrapper
+        from heterodyne.optimization.nlsq.config import NLSQConfig
+
+        wrapper = NLSQWrapper(parameter_names=["p0", "p1"])
+        config = NLSQConfig(loss="soft_l1")
+
+        with patch(
+            "heterodyne.optimization.nlsq.adapter.curve_fit",
+            return_value=(np.array([2.0, 3.0]), np.eye(2)),
+        ) as mock_cf:
+            try:
+                wrapper._call_tier(
+                    tier=NLSQStrategy.STANDARD,
+                    wrapped_fn=lambda x, *p: np.zeros(9),
+                    xdata=np.arange(9, dtype=np.float64),
+                    ydata=np.zeros(9, dtype=np.float64),
+                    p0=np.ones(2),
+                    lower_bounds=np.zeros(2),
+                    upper_bounds=np.full(2, 10.0),
+                    n_data=9,
+                    n_params=2,
+                    method="trf",
+                    loss=config.loss,
+                )
+            except Exception:
+                pass
+
+        assert mock_cf.called, "nlsq.curve_fit was never called"
+        call_kwargs = mock_cf.call_args.kwargs
+        assert "loss" not in call_kwargs, (
+            f"'loss' must NOT be in nlsq.curve_fit kwargs (TracerArrayConversionError). "
+            f"Got: {call_kwargs}"
+        )

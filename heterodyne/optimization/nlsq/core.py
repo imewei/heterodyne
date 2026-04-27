@@ -579,6 +579,7 @@ def _fit_cmaes(
     )
     t, q, dt = model.t, model.q, model.dt
     n_data = c2_jax.size
+    contrast_val, offset_val = model.scaling.get_for_angle(0)
 
     def objective_fn(varying_params: np.ndarray) -> float:
         full_params = np.array(param_manager.get_full_values())
@@ -592,10 +593,14 @@ def _fit_cmaes(
             phi_angle,
             c2_jax,
             weights_jax,
+            contrast_val,
+            offset_val,
         )
         return float(0.5 * jnp.sum(residuals**2))
 
-    residual_fn = _make_numpy_residual_fn(model, c2_data, phi_angle, weights)
+    residual_fn = _make_numpy_residual_fn(
+        model, c2_data, phi_angle, weights, contrast_val, offset_val
+    )
 
     # ------------------------------------------------------------------
     # Phase 1 (Fix #1): NLSQ warm-start
@@ -696,9 +701,25 @@ def _fit_cmaes(
     # ------------------------------------------------------------------
     if result.success:
         full_fitted = param_manager.expand_varying_to_full(result.parameters)
-        fitted_c2 = compute_c2_heterodyne(jnp.asarray(full_fitted), t, q, dt, phi_angle)
+        fitted_c2 = compute_c2_heterodyne(
+            jnp.asarray(full_fitted), t, q, dt, phi_angle, contrast_val, offset_val
+        )
         result.fitted_correlation = np.asarray(fitted_c2)
         model.set_params(full_fitted)
+
+    # Apply same chi2 correction as _fit_local (DOF + σ² normalization)
+    if result.final_cost is not None:
+        n_matrix = c2_jax.shape[0]
+        n_valid = c2_jax.size - n_matrix
+        n_dof_valid = max(n_valid - len(param_manager.varying_names), 1)
+        c2_np = np.asarray(c2_jax)
+        row_idx = np.arange(n_matrix)
+        lag_mat = np.abs(row_idx[:, None] - row_idx[None, :])
+        far_vals = c2_np[lag_mat >= n_matrix // 2]
+        sigma2_noise = float(np.var(far_vals)) if far_vals.size > 1 else 0.0
+        if sigma2_noise > 1e-12:
+            ssr = 2.0 * result.final_cost
+            result.reduced_chi_squared = ssr / (sigma2_noise * n_dof_valid)
 
     quality_flag = classify_fit_quality(result.reduced_chi_squared)
     result.metadata["optimizer"] = "cmaes"
@@ -727,12 +748,11 @@ def _fit_multistart(
     lower_bounds, upper_bounds = param_manager.get_bounds()
     initial_varying = np.clip(initial_varying, lower_bounds, upper_bounds)
 
+    contrast_val, offset_val = model.scaling.get_for_angle(0)
+
     # Build residual function
     residual_fn = _make_numpy_residual_fn(
-        model,
-        c2_data,
-        phi_angle,
-        weights,
+        model, c2_data, phi_angle, weights, contrast_val, offset_val
     )
 
     # Select adapter
@@ -762,6 +782,8 @@ def _fit_multistart(
             model.q,
             model.dt,
             phi_angle,
+            contrast_val,
+            offset_val,
         )
         result.fitted_correlation = np.asarray(fitted_c2)
         model.set_params(full_fitted)
@@ -826,6 +848,9 @@ def _fit_local(
     n_data = c2_jax.size
     t, q, dt = model.t, model.q, model.dt
 
+    # Per-angle scaling — fixed during local optimization (constant mode parity)
+    contrast_val, offset_val = model.scaling.get_for_angle(0)
+
     # Build residual functions
     def jax_residual_fn(x: jnp.ndarray, *varying_params: float) -> jnp.ndarray:
         """Pure JAX residual function for nlsq tracing."""
@@ -839,9 +864,13 @@ def _fit_local(
             phi_angle,
             c2_jax,
             weights_jax,
+            contrast_val,
+            offset_val,
         )
 
-    numpy_residual_fn = _make_numpy_residual_fn(model, c2_data, phi_angle, weights)
+    numpy_residual_fn = _make_numpy_residual_fn(
+        model, c2_data, phi_angle, weights, contrast_val, offset_val
+    )
 
     # ------------------------------------------------------------------
     # Adapter → wrapper fallback chain
@@ -923,9 +952,60 @@ def _fit_local(
             q,
             dt,
             phi_angle,
+            contrast_val,
+            offset_val,
         )
         result.fitted_correlation = np.asarray(fitted_c2)
         model.set_params(full_fitted)
+
+    # ------------------------------------------------------------------
+    # Post-fit: correct reduced chi-squared
+    #
+    # The raw chi2 from adapter.fit_jax is SSR / (N² − n_params), where
+    # SSR = Σ r² over the full N×N residual vector.  Two corrections:
+    #
+    #   1. DOF: the N diagonal residuals are forced to 0 by the
+    #      non_diagonal mask in compute_residuals — they should be
+    #      excluded from the degrees-of-freedom count.
+    #      n_valid = N*(N−1) instead of N².
+    #
+    #   2. σ² normalization: without dividing by measurement noise,
+    #      chi2 = MSE ≪ 1 for normalized C2 data (C2 ~ 1, residuals ~ 5%).
+    #      We estimate σ²_noise from the far-lag plateau of the C2 matrix
+    #      (|t2−t1| ≥ N/2), where correlations have fully decayed and
+    #      the remaining variance is photon-counting noise.
+    #
+    # chi2_corrected = SSR / (σ²_noise × n_dof_valid)  →  ~1 for good fits
+    # ------------------------------------------------------------------
+    if result.final_cost is not None:
+        n_matrix = c2_jax.shape[0]
+        n_valid = c2_jax.size - n_matrix  # exclude N diagonal zeros
+        n_dof_valid = max(n_valid - n_varying, 1)
+
+        c2_np = np.asarray(c2_jax)
+        row_idx = np.arange(n_matrix)
+        lag_mat = np.abs(row_idx[:, None] - row_idx[None, :])
+        far_mask = lag_mat >= n_matrix // 2  # diagonal (lag=0) not included
+        far_vals = c2_np[far_mask]
+        sigma2_noise = float(np.var(far_vals)) if far_vals.size > 1 else 0.0
+
+        if sigma2_noise > 1e-12:
+            ssr = 2.0 * result.final_cost
+            chi2_corrected = ssr / (sigma2_noise * n_dof_valid)
+            logger.debug(
+                "chi2 correction: σ²_noise=%.4e  n_valid=%d  SSR=%.4e  "
+                "raw_chi2=%.4g → chi2_corrected=%.4f",
+                sigma2_noise, n_valid, ssr,
+                result.reduced_chi_squared or float("nan"),
+                chi2_corrected,
+            )
+            result.reduced_chi_squared = chi2_corrected
+        else:
+            logger.warning(
+                "chi2 noise estimate near-zero (σ²=%.2e); "
+                "reporting uncorrected MSE chi2",
+                sigma2_noise,
+            )
 
     result.metadata["fallback_occurred"] = fallback_occurred
     if adapter_error is not None:
@@ -942,6 +1022,8 @@ def _make_numpy_residual_fn(
     c2_data: np.ndarray | jnp.ndarray,
     phi_angle: float,
     weights: np.ndarray | jnp.ndarray | None,
+    contrast: float = 1.0,
+    offset: float = 1.0,
 ) -> Any:
     """Create a numpy residual function closed over model/data.
 
@@ -977,6 +1059,8 @@ def _make_numpy_residual_fn(
             phi_angle,
             c2_jax,
             weights_jax,
+            contrast,
+            offset,
         )
         return np.asarray(residuals)
 

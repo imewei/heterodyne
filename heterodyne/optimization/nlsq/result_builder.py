@@ -66,7 +66,7 @@ def build_result_from_scipy(
     )
     message = getattr(opt_result, "message", str(opt_result.get("message", "")))
 
-    return NLSQResult(
+    result = NLSQResult(
         parameters=params,
         parameter_names=parameter_names,
         success=bool(success),
@@ -83,6 +83,15 @@ def build_result_from_scipy(
         wall_time_seconds=wall_time,
         metadata=metadata or {},
     )
+    logger.debug(
+        "Built result: success=%s, n_iter=%d, n_fev=%d, chi2=%.4f, status=%d",
+        bool(success),
+        getattr(opt_result, "njev", 0),
+        getattr(opt_result, "nfev", 0),
+        reduced_chi2,
+        getattr(opt_result, "status", -1),
+    )
+    return result
 
 
 def build_result_from_arrays(
@@ -259,7 +268,7 @@ def build_result_from_nlsq(
             residuals = np.asarray(fun_raw, dtype=np.float64)
 
         # Extract common attributes into metadata
-        for attr in ("message", "success", "nfev", "njev", "optimality"):
+        for attr in ("message", "success", "nfev", "nit", "njev", "optimality"):
             if hasattr(nlsq_result, attr):
                 merged_meta[attr] = getattr(nlsq_result, attr)
 
@@ -300,6 +309,7 @@ def build_result_from_nlsq(
         covariance=pcov,
         final_cost=final_cost,
         reduced_chi_squared=reduced_chi2,
+        n_iterations=int(merged_meta.get("nit", 0)),
         n_function_evals=int(merged_meta.get("nfev", 0)),
         convergence_reason=str(merged_meta.get("message", "")),
         residuals=residuals,
@@ -327,6 +337,7 @@ def build_failed_result(
     Returns:
         NLSQResult with success=False
     """
+    logger.warning("NLSQ failed: %s", message)
     params = (
         initial_params if initial_params is not None else np.zeros(len(parameter_names))
     )

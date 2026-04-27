@@ -110,7 +110,16 @@ def fit_cmc_jax(
 
     # Validate NLSQ warm-start
     use_reparam = config.use_reparam and nlsq_result is not None and nlsq_result.success
-    if (
+    if config.use_nlsq_warmstart and nlsq_result is None:
+        logger.warning(
+            "[CMC] NLSQ warm-start is enabled (use_nlsq_warmstart=True) but no "
+            "nlsq_result was provided. Chains will initialize at the prior, which "
+            "is typically 5-10σ from the true posterior for the 14-parameter "
+            "heterodyne model. This produces R-hat >> 1 and ESS ≈ n_chains — "
+            "effectively a failed run after hours of sampling. "
+            "Pass nlsq_result= or use optimizer: both in the CLI config."
+        )
+    elif (
         config.use_nlsq_warmstart
         and nlsq_result is not None
         and not nlsq_result.success
@@ -1239,8 +1248,15 @@ def _compute_bfmi(idata: az.InferenceData) -> tuple[list[float] | None, bool]:
     bfmi_compute_failed = False
     try:
         bfmi_result = az.bfmi(idata)
-        if hasattr(bfmi_result, "values"):
-            bfmi = list(bfmi_result.values)
+        # az.bfmi() return type varies across ArviZ versions:
+        #   - xr.DataArray  → .values is a numpy array attribute (non-callable)
+        #   - dict          → .values is a bound method (callable)
+        #   - list / ndarray → iterate directly
+        if isinstance(bfmi_result, dict):
+            bfmi = list(bfmi_result.values())
+        elif hasattr(bfmi_result, "values"):
+            attr = bfmi_result.values
+            bfmi = list(attr() if callable(attr) else attr)
         elif isinstance(bfmi_result, (list, np.ndarray)):
             bfmi = list(bfmi_result)
     except (TypeError, KeyError) as e:

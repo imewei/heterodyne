@@ -548,6 +548,22 @@ class NLSQConfig:
                 f"nlsq_memory_fallback_gb={self.nlsq_memory_fallback_gb} must be > 0"
             )
 
+        # Advisory warnings — not errors, but worth surfacing at validate() time
+        if self.gtol < 1e-7 and self.loss != "linear":
+            logger.warning(
+                "NLSQConfig: gtol=%.2e is very tight for loss=%r. "
+                "Robust loss landscapes are harder — consider gtol >= 1e-6 "
+                "to avoid premature max_nfev exhaustion.",
+                self.gtol,
+                self.loss,
+            )
+
+        if self.max_nfev is None:
+            logger.debug(
+                "NLSQConfig: max_nfev=None — nlsq defaults to 100×n_params "
+                "(e.g. 1400 for 14 params). Set explicitly to override.",
+            )
+
         return errors
 
     # ------------------------------------------------------------------

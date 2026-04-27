@@ -49,6 +49,26 @@ logger = get_logger(__name__)
 _MODEL_CACHE_MAX_SIZE = 64
 
 
+def _optimizer_kwargs(config: NLSQConfig, method: str) -> dict:
+    """Build the kwargs dict passed to every nlsq CurveFit.curve_fit call.
+
+    Centralises all config→optimizer parameter mapping so every call site
+    stays in sync.  ``max_nfev=None`` (unlimited) is omitted so nlsq keeps
+    its own default; an explicit int is passed through.
+    """
+    kw: dict = {
+        "method": method,
+        "loss": config.loss,
+        "ftol": config.ftol,
+        "xtol": config.xtol,
+        "gtol": config.gtol,
+        "x_scale": config.x_scale,
+    }
+    if config.max_nfev is not None:
+        kw["max_nfev"] = config.max_nfev
+    return kw
+
+
 @dataclass(frozen=True)
 class ModelCacheKey:
     """Cache key for CurveFit instances.
@@ -263,13 +283,21 @@ class NLSQAdapter(NLSQAdapterBase):
                 logger.warning("Method 'dogbox' not supported by CurveFit; using 'trf'")
                 method = "trf"
 
+            logger.info(
+                "NLSQAdapter settings: method=%s loss=%s gtol=%.2e "
+                "max_nfev=%s x_scale=%s",
+                method, config.loss, config.gtol,
+                config.max_nfev if config.max_nfev is not None
+                else f"auto({100 * n_params})",
+                config.x_scale,
+            )
             nlsq_result = fitter.curve_fit(  # type: ignore[union-attr]
                 f=_wrapped,
                 xdata=xdata,
                 ydata=ydata,
                 p0=initial_params,
                 bounds=(lower_bounds, upper_bounds),
-                method=method,
+                **_optimizer_kwargs(config, method),
             )
 
             wall_time = time.perf_counter() - start_time
@@ -374,13 +402,21 @@ class NLSQAdapter(NLSQAdapterBase):
                 logger.warning("Method 'dogbox' not supported by CurveFit; using 'trf'")
                 method = "trf"
 
+            logger.info(
+                "NLSQAdapter.fit_jax settings: method=%s loss=%s gtol=%.2e "
+                "max_nfev=%s x_scale=%s",
+                method, config.loss, config.gtol,
+                config.max_nfev if config.max_nfev is not None
+                else f"auto({100 * n_params})",
+                config.x_scale,
+            )
             nlsq_result = fitter.curve_fit(  # type: ignore[union-attr]
                 f=jax_residual_fn,
                 xdata=xdata,
                 ydata=ydata,
                 p0=initial_params,
                 bounds=(lower_bounds, upper_bounds),
-                method=method,
+                **_optimizer_kwargs(config, method),
             )
 
             wall_time = time.perf_counter() - start_time
@@ -558,6 +594,15 @@ class NLSQWrapper(NLSQAdapterBase):
         if method == "dogbox":
             logger.warning("Method 'dogbox' unsupported by nlsq; using 'trf'")
             method = "trf"
+        loss = config.loss
+        logger.info(
+            "NLSQWrapper settings: method=%s gtol=%.2e max_nfev=%s "
+            "loss=%r not applied (numpy fallback path)",
+            method, config.gtol,
+            config.max_nfev if config.max_nfev is not None
+            else f"auto({100 * n_params})",
+            loss,
+        )
 
         # --- Tier ordering: initial strategy → fallback cascade ---
         tiers = self._build_tier_list(decision.strategy)
@@ -574,6 +619,7 @@ class NLSQWrapper(NLSQAdapterBase):
                 n_data=n_data,
                 n_params=n_params,
                 method=method,
+                loss=loss,
                 config=config,
                 start_time=start_time,
             )
@@ -626,8 +672,9 @@ class NLSQWrapper(NLSQAdapterBase):
         n_data: int,
         n_params: int,
         method: str,
-        config: NLSQConfig,
+        loss: str,
         start_time: float,
+        config: NLSQConfig | None = None,
     ) -> NLSQResult | None:
         """Attempt a single tier up to max_retries times.
 
@@ -648,6 +695,7 @@ class NLSQWrapper(NLSQAdapterBase):
                     n_data=n_data,
                     n_params=n_params,
                     method=method,
+                    loss=loss,
                 )
                 wall_time = time.perf_counter() - start_time
                 result = build_result_from_nlsq(
@@ -719,8 +767,16 @@ class NLSQWrapper(NLSQAdapterBase):
         n_data: int,
         n_params: int,
         method: str,
+        loss: str,
     ) -> Any:
-        """Dispatch a single call to the appropriate nlsq function/class."""
+        """Dispatch a single call to the appropriate nlsq function/class.
+
+        Note: ``nlsq.curve_fit`` (STANDARD/LARGE/STREAMING) has a different API
+        from ``CurveFit.curve_fit`` and does not accept ``ftol``/``xtol``/
+        ``gtol``/``x_scale``/``max_nfev``/``loss``.  Those config parameters are
+        fully applied on the NLSQAdapter path (``CurveFit.curve_fit``); the
+        NLSQWrapper is a last-resort fallback.
+        """
         if tier == NLSQStrategy.STREAMING:
             if not STREAMING_AVAILABLE or AdaptiveHybridStreamingOptimizer is None:
                 raise RuntimeError(
@@ -744,8 +800,11 @@ class NLSQWrapper(NLSQAdapterBase):
                 bounds=(lower_bounds, upper_bounds),
             )
 
-        # STANDARD
-        return curve_fit(
+        # STANDARD tier.  loss intentionally omitted: nlsq.curve_fit applies
+        # robust loss via JAX JIT over the residual function; _wrapped(x, *params)
+        # calls np.array(params) inside the trace → TracerArrayConversionError.
+        _ = loss
+        return curve_fit(  # type: ignore[call-arg]
             f=wrapped_fn,
             xdata=xdata,
             ydata=ydata,

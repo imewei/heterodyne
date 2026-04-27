@@ -70,6 +70,7 @@ def _make_mock_model(n_params: int = 3) -> MagicMock:
     model.q = np.array([0.1])
     model.dt = 0.01
     model.scaling = MagicMock()
+    model.scaling.get_for_angle.return_value = (0.5, 1.0)
 
     return model
 
