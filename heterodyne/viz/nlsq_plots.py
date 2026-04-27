@@ -97,10 +97,11 @@ def plot_nlsq_fit(
         fig.suptitle("No data available")
         return fig
 
-    # Data plot
+    # Data plot — origin='lower' places t=0 at bottom-left; extent=[left,right,bottom,top]
     im0 = axes[0].imshow(
         c2_data,
-        extent=[t[0], t[-1], t[-1], t[0]],
+        origin="lower",
+        extent=[t[0], t[-1], t[0], t[-1]],
         aspect="auto",
         cmap="viridis",
     )
@@ -113,7 +114,8 @@ def plot_nlsq_fit(
     if result.fitted_correlation is not None:
         im1 = axes[1].imshow(
             result.fitted_correlation,
-            extent=[t[0], t[-1], t[-1], t[0]],
+            origin="lower",
+            extent=[t[0], t[-1], t[0], t[-1]],
             aspect="auto",
             cmap="viridis",
         )
@@ -129,12 +131,16 @@ def plot_nlsq_fit(
     if result.fitted_correlation is not None:
         if result.residuals is not None:
             residual_2d = result.residuals
+            if residual_2d.ndim == 1:
+                n = c2_data.shape[0]
+                residual_2d = residual_2d.reshape(n, n)
         else:
             residual_2d = c2_data - result.fitted_correlation
         vmax = np.nanpercentile(np.abs(residual_2d), 99)
         im2 = axes[2].imshow(
             residual_2d,
-            extent=[t[0], t[-1], t[-1], t[0]],
+            origin="lower",
+            extent=[t[0], t[-1], t[0], t[-1]],
             aspect="auto",
             cmap="RdBu_r",
             vmin=-vmax,
@@ -187,6 +193,9 @@ def plot_residual_map(
 
     if result.residuals is not None:
         residuals = result.residuals
+        if residuals.ndim == 1:
+            n = c2_data.shape[0]
+            residuals = residuals.reshape(n, n)
     else:
         residuals = c2_data - result.fitted_correlation
 
@@ -197,7 +206,8 @@ def plot_residual_map(
     vmax = np.nanpercentile(np.abs(residuals), 99)
     im = axes[0, 0].imshow(
         residuals,
-        extent=[t[0], t[-1], t[-1], t[0]],
+        origin="lower",
+        extent=[t[0], t[-1], t[0], t[-1]],
         aspect="auto",
         cmap="RdBu_r",
         vmin=-vmax,
@@ -351,7 +361,8 @@ def plot_fit_surface(
         )
 
     residual = c2_exp - c2_fit
-    t_extent = [times[0], times[-1], times[-1], times[0]]
+    # extent=[left, right, bottom, top]; with origin='lower' and .T, maps (0,0) to bottom-left
+    t_extent = [times[0], times[-1], times[0], times[-1]]
 
     fig, axes = plt.subplots(1, 3, figsize=figsize)
 
@@ -984,8 +995,6 @@ def plot_simulated_data(
     else:
         phi_list = list(np.linspace(0, 180, 8))
 
-    np.asarray(phi_list)
-
     # Time arrays from model or data
     t = np.asarray(model.t) if hasattr(model, "t") else None
     if t is None and data is not None:
@@ -995,74 +1004,113 @@ def plot_simulated_data(
     if t is None:
         t = np.arange(1, 101, dtype=float)
 
+    # Use original (pre-exclusion) time arrays for extent if available, for correct axis labels
+    t_extent = t
+    if data is not None:
+        t1_orig = data.get("t1_original")
+        if t1_orig is not None:
+            t_extent = np.asarray(t1_orig)
+
     n_t = len(t)
-    extent = [float(t[0]), float(t[-1]), float(t[-1]), float(t[0])]
+    # extent: [left=t1_min, right=t1_max, bottom=t2_min, top=t2_max]
+    # Used with .T so x-axis=t1, y-axis=t2 (parity with homodyne)
+    extent = [float(t_extent[0]), float(t_extent[-1]), float(t_extent[0]), float(t_extent[-1])]
 
     # Collect simulated C2 for each angle
     c2_all: list[np.ndarray] = []
     for phi_deg in phi_list:
         try:
-            c2_sim = np.asarray(model.compute_c2(phi=phi_deg))
-            c2_scaled = offset + contrast * (c2_sim - 1.0)
+            c2_scaled = np.asarray(
+                model.compute_correlation(phi_angle=phi_deg, contrast=contrast, offset=offset)
+            )
         except Exception:
             logger.warning("Forward model failed for phi=%.1f; using zeros", phi_deg)
             c2_scaled = np.ones((n_t, n_t)) * offset
         c2_all.append(c2_scaled)
 
-    # Global color scale from percentiles
+    # Global color scale (parity with homodyne: clamp to [1.0, 1.6])
     all_vals = np.concatenate([c.ravel() for c in c2_all])
-    finite = all_vals[np.isfinite(all_vals)]
-    if finite.size > 0:
-        vmin = float(np.percentile(finite, 1.0))
-        vmax = float(np.percentile(finite, 99.0))
-    else:
-        vmin, vmax = 1.0, 1.6
+    c2_min = float(np.nanmin(all_vals)) if all_vals.size > 0 else 1.0
+    c2_max = float(np.nanmax(all_vals)) if all_vals.size > 0 else 1.6
+    if not np.isfinite(c2_min) or not np.isfinite(c2_max):
+        c2_min, c2_max = 1.0, 1.6
+    vmin = max(1.0, c2_min)
+    vmax = min(1.6, c2_max)
+    logger.debug(
+        "Simulated C2 range [%.4f, %.4f] -> color scale [%.4f, %.4f]",
+        c2_min, c2_max, vmin, vmax,
+    )
 
     # Per-angle heatmaps
     for _i, (phi_deg, c2_mat) in enumerate(zip(phi_list, c2_all, strict=True)):
         fig, ax = plt.subplots(figsize=(8, 7))
         im = ax.imshow(
-            c2_mat,
+            c2_mat.T,
             extent=extent,
-            aspect="auto",
+            aspect="equal",
             cmap="jet",
             vmin=vmin,
             vmax=vmax,
             origin="lower",
         )
-        ax.set_xlabel("t₂ (s)", fontsize=12)
-        ax.set_ylabel("t₁ (s)", fontsize=12)
+        ax.set_xlabel("t₁ (s)", fontsize=11)
+        ax.set_ylabel("t₂ (s)", fontsize=11)
         ax.set_title(
-            f"Simulated C₂ — φ = {phi_deg:.1f}° (β={contrast:.2f})",
-            fontsize=14,
+            f"Simulated C₂(t₁, t₂) at φ={phi_deg:.1f}°",
+            fontsize=13,
+            fontweight="bold",
         )
-        plt.colorbar(im, ax=ax, shrink=0.9)
+
+        cbar = plt.colorbar(im, ax=ax, label="C₂", shrink=0.9)
+        cbar.ax.tick_params(labelsize=9)
+
+        mean_val = np.nanmean(c2_mat)
+        max_val = np.nanmax(c2_mat)
+        min_val = np.nanmin(c2_mat)
+        stats_text = f"Mean: {mean_val:.4f}\nRange: [{min_val:.4f}, {max_val:.4f}]"
+        ax.text(
+            0.02, 0.98, stats_text,
+            transform=ax.transAxes, fontsize=9, verticalalignment="top",
+            bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
+        )
+        mode_text = f"Contrast: {contrast:.3f}\nOffset: {offset:.3f}"
+        ax.text(
+            0.02, 0.02, mode_text,
+            transform=ax.transAxes, fontsize=8, verticalalignment="bottom",
+            bbox={"boxstyle": "round", "facecolor": "lightblue", "alpha": 0.7},
+        )
+
         plt.tight_layout()
         fig.savefig(
-            plots_dir / f"simulated_c2_phi_{phi_deg:.1f}.png",
+            plots_dir / f"simulated_data_phi_{phi_deg:.1f}.png",
             dpi=150,
             bbox_inches="tight",
         )
         plt.close(fig)
 
-    # Diagonal comparison plot
+    # Diagonal comparison plot (t1=t2 diagonal)
     fig, ax = plt.subplots(figsize=(10, 6))
-    for phi_deg, c2_mat in zip(phi_list, c2_all, strict=True):
+    for idx, (phi_deg, c2_mat) in enumerate(zip(phi_list, c2_all, strict=True)):
+        if idx >= 10:
+            break
         diag = np.diag(c2_mat)
         t_diag = t[: len(diag)]
-        ax.plot(t_diag, diag, label=f"φ={phi_deg:.1f}°")
+        ax.plot(t_diag, diag, label=f"φ={phi_deg:.1f}°", alpha=0.7, linewidth=2)
 
-    ax.set_xlabel("Time (s)")
-    ax.set_ylabel("c₂(t, t)")
-    ax.set_title("Simulated Diagonal — All Angles")
-    ax.legend(fontsize=8)
+    ax.set_xlabel("Time t (s)", fontsize=12)
+    ax.set_ylabel("C₂(t, t)", fontsize=12)
+    ax.set_title(
+        f"Simulated C₂ Along Diagonal (t₁=t₂)\n(contrast={contrast:.3f}, offset={offset:.3f})",
+        fontsize=13,
+        fontweight="bold",
+    )
+    ax.legend(loc="best", fontsize=9, ncol=2)
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
-    fig.savefig(
-        plots_dir / "simulated_c2_diagonal.png", dpi=150, bbox_inches="tight"
-    )
+    plt.savefig(plots_dir / "simulated_data_diagonal.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
+    logger.info("Generated diagonal plot: simulated_data_diagonal.png")
     logger.info("Saved %d simulated C2 heatmaps + diagonal", len(phi_list))
 
 
@@ -1104,7 +1152,8 @@ def generate_nlsq_plots(
 
     c2_fit = c2_solver_scaled if c2_solver_scaled is not None else c2_theoretical_scaled
 
-    extent = [float(t2[0]), float(t2[-1]), float(t1[-1]), float(t1[0])]
+    # extent with .T: [left=t1_min, right=t1_max, bottom=t2_min, top=t2_max]
+    extent = [float(t1[0]), float(t1[-1]), float(t2[0]), float(t2[-1])]
 
     for i, phi_deg in enumerate(phi_angles):
         if i >= c2_exp.shape[0]:
@@ -1114,40 +1163,46 @@ def generate_nlsq_plots(
         fit_i = c2_fit[i] if c2_fit.ndim == 3 else c2_fit
         res_i = residuals[i] if residuals.ndim == 3 else residuals
 
-        fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
         # Panel 1: Experimental
         vmin_e, vmax_e = _resolve_color_limits(exp_i)
         im0 = axes[0].imshow(
-            exp_i, extent=extent, aspect="auto", cmap="jet",
+            exp_i.T, extent=extent, aspect="equal", cmap="jet",
             vmin=vmin_e, vmax=vmax_e, origin="lower",
         )
-        axes[0].set_title(f"Experimental — φ={float(phi_deg):.1f}°", fontsize=12)
-        axes[0].set_xlabel("t₂ (s)")
-        axes[0].set_ylabel("t₁ (s)")
-        plt.colorbar(im0, ax=axes[0], shrink=0.8)
+        axes[0].set_title(f"Experimental C₂ (φ={float(phi_deg):.1f}°)", fontsize=12)
+        axes[0].set_xlabel("t₁ (s)", fontsize=10)
+        axes[0].set_ylabel("t₂ (s)", fontsize=10)
+        cbar0 = plt.colorbar(im0, ax=axes[0], label="C₂(t₁,t₂)")
+        cbar0.ax.tick_params(labelsize=8)
 
         # Panel 2: Fit
         vmin_f, vmax_f = _resolve_color_limits(fit_i)
         im1 = axes[1].imshow(
-            fit_i, extent=extent, aspect="auto", cmap="jet",
+            fit_i.T, extent=extent, aspect="equal", cmap="jet",
             vmin=vmin_f, vmax=vmax_f, origin="lower",
         )
-        axes[1].set_title("Fit", fontsize=12)
-        axes[1].set_xlabel("t₂ (s)")
-        plt.colorbar(im1, ax=axes[1], shrink=0.8)
+        axes[1].set_title(f"Fitted C₂ (φ={float(phi_deg):.1f}°)", fontsize=12)
+        axes[1].set_xlabel("t₁ (s)", fontsize=10)
+        axes[1].set_ylabel("t₂ (s)", fontsize=10)
+        cbar1 = plt.colorbar(im1, ax=axes[1], label="C₂(t₁,t₂)")
+        cbar1.ax.tick_params(labelsize=8)
 
         # Panel 3: Residuals
-        vmin_r, vmax_r = _resolve_color_limits(res_i)
+        residual_min = float(np.nanmin(res_i))
+        residual_max = float(np.nanmax(res_i))
+        if not np.isfinite(residual_min) or not np.isfinite(residual_max):
+            residual_min, residual_max = -0.1, 0.1
         im2 = axes[2].imshow(
-            res_i, extent=extent, aspect="auto", cmap="RdBu_r",
-            vmin=-max(abs(vmin_r), abs(vmax_r)),
-            vmax=max(abs(vmin_r), abs(vmax_r)),
-            origin="lower",
+            res_i.T, extent=extent, aspect="equal", cmap="jet",
+            vmin=residual_min, vmax=residual_max, origin="lower",
         )
-        axes[2].set_title("Residuals", fontsize=12)
-        axes[2].set_xlabel("t₂ (s)")
-        plt.colorbar(im2, ax=axes[2], shrink=0.8)
+        axes[2].set_title(f"Residuals (φ={float(phi_deg):.1f}°)", fontsize=12)
+        axes[2].set_xlabel("t₁ (s)", fontsize=10)
+        axes[2].set_ylabel("t₂ (s)", fontsize=10)
+        cbar2 = plt.colorbar(im2, ax=axes[2], label="ΔC₂")
+        cbar2.ax.tick_params(labelsize=8)
 
         plt.tight_layout()
         fig.savefig(
@@ -1219,9 +1274,10 @@ def generate_and_plot_fitted_simulations(
         t = np.asarray(t1_raw) if t1_raw is not None else np.arange(1, 101, dtype=float)
 
     n_t = len(t)
-    extent = [float(t[0]), float(t[-1]), float(t[-1]), float(t[0])]
+    # extent with .T: [left=t1_min, right=t1_max, bottom=t2_min, top=t2_max]
+    extent = [float(t[0]), float(t[-1]), float(t[0]), float(t[-1])]
 
-    # Extract fitted parameters
+    # Extract fitted parameters from NLSQResult (no dedicated contrast/offset attrs)
     params = getattr(result, "parameters", None)
     if params is None:
         params = getattr(result, "mean_params", None)
@@ -1229,15 +1285,37 @@ def generate_and_plot_fitted_simulations(
         logger.warning("No fitted parameters found in result — skipping")
         return
 
-    contrast = getattr(result, "contrast", 0.3)
-    offset_val = getattr(result, "offset", 1.0)
+    params_d = (
+        dict(zip(result.parameter_names, result.parameters, strict=True))
+        if hasattr(result, "parameter_names") and result.parameter_names
+        else {}
+    )
+    contrast = float(params_d.get("contrast", 0.3))
+    offset_val = float(params_d.get("offset", 1.0))
+    # Physics params: all fitted params except scaling
+    physics_names = [n for n in getattr(result, "parameter_names", []) if n not in ("contrast", "offset")]
+    physics_params = (
+        np.array([float(params_d[n]) for n in physics_names])
+        if physics_names
+        else np.asarray(params)
+    )
+
+    logger.info(
+        "Using fitted parameters: contrast=%.4f, offset=%.4f", contrast, offset_val
+    )
 
     # Generate and plot per angle
     c2_fitted_all: list[np.ndarray] = []
     for phi_deg in phi_angles:
         try:
-            c2_sim = np.asarray(model.compute_c2(phi=float(phi_deg)))
-            c2_scaled = offset_val + contrast * (c2_sim - 1.0)
+            c2_scaled = np.asarray(
+                model.compute_correlation(
+                    phi_angle=float(phi_deg),
+                    params=physics_params,
+                    contrast=contrast,
+                    offset=offset_val,
+                )
+            )
         except Exception:
             logger.warning("Forward model failed for phi=%.1f", phi_deg)
             c2_scaled = np.ones((n_t, n_t)) * offset_val
@@ -1245,15 +1323,38 @@ def generate_and_plot_fitted_simulations(
 
         fig, ax = plt.subplots(figsize=(8, 7))
         im = ax.imshow(
-            c2_scaled, extent=extent, aspect="auto", cmap="jet", origin="lower"
+            c2_scaled.T, extent=extent, aspect="equal", cmap="jet", origin="lower"
         )
-        ax.set_xlabel("t₂ (s)", fontsize=12)
-        ax.set_ylabel("t₁ (s)", fontsize=12)
-        ax.set_title(f"Fitted C₂ — φ = {float(phi_deg):.1f}°", fontsize=14)
-        plt.colorbar(im, ax=ax, shrink=0.9)
+        ax.set_xlabel("t₁ (s)", fontsize=11)
+        ax.set_ylabel("t₂ (s)", fontsize=11)
+        ax.set_title(
+            f"Fitted C₂(t₁, t₂) at φ={float(phi_deg):.1f}°",
+            fontsize=13,
+            fontweight="bold",
+        )
+
+        cbar = plt.colorbar(im, ax=ax, label="C₂", shrink=0.9)
+        cbar.ax.tick_params(labelsize=9)
+
+        mean_val = float(np.nanmean(c2_scaled))
+        max_val = float(np.nanmax(c2_scaled))
+        min_val = float(np.nanmin(c2_scaled))
+        stats_text = f"Mean: {mean_val:.4f}\nRange: [{min_val:.4f}, {max_val:.4f}]"
+        ax.text(
+            0.02, 0.98, stats_text,
+            transform=ax.transAxes, fontsize=9, verticalalignment="top",
+            bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
+        )
+        fit_text = f"Fitted Parameters\nContrast: {contrast:.3f}\nOffset: {offset_val:.3f}"
+        ax.text(
+            0.02, 0.02, fit_text,
+            transform=ax.transAxes, fontsize=8, verticalalignment="bottom",
+            bbox={"boxstyle": "round", "facecolor": "lightgreen", "alpha": 0.7},
+        )
+
         plt.tight_layout()
         fig.savefig(
-            sim_dir / f"fitted_c2_phi_{float(phi_deg):.1f}.png",
+            sim_dir / f"simulated_c2_fitted_phi_{float(phi_deg):.1f}deg.png",
             dpi=150,
             bbox_inches="tight",
         )

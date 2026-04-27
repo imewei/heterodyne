@@ -185,6 +185,7 @@ def apply_angle_filtering_for_plot(
         phi_cfg = getattr(config, "phi_filtering", {}) or {}
 
     if not phi_cfg or not phi_cfg.get("enabled", False):
+        logger.debug("Phi filtering not enabled for plot, using all %d angles", len(phi_angles))
         return all_indices, phi_angles, c2_exp
 
     target_ranges = phi_cfg.get("target_ranges", [])
@@ -194,17 +195,30 @@ def apply_angle_filtering_for_plot(
     # Normalize angles to [-180, 180]
     normalized = normalize_angle_to_symmetric_range(phi_angles)
 
+    # Default tolerance used when target_ranges entries are scalar angles
+    tol = float(phi_cfg.get("tolerance", 5.0))
+
     # Apply OR logic: angle selected if it falls within ANY target range
     selected_mask = np.zeros(len(normalized), dtype=bool)
     for rng in target_ranges:
         if isinstance(rng, (list, tuple)) and len(rng) == 2:
             lo = float(normalize_angle_to_symmetric_range(rng[0]))
             hi = float(normalize_angle_to_symmetric_range(rng[1]))
-            if lo <= hi:
-                selected_mask |= (normalized >= lo) & (normalized <= hi)
-            else:
-                # Wrap-around range (e.g. [170, -170])
-                selected_mask |= (normalized >= lo) | (normalized <= hi)
+        elif isinstance(rng, dict):
+            # Dict format: {min_angle: X, max_angle: Y} (from YAML config)
+            lo = float(normalize_angle_to_symmetric_range(rng.get("min_angle", -10.0)))
+            hi = float(normalize_angle_to_symmetric_range(rng.get("max_angle", 10.0)))
+        elif isinstance(rng, (int, float, np.floating, np.integer)):
+            # Single target angle: expand to [center-tol, center+tol]
+            center = float(normalize_angle_to_symmetric_range(float(rng)))
+            lo, hi = center - tol, center + tol
+        else:
+            continue
+        if lo <= hi:
+            selected_mask |= (normalized >= lo) & (normalized <= hi)
+        else:
+            # Wrap-around range (e.g. [170, -170])
+            selected_mask |= (normalized >= lo) | (normalized <= hi)
 
     if not np.any(selected_mask):
         logger.warning(
@@ -217,8 +231,11 @@ def apply_angle_filtering_for_plot(
     filtered_phi = phi_angles[selected_mask]
     filtered_c2 = c2_exp[selected_mask] if c2_exp.ndim == 3 else c2_exp
 
-    logger.debug(
-        "Angle filter for plot: selected %d/%d angles", len(indices), len(phi_angles)
+    logger.info(
+        "Angle filtering for plot: %d/%d angles selected: %s",
+        len(indices),
+        len(phi_angles),
+        filtered_phi.tolist(),
     )
     return indices, filtered_phi, filtered_c2
 

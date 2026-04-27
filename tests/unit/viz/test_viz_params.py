@@ -42,8 +42,9 @@ class TestVizParameterNames:
         """Check that ambiguous homodyne names don't appear as quoted param refs."""
         source = py_file.read_text()
         for param in AMBIGUOUS_PARAMS:
-            # Match "D0" or 'D0' — i.e. bare param name as a string literal
-            pattern = rf"""(['"]){re.escape(param)}\1"""
+            # Match "D0" or 'D0' as a bare param name string literal, but
+            # exclude matplotlib/dict key usage like "alpha": 0.8
+            pattern = rf"""(['"]){re.escape(param)}\1(?!\s*:)"""
             match = re.search(pattern, source)
             assert match is None, (
                 f"Homodyne param reference '{param}' found in {py_file.name}"
