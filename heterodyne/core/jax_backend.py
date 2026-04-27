@@ -339,10 +339,16 @@ def _compute_residuals_jit(
     contrast: float,
     offset: float,
 ) -> jnp.ndarray:
-    """JIT-compiled residuals computation (always receives weights)."""
+    """JIT-compiled residuals computation (always receives weights).
+
+    Diagonal elements (t1==t2) are zeroed per homodyne parity: the diagonal
+    is kept in the data for loading/plotting but excluded from fitting because
+    corrected diagonal values are interpolated estimates, not real physics.
+    """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     residuals = (c2_model - c2_data) * jnp.sqrt(weights)
-    return residuals.ravel()  # type: ignore[no-any-return]
+    non_diagonal = 1.0 - jnp.eye(c2_data.shape[0], dtype=c2_data.dtype)
+    return (residuals * non_diagonal).ravel()  # type: ignore[no-any-return]
 
 
 # Jacobian of residuals with respect to parameters (for NLSQ).

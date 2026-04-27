@@ -73,11 +73,11 @@ class HeterodyneModel:
         if "start_frame" in ap:
             start_frame = int(ap["start_frame"])
             end_frame = int(ap["end_frame"])
-            t_start = start_frame - 1
-            n_times = end_frame - t_start
+            n_times = end_frame - start_frame + 1
+            t_start = dt  # relative time within window: first usable frame at 1×dt
         else:
             n_times = int(temporal.get("time_length", 1000))
-            t_start = int(temporal.get("t_start", 0))
+            t_start = float(temporal.get("t_start", dt))
 
         ap_scat = ap.get("scattering", {})
         q = float(
@@ -166,6 +166,26 @@ class HeterodyneModel:
         if self._factors is None:
             raise ValueError("Physics factors not initialized")
         return self._factors.n_times
+
+    def sync_time_axis(self, t: np.ndarray) -> None:
+        """Trim model time axis to match post-exclusion data length.
+
+        The data pipeline may remove leading time points (e.g. t=0 singularity
+        exclusion), shrinking the data array.  This method trims the same
+        number of leading points from the model's own seconds-based time axis
+        (computed from start_frame and dt) so shapes align without discarding
+        the correct absolute-time values.
+        """
+        n_data = len(t)
+        if self._t is None:
+            raise ValueError("Model time axis not initialized; call from_config first")
+        n_model = len(self._t)
+        if n_data < n_model:
+            self._t = self._t[n_model - n_data:]
+        elif n_data > n_model:
+            # More data points than model — expand using the model's dt spacing
+            extra = jnp.arange(1, n_data - n_model + 1, dtype=jnp.float64) * self.dt
+            self._t = jnp.concatenate([self._t, self._t[-1:] + extra])
 
     def get_params(self) -> np.ndarray:
         """Get current full parameter array.
@@ -318,6 +338,7 @@ class HeterodyneModel:
         c2_data: np.ndarray | jnp.ndarray,
         phi_angle: float,
         weights: np.ndarray | jnp.ndarray | None = None,
+        angle_idx: int = 0,
     ) -> Any:
         """Create a residual function for optimization.
 
@@ -327,6 +348,7 @@ class HeterodyneModel:
             c2_data: Experimental correlation data
             phi_angle: Detector phi angle
             weights: Optional weights
+            angle_idx: Index into per-angle scaling for contrast/offset lookup.
 
         Returns:
             Callable that maps varying params -> residuals
@@ -339,6 +361,8 @@ class HeterodyneModel:
         q = self.q
         dt = self.dt
 
+        contrast_val, offset_val = self.scaling.get_for_angle(angle_idx)
+
         varying_idx_jax = jnp.array(self.param_manager.varying_indices)
         fixed_values_jax = jnp.array(self.param_manager.get_full_values())
 
@@ -348,7 +372,8 @@ class HeterodyneModel:
             full_params = fixed_values_jax.at[varying_idx_jax].set(varying_params)
 
             return compute_residuals(
-                full_params, t, q, dt, phi_angle, c2_jax, weights_jax
+                full_params, t, q, dt, phi_angle, c2_jax, weights_jax,
+                contrast_val, offset_val,
             )
 
         return residual_fn

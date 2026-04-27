@@ -130,11 +130,12 @@ analyzer_parameters:
     # CONSTRAINT: Must be > 0
     wavevector_q: 0.0054
 
-  # Shear cell / flow geometry (optional metadata)
+  # Shear cell / flow geometry (instrument metadata — not used by the physics model)
   geometry:
-    # Stator-rotor gap [Å]
+    # Stator-rotor gap [Å] — record-keeping only.
+    # The 14-parameter model encodes velocity directly via v0/beta/v_offset/phi0;
+    # gap geometry is not a fit parameter and is not read during optimization.
     # 200 microns = 2,000,000 Å; 100 microns = 1,000,000 Å
-    # Used for initial velocity estimates: v ≈ γ̇ × gap
     # CONSTRAINT: Must be > 0 when specified
     stator_rotor_gap: 2000000
 
@@ -777,6 +778,17 @@ optimization:
     # | Typical XPCS data        | "soft_l1"      |
     # | Few outliers/artifacts    | "huber"        |
     # | Severe contamination      | "cauchy"       |
+    #
+    # IMPORTANT — fallback behaviour:
+    #   The primary optimizer (NLSQAdapter / CurveFit) is JAX-traced and applies
+    #   the configured loss correctly.  If it fails and the NLSQWrapper fallback
+    #   is used, loss is silently reset to "linear" — the numpy residual wrapper
+    #   is not JAX-JIT-compatible and would raise TracerArrayConversionError.
+    #
+    # TUNING TIP — if soft_l1 / huber / cauchy fails to converge:
+    #   - Use looser tolerances: gtol: 1.0e-6  (default 1e-8 is very tight)
+    #   - Set explicit max_nfev: 3000          (default = 100 × n_params)
+    #   Both settings are now forwarded to the JAX optimizer.
     #
     loss: "soft_l1"
 

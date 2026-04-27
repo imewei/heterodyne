@@ -143,10 +143,10 @@ class TestHeterodyneModelProperties:
 
     @pytest.mark.unit
     def test_t_property(self, model: HeterodyneModel) -> None:
-        """t property returns time array."""
+        """t property returns time array. t[0] = dt (relative window: first frame at 1×dt)."""
         t = model.t
         assert len(t) == 50
-        assert t[0] == 0.0
+        assert t[0] == model.dt
 
     @pytest.mark.unit
     def test_n_times_property(self, model: HeterodyneModel) -> None:

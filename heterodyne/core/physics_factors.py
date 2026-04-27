@@ -7,8 +7,12 @@ from typing import TYPE_CHECKING
 
 import jax.numpy as jnp
 
+from heterodyne.utils.logging import get_logger
+
 if TYPE_CHECKING:
     pass
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -113,15 +117,22 @@ def create_physics_factors_from_config(config: dict) -> PhysicsFactors:
     if "start_frame" in ap:
         start_frame = int(ap["start_frame"])
         end_frame = int(ap["end_frame"])
-        t_start = start_frame - 1
-        n_times = end_frame - t_start
+        n_times = end_frame - start_frame + 1
+        t_start = dt  # relative time within window: first usable frame at 1×dt
     else:
         n_times = int(temporal.get("time_length", 1000))
-        t_start = int(temporal.get("t_start", 0))
+        t_start = float(temporal.get("t_start", dt))
 
     ap_scat = ap.get("scattering", {})
     q = float(ap_scat.get("wavevector_q", scattering.get("wavevector_q", 0.01)))
 
+    logger.debug(
+        "Physics factors: n_times=%d, dt=%.4e, q=%.4f, t_start=%.4e",
+        n_times,
+        dt,
+        q,
+        float(t_start),
+    )
     return create_physics_factors(
         n_times=n_times,
         dt=dt,
