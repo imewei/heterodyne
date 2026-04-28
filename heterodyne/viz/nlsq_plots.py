@@ -97,27 +97,46 @@ def plot_nlsq_fit(
         fig.suptitle("No data available")
         return fig
 
+    # Shared color scale for exp and fitted panels (hexp convention: clamp to
+    # [max(1.0, data_min), min(1.5, data_max)] over union of both arrays).
+    # This makes a poor fit visually obvious — both panels use the same scale.
+    if result.fitted_correlation is not None:
+        combined_vals = np.concatenate([c2_data.ravel(), result.fitted_correlation.ravel()])
+    else:
+        combined_vals = c2_data.ravel()
+    _finite = combined_vals[np.isfinite(combined_vals)]
+    _data_min = float(np.nanmin(_finite)) if _finite.size > 0 else 1.0
+    _data_max = float(np.nanmax(_finite)) if _finite.size > 0 else 1.5
+    vmin_shared = max(1.0, _data_min)
+    vmax_shared = min(1.5, _data_max)
+    if vmin_shared >= vmax_shared:
+        vmax_shared = vmin_shared + 0.5
+
     # Data plot — origin='lower' places t=0 at bottom-left; extent=[left,right,bottom,top]
     im0 = axes[0].imshow(
         c2_data,
         origin="lower",
         extent=[t[0], t[-1], t[0], t[-1]],
         aspect="auto",
-        cmap="viridis",
+        cmap="jet",
+        vmin=vmin_shared,
+        vmax=vmax_shared,
     )
     axes[0].set_title("Experimental Data")
     axes[0].set_xlabel("t₂")
     axes[0].set_ylabel("t₁")
     plt.colorbar(im0, ax=axes[0], label="c₂")
 
-    # Model plot
+    # Model plot — same color scale as experimental for direct comparison
     if result.fitted_correlation is not None:
         im1 = axes[1].imshow(
             result.fitted_correlation,
             origin="lower",
             extent=[t[0], t[-1], t[0], t[-1]],
             aspect="auto",
-            cmap="viridis",
+            cmap="jet",
+            vmin=vmin_shared,
+            vmax=vmax_shared,
         )
         axes[1].set_title("Fitted Model")
         axes[1].set_xlabel("t₂")
@@ -1165,11 +1184,20 @@ def generate_nlsq_plots(
 
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
+        # Shared color scale for experimental and fitted panels (hexp convention:
+        # clamp to [1.0, 1.5] using the union of both data ranges for direct comparison)
+        combined = np.concatenate([exp_i.ravel(), fit_i.ravel()])
+        _data_min = float(np.nanmin(combined[np.isfinite(combined)])) if np.isfinite(combined).any() else 1.0
+        _data_max = float(np.nanmax(combined[np.isfinite(combined)])) if np.isfinite(combined).any() else 1.5
+        vmin_shared = max(1.0, _data_min)
+        vmax_shared = min(1.5, _data_max)
+        if vmin_shared >= vmax_shared:
+            vmax_shared = vmin_shared + 0.5
+
         # Panel 1: Experimental
-        vmin_e, vmax_e = _resolve_color_limits(exp_i)
         im0 = axes[0].imshow(
             exp_i.T, extent=extent, aspect="equal", cmap="jet",
-            vmin=vmin_e, vmax=vmax_e, origin="lower",
+            vmin=vmin_shared, vmax=vmax_shared, origin="lower",
         )
         axes[0].set_title(f"Experimental C₂ (φ={float(phi_deg):.1f}°)", fontsize=12)
         axes[0].set_xlabel("t₁ (s)", fontsize=10)
@@ -1177,11 +1205,10 @@ def generate_nlsq_plots(
         cbar0 = plt.colorbar(im0, ax=axes[0], label="C₂(t₁,t₂)")
         cbar0.ax.tick_params(labelsize=8)
 
-        # Panel 2: Fit
-        vmin_f, vmax_f = _resolve_color_limits(fit_i)
+        # Panel 2: Fit — same scale as experimental for direct comparison
         im1 = axes[1].imshow(
             fit_i.T, extent=extent, aspect="equal", cmap="jet",
-            vmin=vmin_f, vmax=vmax_f, origin="lower",
+            vmin=vmin_shared, vmax=vmax_shared, origin="lower",
         )
         axes[1].set_title(f"Fitted C₂ (φ={float(phi_deg):.1f}°)", fontsize=12)
         axes[1].set_xlabel("t₁ (s)", fontsize=10)
@@ -1189,14 +1216,13 @@ def generate_nlsq_plots(
         cbar1 = plt.colorbar(im1, ax=axes[1], label="C₂(t₁,t₂)")
         cbar1.ax.tick_params(labelsize=8)
 
-        # Panel 3: Residuals
-        residual_min = float(np.nanmin(res_i))
-        residual_max = float(np.nanmax(res_i))
-        if not np.isfinite(residual_min) or not np.isfinite(residual_max):
-            residual_min, residual_max = -0.1, 0.1
+        # Panel 3: Residuals — symmetric RdBu_r scale (matching hexp/plot_fit_surface)
+        vmax_res = float(np.nanpercentile(np.abs(res_i), 99))
+        if not np.isfinite(vmax_res) or vmax_res == 0:
+            vmax_res = 0.01
         im2 = axes[2].imshow(
-            res_i.T, extent=extent, aspect="equal", cmap="jet",
-            vmin=residual_min, vmax=residual_max, origin="lower",
+            res_i.T, extent=extent, aspect="equal", cmap="RdBu_r",
+            vmin=-vmax_res, vmax=vmax_res, origin="lower",
         )
         axes[2].set_title(f"Residuals (φ={float(phi_deg):.1f}°)", fontsize=12)
         axes[2].set_xlabel("t₁ (s)", fontsize=10)
@@ -1290,8 +1316,15 @@ def generate_and_plot_fitted_simulations(
         if hasattr(result, "parameter_names") and result.parameter_names
         else {}
     )
-    contrast = float(params_d.get("contrast", 0.3))
-    offset_val = float(params_d.get("offset", 1.0))
+    # Contrast/offset live in result.metadata (set by the multi-angle NLSQ solver),
+    # not in parameter_names (which only contains the 14 physics params).
+    # Fall back to params_d in case a CMC result embeds them there, then to defaults.
+    metadata: dict[str, Any] = getattr(result, "metadata", None) or {}
+    _c_raw = params_d.get("contrast")
+    contrast = float(_c_raw if _c_raw is not None else metadata.get("contrast", 0.3))
+    _o_raw = params_d.get("offset")
+    offset_val = float(_o_raw if _o_raw is not None else metadata.get("offset", 1.0))
+
     # Physics params: all fitted params except scaling
     physics_names = [n for n in getattr(result, "parameter_names", []) if n not in ("contrast", "offset")]
     physics_params = (
@@ -1304,7 +1337,27 @@ def generate_and_plot_fitted_simulations(
         "Using fitted parameters: contrast=%.4f, offset=%.4f", contrast, offset_val
     )
 
-    # Generate and plot per angle
+    # Warn if the velocity creates aliased strip oscillations (phase > π per time step).
+    # When q·cos(φ)·v·dt > π the heterodyne strips are Nyquist-undersampled and invisible.
+    _dt_val = float(t[1] - t[0]) if len(t) > 1 else 1.0
+    _q_val = float(getattr(model, "q", 0.0))
+    _v0 = float(params_d.get("v0") or metadata.get("v0") or 0.0)
+    _beta = float(params_d.get("beta") or metadata.get("beta") or 0.0)
+    if _q_val > 0 and _v0 != 0 and len(phi_angles) > 0:
+        _t0 = float(t[0])
+        _v_t0 = abs(_v0) * (_t0 ** _beta) if _beta < 0 and _t0 > 0 else abs(_v0)
+        _max_phi_cos = float(np.max(np.abs(np.cos(np.deg2rad(phi_angles)))))
+        _phase_per_dt = _q_val * _max_phi_cos * _v_t0 * _dt_val
+        if _phase_per_dt > np.pi:
+            logger.warning(
+                "Heterodyne strip pattern is Nyquist-aliased: max phase/dt ≈ %.2f rad "
+                "(> π). With v(t₀)≈%.0f Å/s, q=%.4f Å⁻¹, dt=%.4f s, strips are "
+                "sub-pixel at the first time point and may be invisible in the plot. "
+                "Consider using a finer time grid (smaller dt) to resolve the strips.",
+                _phase_per_dt, _v_t0, _q_val, _dt_val,
+            )
+
+    # Phase 1: compute all fitted C2 matrices
     c2_fitted_all: list[np.ndarray] = []
     for phi_deg in phi_angles:
         try:
@@ -1321,9 +1374,22 @@ def generate_and_plot_fitted_simulations(
             c2_scaled = np.ones((n_t, n_t)) * offset_val
         c2_fitted_all.append(c2_scaled)
 
+    # Global color scale: use percentile-based limits over the actual data range so
+    # that small heterodyne strip oscillations get the full dynamic range of the
+    # colormap.  The hard [1.0, 1.5] hexp convention is appropriate for experimental
+    # data display but compresses the strip contrast in forward-model diagnostics.
+    _all_vals = np.concatenate([c.ravel() for c in c2_fitted_all])
+    vmin, vmax = _resolve_color_limits(_all_vals)
+    logger.debug(
+        "Fitted C2 percentile color scale [%.4f, %.4f]", vmin, vmax,
+    )
+
+    # Phase 2: plot with the global color scale
+    for phi_deg, c2_scaled in zip(phi_angles, c2_fitted_all, strict=True):
         fig, ax = plt.subplots(figsize=(8, 7))
         im = ax.imshow(
-            c2_scaled.T, extent=extent, aspect="equal", cmap="jet", origin="lower"
+            c2_scaled.T, extent=extent, aspect="equal", cmap="jet",
+            vmin=vmin, vmax=vmax, origin="lower",
         )
         ax.set_xlabel("t₁ (s)", fontsize=11)
         ax.set_ylabel("t₂ (s)", fontsize=11)
