@@ -75,7 +75,7 @@ def build_result_from_scipy(
         covariance=covariance,
         final_cost=cost,
         reduced_chi_squared=reduced_chi2,
-        n_iterations=getattr(opt_result, "njev", 0),
+        n_iterations=getattr(opt_result, "nit", 0),
         n_function_evals=getattr(opt_result, "nfev", 0),
         convergence_reason=_status_to_reason(getattr(opt_result, "status", -1)),
         residuals=residuals,
@@ -86,7 +86,7 @@ def build_result_from_scipy(
     logger.debug(
         "Built result: success=%s, n_iter=%d, n_fev=%d, chi2=%.4f, status=%d",
         bool(success),
-        getattr(opt_result, "njev", 0),
+        getattr(opt_result, "nit", 0),
         getattr(opt_result, "nfev", 0),
         reduced_chi2,
         getattr(opt_result, "status", -1),
