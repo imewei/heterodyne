@@ -106,31 +106,103 @@ def load_and_validate_data(config_manager: ConfigManager) -> XPCSData:
     return data
 
 
+def _apply_phi_filtering(
+    data_phi_angles: np.ndarray,
+    phi_cfg: dict[str, Any],
+) -> list[float] | None:
+    """Apply phi_filtering config to select angles from data.
+
+    Returns matched data angles as a list, or None if no match.
+    """
+    target_ranges = phi_cfg.get("target_ranges", [])
+    if not target_ranges:
+        return None
+
+    # Inline normalization to [-180, 180] to keep types unambiguous.
+    _arr = np.asarray(data_phi_angles, dtype=float)
+    normalized: np.ndarray = np.where((_arr % 360) > 180, (_arr % 360) - 360, _arr % 360)
+    tol = float(phi_cfg.get("tolerance", 5.0))
+    selected_mask = np.zeros(len(normalized), dtype=bool)
+
+    def _norm_scalar(a: float) -> float:
+        v = a % 360.0
+        return v - 360.0 if v > 180.0 else v
+
+    for rng in target_ranges:
+        if isinstance(rng, dict):
+            lo = _norm_scalar(float(rng.get("min_angle", -10.0)))
+            hi = _norm_scalar(float(rng.get("max_angle", 10.0)))
+        elif isinstance(rng, (list, tuple)) and len(rng) == 2:
+            lo = _norm_scalar(float(rng[0]))
+            hi = _norm_scalar(float(rng[1]))
+        elif isinstance(rng, (int, float)):
+            center = _norm_scalar(float(rng))
+            lo, hi = center - tol, center + tol
+        else:
+            continue
+
+        if lo <= hi:
+            selected_mask |= (normalized >= lo) & (normalized <= hi)
+        else:
+            # Wrap-around range (e.g. [170, -170])
+            selected_mask |= (normalized >= lo) | (normalized <= hi)
+
+    if not np.any(selected_mask):
+        return None
+
+    return [float(a) for a in data_phi_angles[selected_mask]]
+
+
 def resolve_phi_angles(
     args: argparse.Namespace,
     config_manager: ConfigManager,
+    data_phi_angles: np.ndarray | None = None,
 ) -> list[float]:
     """Determine phi angles from CLI args or configuration.
 
-    Priority: CLI --phi > config file > default [0.0].
+    Priority: CLI --phi > config scattering.phi_angles > phi_filtering > default [0.0].
 
     Args:
         args: Parsed CLI arguments (may have .phi attribute).
         config_manager: Configuration manager.
+        data_phi_angles: Actual phi angles present in the loaded data (for
+            phi_filtering). When provided, phi_filtering.target_ranges is applied
+            against these angles instead of falling back to [0.0].
 
     Returns:
         List of phi angles in degrees.
     """
-    phi_angles = getattr(args, "phi", None)
+    phi_angles: list[float] | None = getattr(args, "phi", None)
     if phi_angles is not None:
         logger.debug("Phi angles from CLI: %s", phi_angles)
     else:
         phi_angles = config_manager.phi_angles
         if phi_angles is not None:
-            logger.debug("Phi angles from config: %s", phi_angles)
+            logger.debug("Phi angles from config scattering.phi_angles: %s", phi_angles)
+        elif data_phi_angles is not None:
+            phi_cfg: dict[str, Any] = config_manager._config.get("phi_filtering", {})  # type: ignore[attr-defined]
+            if phi_cfg.get("enabled", False):
+                filtered = _apply_phi_filtering(np.asarray(data_phi_angles, dtype=float), phi_cfg)
+                if filtered is not None:
+                    phi_angles = filtered
+                    logger.debug("Phi angles from phi_filtering: %s", phi_angles)
+                else:
+                    fallback = phi_cfg.get("fallback_to_all_angles", True)
+                    if fallback:
+                        phi_angles = [float(a) for a in data_phi_angles]
+                        logger.debug(
+                            "phi_filtering matched nothing; falling back to all %d angles",
+                            len(phi_angles),
+                        )
+                    else:
+                        phi_angles = [0.0]
+                        logger.debug("phi_filtering matched nothing; defaulting to [0.0]")
+            else:
+                phi_angles = [0.0]
+                logger.debug("phi_filtering disabled; defaulting to [0.0]")
         else:
             phi_angles = [0.0]
-            logger.debug("Phi angles defaulting to: %s", phi_angles)
+            logger.debug("No phi angle source; defaulting to [0.0]")
 
     logger.debug("Raw phi angles before normalization: %s", phi_angles)
     # Normalize angles to [-180, 180] range.

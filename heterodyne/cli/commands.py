@@ -40,8 +40,14 @@ def _load_data(
     Returns:
         Tuple of (XPCSData, phi_angles).
     """
+    import numpy as _np_load
     data = load_and_validate_data(config_manager)
-    phi_angles = resolve_phi_angles(args, config_manager)
+    data_phi_angles = (
+        _np_load.asarray(data.phi_angles, dtype=float)
+        if getattr(data, "phi_angles", None) is not None
+        else None
+    )
+    phi_angles = resolve_phi_angles(args, config_manager, data_phi_angles=data_phi_angles)
     logger.debug(
         "Loaded data: c2 shape=%s, %d phi angles",
         data.c2.shape,

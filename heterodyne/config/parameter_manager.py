@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -65,6 +66,14 @@ class ParameterManager:
     # B007: cached full-values array (invalidated by update_values)
     _full_values_cache: np.ndarray | None = field(default=None, init=False, repr=False)
 
+    # Frozen snapshot of config-specified initial values — set once at construction,
+    # never mutated by update_values/set_params. get_initial_values() reads from here
+    # so that each phi-angle optimization starts from config values regardless of
+    # what a previous fit stored in space.values.
+    _initial_values_snapshot: dict[str, float] = field(
+        default_factory=dict, init=False, repr=False
+    )
+
     def __post_init__(self) -> None:
         """Build default bounds lookup from the registry, then merge config overrides."""
         from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
@@ -82,6 +91,10 @@ class ParameterManager:
         # Sync _default_bounds with config-overridden bounds from ParameterSpace
         # so that both sources agree (homodyne parity with _load_config_bounds).
         self._sync_bounds_from_space()
+
+        # Freeze initial values so get_initial_values() always returns the config
+        # starting point regardless of model.set_params() calls between phi-angle fits.
+        self._initial_values_snapshot = copy.deepcopy(self.space.values)
 
     def _sync_bounds_from_space(self) -> None:
         """Merge config-overridden bounds from ParameterSpace into _default_bounds.
@@ -158,10 +171,18 @@ class ParameterManager:
     def get_initial_values(self) -> np.ndarray:
         """Get initial parameter values for optimization.
 
+        Returns the config-specified starting point, not the current fitted state.
+        Reads from the frozen snapshot set at construction time so that repeated
+        calls (e.g. across multi-angle loops) always return the same config values
+        even after model.set_params() has mutated space.values.
+
         Returns:
             Array of shape (n_varying,) with initial values for varying params.
         """
-        full = self.space.get_initial_array()
+        full = np.array([
+            self._initial_values_snapshot.get(name, self.space.values.get(name, 0.0))
+            for name in ALL_PARAM_NAMES
+        ])
         return full[self.varying_indices]
 
     def get_full_values(self) -> np.ndarray:
