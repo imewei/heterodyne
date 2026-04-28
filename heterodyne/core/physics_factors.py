@@ -118,7 +118,7 @@ def create_physics_factors_from_config(config: dict) -> PhysicsFactors:
         start_frame = int(ap["start_frame"])
         end_frame = int(ap["end_frame"])
         n_times = end_frame - start_frame + 1
-        t_start = dt  # relative time within window: first usable frame at 1×dt
+        t_start = start_frame * dt  # absolute time: frame i ends at i×dt
     else:
         n_times = int(temporal.get("time_length", 1000))
         t_start = float(temporal.get("t_start", dt))
