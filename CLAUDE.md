@@ -262,3 +262,6 @@ with log_phase("Optimization"):
 | `heterodyne-validate` | `ht-validate` | System validation |
 | `hexp` | — | Plot experimental data (skip optimization) |
 | `hsim` | — | Plot simulated C2 heatmaps from config |
+
+## Pre-commit
+`check-added-large-files` excludes `graphify-out/` — knowledge-graph JSON files are intentionally large.
