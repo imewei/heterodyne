@@ -20,6 +20,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from heterodyne.utils.logging import get_logger
 
@@ -53,10 +54,12 @@ def compute_diagonal_mask(n_times: int, width: int = 1) -> jnp.ndarray:
 
 
 def apply_diagonal_correction(
-    c2: jnp.ndarray,
+    c2: Any,
     width: int = 1,
-    method: str = "interpolate",
-) -> jnp.ndarray:
+    method: str = "basic",
+    backend: str | None = None,
+    **config: Any,
+) -> Any:
     """Correct diagonal artifacts in a two-time correlation matrix.
 
     The diagonal of c2 (and optionally near-diagonal elements within
@@ -68,15 +71,18 @@ def apply_diagonal_correction(
             corrects only the main diagonal.
         method: Correction strategy. One of:
 
-            - ``"interpolate"``: Replace diagonal elements with the mean
-              of their nearest off-diagonal neighbors. At boundaries,
-              available neighbors are reused (clamped indexing).
+            - ``"basic"``: Homodyne-compatible adjacent side-band averaging.
+              ``"interpolate"`` is accepted as a legacy heterodyne alias.
+            - ``"interpolation"``: Homodyne-compatible linear interpolation
+              from neighboring off-diagonal values.
             - ``"mask"``: Set diagonal elements to NaN for exclusion in
               downstream fitting.
             - ``"mirror"``: Replace using matrix symmetry, c2[i,j] from
               c2[j,i]. For the exact diagonal (i=j) this is a no-op;
               useful when ``width > 1`` to fill near-diagonal from the
               transposed side.
+            - ``"statistical"``: Replace diagonal-band elements using a
+              row-wise off-diagonal statistic.
 
     Returns:
         Corrected correlation matrix, shape (N, N).
@@ -85,7 +91,14 @@ def apply_diagonal_correction(
         ValueError: If ``method`` is not one of the supported strategies,
             or if ``width < 1``.
     """
-    valid_methods = ("interpolate", "mask", "mirror")
+    valid_methods = (
+        "basic",
+        "interpolate",
+        "interpolation",
+        "mask",
+        "mirror",
+        "statistical",
+    )
     if method not in valid_methods:
         msg = f"method must be one of {valid_methods}, got {method!r}"
         raise ValueError(msg)
@@ -93,7 +106,18 @@ def apply_diagonal_correction(
         msg = f"width must be >= 1, got {width}"
         raise ValueError(msg)
 
-    if method == "interpolate":
+    resolved_backend = _resolve_backend(c2) if backend in (None, "auto") else backend
+    if resolved_backend == "numpy":
+        return _apply_standard_correction_numpy(np.asarray(c2), width, method, config)
+
+    if method in ("basic", "interpolate"):
+        return _apply_interpolation(c2, width)
+    if method in ("interpolation", "statistical"):
+        logger.warning(
+            "JAX backend only supports 'basic' diagonal correction, got %r. "
+            "Using 'basic' method.",
+            method,
+        )
         return _apply_interpolation(c2, width)
     if method == "mask":
         return _apply_nan_mask(c2, width)
@@ -104,9 +128,10 @@ def apply_diagonal_correction(
 def _apply_interpolation(c2: jnp.ndarray, width: int) -> jnp.ndarray:
     """Replace diagonal band with interpolated values from neighbors.
 
-    For width=1, each diagonal element c2[i,i] is replaced with the mean
-    of its 4 nearest off-diagonal neighbors: (i-1,i), (i+1,i), (i,i-1),
-    (i,i+1). Boundary elements use clamped indices.
+    For width=1, the first upper and lower off-diagonal bands are averaged
+    into a side band, and each diagonal element is replaced with the adjacent
+    side-band average. Boundary elements use the single available side-band
+    value.
 
     For width>1, each masked element (i,j) with |i-j| < width is replaced
     with the average of the two nearest elements along the perpendicular
@@ -115,45 +140,20 @@ def _apply_interpolation(c2: jnp.ndarray, width: int) -> jnp.ndarray:
     n = c2.shape[0]
 
     if width == 1:
-        # Fast path: only the main diagonal.
-        # Use the 4 nearest off-diagonal neighbors.  At boundaries
-        # (i=0 or i=n-1) the clamped index duplicates one neighbor;
-        # count each unique neighbor exactly once via averaging with
-        # the actual number of distinct neighbors.
-        i_idx = jnp.arange(n)
-        i_prev = jnp.maximum(i_idx - 1, 0)
-        i_next = jnp.minimum(i_idx + 1, n - 1)
+        if n <= 1:
+            return c2
 
-        # Sum of 4 neighbor positions (some may alias at boundaries)
-        neighbor_sum = (
-            c2[i_prev, i_idx]
-            + c2[i_next, i_idx]
-            + c2[i_idx, i_prev]
-            + c2[i_idx, i_next]
-        )
-        # Count distinct neighbors per diagonal element (i,i):
-        #   row neighbors: (i_prev, i) and (i_next, i)
-        #   col neighbors: (i, i_prev) and (i, i_next)
-        # On the diagonal, row and col clamping conditions are symmetric:
-        # i_prev clamps at i=0 for both (i-1,i) and (i,i-1), so the
-        # distinctness test is the same for each pair.  Result:
-        # interior=4, corners (i=0,n-1)=2, edges=3.
-        n_distinct = (
-            (i_prev != i_idx).astype(jnp.float64)  # (i_prev, i) distinct?
-            + (i_next != i_idx).astype(jnp.float64)  # (i_next, i) distinct?
-            + (i_prev != i_idx).astype(
-                jnp.float64
-            )  # (i, i_prev) — same test by symmetry
-            + (i_next != i_idx).astype(
-                jnp.float64
-            )  # (i, i_next) — same test by symmetry
-        )
-        # Floor to 1 to avoid division by zero (n=1 edge case)
-        neighbor_avg = neighbor_sum / jnp.maximum(n_distinct, 1.0)
-
-        diag_mask = jnp.eye(n, dtype=jnp.bool_)
-        replacement = jnp.diag(neighbor_avg)
-        return jnp.where(diag_mask, replacement, c2)
+        # Homodyne-compatible fast path: average the two first off-diagonal
+        # side bands, then average adjacent side-band values onto the diagonal.
+        idx_upper = jnp.arange(n - 1)
+        idx_lower = jnp.arange(1, n)
+        side_band = 0.5 * (c2[idx_upper, idx_lower] + c2[idx_lower, idx_upper])
+        diag_val = jnp.zeros(n, dtype=c2.dtype)
+        diag_val = diag_val.at[:-1].add(side_band)
+        diag_val = diag_val.at[1:].add(side_band)
+        norm = jnp.ones(n, dtype=c2.dtype)
+        norm = norm.at[1:-1].set(2)
+        return c2.at[jnp.diag_indices(n)].set(diag_val / norm)
 
     # General case: width > 1.
     # Use broadcasting instead of meshgrid to avoid allocating two N×N
@@ -173,6 +173,131 @@ def _apply_interpolation(c2: jnp.ndarray, width: int) -> jnp.ndarray:
 
     interpolated = (c2[i_above, idx[None, :]] + c2[i_below, idx[None, :]]) / 2.0
     return jnp.where(mask, interpolated, c2)
+
+
+def _apply_standard_correction_numpy(
+    c2: np.ndarray, width: int, method: str, config: dict[str, Any] | None = None
+) -> np.ndarray:
+    """NumPy implementation for non-statistical methods."""
+    config = config or {}
+    if method in ("basic", "interpolate"):
+        return _apply_basic_correction_numpy(c2, width)
+    if method == "interpolation":
+        return _apply_linear_interpolation_correction_numpy(c2, config)
+    if method == "statistical":
+        return _apply_homodyne_statistical_correction_numpy(c2, config)
+
+    idx_i, idx_j = np.meshgrid(
+        np.arange(c2.shape[0]), np.arange(c2.shape[0]), indexing="ij"
+    )
+    mask = np.abs(idx_i - idx_j) < width
+    if method == "mask":
+        result = c2.copy().astype(np.float64)
+        result[mask] = np.nan
+        return result
+
+    return np.where(mask, c2.T, c2)
+
+
+def _apply_basic_correction_numpy(c2: np.ndarray, width: int) -> np.ndarray:
+    """Homodyne basic diagonal correction for NumPy arrays."""
+    result = c2.copy()
+    n = result.shape[0]
+    if n <= 1:
+        return result
+
+    idx_upper = np.arange(n - 1)
+    idx_lower = np.arange(1, n)
+    side_band = 0.5 * (result[idx_upper, idx_lower] + result[idx_lower, idx_upper])
+    diag_val = np.zeros(n, dtype=result.dtype)
+    diag_val[:-1] += side_band
+    diag_val[1:] += side_band
+    norm = np.ones(n, dtype=result.dtype)
+    norm[1:-1] = 2.0
+    np.fill_diagonal(result, diag_val / norm)
+
+    if width > 1:
+        idx_i, idx_j = np.meshgrid(np.arange(n), np.arange(n), indexing="ij")
+        mask = (np.abs(idx_i - idx_j) < width) & (idx_i != idx_j)
+        diff = idx_i - idx_j
+        shift = width - np.abs(diff)
+        i_above = np.clip(idx_i - shift, 0, n - 1)
+        i_below = np.clip(idx_i + shift, 0, n - 1)
+        interpolated = (result[i_above, idx_j] + result[i_below, idx_j]) / 2.0
+        result = np.where(mask, interpolated, result)
+
+    return result
+
+
+def _apply_homodyne_statistical_correction_numpy(
+    c2: np.ndarray, config: dict[str, Any]
+) -> np.ndarray:
+    """Homodyne statistical diagonal correction for NumPy arrays."""
+    result = c2.copy()
+    n = c2.shape[0]
+    window_size = int(config.get("window_size", 3))
+    estimator = str(config.get("estimator", "median"))
+    trim_fraction = float(config.get("trim_fraction", 0.2))
+
+    for i in range(n):
+        neighbors: list[float] = []
+        for offset in range(1, min(window_size + 1, n)):
+            if i - offset >= 0:
+                neighbors.append(float(c2[i - offset, i]))
+                neighbors.append(float(c2[i, i - offset]))
+            if i + offset < n:
+                neighbors.append(float(c2[i + offset, i]))
+                neighbors.append(float(c2[i, i + offset]))
+
+        if not neighbors:
+            continue
+
+        neighbors_arr = np.array(neighbors, dtype=np.float64)
+        if estimator == "median":
+            result[i, i] = np.nanmedian(neighbors_arr)
+        elif estimator == "mean":
+            result[i, i] = np.nanmean(neighbors_arr)
+        elif estimator == "trimmed_mean":
+            finite_neighbors = neighbors_arr[np.isfinite(neighbors_arr)]
+            if finite_neighbors.size == 0:
+                result[i, i] = np.nan
+            else:
+                try:
+                    from scipy import stats
+
+                    result[i, i] = stats.trim_mean(finite_neighbors, trim_fraction)
+                except ImportError:
+                    result[i, i] = np.nanmedian(neighbors_arr)
+        else:
+            logger.warning("Unknown estimator %r, using median", estimator)
+            result[i, i] = np.nanmedian(neighbors_arr)
+
+    return result
+
+
+def _apply_linear_interpolation_correction_numpy(
+    c2: np.ndarray, config: dict[str, Any]
+) -> np.ndarray:
+    """Homodyne interpolation diagonal correction for NumPy arrays."""
+    result = c2.copy()
+    n = c2.shape[0]
+    interp_method = str(config.get("interpolation_method", "linear"))
+
+    for i in range(n):
+        if 0 < i < n - 1:
+            y_points = [c2[i - 1, i], c2[i + 1, i]]
+            if interp_method == "cubic":
+                raise NotImplementedError(
+                    "Cubic diagonal correction is not yet implemented. "
+                    "Use method='linear'."
+                )
+            result[i, i] = np.nanmean(y_points)
+        elif i == 0 and n > 1:
+            result[i, i] = c2[0, 1]
+        elif i == n - 1 and n > 1:
+            result[i, i] = c2[n - 2, n - 1]
+
+    return result
 
 
 def _apply_nan_mask(c2: jnp.ndarray, width: int) -> jnp.ndarray:
@@ -561,7 +686,9 @@ def _get_batch_standard_fn(width: int, method: str) -> Any:
 def apply_diagonal_correction_batch(
     c2_batch: Any,
     width: int = 1,
-    method: str = "interpolate",
+    method: str = "basic",
+    backend: str | None = None,
+    **config: Any,
 ) -> Any:
     """Apply diagonal correction to a batch of correlation matrices.
 
@@ -584,25 +711,42 @@ def apply_diagonal_correction_batch(
         msg = f"c2_batch must be 2-D or 3-D, got {ndim}-D"
         raise ValueError(msg)
 
-    valid_methods = ("interpolate", "mask", "mirror", "statistical")
+    valid_methods = (
+        "basic",
+        "interpolate",
+        "interpolation",
+        "mask",
+        "mirror",
+        "statistical",
+    )
     if method not in valid_methods:
         msg = f"method must be one of {valid_methods}, got {method!r}"
         raise ValueError(msg)
 
     # Resolve backend once for the entire batch
-    backend = _resolve_backend(c2_batch)
+    resolved_backend = (
+        _resolve_backend(c2_batch) if backend in (None, "auto") else backend
+    )
 
     # Single matrix — delegate directly
     if ndim == 2:
-        if method == "statistical":
-            return _apply_statistical_correction(c2_batch, width, backend=backend)
-        return apply_diagonal_correction(c2_batch, width, method)
+        return apply_diagonal_correction(
+            c2_batch,
+            width=width,
+            method=method,
+            backend=resolved_backend,
+            **config,
+        )
 
     # Batch dimension present
-    if backend == "jax":
-        if method == "statistical":
-            return _get_batch_statistical_fn(width)(c2_batch)
-
+    if resolved_backend == "jax":
+        if method not in ("basic", "interpolate"):
+            logger.warning(
+                "JAX backend only supports 'basic' diagonal correction, got %r. "
+                "Using 'basic' method.",
+                method,
+            )
+            method = "basic"
         return _get_batch_standard_fn(width, method)(c2_batch)
 
     # NumPy path: loop over batch dimension
@@ -610,16 +754,19 @@ def apply_diagonal_correction_batch(
 
     results = np.empty_like(c2_batch)
     for k in range(c2_batch.shape[0]):
-        if method == "statistical":
-            results[k] = _apply_statistical_correction_numpy(c2_batch[k], width)
-        else:
-            results[k] = apply_diagonal_correction(c2_batch[k], width, method)
+        results[k] = apply_diagonal_correction(
+            c2_batch[k],
+            width=width,
+            method=method,
+            backend="numpy",
+            **config,
+        )
     return results
 
 
 def get_diagonal_correction_methods() -> list[str]:
     """Return the list of supported diagonal correction methods."""
-    return ["interpolate", "mask", "mirror", "statistical"]
+    return ["basic", "statistical", "interpolation"]
 
 
 def get_available_backends() -> list[str]:

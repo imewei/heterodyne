@@ -209,13 +209,18 @@ def build_result_from_nlsq(
         if fun_raw is not None:
             residuals = np.asarray(fun_raw, dtype=np.float64)
 
-        # Merge dict info into metadata
+        # Merge dict info into metadata.
+        # Include nfev/nit/njev so that nlsq CurveFitResult (OptimizeResult
+        # subclass, which is a dict) exposes iteration counts correctly.
         for key in (
             "streaming_diagnostics",
             "success",
             "message",
             "best_loss",
             "final_epoch",
+            "nfev",
+            "nit",
+            "njev",
         ):
             val = nlsq_result.get(key)
             if val is not None:

@@ -18,21 +18,149 @@ from heterodyne.io.nlsq_writers import (
     save_nlsq_npz_file,
 )
 from heterodyne.optimization.cmc import CMCConfig, fit_cmc_jax
-from heterodyne.optimization.nlsq import NLSQConfig, fit_nlsq_jax
+from heterodyne.optimization.nlsq import NLSQConfig, fit_nlsq_multi_phi
+from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_phase
 
 if TYPE_CHECKING:
     from heterodyne.config.manager import ConfigManager
     from heterodyne.core.heterodyne_model import HeterodyneModel
     from heterodyne.optimization.cmc.results import CMCResult
-    from heterodyne.optimization.nlsq.results import NLSQResult
 
 logger = get_logger(__name__)
 
 
 def _closest_phi_index(data_phi_angles: np.ndarray, target: float) -> int:
     """Return the index of the data phi angle closest to *target* (degrees)."""
-    return int(np.argmin(np.abs(data_phi_angles - target)))
+    normalized_data = (
+        (np.asarray(data_phi_angles, dtype=float) + 180.0) % 360.0
+    ) - 180.0
+    normalized_target = ((float(target) + 180.0) % 360.0) - 180.0
+    return int(np.argmin(np.abs(normalized_data - normalized_target)))
+
+
+def _select_c2_for_phi_angles(
+    c2_data: np.ndarray,
+    phi_angles: list[float],
+    data_phi_angles: np.ndarray | None = None,
+) -> np.ndarray:
+    """Return a C2 stack aligned with selected phi angles."""
+    if c2_data.ndim != 3:
+        return c2_data
+
+    slices: list[np.ndarray] = []
+    for i, phi in enumerate(phi_angles):
+        if data_phi_angles is not None and len(data_phi_angles) == c2_data.shape[0]:
+            idx = _closest_phi_index(data_phi_angles, phi)
+            logger.info(
+                "Selected data slice %d (phi=%.2f°) for fitting phi=%.2f°",
+                idx,
+                float(data_phi_angles[idx]),
+                phi,
+            )
+            slices.append(c2_data[idx])
+        else:
+            slices.append(c2_data[i])
+
+    return np.stack(slices, axis=0)
+
+
+def _exclude_first_time_point_for_nlsq(
+    model: HeterodyneModel,
+    c2_data: np.ndarray,
+) -> np.ndarray:
+    """Drop the leading time point before NLSQ and sync the model axis."""
+    if c2_data.ndim == 3:
+        if c2_data.shape[-2] <= 1 or c2_data.shape[-1] <= 1:
+            return c2_data
+        trimmed = c2_data[:, 1:, 1:]
+    elif c2_data.ndim == 2:
+        if c2_data.shape[-2] <= 1 or c2_data.shape[-1] <= 1:
+            return c2_data
+        trimmed = c2_data[1:, 1:]
+    else:
+        return c2_data
+
+    sync_time_axis = getattr(model, "sync_time_axis", None)
+    if callable(sync_time_axis):
+        sync_time_axis(np.arange(trimmed.shape[-1], dtype=float))
+
+    logger.info(
+        "Excluded first time point for NLSQ analysis: C2 shape %s -> %s",
+        c2_data.shape,
+        trimmed.shape,
+    )
+    return trimmed
+
+
+def _combine_nlsq_results(results: list[NLSQResult]) -> NLSQResult:
+    """Build a single aggregate result for disk output."""
+    if not results:
+        raise ValueError("Cannot combine empty NLSQ result list")
+
+    first = results[0]
+
+    def _stack_optional(attr: str) -> np.ndarray | None:
+        values = [getattr(result, attr) for result in results]
+        if any(value is None for value in values):
+            return None
+        return np.stack([np.asarray(value) for value in values], axis=0)
+
+    residual_values = [result.residuals for result in results]
+    residuals = (
+        np.concatenate([np.asarray(value).ravel() for value in residual_values])
+        if all(value is not None for value in residual_values)
+        else None
+    )
+    costs = [
+        float(result.final_cost) for result in results if result.final_cost is not None
+    ]
+    final_cost = (
+        float(0.5 * np.sum(residuals**2))
+        if residuals is not None
+        else (float(np.sum(costs)) if costs else None)
+    )
+    chi2_values = [
+        float(result.reduced_chi_squared)
+        for result in results
+        if result.reduced_chi_squared is not None
+    ]
+
+    metadata = {
+        "aggregate": True,
+        "n_angles": len(results),
+        "phi_angles": [result.metadata.get("phi_angle") for result in results],
+        "per_angle": [
+            {
+                "phi_angle": result.metadata.get("phi_angle"),
+                "success": result.success,
+                "message": result.message,
+                "final_cost": result.final_cost,
+                "reduced_chi_squared": result.reduced_chi_squared,
+            }
+            for result in results
+        ],
+    }
+
+    return NLSQResult(
+        parameters=np.asarray(first.parameters),
+        parameter_names=list(first.parameter_names),
+        success=all(result.success for result in results),
+        message="multi-angle NLSQ complete",
+        uncertainties=first.uncertainties,
+        covariance=first.covariance,
+        final_cost=final_cost,
+        reduced_chi_squared=float(np.mean(chi2_values)) if chi2_values else None,
+        n_iterations=max((result.n_iterations for result in results), default=0),
+        n_function_evals=sum(result.n_function_evals for result in results),
+        convergence_reason=first.convergence_reason,
+        residuals=residuals,
+        jacobian=None,
+        fitted_correlation=_stack_optional("fitted_correlation"),
+        wall_time_seconds=first.metadata.get("wall_time_total")
+        or first.wall_time_seconds,
+        metadata=metadata,
+    )
 
 
 def run_nlsq(
@@ -70,41 +198,26 @@ def run_nlsq(
     nlsq_config = NLSQConfig.from_dict(config_manager.nlsq_config)
     nlsq_config.verbose = getattr(args, "verbose", 1)
 
-    results: list[NLSQResult] = []
+    c2_fit = _select_c2_for_phi_angles(c2_data, phi_angles, data_phi_angles)
+    c2_fit = _exclude_first_time_point_for_nlsq(model, c2_fit)
 
-    for i, phi in enumerate(phi_angles):
-        logger.info("Fitting phi=%s° (%d/%d)", phi, i + 1, len(phi_angles))
+    with log_phase("nlsq_multi_phi", logger=logger, track_memory=True) as phase:
+        results = fit_nlsq_multi_phi(
+            model=model,
+            c2_data=c2_fit,
+            phi_angles=phi_angles,
+            config=nlsq_config,
+        )
 
-        if c2_data.ndim == 3:
-            if data_phi_angles is not None and len(data_phi_angles) == c2_data.shape[0]:
-                idx = _closest_phi_index(data_phi_angles, phi)
-                logger.info(
-                    "Selected data slice %d (phi=%.2f°) for fitting phi=%.2f°",
-                    idx, float(data_phi_angles[idx]), phi,
-                )
-                c2_phi = c2_data[idx]
-            else:
-                c2_phi = c2_data[i]
-        else:
-            c2_phi = c2_data
+    logger.info(
+        "NLSQ multi-angle optimization completed in %.2fs for %d phi angles",
+        phase.duration,
+        len(phi_angles),
+    )
 
-        with log_phase(f"nlsq_phi_{i}", logger=logger, track_memory=True) as phase:
-            result = fit_nlsq_jax(
-                model=model,
-                c2_data=c2_phi,
-                phi_angle=phi,
-                config=nlsq_config,
-            )
-
+    for i, (phi, result) in enumerate(zip(phi_angles, results, strict=True)):
         result.metadata["phi_angle"] = phi
         _warn_nlsq_bound_saturation(result)
-        results.append(result)
-
-        logger.info(
-            "NLSQ phi=%s° completed in %.2fs",
-            phi,
-            phase.duration,
-        )
 
         if summary and result.reduced_chi_squared is not None:
             summary.record_metric(
@@ -112,15 +225,22 @@ def run_nlsq(
             )
 
         summary_lines = format_nlsq_summary(result)
-        logger.info("NLSQ Results for phi=%s°\n%s\n%s", phi, "=" * 50, summary_lines)
+        logger.info(
+            "NLSQ Results for phi=%s° (%d/%d)\n%s\n%s",
+            phi,
+            i + 1,
+            len(results),
+            "=" * 50,
+            summary_lines,
+        )
 
-        prefix = f"nlsq_phi{int(phi)}" if len(phi_angles) > 1 else "nlsq"
-        saved_json = save_nlsq_json_files(result, output_dir, prefix=prefix)
-        for label, path in saved_json.items():
-            logger.info("Saved NLSQ %s: %s", label, path)
-        npz_path = output_dir / f"{prefix}_data.npz"
-        save_nlsq_npz_file(result, npz_path)
-        logger.info("Saved NLSQ data: %s", npz_path)
+    aggregate = _combine_nlsq_results(results)
+    saved_json = save_nlsq_json_files(aggregate, output_dir, prefix="nlsq")
+    for label, path in saved_json.items():
+        logger.info("Saved NLSQ %s: %s", label, path)
+    npz_path = output_dir / "nlsq_data.npz"
+    save_nlsq_npz_file(aggregate, npz_path)
+    logger.info("Saved NLSQ data: %s", npz_path)
 
     logger.info("NLSQ analysis complete")
     return results
@@ -175,7 +295,9 @@ def run_cmc(
                 idx = _closest_phi_index(data_phi_angles, phi)
                 logger.info(
                     "Selected data slice %d (phi=%.2f°) for CMC phi=%.2f°",
-                    idx, float(data_phi_angles[idx]), phi,
+                    idx,
+                    float(data_phi_angles[idx]),
+                    phi,
                 )
                 c2_phi = c2_data[idx]
             else:
@@ -218,7 +340,12 @@ def run_cmc(
                 f"cmc_n_samples_phi{int(phi)}", float(cmc_config.num_samples)
             )
 
-        logger.info("\n%s\nCMC Results for phi=%s°\n%s", "=" * 50, phi, format_mcmc_summary(result))
+        logger.info(
+            "\n%s\nCMC Results for phi=%s°\n%s",
+            "=" * 50,
+            phi,
+            format_mcmc_summary(result),
+        )
 
         prefix = f"cmc_phi{int(phi)}" if len(phi_angles) > 1 else "cmc"
         save_mcmc_results(result, output_dir, prefix=prefix)
@@ -245,11 +372,15 @@ def resolve_nlsq_warmstart(
     if warmstart_path is None:
         # Try default location
         default_path = output_dir / "nlsq_data.npz"
-        logger.debug("No warmstart path specified; checking default location %s", default_path)
+        logger.debug(
+            "No warmstart path specified; checking default location %s", default_path
+        )
         if default_path.exists():
             warmstart_path = default_path
         else:
-            logger.debug("No NLSQ warm-start available; CMC will use config initial values")
+            logger.debug(
+                "No NLSQ warm-start available; CMC will use config initial values"
+            )
             return None
 
     try:
@@ -374,6 +505,7 @@ def _warn_nlsq_bound_saturation(result: NLSQResult) -> None:
         return
     try:
         from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
+
         registry: Any = DEFAULT_REGISTRY
     except ImportError:
         registry = None
@@ -389,7 +521,9 @@ def _warn_nlsq_bound_saturation(result: NLSQResult) -> None:
                     info = registry[name]
                     if abs(val - info.min_bound) < 1e-10 * max(abs(info.min_bound), 1):
                         hint = " [AT LOWER BOUND]"
-                    elif abs(val - info.max_bound) < 1e-10 * max(abs(info.max_bound), 1):
+                    elif abs(val - info.max_bound) < 1e-10 * max(
+                        abs(info.max_bound), 1
+                    ):
                         hint = " [AT UPPER BOUND]"
                     else:
                         hint = " [DEGENERATE JACOBIAN — check clipping]"
@@ -398,7 +532,9 @@ def _warn_nlsq_bound_saturation(result: NLSQResult) -> None:
             logger.warning(
                 "NLSQ bound saturation: %s = %.4g ± 0%s — "
                 "posterior will be unreliable; CMC chains may freeze",
-                name, val, hint,
+                name,
+                val,
+                hint,
             )
             saturated.append(name)
 
@@ -407,7 +543,8 @@ def _warn_nlsq_bound_saturation(result: NLSQResult) -> None:
             "%d parameter(s) saturated at bounds or degenerate: %s. "
             "Consider tightening bounds, adjusting initial values, or fixing "
             "these parameters before running CMC.",
-            len(saturated), saturated,
+            len(saturated),
+            saturated,
         )
 
 

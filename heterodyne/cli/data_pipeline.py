@@ -24,7 +24,6 @@ logger = get_logger(__name__)
 COMMON_XPCS_ANGLES: list[int] = [0, 30, 45, 60, 90, 120, 135, 150, 180]
 
 
-
 def load_and_validate_data(config_manager: ConfigManager) -> XPCSData:
     """Load and validate XPCS experimental data.
 
@@ -66,6 +65,8 @@ def load_and_validate_data(config_manager: ConfigManager) -> XPCSData:
         config_manager.data_file_path,
         use_cache=True,
         frame_range=frame_range,
+        select_q=config_manager.wavevector_q,
+        q_tolerance=0.1 * abs(config_manager.wavevector_q),
         cache_dir=config_manager.cache_file_path,
         cache_template=cache_template,
         template_vars=template_vars,
@@ -82,11 +83,10 @@ def load_and_validate_data(config_manager: ConfigManager) -> XPCSData:
         logger.warning("Data validation warning: %s", warn)
 
     # Mandatory diagonal correction: APS two-time XPCS data has inflated
-    # diagonal elements (detector shot-noise artifact).  Interpolate from
-    # nearest off-diagonal neighbors to bring the diagonal into the
-    # physically correct range.  This matches homodyne's mandatory
-    # correction in load_experimental_data().
-    corrected_c2 = _apply_diagonal_correction(data.c2, width=1, method="interpolate")
+    # diagonal elements (detector shot-noise artifact).  Replace with the
+    # homodyne-compatible adjacent side-band average to bring the diagonal
+    # into the physically correct range.
+    corrected_c2 = _apply_diagonal_correction(data.c2, width=1, method="basic")
     data = XPCSData(
         c2=corrected_c2,
         t1=data.t1,
@@ -120,7 +120,9 @@ def _apply_phi_filtering(
 
     # Inline normalization to [-180, 180] to keep types unambiguous.
     _arr = np.asarray(data_phi_angles, dtype=float)
-    normalized: np.ndarray = np.where((_arr % 360) > 180, (_arr % 360) - 360, _arr % 360)
+    normalized: np.ndarray = np.where(
+        (_arr % 360) > 180, (_arr % 360) - 360, _arr % 360
+    )
     tol = float(phi_cfg.get("tolerance", 5.0))
     selected_mask = np.zeros(len(normalized), dtype=bool)
 
@@ -182,7 +184,9 @@ def resolve_phi_angles(
         elif data_phi_angles is not None:
             phi_cfg: dict[str, Any] = config_manager._config.get("phi_filtering", {})  # type: ignore[attr-defined]
             if phi_cfg.get("enabled", False):
-                filtered = _apply_phi_filtering(np.asarray(data_phi_angles, dtype=float), phi_cfg)
+                filtered = _apply_phi_filtering(
+                    np.asarray(data_phi_angles, dtype=float), phi_cfg
+                )
                 if filtered is not None:
                     phi_angles = filtered
                     logger.debug("Phi angles from phi_filtering: %s", phi_angles)
@@ -196,7 +200,9 @@ def resolve_phi_angles(
                         )
                     else:
                         phi_angles = [0.0]
-                        logger.debug("phi_filtering matched nothing; defaulting to [0.0]")
+                        logger.debug(
+                            "phi_filtering matched nothing; defaulting to [0.0]"
+                        )
             else:
                 phi_angles = [0.0]
                 logger.debug("phi_filtering disabled; defaulting to [0.0]")

@@ -347,8 +347,10 @@ def _compute_residuals_jit(
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     residuals = (c2_model - c2_data) * jnp.sqrt(weights)
-    non_diagonal = 1.0 - jnp.eye(c2_data.shape[0], dtype=c2_data.dtype)
-    return (residuals * non_diagonal).ravel()  # type: ignore[no-any-return]
+    n_time = c2_data.shape[0]
+    non_diagonal = ~jnp.eye(n_time, dtype=bool)
+    rows, cols = jnp.nonzero(non_diagonal, size=n_time * (n_time - 1))
+    return residuals[rows, cols]  # type: ignore[no-any-return]
 
 
 # Jacobian of residuals with respect to parameters (for NLSQ).
@@ -482,7 +484,7 @@ def compute_multi_angle_residuals(
         offsets: Per-angle offsets, shape (n_phi,)
 
     Returns:
-        Stacked flattened residuals, shape (n_phi × N × N,)
+        Stacked flattened residuals, shape (n_phi × N × (N-1),)
     """
 
     def single_angle_residual(
@@ -493,7 +495,11 @@ def compute_multi_angle_residuals(
         o: jnp.ndarray,
     ) -> jnp.ndarray:
         c2_model = compute_c2_heterodyne(params, t, q, dt, phi, c, o)
-        return ((c2_model - c2_exp) * jnp.sqrt(w)).ravel()  # type: ignore[no-any-return]
+        residuals = (c2_model - c2_exp) * jnp.sqrt(w)
+        n_time = c2_exp.shape[0]
+        non_diagonal = ~jnp.eye(n_time, dtype=bool)
+        rows, cols = jnp.nonzero(non_diagonal, size=n_time * (n_time - 1))
+        return residuals[rows, cols]  # type: ignore[no-any-return]
 
     compute_all = jax.vmap(single_angle_residual, in_axes=(0, 0, 0, 0, 0))
     residuals_batch = compute_all(

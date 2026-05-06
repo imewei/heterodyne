@@ -90,7 +90,7 @@ def validate_convergence(
     # Check BFMI
     bfmi_passed = True
     if result.bfmi is not None:
-        min_bfmi_actual = min(result.bfmi)
+        min_bfmi_actual = float(np.min(result.bfmi))
         if min_bfmi_actual < min_bfmi:
             bfmi_passed = False
             messages.append(f"Low BFMI: {min_bfmi_actual:.3f} < {min_bfmi}")

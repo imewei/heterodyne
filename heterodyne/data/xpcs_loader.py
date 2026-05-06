@@ -263,7 +263,7 @@ def _reconstruct_2d(m: np.ndarray) -> np.ndarray:
 def _apply_diagonal_correction(
     c2: np.ndarray,
     width: int = 1,
-    method: str = "interpolate",
+    method: str = "basic",
 ) -> np.ndarray:
     """Apply diagonal artifact correction to a two-time correlation matrix.
 
@@ -280,7 +280,11 @@ def _apply_diagonal_correction(
         c2: Two-time correlation matrix, shape (N, N) or (n_q, N, N).
         width: Half-width of the diagonal band to correct.  ``width=1``
             corrects only the main diagonal.
-        method: One of ``"interpolate"``, ``"mask"``, ``"mirror"``.
+        method: One of ``"basic"``, ``"interpolate"``, ``"interpolation"``,
+            ``"mask"``, or ``"mirror"``. ``"basic"`` uses homodyne's
+            adjacent side-band average, ``"interpolate"`` is kept as a
+            heterodyne alias for ``"basic"``, and ``"interpolation"`` uses
+            homodyne's linear interpolation method.
 
     Returns:
         Corrected array of the same shape as ``c2``, as a NumPy array.
@@ -289,7 +293,7 @@ def _apply_diagonal_correction(
         ValueError: If ``method`` is not one of the supported strategies,
             ``width < 1``, or ``c2`` is not 2-D or 3-D.
     """
-    valid_methods = ("interpolate", "mask", "mirror")
+    valid_methods = ("basic", "interpolate", "interpolation", "mask", "mirror")
     if method not in valid_methods:
         raise ValueError(f"method must be one of {valid_methods}, got {method!r}")
     if width < 1:
@@ -308,24 +312,28 @@ def _apply_diagonal_correction(
 def _diag_correct_2d(m: np.ndarray, width: int, method: str) -> np.ndarray:
     """Apply diagonal correction to a single (N, N) matrix.
 
-    The ``"interpolate"`` method uses side-band averaging matching homodyne's
-    ``_correct_diagonal`` algorithm: each diagonal element is replaced by the
-    average of its two nearest off-diagonal neighbors ``c2[i-1, i]`` and
-    ``c2[i, i+1]`` (one neighbor at the edges).
+    The ``"basic"``/``"interpolate"`` methods use side-band averaging
+    matching homodyne's unified diagonal correction: average the two first
+    off-diagonal bands, then average adjacent side-band values onto the
+    diagonal. The ``"interpolation"`` method matches homodyne's linear
+    interpolation correction.
     """
     n = m.shape[0]
 
-    if method == "interpolate":
+    if method in ("basic", "interpolate"):
+        if n <= 1:
+            return m.copy()
+
         # Side-band interpolation (homodyne parity)
-        # Extract the first off-diagonal: c2[i, i+1] for i = 0..n-2
+        # Extract both first off-diagonals and average them for asymmetry parity.
         idx_upper = np.arange(n - 1)
         idx_lower = np.arange(1, n)
-        side_band = m[idx_upper, idx_lower]
+        side_band = 0.5 * (m[idx_upper, idx_lower] + m[idx_lower, idx_upper])
 
         # Build corrected diagonal: average of left and right neighbors
         diag_val = np.zeros(n, dtype=m.dtype)
-        diag_val[:-1] += side_band   # contribution from c2[i, i+1]
-        diag_val[1:] += side_band    # contribution from c2[i-1, i]
+        diag_val[:-1] += side_band  # contribution from c2[i, i+1]
+        diag_val[1:] += side_band  # contribution from c2[i-1, i]
 
         # Normalization: interior points have 2 neighbors, edges have 1
         norm = np.ones(n, dtype=m.dtype)
@@ -345,6 +353,17 @@ def _diag_correct_2d(m: np.ndarray, width: int, method: str) -> np.ndarray:
             interpolated = (result[i_above, idx_j] + result[i_below, idx_j]) / 2.0
             result = np.where(mask, interpolated, result)
 
+        return result
+
+    if method == "interpolation":
+        result = m.copy()
+        for i in range(n):
+            if 0 < i < n - 1:
+                result[i, i] = np.nanmean([m[i - 1, i], m[i + 1, i]])
+            elif i == 0 and n > 1:
+                result[i, i] = m[0, 1]
+            elif i == n - 1 and n > 1:
+                result[i, i] = m[n - 2, n - 1]
         return result
 
     if method == "mask":
@@ -744,14 +763,20 @@ class XPCSDataLoader:
         if use_cache and self.format in ("hdf5", "mat"):
             # Cache handles frame_range internally (slices before caching)
             data = self._load_with_cache(
-                c2_key, time_key, q_key, phi_key,
+                c2_key,
+                time_key,
+                q_key,
+                phi_key,
                 frame_range=frame_range,
+                select_q=select_q,
+                q_tolerance=q_tolerance,
                 cache_dir=cache_dir,
                 cache_template=cache_template,
                 template_vars=template_vars,
                 compress=cache_compression,
             )
             frame_range = None  # Already applied inside cache path
+            select_q = None  # Already applied before cache write/read
         elif self.format == "hdf5":
             data = self._load_hdf5(c2_key, time_key, q_key, phi_key)
         elif self.format == "npz":
@@ -795,19 +820,30 @@ class XPCSDataLoader:
             New XPCSData with sliced arrays.
 
         Raises:
-            ValueError: If ``start`` < 1, ``end`` > n_frames, or
-                ``start`` > ``end``.
+            ValueError: If the normalized frame range is empty.
         """
         start, end = frame_range
         n_frames = data.n_times
 
-        start_0 = start - 1  # convert to 0-based
-        if start_0 < 0:
-            raise ValueError(f"frame_range start must be >= 1 (1-based), got {start}")
+        if start < 1:
+            logger.warning("frame_range start %d < 1, clamping to 1", start)
+            start = 1
+        if end < 0:
+            end = n_frames
         if end > n_frames:
-            raise ValueError(f"frame_range end {end} exceeds n_frames {n_frames}")
+            logger.warning(
+                "frame_range end %d exceeds n_frames %d, clamping to %d",
+                end,
+                n_frames,
+                n_frames,
+            )
+            end = n_frames
+
+        start_0 = start - 1  # convert to 0-based
         if start > end:
             raise ValueError(f"frame_range start {start} must be <= end {end}")
+        if start_0 >= n_frames:
+            raise ValueError(f"frame_range start {start} exceeds n_frames {n_frames}")
 
         logger.info(
             "Frame slicing: frames %d–%d (0-based %d:%d), %d → %d frames",
@@ -926,6 +962,8 @@ class XPCSDataLoader:
         q_key: str | None,
         phi_key: str | None,
         frame_range: tuple[int, int] | None = None,
+        select_q: float | None = None,
+        q_tolerance: float | None = None,
         cache_dir: Path | None = None,
         cache_template: str | None = None,
         template_vars: dict[str, str] | None = None,
@@ -950,6 +988,9 @@ class XPCSDataLoader:
             phi_key: Optional key for phi angles.
             frame_range: Optional ``(start, end)`` with 1-based inclusive
                 indexing.  Included in the cache key and applied before caching.
+            select_q: Optional q target applied before caching so q-specific
+                cache files store the selected subset, matching homodyne.
+            q_tolerance: Maximum absolute deviation from ``select_q``.
             cache_dir: Directory for cache files (None = collocate with source).
             cache_template: Filename template with ``${key}`` placeholders.
             template_vars: Substitution values for the template.
@@ -986,6 +1027,11 @@ class XPCSDataLoader:
         # Apply frame slicing before caching so the cache stores the slice
         if frame_range is not None:
             data = self._apply_frame_slicing(data, frame_range)
+
+        # Apply q selection before caching so q-specific caches store the
+        # selected payload, matching homodyne's selective-q cache behavior.
+        if select_q is not None and data.q_values is not None:
+            data = self._apply_q_selection(data, select_q, q_tolerance)
 
         # Write cache; failure is non-fatal
         try:

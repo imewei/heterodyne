@@ -82,6 +82,84 @@ class TestComputeDiagonalMask:
 class TestDiagonalCorrectionBasic:
     """Basic correctness tests for apply_diagonal_correction."""
 
+    def test_basic_alias_matches_homodyne_side_band_average(self) -> None:
+        """The homodyne basic method averages both first off-diagonal bands."""
+        c2 = jnp.array(
+            [
+                [99.0, 2.0, 0.0, 0.0],
+                [10.0, 99.0, 4.0, 0.0],
+                [0.0, 20.0, 99.0, 6.0],
+                [0.0, 0.0, 30.0, 99.0],
+            ],
+            dtype=jnp.float64,
+        )
+
+        result = np.asarray(apply_diagonal_correction(c2, method="basic"))
+
+        side_band = np.array([(2.0 + 10.0) / 2, (4.0 + 20.0) / 2, (6.0 + 30.0) / 2])
+        expected_diag = np.array(
+            [
+                side_band[0],
+                (side_band[0] + side_band[1]) / 2,
+                (side_band[1] + side_band[2]) / 2,
+                side_band[2],
+            ]
+        )
+        np.testing.assert_allclose(np.diag(result), expected_diag)
+
+    def test_interpolate_alias_matches_basic_for_backward_compatibility(self) -> None:
+        """Heterodyne's legacy 'interpolate' spelling remains a basic alias."""
+        c2 = jnp.array(_make_c2(6))
+        basic = apply_diagonal_correction(c2, method="basic")
+        interpolate = apply_diagonal_correction(c2, method="interpolate")
+
+        np.testing.assert_allclose(np.asarray(interpolate), np.asarray(basic))
+
+    def test_interpolation_matches_homodyne_linear_interpolation(self) -> None:
+        """Homodyne 'interpolation' is distinct from basic side-band averaging."""
+        c2 = np.array(
+            [
+                [99.0, 2.0, 0.0, 0.0],
+                [10.0, 99.0, 4.0, 0.0],
+                [0.0, 20.0, 99.0, 6.0],
+                [0.0, 0.0, 30.0, 99.0],
+            ]
+        )
+
+        result = apply_diagonal_correction(c2, method="interpolation")
+
+        expected_diag = np.array([2.0, (2.0 + 20.0) / 2, (4.0 + 30.0) / 2, 6.0])
+        np.testing.assert_allclose(np.diag(result), expected_diag)
+
+    def test_statistical_matches_homodyne_windowed_median(self) -> None:
+        """Statistical correction honors homodyne window_size and estimator config."""
+        c2 = np.array(
+            [
+                [99.0, 2.0, 0.0, 0.0],
+                [10.0, 99.0, 4.0, 0.0],
+                [0.0, 20.0, 99.0, 6.0],
+                [0.0, 0.0, 30.0, 99.0],
+            ]
+        )
+
+        result = apply_diagonal_correction(
+            c2,
+            method="statistical",
+            window_size=1,
+            estimator="median",
+            backend="numpy",
+        )
+
+        expected_diag = np.array(
+            [
+                np.median([10.0, 2.0]),
+                np.median([2.0, 10.0, 20.0, 4.0]),
+                np.median([4.0, 20.0, 30.0, 6.0]),
+                np.median([6.0, 30.0]),
+            ]
+        )
+        np.testing.assert_allclose(np.diag(result), expected_diag)
+
     @pytest.mark.parametrize("method", ["interpolate", "mask", "mirror"])
     def test_correction_returns_same_shape(self, method: str) -> None:
         """Corrected matrix has the same shape as input."""
@@ -204,6 +282,32 @@ class TestBatchCorrection:
         assert result.shape == (k, n, n)
         assert isinstance(result, np.ndarray)
 
+    def test_batch_accepts_homodyne_backend_and_config_kwargs(self) -> None:
+        """Batch API accepts homodyne backend/config keyword arguments."""
+        c2_batch = np.stack(
+            [
+                np.array(
+                    [
+                        [99.0, 2.0, 0.0, 0.0],
+                        [10.0, 99.0, 4.0, 0.0],
+                        [0.0, 20.0, 99.0, 6.0],
+                        [0.0, 0.0, 30.0, 99.0],
+                    ]
+                )
+            ]
+        )
+
+        result = apply_diagonal_correction_batch(
+            c2_batch,
+            method="statistical",
+            backend="numpy",
+            window_size=1,
+            estimator="median",
+        )
+
+        expected_diag = np.array([6.0, 7.0, 13.0, 18.0])
+        np.testing.assert_allclose(np.diag(result[0]), expected_diag)
+
 
 # ---------------------------------------------------------------------------
 # estimate_diagonal_excess
@@ -290,10 +394,9 @@ class TestComputeWeightsExcludingDiagonal:
 
 
 def test_get_diagonal_correction_methods() -> None:
-    """All expected correction method strings are reported."""
+    """Reported correction method strings match homodyne exactly."""
     methods = get_diagonal_correction_methods()
-    for expected in ("interpolate", "mask", "mirror", "statistical"):
-        assert expected in methods
+    assert methods == ["basic", "statistical", "interpolation"]
 
 
 def test_get_available_backends() -> None:

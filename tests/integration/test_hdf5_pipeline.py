@@ -281,6 +281,42 @@ class TestDataLoading:
         np.testing.assert_array_equal(data1.c2, data2.c2)
         np.testing.assert_array_equal(data1.t1, data2.t1)
 
+    def test_cache_stores_selected_q_subset(self, tmp_path: Path) -> None:
+        """Q-specific caches store the selected q subset like homodyne."""
+        n_q, n_t = 3, 5
+        c2 = np.stack(
+            [np.full((n_t, n_t), fill_value=i + 1.0) for i in range(n_q)],
+            axis=0,
+        )
+        for i in range(n_q):
+            np.fill_diagonal(c2[i], i + 2.0)
+        t = np.arange(n_t, dtype=np.float64)
+        q_values = np.array([0.004, 0.005, 0.006])
+
+        h5_path = tmp_path / "multi_q_cache.h5"
+        _write_hdf5_exchange(h5_path, c2, t, q_values=q_values)
+
+        data = load_xpcs_data(
+            h5_path,
+            use_cache=True,
+            select_q=0.005,
+            q_tolerance=None,
+            cache_dir=tmp_path,
+            cache_template="selected_q.npz",
+            template_vars={},
+        )
+
+        cache_file = tmp_path / "selected_q.npz"
+        assert cache_file.exists()
+        assert data.q == pytest.approx(0.005)
+        assert data.q_values is None
+        assert data.c2.shape == (n_t, n_t)
+
+        with np.load(cache_file, allow_pickle=False) as cached:
+            assert cached["c2"].shape == (n_t, n_t)
+            assert float(cached["q"]) == pytest.approx(0.005)
+            assert "q_values" not in cached
+
 
 # ---------------------------------------------------------------------------
 # TestCheckpointIO

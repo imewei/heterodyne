@@ -185,10 +185,40 @@ def fit_nlsq_multi_phi(
         )
 
     # ------------------------------------------------------------------
-    # Determine whether to use joint Fourier fit
+    # Determine whether to use homodyne-style joint multi-angle fitting.
     # ------------------------------------------------------------------
+    use_constant = False
     use_joint = False
     if config is not None and len(phi_angles) > 1:
+        if getattr(config, "enable_cmaes", False) and HAS_CMAES:
+            logger.info("CMA-ES enabled, delegating to joint multi-angle CMA-ES")
+            return _fit_joint_cmaes_multi_phi(
+                model=model,
+                c2_data=c2_data,
+                phi_angles=phi_angles,
+                config=config,
+                weights=weights,
+            )
+
+        constant_threshold = max(
+            int(getattr(config, "constant_scaling_threshold", 3)), 1
+        )
+        use_constant = _use_constant_scaling_mode(config, len(phi_angles))
+        if use_constant:
+            logger.info(
+                "Constant averaged scaling selected: mode=%s, n_phi=%d, threshold=%d",
+                config.per_angle_mode,
+                len(phi_angles),
+                constant_threshold,
+            )
+            return _fit_joint_constant_multi_phi(
+                model=model,
+                c2_data=c2_data,
+                phi_angles=phi_angles,
+                config=config,
+                weights=weights,
+            )
+
         try:
             from heterodyne.optimization.nlsq.fourier_reparam import (
                 FourierReparamConfig,
@@ -202,9 +232,7 @@ def fit_nlsq_multi_phi(
             )
             phi_rad = np.deg2rad(phi_angles.astype(np.float64))
             fourier = FourierReparameterizer(phi_rad, fourier_config)
-            use_joint = fourier.use_fourier or (
-                config.per_angle_mode == "independent" and len(phi_angles) > 1
-            )
+            use_joint = True
         except ImportError:
             logger.warning(
                 "fourier_reparam not available, falling back to sequential fits"
@@ -250,6 +278,620 @@ def fit_nlsq_multi_phi(
         results.append(result)
 
     return results
+
+
+def _fit_joint_constant_multi_phi(
+    model: HeterodyneModel,
+    c2_data: np.ndarray,
+    phi_angles: np.ndarray,
+    config: NLSQConfig,
+    weights: np.ndarray | None,
+) -> list[NLSQResult]:
+    """Joint multi-angle fit with averaged contrast/offset scaling.
+
+    This is the heterodyne analogue of homodyne's auto-averaged
+    anti-degeneracy path: per-angle quantile estimates are computed first,
+    averaged to one contrast and one offset, and those two scaling parameters
+    are optimized jointly with the physical model parameters.
+    """
+    from heterodyne.config.parameter_registry import SCALING_PARAMS
+    from heterodyne.core.scaling_utils import compute_averaged_scaling
+
+    t_start = time.perf_counter()
+
+    param_manager = model.param_manager
+    varying_names = list(param_manager.varying_names)
+    n_physics_varying = param_manager.n_varying
+    n_phi = len(phi_angles)
+
+    physics_initial = np.asarray(param_manager.get_initial_values(), dtype=np.float64)
+    physics_lower, physics_upper = param_manager.get_bounds()
+    physics_initial = np.clip(physics_initial, physics_lower, physics_upper)
+
+    t = model.t
+    q = model.q
+    dt = model.dt
+
+    t1_mesh, t2_mesh = np.meshgrid(np.asarray(t), np.asarray(t), indexing="ij")
+    n_time_points = t1_mesh.size
+    c2_flat = []
+    t1_flat = []
+    t2_flat = []
+    phi_indices = []
+    for i in range(n_phi):
+        c2_flat.append(np.asarray(c2_data[i], dtype=np.float64).reshape(-1))
+        t1_flat.append(t1_mesh.reshape(-1))
+        t2_flat.append(t2_mesh.reshape(-1))
+        phi_indices.append(np.full(n_time_points, i, dtype=np.int32))
+
+    contrast_bounds = (
+        SCALING_PARAMS["contrast"].min_bound,
+        SCALING_PARAMS["contrast"].max_bound,
+    )
+    offset_bounds = (
+        SCALING_PARAMS["offset"].min_bound,
+        SCALING_PARAMS["offset"].max_bound,
+    )
+
+    logger.info("=" * 60)
+    logger.info("AUTO AVERAGED SCALING: Computing per-angle scaling from quantiles")
+    logger.info("=" * 60)
+    avg_contrast, avg_offset, contrast_per_angle, offset_per_angle = (
+        compute_averaged_scaling(
+            c2_data=np.concatenate(c2_flat),
+            t1=np.concatenate(t1_flat),
+            t2=np.concatenate(t2_flat),
+            phi_indices=np.concatenate(phi_indices),
+            n_phi=n_phi,
+            contrast_bounds=contrast_bounds,
+            offset_bounds=offset_bounds,
+            log=logger,
+        )
+    )
+
+    x0 = np.concatenate([physics_initial, [avg_contrast, avg_offset]])
+    lb = np.concatenate([physics_lower, [contrast_bounds[0], offset_bounds[0]]])
+    ub = np.concatenate([physics_upper, [contrast_bounds[1], offset_bounds[1]]])
+    joint_param_names = [*varying_names, "contrast", "offset"]
+
+    logger.info(
+        "Joint auto averaged fit: %d physical + 2 averaged scaling = %d total params, %d angles",
+        n_physics_varying,
+        len(x0),
+        n_phi,
+    )
+
+    c2_data_batch = jnp.asarray(c2_data, dtype=jnp.float64)
+    weights_batch = (
+        jnp.asarray(weights, dtype=jnp.float64)
+        if weights is not None
+        else jnp.ones_like(c2_data_batch)
+    )
+    if weights_batch.ndim == 2:
+        weights_batch = jnp.broadcast_to(weights_batch, c2_data_batch.shape)
+    phi_angles_jax = jnp.asarray(phi_angles, dtype=jnp.float64)
+    fixed_values_jax = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
+    varying_indices_jax = jnp.array(param_manager.varying_indices, dtype=jnp.int32)
+
+    def joint_residual_fn(x: np.ndarray) -> np.ndarray:
+        physics_varying = x[:n_physics_varying]
+        contrast = x[n_physics_varying]
+        offset = x[n_physics_varying + 1]
+
+        full_jax = fixed_values_jax.at[varying_indices_jax].set(
+            jnp.asarray(physics_varying, dtype=jnp.float64)
+        )
+        contrasts_jax = jnp.full((n_phi,), contrast, dtype=jnp.float64)
+        offsets_jax = jnp.full((n_phi,), offset, dtype=jnp.float64)
+        return np.asarray(
+            compute_multi_angle_residuals(
+                full_jax,
+                t,
+                q,
+                dt,
+                phi_angles_jax,
+                c2_data_batch,
+                weights_batch,
+                contrasts_jax,
+                offsets_jax,
+            )
+        )
+
+    joint_config = NLSQConfig(
+        method=config.method if config.method != "lm" else "trf",
+        ftol=config.ftol,
+        xtol=config.xtol,
+        gtol=config.gtol,
+        max_nfev=(config.max_nfev * n_phi if config.max_nfev is not None else None),
+        loss=config.loss,
+        use_nlsq_library=config.use_nlsq_library,
+        n_params=len(x0),
+    )
+
+    joint_result: NLSQResult | None = None
+    if HAS_ADAPTERS:
+        try:
+            joint_adapter = NLSQAdapter(parameter_names=joint_param_names)
+            joint_result = joint_adapter.fit(
+                residual_fn=joint_residual_fn,
+                initial_params=x0,
+                bounds=(lb, ub),
+                config=joint_config,
+            )
+            if not joint_result.success:
+                raise RuntimeError(
+                    f"Joint adapter returned success=False: {joint_result.message}"
+                )
+        except (ValueError, RuntimeError, TypeError) as adapter_exc:
+            logger.warning(
+                "Joint auto averaged NLSQAdapter failed, falling back to NLSQWrapper: %s",
+                adapter_exc,
+            )
+            joint_result = None
+
+    if joint_result is None and HAS_WRAPPER:
+        joint_wrapper = NLSQWrapper(parameter_names=joint_param_names)
+        joint_result = joint_wrapper.fit(
+            residual_fn=joint_residual_fn,
+            initial_params=x0,
+            bounds=(lb, ub),
+            config=joint_config,
+        )
+
+    if joint_result is None:
+        raise ImportError(
+            "No NLSQ backend available for joint auto averaged multi-angle fit."
+        )
+
+    fitted_all = np.asarray(joint_result.parameters, dtype=np.float64)
+    fitted_physics = fitted_all[:n_physics_varying]
+    fitted_contrast = float(fitted_all[n_physics_varying])
+    fitted_offset = float(fitted_all[n_physics_varying + 1])
+
+    full_fitted = param_manager.expand_varying_to_full(fitted_physics)
+    model.set_params(full_fitted)
+    if hasattr(model, "scaling"):
+        model.scaling.contrast[:] = fitted_contrast
+        model.scaling.offset[:] = fitted_offset
+
+    wall_time = time.perf_counter() - t_start
+
+    results: list[NLSQResult] = []
+    for i, phi in enumerate(phi_angles):
+        fitted_c2 = compute_c2_heterodyne(
+            jnp.asarray(full_fitted),
+            t,
+            q,
+            dt,
+            float(phi),
+            contrast=fitted_contrast,
+            offset=fitted_offset,
+        )
+        residuals = np.asarray(
+            compute_residuals(
+                jnp.asarray(full_fitted),
+                t,
+                q,
+                dt,
+                float(phi),
+                c2_data_batch[i],
+                weights_batch[i],
+                contrast=fitted_contrast,
+                offset=fitted_offset,
+            )
+        )
+
+        result = NLSQResult(
+            parameters=fitted_physics.copy(),
+            parameter_names=varying_names,
+            uncertainties=(
+                joint_result.uncertainties[:n_physics_varying].copy()
+                if joint_result.uncertainties is not None
+                else None
+            ),
+            covariance=(
+                joint_result.covariance[:n_physics_varying, :n_physics_varying].copy()
+                if joint_result.covariance is not None
+                else None
+            ),
+            residuals=residuals,
+            final_cost=joint_result.final_cost,
+            reduced_chi_squared=joint_result.reduced_chi_squared,
+            success=bool(joint_result.success),
+            message=str(joint_result.message),
+            n_iterations=joint_result.n_iterations,
+            n_function_evals=joint_result.n_function_evals,
+            convergence_reason=joint_result.convergence_reason,
+            fitted_correlation=np.asarray(fitted_c2),
+            wall_time_seconds=joint_result.wall_time_seconds,
+            metadata={
+                "phi_angle": float(phi),
+                "contrast": fitted_contrast,
+                "offset": fitted_offset,
+                "contrast_initial_quantile": float(contrast_per_angle[i]),
+                "offset_initial_quantile": float(offset_per_angle[i]),
+                "contrast_initial_average": avg_contrast,
+                "offset_initial_average": avg_offset,
+                "optimizer": "joint_auto_averaged",
+                "n_angles_joint": n_phi,
+                "wall_time_total": wall_time,
+            },
+        )
+        results.append(result)
+
+    logger.info(
+        "Joint auto averaged fit complete: success=%s, cost=%.6f, "
+        "n_evals=%d, wall_time=%.2fs, %d angles",
+        joint_result.success,
+        joint_result.final_cost or 0.0,
+        joint_result.n_function_evals or 0,
+        wall_time,
+        n_phi,
+    )
+
+    return results
+
+
+def _fit_joint_cmaes_multi_phi(
+    model: HeterodyneModel,
+    c2_data: np.ndarray,
+    phi_angles: np.ndarray,
+    config: NLSQConfig,
+    weights: np.ndarray | None,
+) -> list[NLSQResult]:
+    """Joint multi-angle CMA-ES with NLSQ warm-start and auto-skip.
+
+    This mirrors homodyne's CMA-ES procedure at the orchestration level:
+    first run the joint NLSQ path, optionally skip global search when the
+    warm-start is already good, otherwise run CMA-ES and keep the lower-cost
+    result.
+    """
+    from heterodyne.config.parameter_registry import SCALING_PARAMS
+    from heterodyne.optimization.nlsq.cmaes_wrapper import CMAESConfig
+
+    use_constant = _use_constant_scaling_mode(config, len(phi_angles))
+    fourier = (
+        None
+        if use_constant
+        else _build_fourier_reparameterizer(
+            phi_angles,
+            config,
+        )
+    )
+
+    logger.info("=" * 60)
+    logger.info("CMA-ES GLOBAL OPTIMIZATION")
+    logger.info("=" * 60)
+    logger.info("Analysis mode: %s", config.analysis_mode)
+    logger.info(
+        "Anti-degeneracy scaling mode: %s%s",
+        "constant averaged" if use_constant else "fourier/independent",
+        f" ({config.per_angle_mode})",
+    )
+
+    if use_constant:
+        warmstart_results = _fit_joint_constant_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=config,
+            weights=weights,
+        )
+    else:
+        warmstart_results = _fit_joint_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=config,
+            weights=weights,
+            fourier=fourier,
+        )
+
+    first = warmstart_results[0]
+    warmstart_cost = (
+        float(first.final_cost) if first.final_cost is not None else float("inf")
+    )
+    warmstart_reduced_chi2 = (
+        float(first.reduced_chi_squared)
+        if first.reduced_chi_squared is not None
+        else float("inf")
+    )
+
+    logger.info(
+        "[CMA-ES] NLSQ warm-start succeeded: cost=%.4e, reduced chi2=%.4f",
+        warmstart_cost,
+        warmstart_reduced_chi2,
+    )
+
+    auto_skip = bool(getattr(config, "cmaes_warmstart_auto_skip", True))
+    skip_threshold = float(getattr(config, "cmaes_warmstart_skip_threshold", 5.0))
+    if auto_skip and warmstart_reduced_chi2 < skip_threshold:
+        logger.info(
+            "[CMA-ES] Auto-skip: NLSQ warm-start reduced chi2=%.4f < threshold=%.1f. "
+            "Skipping CMA-ES global search.",
+            warmstart_reduced_chi2,
+            skip_threshold,
+        )
+        for result in warmstart_results:
+            result.metadata["optimizer"] = "joint_cmaes_warmstart_auto_skip"
+            result.metadata["cmaes_skipped"] = True
+            result.metadata["warmstart_reduced_chi2"] = warmstart_reduced_chi2
+        return warmstart_results
+
+    param_manager = model.param_manager
+    varying_names = list(param_manager.varying_names)
+    n_physics_varying = param_manager.n_varying
+    n_phi = len(phi_angles)
+
+    physics_lower, physics_upper = param_manager.get_bounds()
+    if use_constant:
+        contrast_bounds = (
+            SCALING_PARAMS["contrast"].min_bound,
+            SCALING_PARAMS["contrast"].max_bound,
+        )
+        offset_bounds = (
+            SCALING_PARAMS["offset"].min_bound,
+            SCALING_PARAMS["offset"].max_bound,
+        )
+        scaling_lower = np.array(
+            [contrast_bounds[0], offset_bounds[0]],
+            dtype=np.float64,
+        )
+        scaling_upper = np.array(
+            [contrast_bounds[1], offset_bounds[1]],
+            dtype=np.float64,
+        )
+        scaling_initial = np.array(
+            [
+                float(first.metadata.get("contrast", 0.3)),
+                float(first.metadata.get("offset", 1.0)),
+            ],
+            dtype=np.float64,
+        )
+        scaling_names = ["contrast", "offset"]
+    else:
+        assert fourier is not None
+        contrast_initial = np.array(
+            [
+                float(result.metadata.get("contrast", 0.3))
+                for result in warmstart_results
+            ],
+            dtype=np.float64,
+        )
+        offset_initial = np.array(
+            [float(result.metadata.get("offset", 1.0)) for result in warmstart_results],
+            dtype=np.float64,
+        )
+        scaling_initial = fourier.per_angle_to_fourier(
+            contrast_initial,
+            offset_initial,
+        )
+        scaling_lower, scaling_upper = fourier.get_bounds()
+        scaling_names = fourier.get_coefficient_labels()
+
+    bounds = (
+        np.concatenate([physics_lower, scaling_lower]),
+        np.concatenate([physics_upper, scaling_upper]),
+    )
+    initial_params = np.concatenate(
+        [np.asarray(first.parameters, dtype=np.float64), scaling_initial]
+    )
+    parameter_names = [*varying_names, *scaling_names]
+
+    c2_data_batch = jnp.asarray(c2_data, dtype=jnp.float64)
+    weights_batch = (
+        jnp.asarray(weights, dtype=jnp.float64)
+        if weights is not None
+        else jnp.ones_like(c2_data_batch)
+    )
+    if weights_batch.ndim == 2:
+        weights_batch = jnp.broadcast_to(weights_batch, c2_data_batch.shape)
+
+    t = model.t
+    q = model.q
+    dt = model.dt
+    phi_angles_jax = jnp.asarray(phi_angles, dtype=jnp.float64)
+    fixed_values_jax = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
+    varying_indices_jax = jnp.array(param_manager.varying_indices, dtype=jnp.int32)
+
+    def residual_fn(x: np.ndarray) -> np.ndarray:
+        physics_varying = x[:n_physics_varying]
+        full_jax = fixed_values_jax.at[varying_indices_jax].set(
+            jnp.asarray(physics_varying, dtype=jnp.float64)
+        )
+        scaling_params = x[n_physics_varying:]
+        if use_constant:
+            contrast = scaling_params[0]
+            offset = scaling_params[1]
+            contrasts_jax = jnp.full((n_phi,), contrast, dtype=jnp.float64)
+            offsets_jax = jnp.full((n_phi,), offset, dtype=jnp.float64)
+        else:
+            assert fourier is not None
+            contrast_arr, offset_arr = fourier.fourier_to_per_angle(scaling_params)
+            contrasts_jax = jnp.asarray(contrast_arr, dtype=jnp.float64)
+            offsets_jax = jnp.asarray(offset_arr, dtype=jnp.float64)
+        return np.asarray(
+            compute_multi_angle_residuals(
+                full_jax,
+                t,
+                q,
+                dt,
+                phi_angles_jax,
+                c2_data_batch,
+                weights_batch,
+                contrasts_jax,
+                offsets_jax,
+            )
+        )
+
+    def objective_fn(x: np.ndarray) -> float:
+        residuals = residual_fn(x)
+        return float(0.5 * np.sum(residuals**2))
+
+    logger.info("[CMA-ES] Phase 2: Running CMA-ES global optimization...")
+    n_time = int(c2_data_batch.shape[-1])
+    n_off_diagonal_data = int(n_phi * n_time * (n_time - 1))
+    cmaes_result = fit_with_cmaes(
+        objective_fn=objective_fn,
+        initial_params=initial_params,
+        bounds=bounds,
+        parameter_names=parameter_names,
+        config=CMAESConfig(
+            sigma0=config.cmaes_sigma0,
+            popsize=config.cmaes_population_size,
+            maxiter=config.cmaes_max_iterations,
+            tolx=config.cmaes_tolx,
+            tolfun=config.cmaes_tolfun,
+            diagonal_filtering=getattr(config, "cmaes_diagonal_filtering", "none"),
+        ),
+        residual_fn=residual_fn,
+        n_data=n_off_diagonal_data,
+        anti_degeneracy=getattr(config, "cmaes_anti_degeneracy", False),
+    )
+
+    cmaes_cost = (
+        float(cmaes_result.final_cost)
+        if cmaes_result.final_cost is not None
+        else float("inf")
+    )
+    if warmstart_cost <= cmaes_cost:
+        logger.info(
+            "[CMA-ES] NLSQ warm-start result is better: NLSQ cost=%.4e < CMA-ES cost=%.4e. "
+            "Using NLSQ solution.",
+            warmstart_cost,
+            cmaes_cost,
+        )
+        for result in warmstart_results:
+            result.metadata["optimizer"] = "joint_cmaes_warmstart"
+            result.metadata["cmaes_cost"] = cmaes_cost
+            result.metadata["nlsq_warmstart_cost"] = warmstart_cost
+        return warmstart_results
+
+    logger.info(
+        "[CMA-ES] CMA-ES result is better: CMA-ES cost=%.4e <= NLSQ cost=%.4e",
+        cmaes_cost,
+        warmstart_cost,
+    )
+    fitted = np.asarray(cmaes_result.parameters, dtype=np.float64)
+    fitted_physics = fitted[:n_physics_varying]
+    fitted_scaling = fitted[n_physics_varying:]
+    if use_constant:
+        fitted_contrast = np.full(n_phi, float(fitted_scaling[0]), dtype=np.float64)
+        fitted_offset = np.full(n_phi, float(fitted_scaling[1]), dtype=np.float64)
+    else:
+        assert fourier is not None
+        fitted_contrast, fitted_offset = fourier.fourier_to_per_angle(fitted_scaling)
+    full_fitted = param_manager.expand_varying_to_full(fitted_physics)
+    model.set_params(full_fitted)
+    if hasattr(model, "scaling"):
+        model.scaling.contrast[:] = fitted_contrast
+        model.scaling.offset[:] = fitted_offset
+
+    results: list[NLSQResult] = []
+    for i, phi in enumerate(phi_angles):
+        contrast_i = float(fitted_contrast[i])
+        offset_i = float(fitted_offset[i])
+        fitted_c2 = compute_c2_heterodyne(
+            jnp.asarray(full_fitted),
+            t,
+            q,
+            dt,
+            float(phi),
+            contrast=contrast_i,
+            offset=offset_i,
+        )
+        residuals = np.asarray(
+            compute_residuals(
+                jnp.asarray(full_fitted),
+                t,
+                q,
+                dt,
+                float(phi),
+                c2_data_batch[i],
+                weights_batch[i],
+                contrast=contrast_i,
+                offset=offset_i,
+            )
+        )
+        metadata = {
+            "phi_angle": float(phi),
+            "contrast": contrast_i,
+            "offset": offset_i,
+            "optimizer": "joint_cmaes",
+            "n_angles_joint": n_phi,
+            "cmaes_cost": cmaes_cost,
+            "nlsq_warmstart_cost": warmstart_cost,
+        }
+        if use_constant:
+            metadata["anti_degeneracy_mode"] = "constant_averaged"
+        else:
+            assert fourier is not None
+            metadata.update(
+                {
+                    "anti_degeneracy_mode": fourier.config.mode,
+                    "fourier_mode": fourier.config.mode,
+                    "fourier_order": fourier.order,
+                    "fourier_coeffs": fitted_scaling.tolist(),
+                    "fourier_n_coeffs": fourier.n_coeffs,
+                    "fourier_reduction": fourier.get_diagnostics()["reduction_ratio"],
+                }
+            )
+        results.append(
+            NLSQResult(
+                parameters=fitted_physics.copy(),
+                parameter_names=varying_names,
+                uncertainties=(
+                    cmaes_result.uncertainties[:n_physics_varying].copy()
+                    if cmaes_result.uncertainties is not None
+                    else None
+                ),
+                covariance=(
+                    cmaes_result.covariance[
+                        :n_physics_varying, :n_physics_varying
+                    ].copy()
+                    if cmaes_result.covariance is not None
+                    else None
+                ),
+                residuals=residuals,
+                final_cost=cmaes_result.final_cost,
+                reduced_chi_squared=cmaes_result.reduced_chi_squared,
+                success=bool(cmaes_result.success),
+                message=str(cmaes_result.message),
+                n_iterations=cmaes_result.n_iterations,
+                n_function_evals=cmaes_result.n_function_evals,
+                convergence_reason=cmaes_result.convergence_reason,
+                fitted_correlation=np.asarray(fitted_c2),
+                wall_time_seconds=cmaes_result.wall_time_seconds,
+                metadata=metadata,
+            )
+        )
+
+    return results
+
+
+def _use_constant_scaling_mode(config: NLSQConfig, n_phi: int) -> bool:
+    """Return whether joint multi-angle scaling should be constant averaged."""
+    constant_threshold = max(int(getattr(config, "constant_scaling_threshold", 3)), 1)
+    return config.per_angle_mode == "constant" or (
+        config.per_angle_mode == "auto" and n_phi >= constant_threshold
+    )
+
+
+def _build_fourier_reparameterizer(phi_angles: np.ndarray, config: NLSQConfig) -> Any:
+    """Build the Fourier/independent reparameterizer for fallback paths."""
+    from heterodyne.optimization.nlsq.fourier_reparam import (
+        FourierReparamConfig,
+        FourierReparameterizer,
+    )
+
+    return FourierReparameterizer(
+        np.deg2rad(phi_angles.astype(np.float64)),
+        FourierReparamConfig(
+            mode=config.per_angle_mode,
+            fourier_order=config.fourier_order,
+            auto_threshold=config.fourier_auto_threshold,
+        ),
+    )
 
 
 def _fit_joint_multi_phi(
@@ -995,7 +1637,9 @@ def _fit_local(
             logger.debug(
                 "chi2 correction: σ²_noise=%.4e  n_valid=%d  SSR=%.4e  "
                 "raw_chi2=%.4g → chi2_corrected=%.4f",
-                sigma2_noise, n_valid, ssr,
+                sigma2_noise,
+                n_valid,
+                ssr,
                 result.reduced_chi_squared or float("nan"),
                 chi2_corrected,
             )

@@ -172,6 +172,11 @@ class TestSaveNlsqJsonFiles:
     def test_metadata_file_contents(
         self, tmp_path: Path, nlsq_result_full: NLSQResult
     ) -> None:
+        nlsq_result_full.metadata = {
+            "optimizer": "joint_auto_averaged",
+            "contrast": 0.31,
+            "offset": 1.04,
+        }
         paths = save_nlsq_json_files(nlsq_result_full, tmp_path)
         data = load_json(paths["metadata"])
         assert data["success"] is True
@@ -180,6 +185,9 @@ class TestSaveNlsqJsonFiles:
         assert data["final_cost"] == pytest.approx(0.0025)
         assert data["reduced_chi_squared"] == pytest.approx(1.02)
         assert data["wall_time_seconds"] == pytest.approx(3.14)
+        assert data["metadata"]["optimizer"] == "joint_auto_averaged"
+        assert data["metadata"]["contrast"] == pytest.approx(0.31)
+        assert data["metadata"]["offset"] == pytest.approx(1.04)
 
     def test_custom_prefix(
         self, tmp_path: Path, nlsq_result_minimal: NLSQResult
@@ -223,6 +231,12 @@ class TestNlsqNpzRoundTrip:
     def test_round_trip_full(
         self, tmp_path: Path, nlsq_result_full: NLSQResult
     ) -> None:
+        nlsq_result_full.metadata = {
+            "optimizer": "joint_cmaes_warmstart_auto_skip",
+            "contrast": 0.31,
+            "offset": 1.04,
+            "per_angle": [{"phi_angle": 0.0}, {"phi_angle": 90.0}],
+        }
         path = tmp_path / "result.npz"
         saved = save_nlsq_npz_file(nlsq_result_full, path, include_jacobian=True)
         assert saved.suffix == ".npz"
@@ -234,6 +248,15 @@ class TestNlsqNpzRoundTrip:
         assert loaded.parameter_names == nlsq_result_full.parameter_names
         assert loaded.success is True
         assert loaded.final_cost == pytest.approx(0.0025)
+        assert loaded.reduced_chi_squared == pytest.approx(1.02)
+        assert loaded.n_iterations == 15
+        assert loaded.n_function_evals == 42
+        assert loaded.convergence_reason == "xtol"
+        assert loaded.wall_time_seconds == pytest.approx(3.14)
+        assert loaded.metadata["optimizer"] == "joint_cmaes_warmstart_auto_skip"
+        assert loaded.metadata["contrast"] == pytest.approx(0.31)
+        assert loaded.metadata["offset"] == pytest.approx(1.04)
+        assert loaded.metadata["per_angle"][1]["phi_angle"] == pytest.approx(90.0)
         np.testing.assert_array_almost_equal(
             loaded.uncertainties, nlsq_result_full.uncertainties
         )

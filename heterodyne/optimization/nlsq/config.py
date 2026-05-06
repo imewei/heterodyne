@@ -365,8 +365,10 @@ class NLSQConfig:
     cmaes_population_size: int | None = None
     cmaes_tolx: float = 1e-6
     cmaes_tolfun: float = 1e-8
-    cmaes_diagonal_filtering: str = "none"
+    cmaes_diagonal_filtering: str = "remove"
     cmaes_anti_degeneracy: bool = False
+    cmaes_warmstart_auto_skip: bool = True
+    cmaes_warmstart_skip_threshold: float = 5.0
 
     # ------------------------------------------------------------------
     # Hybrid streaming optimizer
@@ -393,7 +395,7 @@ class NLSQConfig:
     # Scaling threshold
     # ------------------------------------------------------------------
 
-    constant_scaling_threshold: float = 0.05
+    constant_scaling_threshold: int = 3
 
     # ------------------------------------------------------------------
     # Backend and model identity
@@ -450,6 +452,8 @@ class NLSQConfig:
                 f"cmaes_diagonal_filtering must be 'remove' or 'none', "
                 f"got {self.cmaes_diagonal_filtering!r}"
             )
+        if self.cmaes_warmstart_skip_threshold <= 0:
+            raise ValueError("cmaes_warmstart_skip_threshold must be > 0")
         if not (0 < self.hybrid_warmup_fraction < 1):
             raise ValueError("hybrid_warmup_fraction must be in (0, 1)")
         if not (0 < self.screen_keep_fraction <= 1):
@@ -647,6 +651,8 @@ class NLSQConfig:
             "cmaes_tolfun": "float",
             "cmaes_diagonal_filtering": "str",
             "cmaes_anti_degeneracy": "bool",
+            "cmaes_warmstart_auto_skip": "bool",
+            "cmaes_warmstart_skip_threshold": "float",
             # Hybrid streaming optimizer
             "hybrid_enable": "bool",
             "hybrid_warmup_fraction": "float",
@@ -661,7 +667,7 @@ class NLSQConfig:
             "screen_keep_fraction": "float",
             "refine_top_k": "int",
             # Scaling threshold
-            "constant_scaling_threshold": "float",
+            "constant_scaling_threshold": "int",
             # Backend / model
             "use_nlsq_library": "bool",
             "n_params": "int",
@@ -674,11 +680,159 @@ class NLSQConfig:
             "nlsq_memory_fallback_gb": "float",
         }
 
-        nested_keys = {"recovery", "validation", "x_scale_map"}
+        normalized_config = dict(config)
+
+        def _set_from_nested(field_name: str, value: Any) -> None:
+            if value is not _SENTINEL and field_name not in normalized_config:
+                normalized_config[field_name] = value
+
+        raw_anti_degeneracy = config.get("anti_degeneracy")
+        if isinstance(raw_anti_degeneracy, dict):
+            _set_from_nested(
+                "per_angle_mode",
+                raw_anti_degeneracy.get("per_angle_mode", _SENTINEL),
+            )
+            _set_from_nested(
+                "fourier_order",
+                raw_anti_degeneracy.get("fourier_order", _SENTINEL),
+            )
+            _set_from_nested(
+                "fourier_auto_threshold",
+                raw_anti_degeneracy.get("fourier_auto_threshold", _SENTINEL),
+            )
+            _set_from_nested(
+                "constant_scaling_threshold",
+                raw_anti_degeneracy.get("constant_scaling_threshold", _SENTINEL),
+            )
+
+            hierarchical = raw_anti_degeneracy.get("hierarchical")
+            if isinstance(hierarchical, dict):
+                _set_from_nested(
+                    "enable_hierarchical", hierarchical.get("enable", _SENTINEL)
+                )
+                _set_from_nested(
+                    "hierarchical_max_outer_iterations",
+                    hierarchical.get("max_outer_iterations", _SENTINEL),
+                )
+                _set_from_nested(
+                    "hierarchical_inner_tolerance",
+                    hierarchical.get("inner_tolerance", _SENTINEL),
+                )
+                _set_from_nested(
+                    "hierarchical_outer_tolerance",
+                    hierarchical.get("outer_tolerance", _SENTINEL),
+                )
+            elif hierarchical is not None:
+                logger.warning(
+                    "NLSQConfig.from_dict: anti_degeneracy.hierarchical must be a "
+                    "dict, got %r — ignoring",
+                    type(hierarchical).__name__,
+                )
+
+            regularization = raw_anti_degeneracy.get("regularization")
+            if isinstance(regularization, dict):
+                _set_from_nested(
+                    "regularization_mode", regularization.get("mode", _SENTINEL)
+                )
+                _set_from_nested(
+                    "group_variance_lambda", regularization.get("lambda", _SENTINEL)
+                )
+                _set_from_nested(
+                    "regularization_target_cv",
+                    regularization.get("target_cv", _SENTINEL),
+                )
+            elif regularization is not None:
+                logger.warning(
+                    "NLSQConfig.from_dict: anti_degeneracy.regularization must be a "
+                    "dict, got %r — ignoring",
+                    type(regularization).__name__,
+                )
+
+            gradient_monitoring = raw_anti_degeneracy.get("gradient_monitoring")
+            if isinstance(gradient_monitoring, dict):
+                _set_from_nested(
+                    "enable_gradient_monitoring",
+                    gradient_monitoring.get("enable", _SENTINEL),
+                )
+                _set_from_nested(
+                    "gradient_ratio_threshold",
+                    gradient_monitoring.get("ratio_threshold", _SENTINEL),
+                )
+                _set_from_nested(
+                    "gradient_consecutive_triggers",
+                    gradient_monitoring.get("consecutive_triggers", _SENTINEL),
+                )
+            elif gradient_monitoring is not None:
+                logger.warning(
+                    "NLSQConfig.from_dict: anti_degeneracy.gradient_monitoring must "
+                    "be a dict, got %r — ignoring",
+                    type(gradient_monitoring).__name__,
+                )
+        elif raw_anti_degeneracy is not None:
+            logger.warning(
+                "NLSQConfig.from_dict: 'anti_degeneracy' must be a dict, got %r — "
+                "ignoring",
+                type(raw_anti_degeneracy).__name__,
+            )
+
+        raw_cmaes = config.get("cmaes")
+        if isinstance(raw_cmaes, dict):
+            _set_from_nested("enable_cmaes", raw_cmaes.get("enable", _SENTINEL))
+            _set_from_nested(
+                "cmaes_sigma0",
+                raw_cmaes.get("sigma", raw_cmaes.get("sigma0", _SENTINEL)),
+            )
+            _set_from_nested(
+                "cmaes_max_iterations",
+                raw_cmaes.get(
+                    "max_generations",
+                    raw_cmaes.get("max_iterations", _SENTINEL),
+                ),
+            )
+            _set_from_nested(
+                "cmaes_population_size",
+                raw_cmaes.get("popsize", raw_cmaes.get("population_size", _SENTINEL)),
+            )
+            _set_from_nested(
+                "cmaes_tolx", raw_cmaes.get("tol_x", raw_cmaes.get("tolx", _SENTINEL))
+            )
+            _set_from_nested(
+                "cmaes_tolfun",
+                raw_cmaes.get("tol_fun", raw_cmaes.get("tolfun", _SENTINEL)),
+            )
+            _set_from_nested(
+                "cmaes_diagonal_filtering",
+                raw_cmaes.get("diagonal_filtering", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_anti_degeneracy",
+                raw_cmaes.get("anti_degeneracy", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_warmstart_auto_skip",
+                raw_cmaes.get("warmstart_auto_skip", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_warmstart_skip_threshold",
+                raw_cmaes.get("warmstart_skip_threshold", _SENTINEL),
+            )
+        elif raw_cmaes is not None:
+            logger.warning(
+                "NLSQConfig.from_dict: 'cmaes' must be a dict, got %r — ignoring",
+                type(raw_cmaes).__name__,
+            )
+
+        nested_keys = {
+            "recovery",
+            "validation",
+            "x_scale_map",
+            "anti_degeneracy",
+            "cmaes",
+        }
 
         # Warn on unrecognised keys
         all_known = set(known_scalar_fields) | nested_keys
-        for key in config:
+        for key in normalized_config:
             if key not in all_known:
                 logger.warning(
                     "NLSQConfig.from_dict: unrecognised key %r — ignoring", key
@@ -688,7 +842,7 @@ class NLSQConfig:
 
         # --- Parse scalar fields -----------------------------------------
         for field_name, kind in known_scalar_fields.items():
-            raw = config.get(field_name, _SENTINEL)
+            raw = normalized_config.get(field_name, _SENTINEL)
             if raw is _SENTINEL:
                 continue  # use dataclass default
 
@@ -711,7 +865,7 @@ class NLSQConfig:
             # no else branch needed — exhaustive set above
 
         # --- Parse x_scale_map -------------------------------------------
-        raw_scale_map = config.get("x_scale_map")
+        raw_scale_map = normalized_config.get("x_scale_map")
         if isinstance(raw_scale_map, dict):
             kwargs["x_scale_map"] = {
                 str(k): safe_float(v, 1.0) for k, v in raw_scale_map.items()
@@ -723,7 +877,7 @@ class NLSQConfig:
             )
 
         # --- Parse nested recovery sub-dict ------------------------------
-        raw_recovery = config.get("recovery")
+        raw_recovery = normalized_config.get("recovery")
         if isinstance(raw_recovery, dict):
             recovery = HybridRecoveryConfig(
                 max_retries=safe_int(
@@ -752,7 +906,7 @@ class NLSQConfig:
             )
 
         # --- Parse nested validation sub-dict ----------------------------
-        raw_validation = config.get("validation")
+        raw_validation = normalized_config.get("validation")
         if isinstance(raw_validation, dict):
             defaults = NLSQValidationConfig()
             validation = NLSQValidationConfig(
@@ -861,6 +1015,8 @@ class NLSQConfig:
             "cmaes_tolfun": self.cmaes_tolfun,
             "cmaes_diagonal_filtering": self.cmaes_diagonal_filtering,
             "cmaes_anti_degeneracy": self.cmaes_anti_degeneracy,
+            "cmaes_warmstart_auto_skip": self.cmaes_warmstart_auto_skip,
+            "cmaes_warmstart_skip_threshold": self.cmaes_warmstart_skip_threshold,
             # Hybrid streaming optimizer
             "hybrid_enable": self.hybrid_enable,
             "hybrid_warmup_fraction": self.hybrid_warmup_fraction,

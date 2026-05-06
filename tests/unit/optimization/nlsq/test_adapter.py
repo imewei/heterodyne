@@ -269,6 +269,78 @@ class TestNLSQAdapter:
         assert isinstance(result, NLSQResult)
         mock_build.assert_called_once()
 
+    def test_fit_jax_does_not_reuse_stateful_fitter_across_functions(self) -> None:
+        """Each JAX residual closure must get an independent CurveFit instance."""
+        import jax.numpy as jnp
+
+        from heterodyne.optimization.nlsq.adapter import NLSQAdapter, clear_model_cache
+
+        class StatefulCurveFit:
+            def __init__(self, flength: int) -> None:
+                self.flength = flength
+                self._compiled_f = None
+
+            def curve_fit(
+                self,
+                *,
+                f: Any,
+                xdata: np.ndarray,
+                ydata: np.ndarray,
+                p0: np.ndarray,
+                bounds: tuple[np.ndarray, np.ndarray],
+                **kwargs: Any,
+            ) -> dict[str, Any]:
+                _ = ydata, bounds, kwargs
+                if self._compiled_f is None:
+                    self._compiled_f = f
+                residuals = np.asarray(self._compiled_f(xdata, *p0), dtype=np.float64)
+                marker = float(residuals[0])
+                return {
+                    "x": np.array([marker], dtype=np.float64),
+                    "pcov": np.eye(1),
+                    "fun": residuals,
+                    "success": True,
+                    "message": "ok",
+                    "nfev": 1,
+                    "nit": 1,
+                }
+
+        def residual_one(x: jnp.ndarray, p1: float) -> jnp.ndarray:
+            _ = p1
+            return jnp.ones_like(x)
+
+        def residual_two(x: jnp.ndarray, p1: float) -> jnp.ndarray:
+            _ = p1
+            return jnp.ones_like(x) * 2.0
+
+        clear_model_cache()
+        adapter = NLSQAdapter(parameter_names=["p1"])
+        config = _make_config()
+        initial = np.array([0.0])
+        bounds = (np.array([-10.0]), np.array([10.0]))
+
+        with patch(
+            "heterodyne.optimization.nlsq.adapter.CurveFit",
+            side_effect=StatefulCurveFit,
+        ):
+            result_one = adapter.fit_jax(
+                residual_one,
+                initial,
+                bounds,
+                config,
+                n_data=8,
+            )
+            result_two = adapter.fit_jax(
+                residual_two,
+                initial,
+                bounds,
+                config,
+                n_data=8,
+            )
+
+        assert result_one.parameters[0] == 1.0
+        assert result_two.parameters[0] == 2.0
+
     def test_nlsq_adapter_fit_no_scipy(self) -> None:
         """fit() must not import or call scipy.optimize.least_squares."""
         mock_fitter = MagicMock()

@@ -95,6 +95,24 @@ class TestHeterodyneModelFromConfig:
         assert model._t is not None
         assert len(model.t) == 50
 
+    @pytest.mark.unit
+    def test_from_config_uses_relative_window_time(self, basic_config: dict) -> None:
+        """Frame offsets select data rows but do not shift model physics time."""
+        config = {
+            **basic_config,
+            "analyzer_parameters": {
+                **basic_config["analyzer_parameters"],
+                "dt": 0.1,
+                "start_frame": 1001,
+                "end_frame": 2000,
+            },
+        }
+        model = HeterodyneModel.from_config(config)
+
+        assert len(model.t) == 1000
+        t = np.asarray(model.t)
+        assert_allclose(t[[0, -1]], np.array([0.1, 100.0]))
+
 
 # ============================================================================
 # Property Tests
@@ -143,7 +161,7 @@ class TestHeterodyneModelProperties:
 
     @pytest.mark.unit
     def test_t_property(self, model: HeterodyneModel) -> None:
-        """t property returns time array. t[0] = dt (relative window: first frame at 1×dt)."""
+        """t property returns time array. t[0] = dt for fitting stability."""
         t = model.t
         assert len(t) == 50
         assert t[0] == model.dt
@@ -252,7 +270,7 @@ class TestHeterodyneModelComputeResiduals:
         """compute_residuals returns flattened array."""
         c2_data = np.ones((50, 50))
         residuals = model.compute_residuals(c2_data, phi_angle=0.0)
-        assert residuals.shape == (50 * 50,)
+        assert residuals.shape == (50 * (50 - 1),)
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
@@ -271,7 +289,7 @@ class TestHeterodyneModelComputeResiduals:
         c2_data = np.ones((50, 50))
         weights = np.ones((50, 50)) * 2.0
         residuals = model.compute_residuals(c2_data, phi_angle=0.0, weights=weights)
-        assert residuals.shape == (50 * 50,)
+        assert residuals.shape == (50 * (50 - 1),)
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
@@ -280,7 +298,7 @@ class TestHeterodyneModelComputeResiduals:
         c2_data = np.ones((50, 50))
         params = np.ones(14)
         residuals = model.compute_residuals(c2_data, phi_angle=0.0, params=params)
-        assert residuals.shape == (50 * 50,)
+        assert residuals.shape == (50 * (50 - 1),)
 
 
 # ============================================================================
@@ -365,7 +383,7 @@ class TestHeterodyneModelResidualFunction:
         n_varying = model.n_varying
         varying_params = jnp.ones(n_varying)
         residuals = residual_fn(varying_params)
-        assert residuals.shape == (50 * 50,)
+        assert residuals.shape == (50 * (50 - 1),)
 
     @pytest.mark.unit
     @pytest.mark.requires_jax
@@ -380,7 +398,7 @@ class TestHeterodyneModelResidualFunction:
         n_varying = model.n_varying
         varying_params = jnp.ones(n_varying)
         residuals = residual_fn(varying_params)
-        assert residuals.shape == (50 * 50,)
+        assert residuals.shape == (50 * (50 - 1),)
 
 
 # ============================================================================

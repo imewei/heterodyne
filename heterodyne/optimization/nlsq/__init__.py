@@ -18,7 +18,7 @@ from heterodyne.optimization.nlsq.cmaes_wrapper import (
     normalize_to_unit_cube,
 )
 from heterodyne.optimization.nlsq.config import NLSQConfig, NLSQValidationConfig
-from heterodyne.optimization.nlsq.core import fit_nlsq_jax
+from heterodyne.optimization.nlsq.core import fit_nlsq_jax, fit_nlsq_multi_phi
 from heterodyne.optimization.nlsq.data_prep import (
     compute_degrees_of_freedom,
     compute_weights,
@@ -66,6 +66,7 @@ from heterodyne.optimization.nlsq.validation import (
 __all__ = [
     # Core
     "fit_nlsq_jax",
+    "fit_nlsq_multi_phi",
     "NLSQConfig",
     "NLSQValidationConfig",
     "NLSQResult",

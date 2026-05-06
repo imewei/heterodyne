@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -65,6 +66,7 @@ def save_nlsq_json_files(
         else None,
         "convergence_reason": result.convergence_reason,
         "wall_time_seconds": result.wall_time_seconds,
+        "metadata": json_safe(result.metadata),
     }
     metadata_path = output_dir / f"{prefix}_metadata.json"
     save_json(metadata, metadata_path)
@@ -101,9 +103,22 @@ def save_nlsq_npz_file(
         "parameters": np.asarray(result.parameters),
         "parameter_names": np.array(result.parameter_names, dtype="U64"),
         "success": np.array(result.success),
+        "message": np.array(result.message),
         "final_cost": np.array(
             result.final_cost if result.final_cost is not None else np.nan
         ),
+        "reduced_chi_squared": np.array(
+            result.reduced_chi_squared
+            if result.reduced_chi_squared is not None
+            else np.nan
+        ),
+        "n_iterations": np.array(result.n_iterations),
+        "n_function_evals": np.array(result.n_function_evals),
+        "convergence_reason": np.array(result.convergence_reason),
+        "wall_time_seconds": np.array(
+            result.wall_time_seconds if result.wall_time_seconds is not None else np.nan
+        ),
+        "metadata_json": np.array(json.dumps(json_safe(result.metadata))),
     }
 
     if result.uncertainties is not None:
@@ -145,8 +160,31 @@ def load_nlsq_npz_file(path: Path | str) -> NLSQResult:
     parameters = data["parameters"]
     parameter_names = list(data["parameter_names"])
     success = bool(data["success"])
+    message = str(data["message"]) if "message" in data else "loaded from NPZ"
     final_cost_val = float(data["final_cost"])
     final_cost: float | None = None if np.isnan(final_cost_val) else final_cost_val
+    reduced_chi2: float | None = None
+    if "reduced_chi_squared" in data:
+        reduced_chi2_val = float(data["reduced_chi_squared"])
+        reduced_chi2 = None if np.isnan(reduced_chi2_val) else reduced_chi2_val
+    n_iterations = int(data["n_iterations"]) if "n_iterations" in data else 0
+    n_function_evals = (
+        int(data["n_function_evals"]) if "n_function_evals" in data else 0
+    )
+    convergence_reason = (
+        str(data["convergence_reason"]) if "convergence_reason" in data else ""
+    )
+    wall_time_seconds: float | None = None
+    if "wall_time_seconds" in data:
+        wall_time_val = float(data["wall_time_seconds"])
+        wall_time_seconds = None if np.isnan(wall_time_val) else wall_time_val
+    metadata: dict[str, Any] = {}
+    if "metadata_json" in data:
+        raw_metadata = str(data["metadata_json"])
+        if raw_metadata:
+            loaded_metadata = json.loads(raw_metadata)
+            if isinstance(loaded_metadata, dict):
+                metadata = loaded_metadata
 
     uncertainties = data["uncertainties"] if "uncertainties" in data else None
     covariance = data["covariance"] if "covariance" in data else None
@@ -160,13 +198,19 @@ def load_nlsq_npz_file(path: Path | str) -> NLSQResult:
         parameters=parameters,
         parameter_names=parameter_names,
         success=success,
-        message="loaded from NPZ",
+        message=message,
         uncertainties=uncertainties,
         covariance=covariance,
         final_cost=final_cost,
+        reduced_chi_squared=reduced_chi2,
+        n_iterations=n_iterations,
+        n_function_evals=n_function_evals,
+        convergence_reason=convergence_reason,
         residuals=residuals,
         jacobian=jacobian,
         fitted_correlation=fitted_correlation,
+        wall_time_seconds=wall_time_seconds,
+        metadata=metadata,
     )
 
 

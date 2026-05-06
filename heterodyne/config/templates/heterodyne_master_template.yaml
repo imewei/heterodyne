@@ -849,7 +849,7 @@ optimization:
     per_angle_mode: "auto"
     fourier_order: 2                     # Number of Fourier harmonics (>= 1)
     fourier_auto_threshold: 6            # Min angles for Fourier mode (>= 1)
-    constant_scaling_threshold: 0.05     # Threshold fraction for constant mode
+    constant_scaling_threshold: 3        # Use averaged constant scaling when n_phi >= this
 
     # -----------------------------------------------------------------------
     # HIERARCHICAL OPTIMIZATION
@@ -913,8 +913,10 @@ optimization:
     cmaes_population_size: null          # null = adaptive scaling
     cmaes_tolx: 1.0e-6                  # Parameter tolerance (> 0)
     cmaes_tolfun: 1.0e-8                # Function value tolerance (> 0)
-    cmaes_diagonal_filtering: "none"     # "none" | "remove"
+    cmaes_diagonal_filtering: "remove"   # "none" | "remove"
     cmaes_anti_degeneracy: false         # Enable within CMA-ES evaluation
+    cmaes_warmstart_auto_skip: true      # Skip CMA-ES if NLSQ warm-start is good
+    cmaes_warmstart_skip_threshold: 5.0  # Reduced chi2 threshold for auto-skip
 
     # -----------------------------------------------------------------------
     # HYBRID STREAMING OPTIMIZER

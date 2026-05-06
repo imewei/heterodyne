@@ -12,7 +12,7 @@ from heterodyne.cli.data_pipeline import load_and_validate_data, resolve_phi_ang
 from heterodyne.cli.optimization_runner import resolve_nlsq_warmstart, run_cmc, run_nlsq
 from heterodyne.cli.plot_dispatch import dispatch_plots, handle_plotting
 from heterodyne.core.heterodyne_model import HeterodyneModel
-from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_phase
+from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_exception, log_phase
 
 if TYPE_CHECKING:
     from heterodyne.config.manager import ConfigManager
@@ -226,10 +226,17 @@ def dispatch_command(args: argparse.Namespace) -> int:
     summary = AnalysisSummaryLogger(run_id=run_id, analysis_mode="two_component")
     summary.set_config_summary(optimizer=method)
 
+    logger.info("[CLI] Dispatching heterodyne analysis command (run_id=%s)", run_id)
+    logger.debug("[CLI] Resolved arguments: %s", vars(args))
+
+    log_file: Path | None = None
+
     try:
         # --- Configuration ---------------------------------------------------
+        summary.start_phase("config_loading")
         with log_phase("config_loading", logger=logger):
             config_manager = load_and_merge_config(args.config, args)
+        summary.end_phase("config_loading")
 
         output_dir = args.output or config_manager.output_dir
         output_dir = Path(output_dir)
@@ -258,8 +265,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
 
         configure_logging(level=log_level, log_file=log_file)
         logger.info("[CLI] Log file created: %s", log_file)
-        logger.info("[CLI] Starting heterodyne analysis...")
-        logger.debug("[CLI] Resolved arguments: %s", vars(args))
+        summary.add_output_file(log_file)
 
         # --- Data loading ----------------------------------------------------
         summary.start_phase("data_loading")
@@ -273,17 +279,14 @@ def dispatch_command(args: argparse.Namespace) -> int:
         # --- Build rich data dict for plotting --------------------------------
         import numpy as _np
 
-        # Convert frame-index time axis to relative seconds for plotting.
-        # HDF5 loader returns frame indices (0, 1, ..., N-1) relative to
-        # the start of the selected window.  Multiplying by dt gives relative
-        # time in seconds, matching model.t which starts at 1×dt within the
-        # window (parameters are calibrated for relative, not absolute, time).
+        # Convert loader frame indices to elapsed seconds for plotting.
+        # The HDF5 cache may store absolute frame indices (e.g. 999..1999);
+        # heatmap axes should show elapsed time within the selected window.
         _dt = model.dt
-        _t1_sec = (
-            _np.asarray(data.t1, dtype=float) * _dt
-            if data.t1 is not None
-            else None
-        )
+        _t1_sec = None
+        if data.t1 is not None:
+            _t1_frames = _np.asarray(data.t1, dtype=float)
+            _t1_sec = (_t1_frames - _t1_frames[0]) * _dt
 
         _data_dict: dict[str, Any] = {
             "c2_exp": _np.asarray(data.c2),
@@ -334,13 +337,21 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     _sim_contrast = float(_cli_contrast)
                 if _cli_offset is not None:
                     _sim_offset = float(_cli_offset)
+                # Use the filtered phi_angles so hsim shows the same angles as
+                # ht-nlsq fitted simulations, making the two plots directly comparable.
+                # Without this, hsim uses all 23 HDF5 angles (e.g. phi=0°) while
+                # ht-nlsq shows only the 2 fitted angles (phi=-5.79°, +4.88°).
+                _sim_data = {
+                    **_data_dict,
+                    "phi_angles_list": _np.asarray(phi_angles),
+                }
                 _plot_simulated_data(
                     config=config_manager.raw_config,
                     contrast=_sim_contrast,
                     offset=_sim_offset,
                     phi_angles_str=getattr(args, "phi_angles", None),
                     plots_dir=plots_dir,
-                    data=_data_dict,
+                    data=_sim_data,
                 )
                 dispatch_plots(
                     model=model,
@@ -421,6 +432,25 @@ def dispatch_command(args: argparse.Namespace) -> int:
         nlsq_results = opt["nlsq_results"]
         cmc_results = opt["cmc_results"]
 
+        # Record convergence status and metrics from optimization results
+        active_results = (
+            cmc_results if method in ("cmc", "both") and cmc_results else nlsq_results
+        )
+        if active_results:
+            converged = all(getattr(r, "success", True) for r in active_results)
+            summary.set_convergence_status("converged" if converged else "not_converged")
+            chi2_vals = [
+                r.reduced_chi_squared
+                for r in active_results
+                if getattr(r, "reduced_chi_squared", None) is not None
+            ]
+            if chi2_vals:
+                summary.record_metric(
+                    "chi_squared", float(sum(chi2_vals) / len(chi2_vals))
+                )
+        else:
+            summary.set_convergence_status("completed")
+
         # --- CMC diagnostic plots --------------------------------------------
         if cmc_results:
             with log_phase("cmc_diagnostics", logger=logger):
@@ -453,8 +483,6 @@ def dispatch_command(args: argparse.Namespace) -> int:
                     )
             summary.end_phase("save_plots", memory_peak_gb=phase.memory_peak_gb)
 
-        summary.set_convergence_status("completed")
-
     except KeyboardInterrupt:
         summary.set_convergence_status("failed")
         logger.info("[CLI] Analysis interrupted by user")
@@ -463,12 +491,14 @@ def dispatch_command(args: argparse.Namespace) -> int:
 
     except Exception as exc:
         summary.set_convergence_status("failed")
-        logger.error("[CLI] Analysis failed: %s", exc)
+        log_exception(logger, exc, context={"run_id": run_id, "phase": "dispatch"})
         summary.log_summary(logger)
         raise
 
     logger.info("[CLI] Analysis completed successfully")
     summary.log_summary(logger)
+    if log_file is not None:
+        logger.info("[CLI] Analysis log saved to: %s", log_file)
     return 0
 
 

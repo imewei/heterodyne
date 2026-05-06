@@ -626,7 +626,7 @@ class TestComputeResiduals:
             default_params, time_array, 0.01, 1.0, 0.0, c2_data, None
         )
 
-        expected_size = len(time_array) ** 2
+        expected_size = len(time_array) * (len(time_array) - 1)
         assert residuals.shape == (expected_size,)
 
     @pytest.mark.unit
@@ -745,8 +745,8 @@ class TestGradientCorrectness:
 
         jacobian = compute_residuals_jacobian(params, t, 0.01, 1.0, 0.0, c2_data, None)
 
-        # Should have shape (n_residuals, n_params) = (25, 14)
-        assert jacobian.shape == (25, 14)
+        # Should have shape (off-diagonal residuals, n_params) = (20, 14)
+        assert jacobian.shape == (20, 14)
         assert not jnp.any(jnp.isnan(jacobian))
 
 

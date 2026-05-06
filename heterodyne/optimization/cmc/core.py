@@ -41,6 +41,15 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _block_until_ready_pytree(tree: Any) -> Any:
+    """Block every JAX array leaf in a pytree and return the original object."""
+    for leaf in jax.tree_util.tree_leaves(tree):
+        block_until_ready = getattr(leaf, "block_until_ready", None)
+        if block_until_ready is not None:
+            block_until_ready()
+    return tree
+
+
 # ---------------------------------------------------------------------------
 # Public: original single-run entry point (signature preserved exactly)
 # ---------------------------------------------------------------------------
@@ -299,13 +308,15 @@ def fit_cmc_jax(
 
     try:
         mcmc.run(rng_key, init_params=init_params, extra_fields=("energy",))
+        samples = _block_until_ready_pytree(mcmc.get_samples())
     except (RuntimeError, ValueError) as e:
         logger.error("[CMC] MCMC sampling failed: %s", e)
         return _create_failed_result(varying_names, str(e))
 
     # --- Phase 4: diagnostics and output ---
+    sample_count = max((np.asarray(values).shape[0] for values in samples.values()), default=0)
+    logger.info("[CMC] NUTS sampling complete: collected %d posterior draws", sample_count)
     logger.info("[CMC] Phase 4/4: diagnostics and result construction")
-    samples = mcmc.get_samples()
     idata = az.from_numpyro(mcmc)
 
     if use_reparam and reparam_config is not None:

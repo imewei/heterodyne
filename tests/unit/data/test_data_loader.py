@@ -7,6 +7,7 @@ NumPy arrays are used throughout to exercise validation logic.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 # ---------------------------------------------------------------------------
 # Import checks
@@ -262,3 +263,111 @@ class TestXPCSDataProperties:
         """has_multi_q is False when q_values is not set."""
         data = self._make_xpcs_data(6)
         assert data.has_multi_q is False  # type: ignore[union-attr]
+
+
+# ---------------------------------------------------------------------------
+# Diagonal correction parity
+# ---------------------------------------------------------------------------
+
+
+def test_loader_diagonal_correction_matches_homodyne_side_band_average() -> None:
+    """Loader-side correction uses the same symmetric side-band average as homodyne."""
+    from heterodyne.data.xpcs_loader import _apply_diagonal_correction
+
+    c2 = np.array(
+        [
+            [99.0, 2.0, 0.0, 0.0],
+            [10.0, 99.0, 4.0, 0.0],
+            [0.0, 20.0, 99.0, 6.0],
+            [0.0, 0.0, 30.0, 99.0],
+        ]
+    )
+
+    result = _apply_diagonal_correction(c2, method="basic")
+
+    side_band = np.array([(2.0 + 10.0) / 2, (4.0 + 20.0) / 2, (6.0 + 30.0) / 2])
+    expected_diag = np.array(
+        [
+            side_band[0],
+            (side_band[0] + side_band[1]) / 2,
+            (side_band[1] + side_band[2]) / 2,
+            side_band[2],
+        ]
+    )
+    np.testing.assert_allclose(np.diag(result), expected_diag)
+
+
+def test_loader_diagonal_correction_accepts_homodyne_method_names() -> None:
+    """Loader helper accepts homodyne 'basic'/'interpolation' method names."""
+    from heterodyne.data.xpcs_loader import _apply_diagonal_correction
+
+    c2 = np.array(
+        [
+            [99.0, 2.0, 0.0, 0.0],
+            [10.0, 99.0, 4.0, 0.0],
+            [0.0, 20.0, 99.0, 6.0],
+            [0.0, 0.0, 30.0, 99.0],
+        ]
+    )
+
+    result = _apply_diagonal_correction(c2, method="interpolation")
+
+    expected_diag = np.array([2.0, (2.0 + 20.0) / 2, (4.0 + 30.0) / 2, 6.0])
+    np.testing.assert_allclose(np.diag(result), expected_diag)
+
+
+def test_loader_legacy_interpolate_matches_basic() -> None:
+    """Loader keeps heterodyne's legacy 'interpolate' spelling as basic."""
+    from heterodyne.data.xpcs_loader import _apply_diagonal_correction
+
+    c2 = np.array(
+        [
+            [99.0, 2.0, 0.0, 0.0],
+            [10.0, 99.0, 4.0, 0.0],
+            [0.0, 20.0, 99.0, 6.0],
+            [0.0, 0.0, 30.0, 99.0],
+        ]
+    )
+
+    np.testing.assert_allclose(
+        _apply_diagonal_correction(c2, method="interpolate"),
+        _apply_diagonal_correction(c2, method="basic"),
+    )
+
+
+def test_loader_diagonal_correction_rejects_unknown_method() -> None:
+    """Unknown correction methods still fail fast."""
+    from heterodyne.data.xpcs_loader import _apply_diagonal_correction
+
+    with pytest.raises(ValueError, match="method"):
+        _apply_diagonal_correction(np.ones((4, 4)), method="unknown")
+
+
+def test_load_xpcs_data_clamps_frame_range_like_homodyne(tmp_path) -> None:
+    """Frame ranges outside the data extent are clamped like homodyne loading."""
+    from heterodyne.data.xpcs_loader import load_xpcs_data
+
+    c2 = np.arange(25, dtype=np.float64).reshape(5, 5)
+    t = np.arange(5, dtype=np.float64)
+    path = tmp_path / "frames.npz"
+    np.savez(path, c2=c2, t=t)
+
+    data = load_xpcs_data(path, frame_range=(0, 99))
+
+    np.testing.assert_array_equal(data.c2, c2)
+    np.testing.assert_array_equal(data.t1, t)
+
+
+def test_load_xpcs_data_accepts_negative_end_frame_as_all_frames(tmp_path) -> None:
+    """end_frame < 0 means load through the final frame, matching homodyne."""
+    from heterodyne.data.xpcs_loader import load_xpcs_data
+
+    c2 = np.arange(25, dtype=np.float64).reshape(5, 5)
+    t = np.arange(5, dtype=np.float64)
+    path = tmp_path / "negative_end.npz"
+    np.savez(path, c2=c2, t=t)
+
+    data = load_xpcs_data(path, frame_range=(2, -1))
+
+    np.testing.assert_array_equal(data.c2, c2[1:, 1:])
+    np.testing.assert_array_equal(data.t1, t[1:])

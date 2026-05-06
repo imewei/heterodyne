@@ -81,6 +81,7 @@ class ModelCacheKey:
     n_params: int
     phi_angles: tuple[float, ...] | None
     scaling_mode: str
+    callable_scope: object | None = None
 
 
 @dataclass
@@ -102,6 +103,7 @@ def get_or_create_fitter(
     n_params: int,
     phi_angles: tuple[float, ...] | None = None,
     scaling_mode: str = "auto",
+    callable_scope: object | None = None,
 ) -> tuple[object, bool]:
     """Get a CurveFit instance from cache or create a new one.
 
@@ -110,6 +112,8 @@ def get_or_create_fitter(
         n_params: Number of parameters.
         phi_angles: Tuple of azimuthal angles (distinguishes multi-angle configs).
         scaling_mode: Contrast/offset scaling mode (e.g. "auto", "individual").
+        callable_scope: Optional residual/model callable that must not share a
+            stateful fitter with different residual closures.
 
     Returns:
         Tuple of (CurveFit fitter, cache_hit: bool).
@@ -119,6 +123,7 @@ def get_or_create_fitter(
         n_params=n_params,
         phi_angles=phi_angles,
         scaling_mode=scaling_mode,
+        callable_scope=callable_scope,
     )
 
     if key in _model_cache:
@@ -273,6 +278,7 @@ class NLSQAdapter(NLSQAdapterBase):
                 n_params=n_params,
                 phi_angles=None,
                 scaling_mode="auto",
+                callable_scope=residual_fn,
             )
             if cache_hit:
                 logger.debug("CurveFit cache hit for shape (%d, %d)", n_data, n_params)
@@ -393,6 +399,7 @@ class NLSQAdapter(NLSQAdapterBase):
                 n_params=n_params,
                 phi_angles=None,
                 scaling_mode="auto",
+                callable_scope=jax_residual_fn,
             )
             if cache_hit:
                 logger.debug("CurveFit cache hit for shape (%d, %d)", n_data, n_params)

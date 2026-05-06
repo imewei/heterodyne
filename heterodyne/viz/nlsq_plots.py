@@ -1014,26 +1014,34 @@ def plot_simulated_data(
     else:
         phi_list = list(np.linspace(0, 180, 8))
 
-    # Time arrays from model or data
-    t = np.asarray(model.t) if hasattr(model, "t") else None
-    if t is None and data is not None:
-        t1_raw = data.get("t1")
-        if t1_raw is not None:
-            t = np.asarray(t1_raw)
-    if t is None:
-        t = np.arange(1, 101, dtype=float)
+    # Evaluate the model on its configured fitting grid.  Experimental elapsed
+    # axes may start at t=0 and are display-only; feeding them into the model can
+    # create artificial values for time-dependent parameters.
+    if hasattr(model, "t"):
+        t_model = np.asarray(model.t, dtype=float)
+    else:
+        t_model = np.arange(1, 101, dtype=float)
 
-    # Use original (pre-exclusion) time arrays for extent if available, for correct axis labels
-    t_extent = t
+    # Use display time arrays for extent/labels only.
+    t_extent = t_model
     if data is not None:
         t1_orig = data.get("t1_original")
         if t1_orig is not None:
-            t_extent = np.asarray(t1_orig)
+            t_extent = np.asarray(t1_orig, dtype=float)
+        else:
+            t1_raw = data.get("t1")
+            if t1_raw is not None:
+                t_extent = np.asarray(t1_raw, dtype=float)
 
-    n_t = len(t)
+    n_t = len(t_model)
     # extent: [left=t1_min, right=t1_max, bottom=t2_min, top=t2_max]
     # Used with .T so x-axis=t1, y-axis=t2 (parity with homodyne)
-    extent = [float(t_extent[0]), float(t_extent[-1]), float(t_extent[0]), float(t_extent[-1])]
+    extent = [
+        float(t_extent[0]),
+        float(t_extent[-1]),
+        float(t_extent[0]),
+        float(t_extent[-1]),
+    ]
 
     # Collect simulated C2 for each angle
     c2_all: list[np.ndarray] = []
@@ -1113,7 +1121,7 @@ def plot_simulated_data(
         if idx >= 10:
             break
         diag = np.diag(c2_mat)
-        t_diag = t[: len(diag)]
+        t_diag = t_extent[: len(diag)] if len(t_extent) >= len(diag) else t_model[: len(diag)]
         ax.plot(t_diag, diag, label=f"φ={phi_deg:.1f}°", alpha=0.7, linewidth=2)
 
     ax.set_xlabel("Time t (s)", fontsize=12)

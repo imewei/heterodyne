@@ -621,3 +621,28 @@ class TestMCMCFailurePath:
         result = _create_failed_result([], "No params")
         assert result.posterior_mean.shape == (0,)
         assert not result.convergence_passed
+
+
+class TestSamplingSynchronization:
+    """Tests for forcing asynchronous JAX sampling results before diagnostics."""
+
+    @pytest.mark.unit
+    def test_block_until_ready_pytree_blocks_array_leaves(self) -> None:
+        """Regression: diagnostics phase should start only after samples are ready."""
+        from heterodyne.optimization.cmc.core import _block_until_ready_pytree
+
+        class BlockingLeaf:
+            def __init__(self) -> None:
+                self.blocked = False
+
+            def block_until_ready(self) -> BlockingLeaf:
+                self.blocked = True
+                return self
+
+        leaf = BlockingLeaf()
+        samples = {"D0_ref": leaf, "alpha_ref": np.array([1.0, 2.0])}
+
+        returned = _block_until_ready_pytree(samples)
+
+        assert returned is samples
+        assert leaf.blocked
