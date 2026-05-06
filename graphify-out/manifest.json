@@ -1,0 +1,1430 @@
+{
+  "/Users/b80985/Projects/heterodyne/tests/conftest.py": {
+    "mtime": 1777484224.303498,
+    "hash": "e543249047916982fa59109b65e7d750"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/__init__.py": {
+    "mtime": 1769223083.3533034,
+    "hash": "09d2f1fa98220cf557ecd8d801c412a1"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/documentation/__init__.py": {
+    "mtime": 1777484224.3035874,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/documentation/test_docs_content.py": {
+    "mtime": 1777484224.303703,
+    "hash": "e7063127d27c84165e4bb960bf6978dc"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/__init__.py": {
+    "mtime": 1773331821.776663,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_jax_config.py": {
+    "mtime": 1774563725.2396247,
+    "hash": "8c48f38ede9c531f59e2c832ec671ec8"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_core.py": {
+    "mtime": 1777484224.3044183,
+    "hash": "f93d3751acf28253ebc22640d8841e79"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/__init__.py": {
+    "mtime": 1773331821.7792082,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_jax_backend_scientific.py": {
+    "mtime": 1774563725.2394454,
+    "hash": "c84747ce560c3e8a6bac983e1d63e692"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_diagonal_correction.py": {
+    "mtime": 1774563725.2389004,
+    "hash": "54d6520fbff641a30a6c8646d28fece6"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_theory_scientific.py": {
+    "mtime": 1774563725.241309,
+    "hash": "4766a779d6c29abc92d2c2a07001112c"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_heterodyne_model.py": {
+    "mtime": 1777484224.3045657,
+    "hash": "78f30b9107495f392d05fa028c696df8"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_fitting.py": {
+    "mtime": 1774563725.239063,
+    "hash": "8d9243a2b9d47fcedf8411a13badcb2f"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_model_modes.py": {
+    "mtime": 1774563725.2400424,
+    "hash": "de311a56bfd85e2e71e9e2e5b5f57449"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_physics_cmc_elementwise.py": {
+    "mtime": 1774563725.24058,
+    "hash": "cae3db5aff6823f31369cd34dc61077c"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_model_mixins.py": {
+    "mtime": 1774563725.2398982,
+    "hash": "9b49e39d054d793fe9409c160647ba62"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_physics_utils.py": {
+    "mtime": 1774563725.2410958,
+    "hash": "6c29fcd37595405c17464816673970b5"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/core/test_backend_api.py": {
+    "mtime": 1774563725.2385767,
+    "hash": "5c372518703dd6d24786c95f39aea833"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/config/test_parameter_names.py": {
+    "mtime": 1774563725.23768,
+    "hash": "6d405f6877bb634d4482bb32c4b4af69"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/config/test_parameter_manager_coverage.py": {
+    "mtime": 1774563725.2375073,
+    "hash": "339c4a6206545bae21755c1c404277fc"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/config/test_physics_validators.py": {
+    "mtime": 1774563725.2383943,
+    "hash": "df995b92a3c5b96cc21d918daf90a27b"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/config/__init__.py": {
+    "mtime": 1773331821.777346,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/config/test_parameter_recovery.py": {
+    "mtime": 1774563725.2378557,
+    "hash": "333fa0295e31c39d7c060c3b5e01eaaf"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/config/test_parameter_space_coverage.py": {
+    "mtime": 1774563725.2381234,
+    "hash": "a2de4f094d90ddb38bc1fc714529de9f"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/config/test_parameter_registry_coverage.py": {
+    "mtime": 1773331821.7786467,
+    "hash": "743cad5c2c951f69263d3ad68ab5129d"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/config/test_config_manager.py": {
+    "mtime": 1777484224.3041332,
+    "hash": "f622deabf72d8026d836f837260fa054"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/test_optimization_exceptions.py": {
+    "mtime": 1773331821.7925415,
+    "hash": "9e2774b78e1b24c8247ee1fd5a6668dd"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/test_checkpoint_manager.py": {
+    "mtime": 1774563725.2549686,
+    "hash": "895a380c56ca521e7ce6796ec6c92447"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/test_gradient_diagnostics.py": {
+    "mtime": 1774563725.25523,
+    "hash": "1520466163c71e24a4e90e7cb5d29c00"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/__init__.py": {
+    "mtime": 1773331821.782708,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_cmc_worker_pool.py": {
+    "mtime": 1774563725.2451632,
+    "hash": "1cb5f951dc16db8019ed38c89f7a5f67"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_reparameterization.py": {
+    "mtime": 1774563725.2454886,
+    "hash": "13ff068ce96ad910b22cd2da48308d3f"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_scaling.py": {
+    "mtime": 1774563725.2456865,
+    "hash": "1c7bee97a3e6f4a0f4271697bff72eec"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_cmc_data_prep.py": {
+    "mtime": 1774563725.2440336,
+    "hash": "4e4b91792a91565bf33457d10e143ba7"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_cmc_results.py": {
+    "mtime": 1774563725.2447412,
+    "hash": "7b44bc1109dbd390c75fa9ebfb74e438"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_cluster_modes.py": {
+    "mtime": 1774563725.2431715,
+    "hash": "672c1255b1fac00e60f152831d7f52f1"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_sharding.py": {
+    "mtime": 1774563725.2460465,
+    "hash": "313f49689d2a2d44459be432bf513cf6"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/__init__.py": {
+    "mtime": 1773331821.7828484,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_model_validation.py": {
+    "mtime": 1774563725.2453237,
+    "hash": "58cb5dea33a69baa68d0a1ddd119385f"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_cmc_diagnostics_scientific.py": {
+    "mtime": 1774563725.244348,
+    "hash": "56eda0791efe0d081f497b894a4b4e8f"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_scaling_estimation.py": {
+    "mtime": 1774563725.2458756,
+    "hash": "2537bcc60a0e6129486aa6bfbcf994e8"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_cmc_priors.py": {
+    "mtime": 1774563725.2445264,
+    "hash": "47479550024c67aa64d0b87332900849"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_cmc_core.py": {
+    "mtime": 1774563725.243787,
+    "hash": "e228751d4ce9714d767658bfeedacd31"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_cmc_sampler.py": {
+    "mtime": 1774563725.2449553,
+    "hash": "dbe6adb954b9027b7f37f42e91af5a17"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/cmc/test_cmc_backends.py": {
+    "mtime": 1774563725.2433686,
+    "hash": "ca5b7a67b4e943e61ff706c3734008c8"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_core_nlsq.py": {
+    "mtime": 1777484224.304836,
+    "hash": "15d19b2a77d324adb94a02bcd20a33e3"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_memory_strategy.py": {
+    "mtime": 1773331821.7874246,
+    "hash": "a0f7ad8e03d16da4211ec324de7f93a8"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_data_prep.py": {
+    "mtime": 1774563725.247545,
+    "hash": "54d8973948abc01f370f46dbaed1bb27"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_fit_quality.py": {
+    "mtime": 1774563725.2504456,
+    "hash": "4f99d7881e63dd39ad92ff81d8a2b719"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_result_validator.py": {
+    "mtime": 1774563725.2536483,
+    "hash": "13a35717cd3511ba919ae8c32a6a2051"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_core.py": {
+    "mtime": 1774563725.2497418,
+    "hash": "24290dcc7a467e02852aa561e5c073b8"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_multistart.py": {
+    "mtime": 1774563725.2489865,
+    "hash": "368133b8ba18ea835611857590b09b64"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_core_coverage.py": {
+    "mtime": 1774563725.2501993,
+    "hash": "73636a43f3ecf7f41241897862b40df9"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/__init__.py": {
+    "mtime": 1773331821.7854855,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_config_nlsq.py": {
+    "mtime": 1773331821.7862842,
+    "hash": "e8f792d6abe300962be2e2638635f314"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_adapter.py": {
+    "mtime": 1774563725.2464888,
+    "hash": "535e7a5c7a7037b48cb9a3c43a4058d2"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_cmaes.py": {
+    "mtime": 1774563725.2469163,
+    "hash": "af446a120fbadc61afd4d2f7e1bcc3ca"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_cmaes_fixes.py": {
+    "mtime": 1774563725.2471597,
+    "hash": "325b15f5a5dcb1ef338ee3d0b353b0fd"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_internals.py": {
+    "mtime": 1774563725.2509806,
+    "hash": "cae4602ac1ae390ac10a90f5e754a7d4"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_strategies_base.py": {
+    "mtime": 1774563725.2539916,
+    "hash": "0a6f792e7fc16470074993f8f48c9b46"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_strategies.py": {
+    "mtime": 1774563725.2517786,
+    "hash": "05ce85fc770cecfad6439f11f24f96b8"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_adapter_coverage.py": {
+    "mtime": 1774563725.2494469,
+    "hash": "47ec63b4baf665ba1904fae66def7853"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_hierarchical.py": {
+    "mtime": 1774563725.2482252,
+    "hash": "7bbb6e0205662db9e4681bb6a4a4789e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_validation_result.py": {
+    "mtime": 1774563725.254804,
+    "hash": "d0985e2900f4c0bad48a6ddf1c5ab99c"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_result_builder.py": {
+    "mtime": 1777484224.3053973,
+    "hash": "6aca82d626b56c55a5b170e23ea9e026"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_no_scipy.py": {
+    "mtime": 1774563725.2527068,
+    "hash": "24bc6bb92efef2eb909fb1624f83279e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_adapter.py": {
+    "mtime": 1777484224.305189,
+    "hash": "ff0d302091674bd37aeb5a7984fd099e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_anti_degeneracy.py": {
+    "mtime": 1774563725.2467368,
+    "hash": "0260301f369525c9ff2b4677f18ceea8"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_fallback_chain.py": {
+    "mtime": 1774563725.2479222,
+    "hash": "56c22088b0a0b98fbf7d07b56cec638a"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_results.py": {
+    "mtime": 1774563725.251562,
+    "hash": "1ed3e3799f9f4d4a1b5977c752121d6e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_validation_bounds.py": {
+    "mtime": 1774563725.2544286,
+    "hash": "0c101dfe8c30f07f611c899c3e15264b"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_input_validator.py": {
+    "mtime": 1774563725.250606,
+    "hash": "6ccf248da935faf3bc97a3e5c9598260"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_strategies_nlsq.py": {
+    "mtime": 1774563725.2541997,
+    "hash": "fac2b52ba62f2436936bbfa7ef150a24"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_result_builder_nlsq.py": {
+    "mtime": 1774563725.253467,
+    "hash": "8eae00e862c14033fb968408040b328a"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_validation_convergence.py": {
+    "mtime": 1774563725.254609,
+    "hash": "66a31ce77ab209e452f3edcc75fd979a"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_wrapper.py": {
+    "mtime": 1774563725.2521844,
+    "hash": "c0509a0131d5d942a61f48ce1e9beb2f"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_hybrid_streaming.py": {
+    "mtime": 1774563725.248659,
+    "hash": "dbdb328499761eeb10e08ae4375b64e9"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/optimization/nlsq/test_nlsq_memory.py": {
+    "mtime": 1774563725.2512424,
+    "hash": "4d12241ee039ebff5275d9963cf2d69a"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/io/test_json_utils.py": {
+    "mtime": 1774563725.2425609,
+    "hash": "0520ee7911ad2e370abebffa20fffebe"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/io/test_writers.py": {
+    "mtime": 1774563725.2428055,
+    "hash": "8f13abcb8d2c15b9aae57a918bafa4f8"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/io/__init__.py": {
+    "mtime": 1773331821.7822812,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/utils/test_logging.py": {
+    "mtime": 1773331821.7929504,
+    "hash": "fff13c78bf5275a2dde8fc8cc293d0aa"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/utils/__init__.py": {
+    "mtime": 1773331821.7926512,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/utils/test_path_validation.py": {
+    "mtime": 1773331821.7935653,
+    "hash": "fc07d7e281545cab7dbabf997c71178b"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/utils/test_async_io.py": {
+    "mtime": 1774563725.2553947,
+    "hash": "e14e734efdfdeb25f1b35dbb03d7d58e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/utils/test_memory.py": {
+    "mtime": 1773331821.7932923,
+    "hash": "84e2784f80f9e9eb440dff1c2820d370"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/utils/test_logging_coverage.py": {
+    "mtime": 1774563725.2555926,
+    "hash": "b61602d19b028350826fb83963413c8b"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/cli/__init__.py": {
+    "mtime": 1773331821.7767775,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/cli/test_args_parser.py": {
+    "mtime": 1774563725.236646,
+    "hash": "03e976c5d6d53457548ac34812ddd7a2"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/cli/test_completion_parity.py": {
+    "mtime": 1774718389.2506847,
+    "hash": "00b2cc4c89a0804b8960111c5734d61b"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/cli/test_optimization_runner.py": {
+    "mtime": 1774563725.2370348,
+    "hash": "2ee5552fe5d21edcea39a7467bec7e51"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/cli/test_commands.py": {
+    "mtime": 1774563725.23685,
+    "hash": "b7de1bc0fecee721f33e8b9981a676df"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/viz/test_diagnostics.py": {
+    "mtime": 1774563725.2558942,
+    "hash": "218ce4ea5ae64d0b4fb8389ba3b0523b"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/viz/test_mcmc_arviz.py": {
+    "mtime": 1774563725.256317,
+    "hash": "84b31328841ae9f20ef503b714b14297"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/viz/test_validation.py": {
+    "mtime": 1774563725.2566867,
+    "hash": "0804dd9ff5468d17b765f99ba311c955"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/viz/__init__.py": {
+    "mtime": 1773331821.793714,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/viz/test_viz_params.py": {
+    "mtime": 1777484224.3055375,
+    "hash": "a2dbf416fc12af50361fd18131e7de21"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/device/test_cpu.py": {
+    "mtime": 1774563725.2421474,
+    "hash": "240c6266126406e23df37354ac424be6"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/device/__init__.py": {
+    "mtime": 1773331821.7818623,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/device/test_device_config.py": {
+    "mtime": 1774563725.2423608,
+    "hash": "f1e350ff19890e1cad4bb23a30dd1c0c"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/data/test_data_loader.py": {
+    "mtime": 1774563725.241696,
+    "hash": "c1ade13a9d6b9116f536dc415462bbd6"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/data/test_angle_filtering.py": {
+    "mtime": 1774563725.2415166,
+    "hash": "82d50b83ebd37cb58daa906d03f319d5"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/data/__init__.py": {
+    "mtime": 1773331821.78156,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/unit/data/test_filtering_utils.py": {
+    "mtime": 1774563725.2418118,
+    "hash": "216ffeed2ec65df4f1e5d86c8c60ade0"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/test_full_pipeline.py": {
+    "mtime": 1777484224.3038588,
+    "hash": "c36de8a6d10ad6c0d0b94f96ded4b3fb"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/test_cmc_reparameterization.py": {
+    "mtime": 1774563725.232933,
+    "hash": "0b691a5219842c9e10cf672153a1b6e4"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/test_error_recovery.py": {
+    "mtime": 1774563725.2331324,
+    "hash": "5a1e528d3db92d525d1d302e89c979d4"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/__init__.py": {
+    "mtime": 1773331821.772831,
+    "hash": "c3e29c7213032a1f7fc49bef8331377c"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/test_nlsq_pipeline.py": {
+    "mtime": 1774563725.2341368,
+    "hash": "9c5dfef68ba58b94bff0c73babbef5a3"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/test_cli_pipeline.py": {
+    "mtime": 1774563725.2325811,
+    "hash": "853ccffcc64e986f12c1538c54c6bf8a"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/test_integration.py": {
+    "mtime": 1773331821.7740035,
+    "hash": "d850dd174c2d2418d78e3b23f7385577"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/test_cmc_pipeline.py": {
+    "mtime": 1774563725.232745,
+    "hash": "297a7775529fabcdf794ad5ef4518dc5"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/test_nlsq_cmc_consistency.py": {
+    "mtime": 1774563725.2336702,
+    "hash": "a9b01f2b668290b9473579e9f3aeebfd"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/integration/test_hdf5_pipeline.py": {
+    "mtime": 1774563725.2334926,
+    "hash": "0de843d2462b6cba18b6e1fef864c39a"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/factories/conftest.py": {
+    "mtime": 1773331821.7722878,
+    "hash": "2c263485a168ff8bc5b432f24e2fe5e7"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/factories/data_factory.py": {
+    "mtime": 1774563725.232123,
+    "hash": "04e088c0433c3501b62e3a2535fffce4"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/factories/__init__.py": {
+    "mtime": 1773331821.7719846,
+    "hash": "c75ced05fe71de8a15d6c869cf61fa32"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/factories/test_cmc_fixtures.py": {
+    "mtime": 1774563725.2323987,
+    "hash": "76c0bdcd3fc6346eb6bfe9f344296d1c"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/factories/config_factory.py": {
+    "mtime": 1773331821.7721708,
+    "hash": "b026e28c2cbda9e99d816ec886eed27d"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/mcmc/__init__.py": {
+    "mtime": 1773331821.77437,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/mcmc/test_statistical_validation.py": {
+    "mtime": 1774563725.2346492,
+    "hash": "430c665c2f7851be36c19aff607e6e6b"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/api/test_compatibility.py": {
+    "mtime": 1777484224.3033469,
+    "hash": "cc3cf7e7478ccce2299388d996e7d7aa"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/api/__init__.py": {
+    "mtime": 1777484224.3030493,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/regression/test_numerical_stability.py": {
+    "mtime": 1774563725.2357662,
+    "hash": "c756060f64ea00d13d683a4ce4f032a9"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/regression/__init__.py": {
+    "mtime": 1773331821.7752678,
+    "hash": "417fc225a2a93d71936d79fd720db534"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/regression/test_parameter_sensitivity.py": {
+    "mtime": 1774563725.2359643,
+    "hash": "440e50e1cf53c04910a7e3ba204b5152"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/regression/test_nlsq_regression.py": {
+    "mtime": 1774563725.2353437,
+    "hash": "13606825cff333989fc3baca561b1582"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/performance/test_jit_compilation.py": {
+    "mtime": 1774563725.2348816,
+    "hash": "ece8d72888ca0c29341e14d2d48912c3"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/performance/test_memory_scaling.py": {
+    "mtime": 1774563725.2351155,
+    "hash": "21fad68be81d68642954af0519ecde3d"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/performance/__init__.py": {
+    "mtime": 1773331821.7747357,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/validation/__init__.py": {
+    "mtime": 1777484224.3056161,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/validation/test_scientific_validation.py": {
+    "mtime": 1777484224.3057353,
+    "hash": "a7b72c66392f4526444222bbf68f504f"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/scientific/__init__.py": {
+    "mtime": 1773331821.7760205,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/scientific/test_numerical_validation.py": {
+    "mtime": 1773331821.7762706,
+    "hash": "c0c4da392a4d8574417ab40c65a3b82c"
+  },
+  "/Users/b80985/Projects/heterodyne/tests/scientific/test_property_based.py": {
+    "mtime": 1774563725.2362487,
+    "hash": "5c4562a2c413c34e20c791b1c8fc928b"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/conf.py": {
+    "mtime": 1774563725.1841617,
+    "hash": "036614eb6099aeeadec9f5583e399a44"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/uninstall_scripts.py": {
+    "mtime": 1774718389.2493672,
+    "hash": "177fc06f4d9eb2dc92166f00b3a26798"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/__init__.py": {
+    "mtime": 1774718389.2453961,
+    "hash": "0226c705dfe8a17e1b285a44b18adf9c"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/post_install.py": {
+    "mtime": 1774718389.2476254,
+    "hash": "66dadfb16415344d8f968ae89a728863"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/physics_cmc.py": {
+    "mtime": 1774563725.1986775,
+    "hash": "3059e2d872182ed30d0580ecb5ec9a11"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/physics_factors.py": {
+    "mtime": 1777484224.2988384,
+    "hash": "7d1a6e70d5bce38857bf9d5f7d46fdf8"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/model_mixins.py": {
+    "mtime": 1774563725.1975284,
+    "hash": "b496770c0aac1f8a8064955e20a98a36"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/scaling_utils.py": {
+    "mtime": 1774563725.19975,
+    "hash": "ec75725aec6f26dc5550137b2f386264"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/diagonal_correction.py": {
+    "mtime": 1774563725.1963153,
+    "hash": "f44e6e8a082610c3c493d8fa4dded16a"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/models.py": {
+    "mtime": 1774563725.1978326,
+    "hash": "a12104e7e677b18516bf7380cb4f4d2e"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/physics_nlsq.py": {
+    "mtime": 1774563725.1989484,
+    "hash": "28e5abef24012fa545fcceb8e59b274a"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/numpy_gradients.py": {
+    "mtime": 1774563725.1981595,
+    "hash": "10e6912fd50fd826f2a60d8848b4b7e8"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/heterodyne_model.py": {
+    "mtime": 1777484224.2981536,
+    "hash": "4afbe0110c2997f8322fd09939b397b4"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/__init__.py": {
+    "mtime": 1773331821.7434452,
+    "hash": "91208122eb2e652f70c238ba90f2729a"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/theory.py": {
+    "mtime": 1774563725.200283,
+    "hash": "bb27136a30aca42124aff75fd448c14b"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/physics.py": {
+    "mtime": 1773331821.745622,
+    "hash": "fc47cc6737cfc5f28c8369041221f22c"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/backend_api.py": {
+    "mtime": 1774563725.1958573,
+    "hash": "715592e71d7dea0fd5f786a55f1bdac6"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/fitting.py": {
+    "mtime": 1774563725.196729,
+    "hash": "7436276c3c2dab87d07f12ac78b957bf"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/jax_backend.py": {
+    "mtime": 1777484224.2984374,
+    "hash": "bda07a04254109be735b31595a010052"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/core/physics_utils.py": {
+    "mtime": 1774563725.1993215,
+    "hash": "e9135347d5aff774a9151350fa0d7976"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/config/parameter_manager.py": {
+    "mtime": 1777484224.2970462,
+    "hash": "7e3ebd6d016116d9d72463d691f83459"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/config/__init__.py": {
+    "mtime": 1773331821.7410839,
+    "hash": "15eea2defca3268f0c4488d5885a587e"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/config/types.py": {
+    "mtime": 1774563725.1956522,
+    "hash": "9171df6a3e39583477c9732c81455f4c"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/config/parameter_names.py": {
+    "mtime": 1773331821.7417889,
+    "hash": "b0a2e7f59975ed52d21bb231f6fbd7f0"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/config/parameter_space.py": {
+    "mtime": 1777484224.297378,
+    "hash": "165a7eec0093c06e7e13525ad55243e1"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/config/parameter_registry.py": {
+    "mtime": 1774563725.1943853,
+    "hash": "c1bc4a4a6f8643c1bc6cc3c6a017c1fb"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/config/physics_validators.py": {
+    "mtime": 1774563725.1951404,
+    "hash": "9aaccbaf03108e6f6ed8c39a9df0ad7f"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/config/manager.py": {
+    "mtime": 1777484224.2965522,
+    "hash": "3f27ed614d1d64f77eaa2328538a3621"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/numerical_validation.py": {
+    "mtime": 1774563725.2248132,
+    "hash": "e25560a1ee0f542b07e1229930ed9adb"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/__init__.py": {
+    "mtime": 1773331821.7513924,
+    "hash": "d9583bc129bfe74540abd86c0baa0c77"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/gradient_diagnostics.py": {
+    "mtime": 1774563725.2148044,
+    "hash": "1913d611b1b9e186115f9212a4931035"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/recovery_strategies.py": {
+    "mtime": 1774563725.2249854,
+    "hash": "c0314ab3c282aa0103efd2b77982a1fa"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/batch_statistics.py": {
+    "mtime": 1774563725.205822,
+    "hash": "cff6a4a0490266eafd7b5cbd7303297a"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/exceptions.py": {
+    "mtime": 1774563725.2145858,
+    "hash": "c89810d0f278281819f95c8a323ee833"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/checkpoint_manager.py": {
+    "mtime": 1774563725.20602,
+    "hash": "e52af843acfc1bb2b9e37337a5efc448"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/scaling.py": {
+    "mtime": 1773331821.7561111,
+    "hash": "a2057744a2eb1295d955e16a5b7083ab"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/config.py": {
+    "mtime": 1777484224.3000169,
+    "hash": "466d2fe83550e560e22d96e4eda7106e"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/results.py": {
+    "mtime": 1774563725.2139087,
+    "hash": "1b7149d6ab05c58954a0723cf530420f"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/diagnostics.py": {
+    "mtime": 1774563725.2117908,
+    "hash": "0113cfc10f9caf4c482e1f5e68c21adc"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/plotting.py": {
+    "mtime": 1774563725.2129927,
+    "hash": "a661afbb1f57a0115fd4593370b5a946"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/io.py": {
+    "mtime": 1774563725.2120864,
+    "hash": "0bf16cbd7e14d928fe3cf4c678b010f0"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/__init__.py": {
+    "mtime": 1773331821.7519088,
+    "hash": "4e26281ec4544d20e9b1b6d48ba78008"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/core.py": {
+    "mtime": 1777484224.300409,
+    "hash": "d8abddbfa29edc9fdce60c2a6df13a1b"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/model.py": {
+    "mtime": 1774563725.21233,
+    "hash": "a14005195f71920e62b19eebbb65e29b"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/data_prep.py": {
+    "mtime": 1774563725.2110949,
+    "hash": "97e62cf4a23eef4bacc8cd9b7a622fc1"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/priors.py": {
+    "mtime": 1774563725.213417,
+    "hash": "f334aa0a66f3376a540d20b9e1240700"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/reparameterization.py": {
+    "mtime": 1774563725.2137153,
+    "hash": "076c0078a975ef81bdeafec8b6ad6574"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/sampler.py": {
+    "mtime": 1774563725.2143445,
+    "hash": "c6cc9ef90b8351ea585776e6ff365753"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/backends/worker_pool.py": {
+    "mtime": 1774563725.2089975,
+    "hash": "cf324465c152933cdd7a20bf7cec3f45"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/backends/multiprocessing_backend.py": {
+    "mtime": 1774563725.2075148,
+    "hash": "88baff69be1e4001e80c116023531f37"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/backends/__init__.py": {
+    "mtime": 1774563725.2061772,
+    "hash": "c74efe597258c0b6f0e552ac4d9cf312"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/backends/cpu_backend.py": {
+    "mtime": 1774563725.2071247,
+    "hash": "7560e24ac26dde307d7f27509e5b6372"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/backends/pjit_backend.py": {
+    "mtime": 1774563725.2083328,
+    "hash": "930411f829e01564afbf601a36e01a64"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/backends/base.py": {
+    "mtime": 1774563725.2064497,
+    "hash": "d2198d18c2a07aee5c3cb98476959a83"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/cmc/backends/pbs.py": {
+    "mtime": 1774563725.2078884,
+    "hash": "eef166a17a1412df74b4bc4699925515"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/fit_computation.py": {
+    "mtime": 1774563725.217897,
+    "hash": "b5976c7a55fe7bd9e8e099e3c70c56cb"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/transforms.py": {
+    "mtime": 1774563725.2236354,
+    "hash": "5a1d7cea95d6663ebfa560f61900cb2c"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/jacobian.py": {
+    "mtime": 1774563725.2190065,
+    "hash": "eeb8edcd5793f3566168c772158cd665"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/parameter_index_mapper.py": {
+    "mtime": 1774563725.2200916,
+    "hash": "caa7be49eda21e27a045e459c9484176"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/config.py": {
+    "mtime": 1777484224.3010974,
+    "hash": "f10bf2890ef63672d64577ce904cc6f6"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/recovery.py": {
+    "mtime": 1774563725.2202857,
+    "hash": "c26c5effe779baf1d23811be32247464"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/cmaes_wrapper.py": {
+    "mtime": 1774563725.216322,
+    "hash": "468d107da6f704344eb8aba55e6f0c14"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/memory.py": {
+    "mtime": 1774563725.2193124,
+    "hash": "f5249b6c88388fcb953c5b82732df008"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/results.py": {
+    "mtime": 1774563725.220923,
+    "hash": "794b7882c642137e5689667d3292b51e"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/fourier_reparam.py": {
+    "mtime": 1774563725.218432,
+    "hash": "84bd3a6d2cfbfa8bb6db5eedfdebc2ad"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/hierarchical.py": {
+    "mtime": 1774563725.2187698,
+    "hash": "48fc9e2cadb929dc7c799dae40c01478"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/adapter.py": {
+    "mtime": 1777484224.3007214,
+    "hash": "431a685b77567409f1ed0b77c3a7f0c2"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/parallel_accumulator.py": {
+    "mtime": 1774563725.2199109,
+    "hash": "9debc725db13822d2371ead14e084ac9"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/anti_degeneracy_controller.py": {
+    "mtime": 1774563725.2160747,
+    "hash": "2ca6cf2f365c73ab1cb34da2f686a9f6"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/__init__.py": {
+    "mtime": 1773331821.756901,
+    "hash": "07a67afa026361aa05c5b08ec3c6b6ed"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/fallback_chain.py": {
+    "mtime": 1774563725.2175186,
+    "hash": "479e5beafe5c87c1b0b312afc3af20c0"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/core.py": {
+    "mtime": 1777484224.301427,
+    "hash": "844f7d9f4cbc5e872972ac10a6605b1c"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/result_builder.py": {
+    "mtime": 1777484224.3018165,
+    "hash": "ad6bc0816f82db09dbedbfc9e3050e55"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/data_prep.py": {
+    "mtime": 1774563725.2172847,
+    "hash": "c4ca8356ef1fbd7a302c13382d2e0e19"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/parameter_utils.py": {
+    "mtime": 1773331821.7609339,
+    "hash": "4bfc391392bb6812b2a015dd3a215c23"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/multistart.py": {
+    "mtime": 1774563725.2196584,
+    "hash": "907b3b0048c4c8043c77910ae3a98e55"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/gradient_monitor.py": {
+    "mtime": 1773331821.7597306,
+    "hash": "0c37d73a9ed22b0ef5a4c1dee9d949ee"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/adaptive_regularization.py": {
+    "mtime": 1773331821.7576153,
+    "hash": "a9a2572b2ec62c761e3ae0fa7dbe3a43"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/progress.py": {
+    "mtime": 1773331821.761107,
+    "hash": "5e9ad1dfae34e2f583876a4f4c9ac9db"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/adapter_base.py": {
+    "mtime": 1773331821.7574892,
+    "hash": "d3374fc04503b98c1d05652438b1c88b"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/hybrid_streaming.py": {
+    "mtime": 1774563725.2217922,
+    "hash": "ae264aba3ce56320a683cb781353c16d"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/residual.py": {
+    "mtime": 1774563725.2225971,
+    "hash": "7a16881fe473bfcec9a3cf15d13af33e"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/chunked.py": {
+    "mtime": 1774563725.2215676,
+    "hash": "4d71917692384baf93cdb2c7b3413efe"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/__init__.py": {
+    "mtime": 1773331821.7618217,
+    "hash": "2202d4666b3ec4a277444f847fc4c35e"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/sequential.py": {
+    "mtime": 1774563725.2230508,
+    "hash": "028bf60d1f9c013d7c431d2678a6c57b"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/executors.py": {
+    "mtime": 1773331821.7622588,
+    "hash": "0c1644abda07eda243d3c5709cebc5ad"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/out_of_core.py": {
+    "mtime": 1774563725.2223096,
+    "hash": "47f64f11f2096221944d0e629b7296b2"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/stratified_ls.py": {
+    "mtime": 1774563725.223397,
+    "hash": "88a204a6230ff915a3fa8fca979d2d8d"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/jit_strategy.py": {
+    "mtime": 1774563725.2221181,
+    "hash": "836731e10fbe56eb45e3ce29c4687255"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/base.py": {
+    "mtime": 1774563725.2211695,
+    "hash": "3e5e2d45b7b694b4f3067f4523d95677"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/strategies/residual_jit.py": {
+    "mtime": 1774563725.2228446,
+    "hash": "f1ea1cbed22fc56f39b667f324f09e4b"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/validation/convergence.py": {
+    "mtime": 1774563725.223979,
+    "hash": "bec69e655870c6df760f3978869eb039"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/validation/__init__.py": {
+    "mtime": 1773331821.7643638,
+    "hash": "273a87ef06d2c207911af11ef83cb83b"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/validation/fit_quality.py": {
+    "mtime": 1774563725.2241294,
+    "hash": "dca4bcae6832a97f5ea8a844840336b7"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/validation/result.py": {
+    "mtime": 1774563725.2244408,
+    "hash": "8546bf8112b40d061be6d02db01b59e7"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/validation/input_validator.py": {
+    "mtime": 1774563725.224286,
+    "hash": "38a0f4bb11afd2a48fc676dc30db935d"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/validation/bounds.py": {
+    "mtime": 1774563725.2238247,
+    "hash": "fbd2a4a7ff1d7d94d9b16659e9f83756"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/optimization/nlsq/validation/result_validator.py": {
+    "mtime": 1774563725.2246246,
+    "hash": "1888298b802f4b9ebfaafe2b94c6c729"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/io/nlsq_writers.py": {
+    "mtime": 1774563725.2055836,
+    "hash": "d70dfee17b09d09952e0ee6c8968b105"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/io/__init__.py": {
+    "mtime": 1773331821.7503133,
+    "hash": "f5f33b43e86d0bd36804ce2846d7f0e5"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/io/json_utils.py": {
+    "mtime": 1774563725.2047656,
+    "hash": "0f91a46d0e06abe22ca98100284f97ab"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/io/mcmc_writers.py": {
+    "mtime": 1774563725.2050774,
+    "hash": "a4de4a6a6d8a881d7c31eeb6f276878d"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/runtime/__init__.py": {
+    "mtime": 1773331821.7658985,
+    "hash": "ff04277612b44a088c56ad0757b75ac7"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/runtime/shell/__init__.py": {
+    "mtime": 1774718389.2485127,
+    "hash": "73a01d1327bcc87bd52cca66b71301d9"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/runtime/shell/activation/__init__.py": {
+    "mtime": 1769223884.0001614,
+    "hash": "c0adb0d2e00135410fa7f3baa742c387"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/runtime/utils/system_validator.py": {
+    "mtime": 1774563725.2265666,
+    "hash": "cf9d9e504725d9e277a95d21aafd2051"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/runtime/utils/__init__.py": {
+    "mtime": 1773331821.7666044,
+    "hash": "fe3efff409a24579b2b3b56eecd761c7"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/utils/logging.py": {
+    "mtime": 1774563725.2276964,
+    "hash": "c2be4fa228753942ac2ec3f2aa83740d"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/utils/__init__.py": {
+    "mtime": 1773331821.7680871,
+    "hash": "d6f4d08bf90f388015c91dc3e462f94c"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/utils/path_validation.py": {
+    "mtime": 1773331821.7687073,
+    "hash": "fdd17fa9b69eea172ae0f0eb3aab7b08"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/utils/async_io.py": {
+    "mtime": 1774563725.2273543,
+    "hash": "815ee592f06ef1d74fe5b1c8bd3c534e"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/config_handling.py": {
+    "mtime": 1777484224.2953904,
+    "hash": "0002f1adef1332e24d6ec52571c8a6f7"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/data_pipeline.py": {
+    "mtime": 1777484224.295609,
+    "hash": "9d94f62ada7bc023d7bf2aac1c786ad1"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/xla_config.py": {
+    "mtime": 1774563725.1934261,
+    "hash": "e0c890164b8523a5ad3a8d7f110bc28e"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/__init__.py": {
+    "mtime": 1774563725.1912498,
+    "hash": "89254c1eed73cf93fdf724c4154148a5"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/args_parser.py": {
+    "mtime": 1777484224.2940226,
+    "hash": "27a1bd3ea1fb9c316cb5ef3bb69bfb17"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/plot_dispatch.py": {
+    "mtime": 1777484224.296283,
+    "hash": "d7b7fc5aba0b60c4f664b119b1b21198"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/config_generator.py": {
+    "mtime": 1777484224.2951055,
+    "hash": "db7279c60d89562edb763f1518b807ef"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/main.py": {
+    "mtime": 1777484224.2958746,
+    "hash": "b4763a01e2db0b6c5459d0e57a63d810"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/commands.py": {
+    "mtime": 1777484224.2946057,
+    "hash": "7bf6f490559f440621cb6a14daad0769"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/result_saving.py": {
+    "mtime": 1774563725.1932065,
+    "hash": "3661e224819db14348d55ebb66544264"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/cli/optimization_runner.py": {
+    "mtime": 1777484224.296117,
+    "hash": "058d613eb4266134d4736d8c44a3095d"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/mcmc_plots.py": {
+    "mtime": 1774563725.2302527,
+    "hash": "92c5b95406e660cfac33895aa763c47f"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/diagnostics.py": {
+    "mtime": 1774563725.2281759,
+    "hash": "b07041fac43fcf3b3a60c4f54249d326"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/__init__.py": {
+    "mtime": 1773331821.7690475,
+    "hash": "7a01b315c3a77df20c4ed477a7d6bc54"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/nlsq_plots.py": {
+    "mtime": 1777484224.30285,
+    "hash": "2a545ed0afd83ce6c17dabafd6660c2c"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/mcmc_report.py": {
+    "mtime": 1774563725.230447,
+    "hash": "acb4a4785532323fb4a5c4ad2eee1656"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/mcmc_dashboard.py": {
+    "mtime": 1774563725.2295814,
+    "hash": "656868bb8e11f8ad57f36794a16e6ce8"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/mcmc_diagnostics.py": {
+    "mtime": 1774563725.229856,
+    "hash": "d84469714245ec206f2a58a6b354de2d"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/mcmc_arviz.py": {
+    "mtime": 1774563725.2288778,
+    "hash": "bdc11159512df889a6886f1ccd47cdd2"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/datashader_backend.py": {
+    "mtime": 1774563725.2278943,
+    "hash": "824d1bf4a48da2151450580d438498d7"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/experimental_plots.py": {
+    "mtime": 1777484224.3022811,
+    "hash": "bcd99f96e0fea47dfedb9dd3ad428889"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/mcmc_comparison.py": {
+    "mtime": 1774563725.2292755,
+    "hash": "329a1723a35e1f782c0e085824db022a"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/viz/validation.py": {
+    "mtime": 1774563725.2311287,
+    "hash": "45b366411c41867c3fd86374f0cadb45"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/device/config.py": {
+    "mtime": 1774563725.2043362,
+    "hash": "32e0dce903fd6b21649ad35af61cf9da"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/device/cpu.py": {
+    "mtime": 1774563725.2045994,
+    "hash": "d3397fd55fe079f70bba050cd09db0f0"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/device/__init__.py": {
+    "mtime": 1773331821.749581,
+    "hash": "fd4afd3ec856b25fb4737119f6e0411f"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/memory_manager.py": {
+    "mtime": 1774563725.202308,
+    "hash": "a648ab720d245fc1412af1a40e02b429"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/config.py": {
+    "mtime": 1774563725.2008553,
+    "hash": "36506cd34190075f47616e03f3aec05d"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/validators.py": {
+    "mtime": 1774563725.2038817,
+    "hash": "827fba5e551fe99690ae92fa7d0f152e"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/optimization.py": {
+    "mtime": 1774563725.202563,
+    "hash": "a6b122fc07d5b70bdf2429cb18cfcb8a"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/__init__.py": {
+    "mtime": 1773331821.7470572,
+    "hash": "789a5b8711abcd4e20d7f7b1d135d29c"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/types.py": {
+    "mtime": 1773331821.748789,
+    "hash": "74f69bc6598f30904667b4be27d462d7"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/filtering_utils.py": {
+    "mtime": 1774563725.2019787,
+    "hash": "f02ee93aa06a42096b7b24f525896ee2"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/xpcs_loader.py": {
+    "mtime": 1777484224.2995439,
+    "hash": "14710200336bee7fcd210daf0cd05674"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/performance_engine.py": {
+    "mtime": 1774563725.202856,
+    "hash": "55129ca7a403dcc1eb0fcf0a277c08f6"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/preprocessing.py": {
+    "mtime": 1774563725.203221,
+    "hash": "aee1c8dbe5612d4b1105ea1e32153ea7"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/phi_filtering.py": {
+    "mtime": 1774563725.2030098,
+    "hash": "a3fc578c37b9d6b69cecdd6ed520388c"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/quality_controller.py": {
+    "mtime": 1774563725.2034523,
+    "hash": "7980bfa74f7a1bab13d79ac04597a001"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/angle_filtering.py": {
+    "mtime": 1777484224.2990682,
+    "hash": "5438d5840dde33967c5bfe7edfc01dd8"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/data/validation.py": {
+    "mtime": 1774563725.2037067,
+    "hash": "28d606fb26406f0edfb573be743816d6"
+  },
+  "/Users/b80985/Projects/heterodyne/CHANGELOG.md": {
+    "mtime": 1774563725.1755214,
+    "hash": "3187119324e970a9e394a7b3636a6722"
+  },
+  "/Users/b80985/Projects/heterodyne/README.md": {
+    "mtime": 1774718389.2438018,
+    "hash": "fc20efa354dda19ddecdd33dabd2d56e"
+  },
+  "/Users/b80985/Projects/heterodyne/CLAUDE.md": {
+    "mtime": 1777484224.2937148,
+    "hash": "ad1cc8b9b831f3f2ad720b39825597aa"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/Algorithm Inventory.txt": {
+    "mtime": 1774563725.1770751,
+    "hash": "489952267ff996559f6191f44027d0c4"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/index.rst": {
+    "mtime": 1774563725.1859698,
+    "hash": "3d90141cb66591a4a623bc15e187f8c2"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/contributing.rst": {
+    "mtime": 1774563725.1849544,
+    "hash": "b590838f6eb3046d1177cd8a638c4a9a"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/quickstart.rst": {
+    "mtime": 1774563725.1862037,
+    "hash": "7f774139a54090f7f6ce5d96a908d6c5"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/installation.rst": {
+    "mtime": 1774718389.244782,
+    "hash": "c4af17853239d735a3a4114dfbd1b261"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/developer/index.rst": {
+    "mtime": 1774563725.1854317,
+    "hash": "e40eebc7c257499037330654746eea08"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/developer/contributing_guide.rst": {
+    "mtime": 1774563725.1853254,
+    "hash": "8bba8f62659e8229d89e210591f58868"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/developer/testing_guide.rst": {
+    "mtime": 1774563725.1856754,
+    "hash": "95742039b763592e1d62e9c8b8285c9f"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/developer/parameter_bounds_verification.rst": {
+    "mtime": 1774563725.1855686,
+    "hash": "fcef5ec7f7c2e6e938efc2c09aa33338"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/developer/architecture.rst": {
+    "mtime": 1774563725.1852083,
+    "hash": "2cf5d56df60d5e8834dd22f968766c95"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/configuration/templates.rst": {
+    "mtime": 1774563725.1848054,
+    "hash": "195ec4da9516cbb47384e8a0db29fd4a"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/configuration/index.rst": {
+    "mtime": 1774563725.1843457,
+    "hash": "bcd877734bce2445d244d7f104ae777a"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/configuration/options.rst": {
+    "mtime": 1774563725.1845071,
+    "hash": "570b90cc51a426d4c3cd76b7e476e970"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/_templates/autosummary/module.rst": {
+    "mtime": 1774563725.1798036,
+    "hash": "76832c3edac7c40e6e187d32ffa799df"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/theory/index.rst": {
+    "mtime": 1774563725.1871336,
+    "hash": "d0f35f96e55626f4318d835ad52e35a7"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/theory/heterodyne_scattering.rst": {
+    "mtime": 1774563725.1869915,
+    "hash": "9ebedf15f1abe89a9b2ce81feda9c9b6"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/theory/correlation_functions.rst": {
+    "mtime": 1774563725.1868722,
+    "hash": "a0922daab8680ba65152706d3e788491"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/theory/analysis_modes.rst": {
+    "mtime": 1774563725.1863654,
+    "hash": "1b15633247f982a3d81c160d31292848"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/theory/transport_coefficient.rst": {
+    "mtime": 1774563725.1872542,
+    "hash": "138a799fba7a6e3f2e473a1135560d39"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/theory/classical_processes.rst": {
+    "mtime": 1774563725.1866403,
+    "hash": "50b73b395526b4a005ae1a77ce186e3b"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/theory/computational_methods.rst": {
+    "mtime": 1774563725.186753,
+    "hash": "a4e26d502824a7f46f02c0cd908eefb2"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/index.rst": {
+    "mtime": 1774563725.1908622,
+    "hash": "be4e39aea4075da0a95762a9cdc32f95"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/05_appendices/index.rst": {
+    "mtime": 1774563725.1905417,
+    "hash": "ac7d5deb91d4d161ee1315c9bf5a5fd0"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/05_appendices/troubleshooting.rst": {
+    "mtime": 1774563725.1906521,
+    "hash": "00aa15e8c66ef441d5746545b47a31d1"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/05_appendices/faq.rst": {
+    "mtime": 1774563725.1903212,
+    "hash": "ae05172ac385bea8d5d6716019b21fd5"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/05_appendices/glossary.rst": {
+    "mtime": 1774563725.190443,
+    "hash": "6b45a9c2bc130ada6a37313dcdb5f534"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/03_advanced_topics/index.rst": {
+    "mtime": 1774563725.1893017,
+    "hash": "41abef99d4ea5d1a89eba11cf56c2d66"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/03_advanced_topics/per_angle_modes.rst": {
+    "mtime": 1774563725.1894183,
+    "hash": "06c02329c0ef1abd3ddc6a92d96a240a"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/03_advanced_topics/cmaes_optimization.rst": {
+    "mtime": 1774563725.1890595,
+    "hash": "255520c2b5bb7d0b6f6c5f86c626f63a"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/03_advanced_topics/bayesian_inference.rst": {
+    "mtime": 1774563725.1889338,
+    "hash": "31686ad6d7f8c6b549a41fcf0bce62c8"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/03_advanced_topics/diagnostics.rst": {
+    "mtime": 1774563725.1892056,
+    "hash": "4948612aba648566c9e0ce18ec0dbbf3"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/04_practical_guides/index.rst": {
+    "mtime": 1774563725.1897085,
+    "hash": "64e47ca44f0f7033469734fce062ebad"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/04_practical_guides/configuration.rst": {
+    "mtime": 1774563725.1896024,
+    "hash": "f9ded5f3059e2bbce8494f9510516fad"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/04_practical_guides/performance_tuning.rst": {
+    "mtime": 1774563725.1898437,
+    "hash": "10cd5aed84251de5f2dc6b7391fcc5c0"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/04_practical_guides/visualization.rst": {
+    "mtime": 1774563725.1900442,
+    "hash": "c65a032d87f2aedd3426b291af55344c"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/01_fundamentals/heterodyne_overview.rst": {
+    "mtime": 1774563725.1874795,
+    "hash": "bada858a7e5f6e7b9c5d389faf535ce8"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/01_fundamentals/index.rst": {
+    "mtime": 1774563725.1877637,
+    "hash": "53ff42ccddab8e3fd4c182bc35949402"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/01_fundamentals/what_is_xpcs.rst": {
+    "mtime": 1774563725.1881375,
+    "hash": "fd9feb17db31040eec73d57333c376f2"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/01_fundamentals/parameter_guide.rst": {
+    "mtime": 1774563725.188002,
+    "hash": "f0ebe3f8c073b61737b98b6823b49962"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/02_data_and_fitting/index.rst": {
+    "mtime": 1774563725.1884847,
+    "hash": "119eb5548a283dec68f75f4369ff9165"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/02_data_and_fitting/data_loading.rst": {
+    "mtime": 1774563725.1883302,
+    "hash": "2192af48e6f6547d0839e7eef5f7cfde"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/02_data_and_fitting/nlsq_fitting.rst": {
+    "mtime": 1774563725.1886036,
+    "hash": "85635190f195b9fc87fdc42932deab0b"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/user_guide/02_data_and_fitting/result_interpretation.rst": {
+    "mtime": 1774563725.1887386,
+    "hash": "48568008af6684f0a96dc9c185cbbf2a"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/architecture/index.rst": {
+    "mtime": 1774563725.183779,
+    "hash": "3d3d2a3187540d2010d325ba620f77e2"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/examples/index.rst": {
+    "mtime": 1774563725.1858475,
+    "hash": "cb659ef1e43ceaaf9780ca40e2bfce19"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/optimization.rst": {
+    "mtime": 1774563725.182139,
+    "hash": "9710dbd39a811b156624d164ebf7d187"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/index.rst": {
+    "mtime": 1774563725.1813757,
+    "hash": "c3dabfd6497178d7e33da7fdda0659a6"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/nlsq.rst": {
+    "mtime": 1774563725.1819675,
+    "hash": "58d12ab1d790b641388053d4777a4434"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/viz.rst": {
+    "mtime": 1774563725.1832592,
+    "hash": "b8821cba5bff08875f0288f64cfe45bf"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/models.rst": {
+    "mtime": 1774563725.1817088,
+    "hash": "827f5f148040aa24dc7bf00aa5bb8869"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/cli.rst": {
+    "mtime": 1774718389.2442837,
+    "hash": "85cb1e37a8b9a2b2e4639b596cb60ab0"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/config.rst": {
+    "mtime": 1774563725.180192,
+    "hash": "c88e4442c9cf65e2c1dcc6144f7d29a0"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/io.rst": {
+    "mtime": 1774563725.1814928,
+    "hash": "81daf389ba6acc762d1f67d8ffb9cd50"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/data.rst": {
+    "mtime": 1774563725.1803858,
+    "hash": "5622a2bd3c8a49a170415680bb200f7f"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/heterodyne_model.rst": {
+    "mtime": 1774563725.1809442,
+    "hash": "28e87820f8428363aaf584b41a65face"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/device.rst": {
+    "mtime": 1774563725.18082,
+    "hash": "f56d43f2a99142af4aebb355a6274ffb"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/cmc.rst": {
+    "mtime": 1774563725.1800926,
+    "hash": "13b9e640e885ab8568e3dfcfeb65e7e1"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/jax_backend.rst": {
+    "mtime": 1774563725.1816037,
+    "hash": "d5fb56b91125ec4251155ebdc4f80108"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/core.rst": {
+    "mtime": 1774563725.1802838,
+    "hash": "1c81a956b6909fdca6dbc8090d545cd1"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/api/utils.rst": {
+    "mtime": 1774563725.1829088,
+    "hash": "2fdde9a677ac944a67d7f27abe1bc122"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/architecture/cmc-fitting-architecture.md": {
+    "mtime": 1774563725.177533,
+    "hash": "e97a1a87937b636187e757a58082b7fc"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/architecture/nlsq-fitting-architecture.md": {
+    "mtime": 1774563725.1789627,
+    "hash": "3874addef1dec1ee61f5fcbe4604b858"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/architecture/data-handler-architecture.md": {
+    "mtime": 1774563725.1780083,
+    "hash": "6a539f5745f70517d593e82543f75592"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/architecture/heterodyne-architecture-overview.md": {
+    "mtime": 1774563725.1787214,
+    "hash": "cad37967d4b5669b1d4c644b544053c5"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/architecture/physical-model-architecture.md": {
+    "mtime": 1774563725.179184,
+    "hash": "270fd6cb6b19daa614801f951fed077a"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/superpowers/plans/2026-03-20-shell-completion-fixes.md": {
+    "mtime": 1774718389.245184,
+    "hash": "366c6667ea20f954d049f6b13d937907"
+  },
+  "/Users/b80985/Projects/heterodyne/heterodyne/config/templates/heterodyne_master_template.yaml": {
+    "mtime": 1777484224.297843,
+    "hash": "873b60ca214287f2a769ad3488a7202d"
+  },
+  "/Users/b80985/Projects/heterodyne/docs/source/theory/citations.rst": {
+    "mtime": 1774563725.186501,
+    "hash": "1974fdc39a0caccfd8198352df88d944"
+  }
+}
