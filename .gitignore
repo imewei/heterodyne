@@ -75,6 +75,7 @@ instance/
 docs/_build/
 docs/source/_build/
 docs/build/
+docs/.claude-progress.md
 
 # PyBuilder
 .pybuilder/
@@ -211,21 +212,36 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-.specify/
-.claude/
-agent-os/
+# System / OS
 .DS_Store
+
+# Git
 .worktrees/
-.serena/
+
+# AI Assistants & Agent State
+.agent/
+.agents/
+.claude/
 .claude-progress.md
-# Graphify semantic cache (ephemeral build artifacts)
+.codex/
+.gemini/
+.remember/
+.serena/
+.specify/
+agent-os/
+
+# AI Documentation & Logs (local-only)
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+GROK.md
+HERMES.md
+OPENROUTER.md
+
+# Graphify (Knowledge Graph & Semantic Cache)
 graphify-out/cache/
-
-# Claude session scratch files in docs
-docs/.claude-progress.md
-
-# Graphify internal working state files
 graphify-out/.graphify_*.json
 graphify-out/.graphify_*.txt
 graphify-out/.obsidian/
 graphify-out/_COMMUNITY_*.md
+
