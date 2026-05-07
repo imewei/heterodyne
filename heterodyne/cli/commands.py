@@ -12,7 +12,12 @@ from heterodyne.cli.data_pipeline import load_and_validate_data, resolve_phi_ang
 from heterodyne.cli.optimization_runner import resolve_nlsq_warmstart, run_cmc, run_nlsq
 from heterodyne.cli.plot_dispatch import dispatch_plots, handle_plotting
 from heterodyne.core.heterodyne_model import HeterodyneModel
-from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_exception, log_phase
+from heterodyne.utils.logging import (
+    AnalysisSummaryLogger,
+    get_logger,
+    log_exception,
+    log_phase,
+)
 
 if TYPE_CHECKING:
     from heterodyne.config.manager import ConfigManager
@@ -41,13 +46,16 @@ def _load_data(
         Tuple of (XPCSData, phi_angles).
     """
     import numpy as _np_load
+
     data = load_and_validate_data(config_manager)
     data_phi_angles = (
         _np_load.asarray(data.phi_angles, dtype=float)
         if getattr(data, "phi_angles", None) is not None
         else None
     )
-    phi_angles = resolve_phi_angles(args, config_manager, data_phi_angles=data_phi_angles)
+    phi_angles = resolve_phi_angles(
+        args, config_manager, data_phi_angles=data_phi_angles
+    )
     logger.debug(
         "Loaded data: c2 shape=%s, %d phi angles",
         data.c2.shape,
@@ -141,7 +149,9 @@ def _run_optimization(
                 config_manager=config_manager,
                 args=args,
                 output_dir=output_dir,
-                nlsq_results=nlsq_results if method == "both" else (nlsq_results or None),
+                nlsq_results=nlsq_results
+                if method == "both"
+                else (nlsq_results or None),
                 summary=summary,
                 data_phi_angles=_data_phi_angles,
             )
@@ -286,7 +296,8 @@ def dispatch_command(args: argparse.Namespace) -> int:
         _t1_sec = None
         if data.t1 is not None:
             _t1_frames = _np.asarray(data.t1, dtype=float)
-            _t1_sec = (_t1_frames - _t1_frames[0]) * _dt
+            if len(_t1_frames) > 0:
+                _t1_sec = (_t1_frames - _t1_frames[0]) * _dt
 
         _data_dict: dict[str, Any] = {
             "c2_exp": _np.asarray(data.c2),
@@ -438,7 +449,9 @@ def dispatch_command(args: argparse.Namespace) -> int:
         )
         if active_results:
             converged = all(getattr(r, "success", True) for r in active_results)
-            summary.set_convergence_status("converged" if converged else "not_converged")
+            summary.set_convergence_status(
+                "converged" if converged else "not_converged"
+            )
             chi2_vals = [
                 r.reduced_chi_squared
                 for r in active_results
@@ -474,7 +487,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
         if getattr(args, "save_plots", False):
             summary.start_phase("save_plots")
             with log_phase("save_plots", logger=logger, track_memory=True) as phase:
-                for _res in (nlsq_results if nlsq_results else [None]):
+                for _res in nlsq_results if nlsq_results else [None]:
                     handle_plotting(
                         args=args,
                         result=_res,
