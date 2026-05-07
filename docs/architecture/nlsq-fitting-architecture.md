@@ -16,6 +16,122 @@ correlations inherent to the 14-parameter model.
 
 ---
 
+## Table of Contents
+
+1. [High-Level Architecture](#high-level-architecture)
+2. [Setup Phase](#1-setup-phase)
+3. [Component Map](#component-map)
+4. [Execution Flow](#execution-flow)
+5. [Backend Adapters](#backend-adapters)
+6. [CMA-ES Global Optimization](#cma-es-global-optimization)
+7. [Multi-Start Optimization](#multi-start-optimization)
+8. [Fourier Reparameterization](#fourier-reparameterization)
+9. [4-Layer Anti-Degeneracy Defense](#4-layer-anti-degeneracy-defense)
+10. [Recovery: 3-Attempt Error Recovery](#recovery-3-attempt-error-recovery)
+11. [Stratification Decision](#stratification-decision)
+12. [Residual Function Setup](#residual-function-setup)
+13. [Strategy Selection (Memory-Aware)](#strategy-selection-memory-aware)
+14. [Fitting Strategies](#fitting-strategies)
+15. [NLSQResult Dataclass](#nlsqresult-dataclass)
+16. [Result Building](#result-building)
+17. [Validation](#validation)
+18. [Configuration](#configuration)
+19. [NLSQ as CMC Warm-Start Provider](#nlsq-as-cmc-warm-start-provider)
+20. [Quick Reference Tables](#quick-reference-tables)
+21. [Key Files Reference](#key-files-reference)
+
+---
+
+## High-Level Architecture
+
+```
+fit_nlsq_jax() / fit_nlsq_multi_phi()
+        │
+        ├─ 1. Setup & Input Validation
+        ├─ 2. Global Optimization (CMA-ES / Multi-start)  [optional]
+        ├─ 3. Adapter Selection (NLSQAdapter → NLSQWrapper fallback)
+        ├─ 4. Memory & Strategy Selection
+        ├─ 5. Stratification Decision
+        ├─ 6. Residual Function Setup
+        ├─ 7. 4-Layer Anti-Degeneracy
+        ├─ 8. Strategy Execution
+        ├─ 9. 3-Attempt Recovery
+        └─ 10. Result Building
+
+        ╔══════════════════════════════════════════╗
+        ║  NLSQ ALSO SERVES AS CMC WARM-START      ║
+        ║  (--method both)  → see §19              ║
+        ╚══════════════════════════════════════════╝
+```
+
+---
+
+## 1. Setup Phase
+
+`fit_nlsq_jax()` (`optimization/nlsq/core.py`) and `fit_nlsq_multi_phi()`
+share the same setup sequence:
+
+1. **Input validation** — `validation/input_validator.py` checks for empty
+   data, NaN/Inf values, bounds shape consistency, inverted bounds, and
+   initial parameters that lie outside the configured bounds.
+2. **Initial values & bounds** — `param_manager.get_initial_values()` and
+   `param_manager.get_bounds()` return varying-only arrays; values are
+   then `np.clip(initial, lower, upper)`-clamped before optimization.
+3. **JAX-side constants** — `t`, `q`, `dt` from the model and the full
+   parameter array `fixed_values_jax = jnp.asarray(pm.get_full_values())`
+   are pre-converted to JAX device arrays once. `varying_indices_jax` is
+   captured as `jnp.int32` for the per-call `at[].set()` scatter.
+4. **Weight handling** — `weights_jax` is `jnp.asarray(weights)` when
+   supplied; shape must match `c2_jax.shape` or a `ValueError` is raised
+   in `_fit_local()`.
+
+### Parameter Vector Layout
+
+The full canonical parameter array always has 14 entries in
+`config/parameter_names.py:ALL_PARAM_NAMES` order. `ParameterIndexMapper`
+(in `optimization/nlsq/parameter_index_mapper.py`) bridges three
+representations:
+
+| Space | What it contains | Built from |
+|---|---|---|
+| **Full** | All 14 physics parameters in canonical order | `pm.get_full_values()` |
+| **Varying** | Only parameters with `vary=True` | `pm.varying_names`, `pm.varying_indices` |
+| **Optimizer** | Varying params, optionally log-transformed | `log_mask` from `DEFAULT_REGISTRY[name].log_space` |
+
+Index conversion methods: `full_to_varying(i)`, `varying_to_full(j)`,
+`get_name(j)`, `name_to_varying(name)`, `is_log_transformed(j)`. Reverse
+lookups are O(1) via cached dicts built in `__init__`.
+
+### Time Axis Handling
+
+`model.t` is a 1-D array of frame times (seconds). For multi-angle joint
+fits, `_fit_joint_constant_multi_phi()` builds the meshgrid explicitly:
+
+```python
+t1_mesh, t2_mesh = np.meshgrid(np.asarray(t), np.asarray(t), indexing="ij")
+```
+
+The `_fit_joint_multi_phi()` and single-angle paths delegate the meshgrid
+construction to the JAX backend (`compute_residuals` / `compute_multi_angle_residuals`).
+
+### Analysis Mode Selection
+
+`NLSQConfig.analysis_mode` selects which subset of physics parameters
+varies. The total optimizer-vector length is `n_physics_varying + 2*n_phi`
+in independent scaling mode (or `n_physics_varying + 2` in
+constant-averaged mode):
+
+| Mode | Class hint | Physics varying | Scaling | Total per n_phi=1 |
+|---|---|---|---|---|
+| `static_ref` | reduced model | 3 | 2 | 5 |
+| `static_both` | reduced model | 6 | 2 | 8 |
+| `two_component` | full two-component model | 14 | 2 | 16 |
+
+Validated against `_VALID_ANALYSIS_MODES = {"static_ref", "static_both", "two_component"}`
+in `config.py`.
+
+---
+
 ## Component Map
 
 ```
@@ -42,23 +158,23 @@ optimization/nlsq/
 ├── parallel_accumulator.py        # Parallel residual accumulation
 ├── transforms.py                  # Parameter scaling/centering
 ├── progress.py                    # Progress reporting
-├── result_builder.py              # NLSQResult factory (build_result_from_nlsq, build_failed_result)
-├── fit_computation.py             # Fit computation helpers
+├── result_builder.py              # NLSQResult factory + TimedContext
+├── fit_computation.py             # compute_c2_batch(), compute_theoretical_fits(), etc.
 ├── strategies/
-│   ├── base.py                    # FittingStrategy ABC
-│   ├── stratified_ls.py           # Stratified angle-aware least squares
-│   ├── hybrid_streaming.py        # Streaming gradient accumulation (100M+ points)
-│   ├── out_of_core.py             # Disk-based JTJ accumulation
+│   ├── base.py                    # FittingStrategy ABC, StrategyResult
+│   ├── stratified_ls.py           # StratifiedLSStrategy
+│   ├── hybrid_streaming.py        # HybridStreamingStrategy (4-phase)
+│   ├── out_of_core.py             # OutOfCoreStrategy
 │   ├── sequential.py              # Per-angle sequential fitting
-│   ├── jit_strategy.py            # JAX JIT residual (small-medium problems)
-│   ├── chunked.py                 # Chunked evaluation
-│   ├── residual.py                # Residual computation
-│   ├── residual_jit.py            # JIT-compiled residual variants
+│   ├── jit_strategy.py            # JITStrategy (LRU-cached)
+│   ├── chunked.py                 # ChunkedStrategy
+│   ├── residual.py                # ResidualStrategy
+│   ├── residual_jit.py            # ResidualJITStrategy
 │   └── executors.py               # Strategy executors
 └── validation/
     ├── input_validator.py         # Pre-fit validation (NaN, bounds, shape)
     ├── convergence.py             # Convergence assessment
-    ├── fit_quality.py             # Chi2, bounds proximity, quality classification
+    ├── fit_quality.py             # classify_fit_quality(), FitQualityValidator
     ├── bounds.py                  # Bounds validation
     ├── result_validator.py        # Post-fit validation
     └── result.py                  # ValidationReport, ValidationIssue
@@ -73,9 +189,9 @@ optimization/nlsq/
 ```
 fit_nlsq_jax(model, c2_data, phi_angle, config)
         │
-        ├─ 1. Global optimization check (if not skipped)
-        │     ├─ CMA-ES enabled?  → _fit_cmaes()  [3-phase]
-        │     └─ Multi-start enabled?  → _fit_multistart()  [LHS sampling]
+        ├─ 1. Global optimization check (if not _skip_global_selection)
+        │     ├─ enable_cmaes? → _fit_cmaes()  [3-phase: NLSQ→CMA-ES→compare]
+        │     └─ multistart?    → _fit_multistart()  [LHS sampling]
         │
         └─ 2. Local optimization: _fit_local()
               │
@@ -84,12 +200,11 @@ fit_nlsq_jax(model, c2_data, phi_angle, config)
               │
               ├─ NLSQAdapter.fit_jax()  [JAX-traced, primary]
               │     Uses nlsq.CurveFit with LRU model cache (max 64)
-              │     Automatic memory-tier routing
               │
-              ├─ On failure → NLSQWrapper.fit()  [scipy.optimize.least_squares fallback]
+              ├─ On failure → NLSQWrapper.fit()  [scipy.optimize.least_squares]
               │     Progressive recovery via HybridRecoveryConfig
               │
-              └─ Post-fit: compute fitted correlation, update model
+              └─ Post-fit: compute fitted correlation, σ²-corrected chi²
                     Returns NLSQResult
 ```
 
@@ -98,19 +213,24 @@ fit_nlsq_jax(model, c2_data, phi_angle, config)
 ```
 fit_nlsq_multi_phi(model, c2_data, phi_angles, config)
         │
-        ├─ Determine fitting mode from config.per_angle_mode
+        ├─ enable_cmaes? → _fit_joint_cmaes_multi_phi()
         │
-        ├─ Joint mode ("fourier", "independent", "auto" with >1 angle)
+        ├─ Constant-averaged mode (per_angle_mode == "constant", or
+        │   "auto" with n_phi >= constant_scaling_threshold)
+        │     └─ _fit_joint_constant_multi_phi()
+        │           Per-angle quantile estimates → averaged contrast/offset
+        │           Optimizer vector: [physics_varying | contrast | offset]
+        │
+        ├─ Joint Fourier mode ("fourier"/"independent"/"auto" with multi-angle)
         │     └─ _fit_joint_multi_phi()
-        │           Parameter vector: [physics_varying | fourier_coeffs]
-        │           Single optimization across all angles simultaneously
-        │           FourierReparameterizer converts coefficients → per-angle scaling
-        │           Returns list[NLSQResult], one per angle
+        │           Optimizer vector: [physics_varying | fourier_coeffs]
+        │           FourierReparameterizer.fourier_to_per_angle() at each call
         │
         └─ Sequential mode (single angle or fallback)
               Per-angle warm-start chain: each angle initializes from previous
-              Returns list[NLSQResult], one per angle
 ```
+
+All paths return `list[NLSQResult]`, one per angle.
 
 ---
 
@@ -140,17 +260,21 @@ eviction.
 ## CMA-ES Global Optimization
 
 When `config.enable_cmaes = True`, `fit_nlsq_jax()` delegates to a 3-phase
-CMA-ES pipeline:
+CMA-ES pipeline (`_fit_cmaes()` in `core.py`):
 
 ```
 Phase 1: NLSQ warm-start
     Run local trust-region fit to get a warm-start point.
-    If it fails, CMA-ES proceeds from raw initial parameters.
+    If it fails or `cmaes_warmstart_auto_skip` triggers,
+    CMA-ES proceeds (or is skipped) accordingly.
 
 Phase 2: CMA-ES global search
-    Uses evosax JAX-accelerated backend via CMAESConfig:
+    Uses cma.fmin2 via CMAESWrapper:
     - sigma0 (initial step size), popsize, maxiter, tolx, tolfun
-    - Optional diagonal_filtering and anti_degeneracy penalty
+    - Optional diagonal_filtering ("none"/"remove") and
+      anti_degeneracy penalty wrapping (build_anti_degeneracy_objective)
+    - Adaptive popsize/maxiter via compute_adaptive_cmaes_params()
+      when popsize is None or maxiter is the default
 
 Phase 3: Comparison
     Compare NLSQ vs CMA-ES results by final cost.
@@ -158,18 +282,32 @@ Phase 3: Comparison
     Classify fit quality (good/marginal/poor) via classify_fit_quality().
 ```
 
+For multi-angle joint runs, `_fit_joint_cmaes_multi_phi()` follows the same
+structure but auto-skips CMA-ES when `cmaes_warmstart_auto_skip` is `True`
+and the warm-start reduced χ² is below `cmaes_warmstart_skip_threshold`
+(default 5.0).
+
 ### CMA-ES Configuration
+
+Verified against `cmaes_wrapper.py:CMAESConfig` and `config.py:NLSQConfig`:
 
 | Field | Default | Description |
 |---|---|---|
 | `enable_cmaes` | `False` | Enable CMA-ES global search |
 | `cmaes_sigma0` | 0.3 | Initial step size |
 | `cmaes_max_iterations` | 1000 | Maximum CMA-ES generations |
-| `cmaes_population_size` | `None` (auto) | Population size |
+| `cmaes_population_size` | `None` (auto) | Population size; `None` triggers `compute_adaptive_cmaes_params()` |
 | `cmaes_tolx` | 1e-6 | Parameter convergence tolerance |
 | `cmaes_tolfun` | 1e-8 | Cost function convergence tolerance |
-| `cmaes_diagonal_filtering` | `"none"` | `"none"` or `"remove"` |
-| `cmaes_anti_degeneracy` | `False` | Apply anti-degeneracy penalty |
+| `cmaes_diagonal_filtering` | `"remove"` | `"none"` or `"remove"` |
+| `cmaes_anti_degeneracy` | `False` | Wrap objective with degeneracy penalty |
+| `cmaes_warmstart_auto_skip` | `True` | Skip CMA-ES when NLSQ warm-start is already good |
+| `cmaes_warmstart_skip_threshold` | 5.0 | Reduced-χ² ceiling that triggers skip |
+
+**Note on `cmaes_preset`:** The string preset (e.g. `"cmaes-global"`)
+referenced in user-facing CLI/YAML docs is a config-loader convenience,
+not a field on `NLSQConfig`; presets are expanded into the explicit
+`cmaes_*` fields above before reaching `_fit_cmaes()`.
 
 ---
 
@@ -222,20 +360,43 @@ For `n_phi <= 2*(order+1)`, independent mode is used automatically.
 
 ## 4-Layer Anti-Degeneracy Defense
 
-The heterodyne 14-parameter model has known structural degeneracies
-(D0_ref/D0_sample correlation, alpha/D0 compensation, v0/v_offset trading).
-Four defense layers address these:
+### Problem Statement
 
-| Layer | Module | Mechanism |
-|---|---|---|
-| 1 | `fourier_reparam.py` | Fourier/constant reparameterization reduces per-angle parameter count |
-| 2 | `hierarchical.py` | Two-stage optimization: physics params first, then scaling |
-| 3 | `adaptive_regularization.py` | CV-based regularization penalizes cross-group variance |
-| 4 | `gradient_monitor.py` | Real-time gradient collapse detection with consecutive-trigger thresholds |
+The heterodyne 14-parameter model exhibits known structural degeneracies:
 
-The `anti_degeneracy_controller.py` module provides post-fit degeneracy
-diagnostics: correlation degeneracy (|r| > threshold), bound saturation
-(parameters at bounds), and cost-function plateau detection.
+- **D0_ref / D0_sample correlation** — both describe diffusion, often
+  correlated across temperature and concentration; the residual landscape
+  has a long, narrow valley along the D0_ref ≈ D0_sample line.
+- **alpha / D0 compensation** — the product `D0 * t^alpha` is
+  approximately constant at the characteristic time `t* = exp(1/alpha)`,
+  yielding a banana-shaped posterior in (alpha, D0) space.
+- **v0 / v_offset trading** — at constant velocity (`beta = 0`), the
+  model can express the same flow as either `v0` or `v_offset`, with
+  flat sensitivity along the trade-off direction.
+- **Explosion with phi angles** — independent per-angle scaling adds
+  `2*n_phi` parameters; for 23 angles the optimizer faces 14 + 46 = 60
+  parameters. Gradient cancellation across angles (parameters that pull
+  in opposite directions for different φ) accelerates degeneracy growth.
+
+The four defense layers attack these correlations from different angles:
+
+| Layer | Module | Activation | Mechanism | What it prevents |
+|---|---|---|---|---|
+| 1 | `fourier_reparam.py` | Joint multi-angle (`per_angle_mode != "constant"`) | Truncated Fourier basis collapses `2*n_phi` per-angle parameters into `2*(2*order+1)` coefficients | Parameter explosion at large `n_phi`; enforces smooth angular variation |
+| 2 | `hierarchical.py` | `enable_hierarchical = True` | Two-stage outer/inner loop: physics first (fixed scaling), then scaling (fixed physics), repeat until both converge | Cross-group cancellation between physics and scaling gradients |
+| 3 | `adaptive_regularization.py` | `regularization_mode in {"tikhonov","adaptive"}` | CV-based λ that penalises group-variance; λ grows when group CV exceeds `regularization_target_cv` | Flat-direction drift in (alpha, D0) and similar pairs |
+| 4 | `gradient_monitor.py` | `enable_gradient_monitoring = True` | Real-time gradient-norm ratio tracker; triggers when ratio > `gradient_ratio_threshold` for `gradient_consecutive_triggers` consecutive iterations | Late-stage gradient collapse where one parameter group dominates |
+
+Diagnostic post-pass: `anti_degeneracy_controller.py` reports correlation
+degeneracy (|r| > threshold via `_KNOWN_DEGENERATE_PAIRS`), bound
+saturation, and cost-function plateau detection.
+
+> **Homodyne Layer 5 absent by design.** Homodyne's shear-sensitivity
+> weighting (sinc decorrelation) penalizes parameters based on their
+> sensitivity to shear flow direction. In heterodyne, velocity enters as
+> a phase term `cos(q·cos(φ)·v_integral)` in the cross-term — not as
+> amplitude decorrelation. Angular weighting by shear sensitivity is not
+> physically applicable; Layer 5 was deliberately removed.
 
 ---
 
@@ -248,10 +409,10 @@ recovery actions.
 
 The three attempts:
 
-1. **Original parameters** -- unperturbed initial values.
-2. **Perturbed parameters** -- Gaussian perturbation scaled by
+1. **Original parameters** — unperturbed initial values.
+2. **Perturbed parameters** — Gaussian perturbation scaled by
    `perturb_scale` (default 10%) of parameter range.
-3. **Relaxed convergence** -- loosened tolerance thresholds.
+3. **Relaxed convergence** — loosened tolerance thresholds.
 
 `HybridRecoveryConfig` controls progressive scaling per retry attempt *k*:
 
@@ -260,6 +421,97 @@ The three attempts:
 | Learning rate | `lr_decay ** k` | 0.5 |
 | Regularization | `lambda_growth ** k` | 10.0 |
 | Trust radius | `trust_decay ** k` | 0.5 |
+
+---
+
+## Stratification Decision
+
+The `StratifiedLSStrategy` (`strategies/stratified_ls.py`) is selected when
+`config.enable_stratified` is `True` and the dataset has non-uniform
+information density across the q-point range.
+
+### When stratification activates
+
+- Direct: `enable_stratified = True` in `NLSQConfig`. The optimizer dispatches
+  to `StratifiedLSStrategy.fit()`, which consumes `target_chunk_size`.
+- The strategy ultimately delegates to `nlsq.curve_fit_large` with the
+  user's bounds and method (with `dogbox` coerced to `trf`, `lm` coerced
+  to `trf`).
+
+### What happens during the fit
+
+- A pure-JAX `residual_fn(varying)` is built that scatters varying values
+  into the full 14-element parameter array via `at[].set()`, then calls
+  `compute_residuals(full_params, t, q, dt, phi_angle, c2_jax, weights_jax)`.
+- `curve_fit_large` accepts `f(xdata, *params) → predictions`; the wrapper
+  passes `ydata = zeros` and returns the negated `residual_fn` so that
+  `ydata - f(...) = residual_fn(...)`.
+- Final covariance is estimated post-hoc from the returned Jacobian via
+  `(JᵀJ)⁻¹ · s²` with `s² = ‖r‖² / (n − p)`.
+
+### Decision conditions
+
+| Condition | Strategy invoked |
+|---|---|
+| `enable_stratified=True` and `target_chunk_size` set | `StratifiedLSStrategy` |
+| Hybrid streaming requested (`hybrid_enable=True`) | `HybridStreamingStrategy` |
+| Memory threshold exceeded (`select_nlsq_strategy → LARGE/STREAMING`) | warning emitted; adapter still dispatches to its memory-tier path |
+| Otherwise | direct adapter path (single-pass `compute_residuals`) |
+
+---
+
+## Residual Function Setup
+
+The strategy layer offers two complementary residual evaluators:
+
+### `ResidualStrategy` (`strategies/residual.py`)
+
+- **Class:** `ResidualStrategy`
+- **Tracing:** Python-traced — calls `compute_residuals` and (when
+  `config.use_jac=True`) `compute_residuals_jacobian` once per scipy
+  iteration.
+- **Shapes:** dynamic — `n_data` and `n_params` are recomputed on each
+  call; no padding.
+- **Solver:** `nlsq.CurveFit(flength=n_data)` with explicit Jacobian.
+- **Use case:** small datasets (< 10 k residuals), debugging, baseline
+  comparisons.
+
+### `ResidualJITStrategy` (`strategies/residual_jit.py`)
+
+- **Class:** `ResidualJITStrategy`
+- **Tracing:** JIT-compiled — `_jit_residuals(varying_jax)` is wrapped in
+  `@jax.jit` and warmed up once before the optimizer loop.
+- **Shapes:** padded static shapes via the JIT cache; finite-difference
+  Jacobian on the scipy side (no analytic Jacobian).
+- **vmap:** the multi-angle joint path uses the batched
+  `compute_multi_angle_residuals` (jit + vmap) elsewhere; `ResidualJITStrategy`
+  itself is single-angle.
+- **Use case:** when analytic Jacobian compilation is slow or fails, or
+  when fast iteration outweighs Jacobian accuracy.
+
+### Computation flow (both strategies)
+
+1. Cache constants: `t`, `q`, `dt`, `c2_jax`, `weights_jax`, `fixed_values`
+   (full 14-element JAX array), `varying_idx`.
+2. On each call, `at[varying_idx].set(varying)` reconstructs the full
+   parameter vector (immutable JAX scatter).
+3. Call `compute_residuals(full_params, t, q, dt, phi_angle, c2_jax,
+   weights_jax)` — returns the flattened residual vector.
+4. Convert back to NumPy at the boundary so scipy/nlsq can consume it.
+
+### Parameter vector layout (single-angle)
+
+```
+[ varying physics params... ]    # length = pm.n_varying (≤ 14)
+```
+
+### Parameter vector layout (multi-angle joint)
+
+| Mode | Layout |
+|---|---|
+| Constant-averaged | `[ varying physics... | contrast | offset ]` |
+| Independent | `[ varying physics... | c_0..c_{n_phi-1} | o_0..o_{n_phi-1} ]` |
+| Fourier (order *K*) | `[ varying physics... | fourier_contrast(2K+1) | fourier_offset(2K+1) ]` |
 
 ---
 
@@ -275,8 +527,51 @@ Decision tree:
     Otherwise  →  STANDARD  (full in-memory Jacobian, fastest)
 ```
 
-Memory threshold = `nlsq_memory_fraction` (default 0.75) of system RAM,
-with `nlsq_memory_fallback_gb` (default 16 GB) when detection fails.
+### Peak memory formula
+
+`memory.py:estimate_peak_memory_gb` returns:
+
+```
+peak_memory_gib = n_points × n_params × bytes_per_element × _JACOBIAN_OVERHEAD / 1024³
+                = n_points × n_params × 8 × 6.5 / 1024³
+```
+
+The overhead factor `_JACOBIAN_OVERHEAD = 6.5` is documented in
+`memory.py` as covering "base Jacobian + autodiff intermediates + JIT +
+workspace":
+
+| Component | Approx. share |
+|---|---|
+| Base Jacobian (n_points × n_params × float64) | 1.0× |
+| JAX autodiff intermediates (vjp / jvp tapes) | ~3.0× |
+| JIT compilation buffer + XLA workspace | ~1.5× |
+| Optimizer scratch (JᵀJ, Cholesky, etc.) | ~1.0× |
+
+### Worked example
+
+5-angle run with `n_points = 5,000,000` (e.g., five 1000² C₂ matrices) and
+`n_params = 24` (14 physics + 2×5 scaling):
+
+```
+peak ≈ 5e6 × 24 × 8 × 6.5 / 1024³  ≈  5.81 GiB
+```
+
+On a 16 GiB workstation with default `nlsq_memory_fraction = 0.75`, this
+falls under the 12.0 GiB threshold → STANDARD strategy. Doubling the
+matrix to 1414² per angle pushes peak past 11.6 GiB; STANDARD still fits
+but a third angle would force LARGE.
+
+### Environment override
+
+`memory.py:MEMORY_FRACTION_ENV_VAR = "HETERODYNE_MEMORY_FRACTION"` —
+setting `HETERODYNE_MEMORY_FRACTION=0.5` clamps the threshold to 50% of
+detected RAM. The value is clamped to `[0.1, 0.9]`.
+
+### Detection priority chain
+
+1. `psutil.virtual_memory().total` — preferred, cross-platform.
+2. `os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")` — Linux/Unix.
+3. Fallback: `FALLBACK_THRESHOLD_GB = 16.0` GiB.
 
 `fallback_chain.py` provides automatic strategy degradation: if the selected
 strategy fails, the chain tries strategies in descending robustness order
@@ -296,6 +591,73 @@ All strategies implement `FittingStrategy` (ABC in `strategies/base.py`):
 | Sequential | `sequential.py` | Per-angle sequential fitting with warm-starting |
 | JIT | `jit_strategy.py` | JAX JIT-compiled residual for small-medium problems |
 | Chunked | `chunked.py` | Chunked residual evaluation |
+| Residual | `residual.py` | Direct evaluation, dynamic shapes |
+| Residual JIT | `residual_jit.py` | JIT residual + finite-difference Jacobian |
+
+### Stratified LS
+
+- **Memory pattern:** single full Jacobian; `nlsq.curve_fit_large` handles
+  internal chunking when needed.
+- **Selection:** `enable_stratified=True`, or memory tier LARGE.
+- **Pseudocode:**
+
+```python
+fixed_values = jnp.asarray(pm.get_full_values())
+def residual_fn(varying):
+    full = fixed_values.at[varying_idx].set(varying)
+    return compute_residuals(full, t, q, dt, phi_angle, c2_jax, weights_jax)
+result = curve_fit_large(f=-residual_fn, xdata, ydata=zeros, p0=initial,
+                         bounds=(lower, upper), method=method)
+```
+
+### Hybrid Streaming
+
+4-phase pipeline from `hybrid_streaming.py`:
+
+1. **Phase 1 — Normalization:** `_param_scales = (upper - lower)` when
+   `hybrid_normalization=True`, else ones; transforms parameters to
+   comparable magnitudes for better optimizer conditioning.
+2. **Phase 2 — L-BFGS warmup:** `warmup_iterations = max_iterations *
+   hybrid_warmup_fraction`. Provides fast global progress.
+3. **Phase 3 — Gauss-Newton refinement (chunk accumulation of JᵀJ and
+   Jᵀr):** `gauss_newton_max_iterations = max_iterations - warmup_iterations`,
+   chunk size from `streaming_chunk_size` (default 50 000). All inside
+   `nlsq.AdaptiveHybridStreamingOptimizer` (single call).
+4. **Phase 4 — Denormalization + covariance:** parameters returned in
+   original space; covariance assembled from accumulated JᵀJ.
+
+Falls back to `nlsq.curve_fit_large` if `AdaptiveHybridStreamingOptimizer`
+is unavailable.
+
+### Out-of-Core
+
+- **Memory pattern:** memory-mapped `c2_data`; chunk-wise Jacobian rows
+  accumulated into JᵀJ on disk.
+- **Selection:** memory tier STREAMING or explicit user request via the
+  strategy.
+- **Pseudocode:**
+
+```python
+chunk_size = self._chunk_size or config.chunk_size or self._auto_chunk_size(...)
+n_chunks = ceil(n_data / chunk_size)
+# Build residual_fn(varying) closing over c2_jax, weights_jax
+nlsq_result = curve_fit_large(f=-residual_fn, xdata, ydata=zeros,
+                              p0=initial, bounds=(lower, upper),
+                              method=method)
+# Recompute residuals & estimate covariance from final Jacobian
+```
+
+The module also exposes utilities for parallel chunk evaluation
+(`accumulate_chunks_parallel` / `accumulate_chunks_sequential` patterns)
+through `parallel_accumulator.py`.
+
+### JIT Strategy
+
+- **Memory pattern:** full Jacobian held in device memory; LRU cache keeps
+  compiled XLA programs warm across calls.
+- **Cache key:** `(n_data, n_params, phi_angles, scaling_mode)` — same key
+  used by `NLSQAdapter`'s model cache.
+- **Selection:** memory tier STANDARD; default for small-medium problems.
 
 ---
 
@@ -324,6 +686,55 @@ Key fields returned from every fit:
 
 Helper methods: `params_dict`, `get_param(name)`, `get_uncertainty(name)`,
 `get_correlation_matrix()`, `validate()`, `summary()`.
+
+---
+
+## Result Building
+
+`result_builder.py` centralizes `NLSQResult` construction so every strategy
+emits a consistent payload with covariance, uncertainties, reduced χ², and
+metadata.
+
+| Factory | Input | When used |
+|---|---|---|
+| `build_result_from_scipy(opt_result, parameter_names, n_data, ...)` | `scipy.optimize.OptimizeResult` | NLSQWrapper / scipy paths |
+| `build_result_from_arrays(parameters, parameter_names, residuals, n_data, ...)` | Raw arrays | CMA-ES (`fit_with_cmaes`), non-scipy backends |
+| `build_result_from_nlsq(nlsq_result, parameter_names, n_data, ...)` | nlsq library return (dict / tuple / object with `.x`/`.popt`) | Hybrid streaming, NLSQAdapter normalization |
+| `build_failed_result(parameter_names, message, initial_params, ...)` | Failure description | All adapter / wrapper failure paths |
+
+### Covariance computation
+
+`_compute_covariance(jacobian, residuals, n_data, n_params)` uses the
+Gauss-Newton approximation `cov = s² * (JᵀJ)⁻¹` with `s² = Σr² / (n−p)`.
+A condition-number guard adds `1e-10·I` Tikhonov regularization when
+`cond(JᵀJ) > 1e14`, falls back to `pinv` on `LinAlgError`, and returns
+`None` when both fail.
+
+### TimedContext
+
+```python
+class TimedContext:
+    def __enter__(self): self._start = time.perf_counter(); return self
+    def __exit__(self, *args): self.elapsed = time.perf_counter() - self._start
+```
+
+Used as `with timer: result = optimizer.run(...)`; `timer.elapsed` is then
+attached to the result's `wall_time_seconds`.
+
+### Quality Flag
+
+`validation/fit_quality.py:classify_fit_quality(reduced_chi_squared)`
+returns one of three flags using these thresholds:
+
+| Flag | Reduced χ² range |
+|---|---|
+| `"good"` | `< 1.5` |
+| `"marginal"` | `1.5 ≤ χ² < 3.0` |
+| `"poor"` | `≥ 3.0` or `None` |
+
+`FitQualityValidator` adds bounds-proximity checks (`edge_fraction = 0.005`
+of the bound span) and stricter chi² thresholds for `ValidationReport`
+ERROR/WARNING severity (`chi2_warn = 10.0`, `chi2_fail = 100.0`).
 
 ---
 
@@ -445,6 +856,19 @@ NLSQ package integration:
 | `nlsq_memory_fallback_gb` | 16.0 | Fallback threshold if detection fails |
 | `n_params` | 14 | Number of model parameters |
 
+### Analysis Modes
+
+The `analysis_mode` field selects which subset of the 14 physics parameters
+participates in optimization. Total optimizer-vector length is
+`n_physics_varying + 2*n_phi` for independent scaling
+(`n_physics_varying + 2` in constant-averaged mode).
+
+| Mode | Physics varying | Scaling | Total per n_phi=1 |
+|---|---|---|---|
+| `static_ref` | 3 | 2 | 5 |
+| `static_both` | 6 | 2 | 8 |
+| `two_component` | 14 | 2 | 16 |
+
 ### HybridRecoveryConfig
 
 | Field | Default | Description |
@@ -464,3 +888,138 @@ NLSQ package integration:
 | `chi2_fail_high` | 10.0 | chi-squared reduced above this triggers error |
 | `max_relative_uncertainty` | 1.0 | Relative uncertainty above 100% triggers warning |
 | `correlation_warn` | 0.95 | Correlation coefficient magnitude above this triggers warning |
+
+---
+
+## NLSQ as CMC Warm-Start Provider
+
+NLSQ produces a MAP estimate that the CMC (Consensus Monte Carlo / NUTS)
+sampler uses as its warm-start point and as the basis for prior
+recentering. The orchestration is in `cli/commands.py:_run_optimization`.
+
+### `--method` switch (CLI)
+
+| Value | Behaviour | Source ref |
+|---|---|---|
+| `nlsq` | Run NLSQ only; no CMC. | `commands.py` line 98 |
+| `cmc` | Skip NLSQ; load existing `nlsq_data.npz` from disk via `resolve_nlsq_warmstart()`; abort with warning if not found. | `commands.py` lines 113–133 |
+| `both` | Run NLSQ first (`run_nlsq`), then CMC (`run_cmc(..., nlsq_results=...)`). | `commands.py` lines 98–148 |
+
+### Programmatic API
+
+```python
+from heterodyne.optimization.nlsq import fit_nlsq_jax
+from heterodyne.optimization.cmc import fit_cmc_jax
+
+nlsq_result = fit_nlsq_jax(model, c2_data, phi_angle, config)
+cmc_result = fit_cmc_jax(
+    model, c2_data, phi_angle, config,
+    nlsq_result=nlsq_result,
+)
+```
+
+### Prior recentering
+
+The CMC layer reads `nlsq_result.parameters` and `nlsq_result.uncertainties`
+and recenters its parameter priors around the MAP point. The width is
+controlled by `CMCConfig.nlsq_prior_width_factor` (NOT the legacy
+`prior_width_factor`; `from_dict()` accepts the legacy spelling but
+internal code uses the current name).
+
+### Benefits
+
+- **Improved initialization:** NUTS chains start near the posterior mode
+  rather than from broad priors that are typically 5–10σ away.
+- **Reduced divergence risk:** the warm-start is in the well-conditioned
+  region of the likelihood, so the leapfrog integrator's step size adapts
+  cleanly rather than thrashing on unusable curvature.
+- **Faster mixing:** R-hat ≈ 1 and ESS comparable to chain length are
+  reachable in fewer warmup samples; without warm-start the typical
+  failure mode is R-hat ≫ 1 and ESS ≈ n_chains (zero effective mixing).
+
+> **Note:** Heterodyne-specific CMC convergence benchmarks have not yet
+> been published. Quantitative speed-ups are reported anecdotally and are
+> sensitive to dataset size, prior tightness, and the specific
+> degeneracies present in a given fit.
+
+---
+
+## Quick Reference Tables
+
+### Strategy selection
+
+| Condition | Strategy class | Executor | Memory pattern |
+|---|---|---|---|
+| `enable_stratified=True` | `StratifiedLSStrategy` | `nlsq.curve_fit_large` | full Jacobian |
+| `hybrid_enable=True` | `HybridStreamingStrategy` | `AdaptiveHybridStreamingOptimizer` | streaming JᵀJ accumulation |
+| Memory tier STREAMING (`select_nlsq_strategy`) | `OutOfCoreStrategy` | `curve_fit_large` (mmap) | disk-backed JᵀJ |
+| Memory tier LARGE | adapter LARGE path | `nlsq.CurveFit` chunked | chunked JᵀJ |
+| Memory tier STANDARD (default) | adapter STANDARD path / `JITStrategy` | `nlsq.CurveFit` (LRU-cached) | full Jacobian in RAM |
+| Small dataset, debug | `ResidualStrategy` | `nlsq.CurveFit` | full Jacobian, dynamic shapes |
+| Analytic Jacobian unreliable | `ResidualJITStrategy` | `nlsq.CurveFit` (FD Jacobian) | JIT residual only |
+
+### Analysis mode parameter counts
+
+| Mode | Physics varying | Scaling | Total per n_phi=1 |
+|---|---|---|---|
+| `static_ref` | 3 | 2 | 5 |
+| `static_both` | 6 | 2 | 8 |
+| `two_component` | 14 | 2 | 16 |
+
+### Key config fields
+
+| Concern | Field | Default |
+|---|---|---|
+| Convergence tolerance | `tolerance` / `ftol` / `xtol` / `gtol` | `1e-8` each |
+| Solver method | `method` | `"trf"` |
+| Robust loss | `loss` | `"soft_l1"` |
+| Iteration cap | `max_iterations` | `1000` |
+| Function-eval cap | `max_nfev` | `None` (defaults to 100×n_params) |
+| Memory threshold | `nlsq_memory_fraction` | `0.75` |
+
+---
+
+## Key Files Reference
+
+| File | Purpose |
+|---|---|
+| `optimization/nlsq/core.py` | `fit_nlsq_jax()`, `fit_nlsq_multi_phi()`, joint multi-angle dispatchers, σ²-corrected χ² calculation. |
+| `optimization/nlsq/adapter.py` | `NLSQAdapter` (JAX-traced primary) and `NLSQWrapper` (scipy fallback). |
+| `optimization/nlsq/adapter_base.py` | `NLSQAdapterBase` shared protocol. |
+| `optimization/nlsq/config.py` | `NLSQConfig`, `HybridRecoveryConfig`, `NLSQValidationConfig`, YAML round-tripping. |
+| `optimization/nlsq/results.py` | `NLSQResult` dataclass + helper methods. |
+| `optimization/nlsq/result_builder.py` | Four `NLSQResult` factories + `TimedContext`. |
+| `optimization/nlsq/parameter_index_mapper.py` | Bidirectional mapping between full / varying / optimizer parameter spaces. |
+| `optimization/nlsq/fourier_reparam.py` | `FourierReparameterizer` for joint multi-angle scaling. |
+| `optimization/nlsq/cmaes_wrapper.py` | `CMAESWrapper`, `fit_with_cmaes`, adaptive popsize, anti-degeneracy objective. |
+| `optimization/nlsq/multistart.py` | Latin-hypercube multi-start optimizer. |
+| `optimization/nlsq/fallback_chain.py` | Strategy degradation chain. |
+| `optimization/nlsq/recovery.py` | 3-attempt error recovery and diagnostics. |
+| `optimization/nlsq/anti_degeneracy_controller.py` | Post-fit degeneracy diagnostics. |
+| `optimization/nlsq/hierarchical.py` | Two-stage physics/scaling optimization (Layer 2). |
+| `optimization/nlsq/adaptive_regularization.py` | CV-based regularization (Layer 3). |
+| `optimization/nlsq/gradient_monitor.py` | Gradient-collapse detection (Layer 4). |
+| `optimization/nlsq/jacobian.py` | Jacobian condition number analysis. |
+| `optimization/nlsq/memory.py` | Peak-memory estimation, `select_nlsq_strategy`. |
+| `optimization/nlsq/data_prep.py` | Data preparation, `compute_degrees_of_freedom`. |
+| `optimization/nlsq/parameter_utils.py` | Parameter index/name utilities. |
+| `optimization/nlsq/parallel_accumulator.py` | Parallel residual / chunk accumulation. |
+| `optimization/nlsq/transforms.py` | Parameter scaling/centering. |
+| `optimization/nlsq/progress.py` | Progress reporting. |
+| `optimization/nlsq/fit_computation.py` | Batched theoretical fit helpers. |
+| `optimization/nlsq/strategies/base.py` | `FittingStrategy` ABC and `StrategyResult`. |
+| `optimization/nlsq/strategies/stratified_ls.py` | `StratifiedLSStrategy`. |
+| `optimization/nlsq/strategies/hybrid_streaming.py` | `HybridStreamingStrategy` (4-phase). |
+| `optimization/nlsq/strategies/out_of_core.py` | `OutOfCoreStrategy`. |
+| `optimization/nlsq/strategies/sequential.py` | Per-angle sequential fitting. |
+| `optimization/nlsq/strategies/jit_strategy.py` | `JITStrategy`. |
+| `optimization/nlsq/strategies/chunked.py` | `ChunkedStrategy`. |
+| `optimization/nlsq/strategies/residual.py` | `ResidualStrategy` (dynamic shapes, full Jacobian). |
+| `optimization/nlsq/strategies/residual_jit.py` | `ResidualJITStrategy` (JIT residual + FD Jacobian). |
+| `optimization/nlsq/strategies/executors.py` | Strategy executor utilities. |
+| `optimization/nlsq/validation/input_validator.py` | Pre-fit data / bounds checks. |
+| `optimization/nlsq/validation/convergence.py` | Convergence assessment. |
+| `optimization/nlsq/validation/fit_quality.py` | `classify_fit_quality()`, `FitQualityValidator`. |
+| `optimization/nlsq/validation/bounds.py` | Bounds validation. |
+| `optimization/nlsq/validation/result_validator.py` | Post-fit validation. |
+| `optimization/nlsq/validation/result.py` | `ValidationReport`, `ValidationIssue`, `ValidationSeverity`. |

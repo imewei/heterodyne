@@ -19,21 +19,23 @@ Float64 precision is required (`JAX_ENABLE_X64=1` set before first JAX import).
 ```
 heterodyne/
 ├── core/                        # Physics kernels and model abstractions
-│   ├── jax_backend.py                # JIT-compiled c2 computation (meshgrid path, N*N)
+│   ├── jax_backend.py                # JIT-compiled c2 computation (meshgrid path, N×N)
 │   ├── physics_cmc.py                # Element-wise c2 computation (CMC path, O(n_pairs))
 │   ├── physics_nlsq.py               # NLSQ residual/Jacobian adapters (upper-triangle)
 │   ├── physics_utils.py              # Shared primitives: trapezoid_cumsum, smooth_abs, rate functions
 │   ├── physics.py                    # PhysicsConstants, PARAMETER_BOUNDS, ValidationResult
-│   ├── theory.py                     # TheoryEngine wrapper, convenience functions
+│   ├── theory.py                     # TheoryEngine: compute_c2_theory(), compute_chi2_theory(),
+│   │                                 #   compute_g1_decay(), compute_velocity_field()
 │   ├── models.py                     # TwoComponentModel, ReducedModel, create_model()
 │   ├── heterodyne_model.py           # HeterodyneModel stateful wrapper + ParameterManager
-│   ├── fitting.py                    # UnifiedHeterodyneEngine, ParameterSpace, solve_least_squares_jax
+│   ├── fitting.py                    # UnifiedHeterodyneEngine, ParameterSpace, DatasetSize,
+│   │                                 #   FitResult, compute_c2_batch(), fit utilities
 │   ├── scaling_utils.py              # Per-angle contrast/offset estimation (quantile-based)
-│   ├── physics_factors.py            # PhysicsFactors (pre-computed q^2/2 * dt)
+│   ├── physics_factors.py            # PhysicsFactors + CachedMatrices (pre-computed q²/2·dt)
 │   ├── diagonal_correction.py        # Autocorrelation peak removal (basic/statistical/interpolation)
 │   ├── numpy_gradients.py            # Numerical differentiation fallback (Richardson, complex-step)
-│   ├── model_mixins.py               # GradientCapabilityMixin
-│   └── backend_api.py                # Backend API utilities
+│   ├── model_mixins.py               # TransportMixin, FractionMixin, VelocityMixin (reusable physics)
+│   └── backend_api.py                # Backend enum, BackendConfig, get_current_backend()
 │
 ├── config/                      # Parameter metadata and configuration management
 │   ├── parameter_registry.py         # Immutable registry (MappingProxyType) - 16 entries (14+2)
@@ -195,20 +197,54 @@ CMCResult (posterior samples, diagnostics) -> JSON + NPZ
 
 ## 14 Physics Parameters + 2 Scaling Parameters
 
-All 14 physics parameters plus 2 per-angle scaling parameters (contrast, offset):
+All 14 physics parameters plus 2 per-angle scaling parameters (contrast, offset),
+organized in five groups:
+
+**Reference transport** — `J_r(t) = D0_ref·t^alpha_ref + D_offset_ref`
 
 | Parameter | Description | Default | Units |
 |---|---|---|---|
-| D0_ref, D0_sample | Diffusion coefficients | 1e4 | A^2/s^alpha |
-| alpha_ref, alpha_sample | Anomalous exponents | 0.0 | dimensionless |
-| D_offset_ref, D_offset_sample | Diffusion offsets | 0.0 | A^2 |
-| v0 | Velocity amplitude | 1e3 | A/s |
-| v_offset | Velocity offset | 0.0 | A/s |
-| t0_ref, t0_sample | Onset times | varies | s |
-| sigma_ref, sigma_sample | Width parameters | varies | s |
-| q_power_ref, q_power_sample | q-dependence exponents | 2.0 | dimensionless |
-| contrast | Per-angle contrast scaling | estimated | dimensionless |
-| offset | Per-angle offset | estimated | dimensionless |
+| D0_ref | Reference diffusion prefactor | 1e4 | Å²/s^α |
+| alpha_ref | Reference transport exponent | 0.0 | — |
+| D_offset_ref | Reference transport rate offset | 0.0 | Å²/s |
+
+**Sample transport** — `J_s(t) = D0_sample·t^alpha_sample + D_offset_sample`
+
+| Parameter | Description | Default | Units |
+|---|---|---|---|
+| D0_sample | Sample diffusion prefactor | 1e4 | Å²/s^α |
+| alpha_sample | Sample transport exponent | 0.0 | — |
+| D_offset_sample | Sample transport rate offset | 0.0 | Å²/s |
+
+**Velocity** — `v(t) = v0·t^beta + v_offset`
+
+| Parameter | Description | Default | Units |
+|---|---|---|---|
+| v0 | Velocity prefactor | 1e3 | Å/s^β |
+| beta | Velocity exponent (0 = constant) | 0.0 | — |
+| v_offset | Velocity offset (negative = reversal) | 0.0 | Å/s |
+
+**Sample fraction** — `f_s(t) = clip(f0·exp(f1·(t − f2)) + f3, 0, 1)`
+
+| Parameter | Description | Default | Units |
+|---|---|---|---|
+| f0 | Fraction amplitude | 0.5 | — |
+| f1 | Exponential rate (0 = constant) | 0.0 | 1/s |
+| f2 | Time shift | 0.0 | s |
+| f3 | Baseline offset | 0.0 | — |
+
+**Flow angle**
+
+| Parameter | Description | Default | Units |
+|---|---|---|---|
+| phi0 | Flow angle offset relative to q-vector | 0.0 | degrees |
+
+**Per-angle scaling** (not in the physics array — passed separately)
+
+| Parameter | Description | Default | Units |
+|---|---|---|---|
+| contrast | Speckle contrast | estimated | — |
+| offset | Baseline offset | estimated | — |
 
 The parameter registry in `config/parameter_registry.py` stores all 16 entries
 as an immutable `MappingProxyType`. Bounds, defaults, and prior statistics

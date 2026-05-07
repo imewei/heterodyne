@@ -33,8 +33,10 @@ optimization/cmc/
 ├── config.py             # CMCConfig dataclass (14 config sections)
 ├── results.py            # CMCResult, merge_shard_cmc_results(), compare_cmc_nlsq()
 ├── data_prep.py          # ShardingStrategy, PreparedData, sigma estimation
-├── plotting.py           # CMC-specific plotting utilities
-├── io.py                 # Posterior serialization
+├── plotting.py           # CMC-specific plotting: convergence traces, diagonal overlays,
+│                         #   residual maps, parameter sensitivity, pair correlations
+├── io.py                 # Posterior serialization: save/load ArviZ InferenceData (NetCDF),
+│                         #   per-shard NPZ archives, list_shards()
 └── backends/
     ├── base.py           # MCMCBackend protocol, CMCBackend ABC,
     │                     #   select_backend(), consensus_mc(), robust_consensus_mc()
@@ -611,6 +613,18 @@ to fail.
   `CMCResult` objects into a consensus result.
 - `cmc_result_summary_table()`: Formatted text table with posterior means,
   standard deviations, credible intervals, R-hat, and ESS.
+
+### Bimodal consensus types
+
+`results.py` also defines two types for mode-aware combination:
+
+| Type | Description |
+|---|---|
+| `ModeCluster` | Single posterior mode: mean, std, weight, and supporting shard indices |
+| `BimodalConsensusResult` | Two-mode combination result: list of `ModeCluster` objects + consensus mean/std from precision-weighted combination across modes |
+
+These are populated by `cluster_shard_modes()` (in `diagnostics.py`) when
+cross-shard bimodal detection finds distinct mode populations.
 
 ---
 

@@ -158,6 +158,22 @@ full 14-element array before calling `compute_c2_heterodyne`, using JAX
 
 ---
 
+## Model Mixins
+
+`core/model_mixins.py` provides three composable mixins that encapsulate
+reusable physics behavior shared across model variants:
+
+| Mixin | Responsibility |
+|---|---|
+| `TransportMixin` | Transport integral helpers — wraps `compute_transport_rate()` and cumsum-based integral construction |
+| `FractionMixin` | Sample fraction evaluation — `f_s(t)` and `f_ref(t)` with clipped exponential |
+| `VelocityMixin` | Velocity integral helpers — wraps `compute_velocity_rate()` and signed cumsum |
+
+`TwoComponentModel` and `ReducedModel` both inherit these mixins, keeping the
+model class bodies thin and the physics logic reusable without duplication.
+
+---
+
 ## Two-Path Integral Architecture
 
 The physics model is evaluated via two distinct computational paths, both
