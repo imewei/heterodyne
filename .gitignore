@@ -237,6 +237,7 @@ GEMINI.md
 GROK.md
 HERMES.md
 OPENROUTER.md
+.research-log.jsonl
 
 # Graphify (Knowledge Graph & Semantic Cache)
 graphify-out/cache/
