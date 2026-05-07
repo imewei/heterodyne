@@ -366,8 +366,8 @@ def estimate_diagonal_excess(
 
     mean_excess = mean_diag - mean_off
     # Protect against division by zero when off-diagonal is constant
-    std_ratio = std_diag / jnp.maximum(std_off, 1e-30)
-    excess_sigma = mean_excess / jnp.maximum(std_off, 1e-30)
+    std_ratio = std_diag / jnp.where(std_off > 1e-30, std_off, 1e-30)
+    excess_sigma = mean_excess / jnp.where(std_off > 1e-30, std_off, 1e-30)
 
     return {
         "mean_diagonal": mean_diag,
