@@ -61,13 +61,19 @@ size of the :math:`C_2` matrix:
    smallest memory footprint.  Jacobian Frobenius norm is logged at
    DEBUG level and stored in ``metadata["jacobian_norm"]``.
 
-Override the automatic selection via :class:`~heterodyne.optimization.nlsq.config.NLSQConfig`:
+Strategy selection is automatic from :class:`~heterodyne.optimization.nlsq.config.NLSQConfig`
+flags rather than a single ``strategy=`` field.  Set the relevant feature flag
+and let the dispatcher route to the matching strategy:
 
 .. code-block:: python
 
    from heterodyne.optimization.nlsq.config import NLSQConfig
 
-   config = NLSQConfig(strategy="chunked", chunk_size=256)
+   # Stratified least-squares with target chunk size
+   config = NLSQConfig(enable_stratified=True, target_chunk_size=10_000)
+
+   # Hybrid streaming optimizer (L-BFGS warmup + Gauss-Newton)
+   config = NLSQConfig(hybrid_enable=True, streaming_chunk_size=50_000)
 
 
 Multi-Start Optimisation
@@ -80,8 +86,11 @@ initial points sampled via **Latin Hypercube Sampling** (LHS):
 .. code-block:: python
 
    config = NLSQConfig(
-       n_starts=20,           # Number of random starting points
-       lhs_seed=42,           # Reproducible sampling
+       multistart=True,             # Enable multi-start optimisation
+       multistart_n=20,             # Number of random starting points
+       sampling_strategy="lhs",     # "lhs", "sobol", or "random"
+       screen_keep_fraction=0.5,    # Fraction of starts kept after screening
+       refine_top_k=3,              # Top-k candidates fully refined
    )
 
 The best result (lowest :math:`\chi^2`) is returned.
@@ -129,20 +138,21 @@ Basic Example
    from heterodyne.optimization.nlsq.core import fit_nlsq_jax
    from heterodyne.optimization.nlsq.config import NLSQConfig
 
-   # Build model from timestamps and wavevector
-   model = HeterodyneModel(timestamps=data.timestamps, q=0.025)
+   # Build model from configuration dict (or ConfigManager)
+   model = HeterodyneModel.from_config(config_dict)
 
    # Configure and run
-   config = NLSQConfig(
-       n_starts=10,
-       strategy="jit",
+   nlsq_config = NLSQConfig(
+       multistart=True,
+       multistart_n=10,
+       sampling_strategy="lhs",
    )
 
    result = fit_nlsq_jax(
        model=model,
        c2_data=data.c2,
        phi_angle=45.0,
-       config=config,
+       config=nlsq_config,
    )
 
    # Inspect result

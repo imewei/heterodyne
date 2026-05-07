@@ -24,9 +24,9 @@ The loader auto-detects the file format from the internal structure:
      ``two_time`` dataset at a known path.
 
 **NumPy** (``.npz``)
-   Compressed NumPy archives containing ``c2`` and ``timestamps``
-   arrays.  Useful for sharing preprocessed data or synthetic test
-   cases.
+   Compressed NumPy archives containing ``c2``, ``t1``, and ``t2``
+   time-axis arrays.  Useful for sharing preprocessed data or synthetic
+   test cases.
 
 **MATLAB** (``.mat``)
    Version 5 MAT files with variables ``C2`` and ``t``.
@@ -44,11 +44,12 @@ Basic Usage
    data = loader.load()
 
    print(data.c2.shape)        # (N_frames, N_frames)
-   print(data.timestamps[:5])  # First 5 frame timestamps in seconds
+   print(data.t1[:5])          # First 5 row time-axis values in seconds
+   print(data.t2[:5])          # First 5 column time-axis values
 
-The returned data object carries the :math:`C_2` matrix, timestamps,
-and any metadata present in the source file (q-value, temperature,
-exposure time, etc.).
+The returned :class:`~heterodyne.data.xpcs_loader.XPCSData` object carries
+the :math:`C_2` matrix, the ``t1`` and ``t2`` time axes, and any metadata
+present in the source file (q-value, temperature, exposure time, etc.).
 
 
 Multi-Angle Data
@@ -88,14 +89,16 @@ Before fitting, verify that the data is well-formed:
    assert not np.any(np.isnan(diag)), "NaN on C2 diagonal"
    assert np.all(diag > 0), "Non-positive diagonal values"
 
-   # Verify timestamps are monotonically increasing
-   dt = np.diff(data.timestamps)
-   assert np.all(dt > 0), "Non-monotonic timestamps"
+   # Verify time axes are monotonically increasing
+   dt1 = np.diff(data.t1)
+   dt2 = np.diff(data.t2)
+   assert np.all(dt1 > 0), "Non-monotonic t1"
+   assert np.all(dt2 > 0), "Non-monotonic t2"
 
    # Print summary
    print(f"Frames:     {data.c2.shape[0]}")
-   print(f"Duration:   {data.timestamps[-1] - data.timestamps[0]:.1f} s")
-   print(f"Frame rate: {1.0 / np.median(dt):.1f} Hz")
+   print(f"Duration:   {data.t1[-1] - data.t1[0]:.1f} s")
+   print(f"Frame rate: {1.0 / np.median(dt1):.1f} Hz")
 
 
 NPZ Caching
