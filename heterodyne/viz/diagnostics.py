@@ -313,9 +313,10 @@ def plot_residual_histogram(
 
     # Gaussian overlay
     mu, sigma = np.mean(flat), np.std(flat)
-    x = np.linspace(mu - 4 * sigma, mu + 4 * sigma, 200)
-    gaussian = np.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * np.sqrt(2 * np.pi))
-    ax.plot(x, gaussian, "r-", linewidth=2, label=f"N({mu:.3g}, {sigma:.3g}²)")
+    if sigma > 0:
+        x = np.linspace(mu - 4 * sigma, mu + 4 * sigma, 200)
+        gaussian = np.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * np.sqrt(2 * np.pi))
+        ax.plot(x, gaussian, "r-", linewidth=2, label=f"N({mu:.3g}, {sigma:.3g}²)")
 
     ax.set_xlabel("Residual")
     ax.set_ylabel("Density")

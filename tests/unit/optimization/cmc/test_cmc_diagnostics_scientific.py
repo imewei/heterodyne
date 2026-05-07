@@ -57,6 +57,9 @@ class TestComputeRHat:
         assert r_hat < 1.1, f"R-hat {r_hat} > 1.1 for converged chains"
 
     @pytest.mark.unit
+    @pytest.mark.filterwarnings(
+        "ignore:invalid value encountered in scalar divide:RuntimeWarning"
+    )
     def test_divergent_chains_rhat_high(self) -> None:
         """Chains from different distributions have R-hat > 1."""
         from heterodyne.optimization.cmc.diagnostics import compute_r_hat

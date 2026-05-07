@@ -374,12 +374,14 @@ def dispatch_plots(
                 else None
             )
             _dispatch_simulated_plots(model, c2_data, filtered_nlsq, plots_dir, _data_phi)
-            
+
             # Generate per-angle fitted simulations from NLSQ results.
             # Each result is scoped to its own phi angle so that calls do not
             # overwrite each other and each uses the correct fitted parameters.
             if filtered_nlsq and data_dict is not None and output_dir is not None:
-                from heterodyne.viz.nlsq_plots import generate_and_plot_fitted_simulations
+                from heterodyne.viz.nlsq_plots import (
+                    generate_and_plot_fitted_simulations,
+                )
 
                 config: dict[str, Any] = data_dict.get("config") or {}
                 for i, nlsq_result in enumerate(filtered_nlsq):

@@ -7,10 +7,7 @@ and that function signatures haven't changed in breaking ways.
 
 from __future__ import annotations
 
-import inspect
-
 import pytest
-
 
 # ============================================================================
 # Public API Surface
