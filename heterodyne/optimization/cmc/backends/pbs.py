@@ -152,7 +152,7 @@ def main() -> None:
         model_fn,
         target_accept_prob=config_dict["target_accept_prob"],
         max_tree_depth=config_dict.get("max_tree_depth", 10),
-        dense_mass=config_dict.get("dense_mass", False),
+        dense_mass=config_dict.get("dense_mass", True),
         init_strategy=init_fn(),
     )
     mcmc = MCMC(

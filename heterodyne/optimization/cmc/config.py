@@ -244,7 +244,7 @@ class CMCConfig:
     target_accept_prob: float = 0.85
     max_tree_depth: int = 10
     seed: int = 42
-    dense_mass: bool = False
+    dense_mass: bool = True
     init_strategy: str = "init_to_median"
     adaptive_sampling: bool = True
     min_warmup: int = 100

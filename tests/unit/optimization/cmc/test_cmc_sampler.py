@@ -26,7 +26,7 @@ class TestSamplingPlan:
         assert plan.target_accept == 0.8
         assert plan.max_tree_depth == 10
         assert plan.adapt_step_size is True
-        assert plan.dense_mass is False
+        assert plan.dense_mass is True
         assert plan.seed is None
 
     @pytest.mark.unit

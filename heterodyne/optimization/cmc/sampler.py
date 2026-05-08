@@ -56,7 +56,7 @@ class SamplingPlan:
     target_accept: float = 0.8
     max_tree_depth: int = 10
     adapt_step_size: bool = True
-    dense_mass: bool = False
+    dense_mass: bool = True
     seed: int | None = None
 
     def __post_init__(self) -> None:
