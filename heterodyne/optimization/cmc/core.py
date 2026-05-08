@@ -315,7 +315,7 @@ def fit_cmc_jax(
     rng_key = jax.random.PRNGKey(rng_seed)
 
     try:
-        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy",))
+        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy", "diverging"))
         samples = _block_until_ready_pytree(mcmc.get_samples())
     except (RuntimeError, ValueError) as e:
         logger.error("[CMC] MCMC sampling failed: %s", e)

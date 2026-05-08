@@ -826,7 +826,7 @@ def _run_shard_worker(
             progress_bar=False,
         )
 
-        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy",))
+        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy", "diverging"))
 
         samples_raw: dict[str, Any] = mcmc.get_samples()
         samples_np: dict[str, np.ndarray] = {
@@ -1225,7 +1225,7 @@ class MultiprocessingBackend(CMCBackend):
             chain_method="sequential",
             progress_bar=True,
         )
-        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy",))
+        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy", "diverging"))
         samples = mcmc.get_samples()
         logger.info("MultiprocessingBackend.run: sampling complete")
         return dict(samples)

@@ -197,3 +197,40 @@ class TestNUTSSampler:
         sampler = NUTSSampler.from_plan(plan, simple_model)
         with pytest.raises(RuntimeError, match="before calling run"):
             sampler.get_diagnostics()
+
+
+@pytest.mark.unit
+def test_nuts_sampler_run_requests_diverging_extra_field() -> None:
+    """NUTSSampler.run() must collect 'diverging' extra field for diagnostics.
+
+    get_divergence_stats() reads extra["diverging"] — if the field is not
+    requested at run time the count is always 0 regardless of actual divergences.
+    """
+    from unittest.mock import patch
+
+    import numpyro
+    import numpyro.distributions as dist
+
+    captured_extra_fields: list[str] = []
+
+    def capture_run(rng_key, init_params=None, extra_fields=()):  # type: ignore[no-untyped-def]
+        captured_extra_fields.extend(extra_fields)
+
+    def dummy_model() -> None:
+        numpyro.sample("x", dist.Normal(0.0, 1.0))
+
+    plan = SamplingPlan(num_warmup=10, num_samples=10, num_chains=1, max_tree_depth=5)
+    sampler = NUTSSampler.from_plan(plan, dummy_model)
+
+    with patch.object(sampler._mcmc, "run", side_effect=capture_run):
+        try:
+            sampler.run()
+        except Exception:
+            pass
+
+    assert "diverging" in captured_extra_fields, (
+        f"'diverging' not collected in extra_fields. Got: {captured_extra_fields}"
+    )
+    assert "energy" in captured_extra_fields, (
+        f"'energy' should still be collected. Got: {captured_extra_fields}"
+    )

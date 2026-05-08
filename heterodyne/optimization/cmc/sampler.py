@@ -322,7 +322,7 @@ class NUTSSampler:
         self._mcmc.run(
             rng_key,
             init_params=perturbed_params,
-            extra_fields=("energy",),
+            extra_fields=("energy", "diverging"),
         )
         self._has_run = True
 
