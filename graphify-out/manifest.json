@@ -820,8 +820,8 @@
     "hash": "f1c3b61b75f8abf8a20b851ad05d74ac"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/sampler.py": {
-    "mtime": 1778226735.8259451,
-    "hash": "44a3e7edb8d057b45a344c9d8dafc3dd"
+    "mtime": 1778254735.1166754,
+    "hash": "678ef7573833e6b35d84ae0916546a7b"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/diagnostics.py": {
     "mtime": 1778224121.61356,
@@ -844,8 +844,8 @@
     "hash": "456396ce4ababf0908fab717bb7f7536"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/core.py": {
-    "mtime": 1778224968.5611649,
-    "hash": "ef03e826ed9868e68aac6f5e9120fc1d"
+    "mtime": 1778254922.2404375,
+    "hash": "c3d067159f2d5651910f0800fca4bfaa"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/results.py": {
     "mtime": 1778223379.1740189,
@@ -1180,8 +1180,8 @@
     "hash": "7bbc9f9fc90fbe3bd69de1b43bc8a6be"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/architecture/cmc-fitting-architecture.md": {
-    "mtime": 1778240359.1784797,
-    "hash": "dde84a60b6641e6cca79449a647a0bb1"
+    "mtime": 1778257412.6889372,
+    "hash": "48d69937e8ddef5a44825a5a3a0f7682"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/architecture/physical-model-architecture.md": {
     "mtime": 1778161223.3131497,
@@ -1304,8 +1304,8 @@
     "hash": "53ff42ccddab8e3fd4c182bc35949402"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/cmc-fitting-architecture.md": {
-    "mtime": 1778240359.1784797,
-    "hash": "dde84a60b6641e6cca79449a647a0bb1"
+    "mtime": 1778257412.6889372,
+    "hash": "48d69937e8ddef5a44825a5a3a0f7682"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/physical-model-architecture.md": {
     "mtime": 1778161223.3131497,

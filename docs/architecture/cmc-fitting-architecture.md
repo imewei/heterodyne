@@ -715,6 +715,21 @@ internal code must use the new names.
   mode statistics, separation significance, and checks whether consensus mean
   falls in the density trough between modes.
 
+### Posterior quality functions (homodyne parity)
+
+Three diagnostic utilities in `diagnostics.py` quantify the *quality* of the
+CMC posterior relative to the NLSQ warm-start and the prior:
+
+| Function | Signature | Returns |
+|---|---|---|
+| `compute_posterior_contraction(result, prior_std)` | `CMCResult, dict[str, float]` | `dict[str, float]` — PCR per parameter: `1 - posterior_std / prior_std`. Values near 1 = well-constrained; near 0 = prior-dominated; negative = possible misspecification. |
+| `compute_nlsq_comparison_metrics(result, nlsq_result, tolerance_sigma=3.0)` | `CMCResult, dict or NLSQResult` | `dict` — per-parameter `{diff_pct, z_score, status}`. Flags parameters exceeding `tolerance_sigma` (default 3σ). |
+| `compute_precision_analysis(result, nlsq_result=None)` | `CMCResult, ...` | `dict` — precision loss diagnostics comparing CMC posterior width to NLSQ uncertainty and prior width. |
+
+These are pure diagnostic — they do not modify the result or raise exceptions.
+Typical call site: after `fit_cmc_sharded()`, pass the result and the
+`nlsq_result` to surface parameter-level discrepancies before writing output.
+
 ### High-level convergence helpers (homodyne parity)
 
 ```python
@@ -760,7 +775,20 @@ to fail.
 | `num_samples` | `int` | Posterior draws |
 | `num_chains` | `int` | Number of chains |
 | `wall_time_seconds` | `float \| None` | Elapsed wall-clock time |
-| `metadata` | `dict[str, Any]` | Additional metadata (n_shards, combination_method, etc.) |
+| `metadata` | `dict[str, Any]` | Additional metadata (n_shards, combination_method, divergence_rate, etc.) |
+| `convergence_status` | `str` | `"converged"` \| `"divergences"` \| `"not_converged"` (homodyne parity) |
+| `warmup_time` | `float \| None` | Wall time for warmup phase only |
+| `per_angle_mode` | `str` | Effective per-angle scaling mode (default `"auto"`) |
+| `chi_squared` | `float \| None` | Post-combination chi-squared |
+| `quality_flag` | `str \| None` | `"good"` \| `"warning"` \| `"poor"` |
+| `mean_contrast` | `np.ndarray \| None` | Per-angle posterior contrast means |
+| `std_contrast` | `np.ndarray \| None` | Per-angle posterior contrast standard deviations |
+| `mean_offset` | `np.ndarray \| None` | Per-angle posterior offset means |
+| `std_offset` | `np.ndarray \| None` | Per-angle posterior offset standard deviations |
+
+`convergence_status` is populated by `merge_shard_cmc_results()` and
+`fit_cmc_jax()`: `"divergences"` when any shard's `metadata["divergence_rate"] > 0.05`,
+`"converged"` when `convergence_passed=True`, `"not_converged"` otherwise.
 
 ### CMCResult methods
 
@@ -792,8 +820,32 @@ Exported from `heterodyne.optimization.cmc` as part of the public API.
   with proper chain-draw reshaping.
 - `compare_cmc_nlsq()`: Compares CMC posterior means with NLSQ point
   estimates; reports per-parameter z-scores and consistency flags.
-- `merge_shard_cmc_results()`: Inverse-variance combination of per-shard
-  `CMCResult` objects into a consensus result.
+- `merge_shard_cmc_results(shard_results, parameter_names=None)`:
+  Inverse-variance combination of per-shard `CMCResult` objects. For
+  K > 500 shards uses hierarchical chunking (groups of 500, recursive)
+  to bound peak memory at O(500) × ceil(K/500) rather than O(K).
+  Populates `convergence_status` on the returned result.
+- `cmc_result_summary_table()`: Formatted text table with posterior means,
+  standard deviations, credible intervals, R-hat, and ESS.
+
+### SamplingStats
+
+`SamplingStats` (`sampler.py`) is the frozen summary returned by
+`run_nuts_with_retry()` after each shard sampling attempt:
+
+| Field | Type | Description |
+|---|---|---|
+| `num_samples` | `int` | Posterior draws collected |
+| `num_warmup` | `int` | Warmup steps used |
+| `num_divergences` | `int` | Count of divergent transitions |
+| `divergence_rate` | `float` | `num_divergences / (num_samples * num_chains)` |
+| `mean_accept_prob` | `float` | Mean NUTS acceptance probability |
+| `max_tree_depth_fraction` | `float` | Fraction of steps hitting `max_tree_depth` |
+| `wall_time_seconds` | `float` | Total sampling + warmup wall time |
+| `is_healthy` | `bool` | `divergence_rate < 5%` and `mean_accept_prob > 0.6` |
+
+`is_healthy` is the fast shard-quality gate used by `run_nuts_with_retry()`
+to decide whether to retry with a reduced step size before returning.
 - `cmc_result_summary_table()`: Formatted text table with posterior means,
   standard deviations, credible intervals, R-hat, and ESS.
 
@@ -932,6 +984,9 @@ initialization:
 | 2026-05-08 | **W4 — Bimodal detection not called after shard combination**: `check_shard_bimodality()` was never invoked in `fit_cmc_sharded`. CMCConfig fields `bimodal_min_weight` and `bimodal_min_separation` had no effect. Fixed: call added after `_combine_shard_posteriors`; results stored in `CMCResult.metadata`. | `core.py` |
 | 2026-05-08 | **W5 — Bimodal detection post-conditions not enforced**: `detect_bimodal()` / `check_shard_bimodality()` had no `min_weight` or `min_separation` parameters, so `CMCConfig.bimodal_min_weight` and `bimodal_min_separation` were unreachable. Fixed: both parameters added and applied as post-conditions after the BIC test. | `diagnostics.py` |
 | 2026-05-08 | **W6 — Preflight log-density check always skipped**: `_validate_init_log_density` checked `kernel._potential_fn` which is `None` before any sampling run → preflight silently no-ops on every call. Fixed: now uses `numpyro.infer.util.log_density(kernel.model, (), {}, init_params)` which is always callable. | `sampler.py` |
+| 2026-05-08 | **Phase 3 — NL-07: `classify_fit_quality` bounds-proximity parameter**: Added optional `n_at_bounds: int = 0` parameter. When `n_at_bounds > 0`, a chi-squared-"good" result is demoted to "marginal" — a bound-saturated parameter may absorb residual error and mask convergence issues. Existing callers unaffected (backward-compatible default). | `optimization/nlsq/validation/fit_quality.py` |
+| 2026-05-08 | **Phase 3 — CM-07: CMCResult homodyne-parity fields**: Added `convergence_status`, `warmup_time`, `per_angle_mode`, `chi_squared`, `quality_flag`, `mean_contrast`, `std_contrast`, `mean_offset`, `std_offset` as optional fields (all default to `None`/`"not_converged"`/`"auto"`). `merge_shard_cmc_results` populates `convergence_status` automatically. | `optimization/cmc/results.py` |
+| 2026-05-08 | **Phase 3 — CM-09: hierarchical combination for K > 500 shards**: `merge_shard_cmc_results` now chunks into groups of 500 and combines recursively when `len(shard_results) > 500`, bounding peak memory to O(500) × ceil(K/500). | `optimization/cmc/results.py` |
 | 2026-05-08 | **Phase 3 — CM-04: `jax.block_until_ready()` in `NUTSSampler.run()`**: timing measurement was unreliable — XLA's lazy evaluation deferred actual compute to the first `device_get()` call, so `wall_time_seconds` measured only dispatch time. Fixed by calling `jax.block_until_ready(mcmc.last_state)` immediately after `mcmc.run()`. | `sampler.py` |
 | 2026-05-08 | **Phase 3 — CM-02: divergence-rate shard filter**: `fit_cmc_jax` now extracts `mcmc.get_extra_fields()["diverging"]` and stores `divergence_rate` in `CMCResult.metadata`. `_combine_shard_posteriors` gates the `successful` filter on `metadata.get("divergence_rate", 0.0) <= config.max_divergence_rate` (default 10%), preventing high-divergence shards from contaminating the consensus posterior. | `core.py` |
 | 2026-05-08 | **Phase 3 — CM-03: cross-shard heterogeneity detection**: `max_parameter_cv` and `heterogeneity_abort` config fields existed but had no enforcement. Added IQR-based CV check (`IQR / max(\|median\|, 1e-3)`) between shard filtering and combination — uses IQR rather than std/\|mean\| so near-zero params (α, β, v_offset, φ₀ ≈ 0) stay finite. Raises `RuntimeError` or logs warning per `heterogeneity_abort`. | `core.py` |

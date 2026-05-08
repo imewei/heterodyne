@@ -79,6 +79,19 @@ class CMCResult:
     # Additional metadata
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    # Homodyne-parity fields (all optional; populated by fit_cmc_jax / merge_shard)
+    convergence_status: str = (
+        "not_converged"  # "converged"|"divergences"|"not_converged"
+    )
+    warmup_time: float | None = None  # Wall time for warmup phase only
+    per_angle_mode: str = "auto"  # Effective per-angle scaling mode used
+    chi_squared: float | None = None  # Post-combination chi-squared
+    quality_flag: str | None = None  # "good"|"warning"|"poor"
+    mean_contrast: np.ndarray | None = None  # Per-angle posterior contrast means
+    std_contrast: np.ndarray | None = None  # Per-angle posterior contrast stds
+    mean_offset: np.ndarray | None = None  # Per-angle posterior offset means
+    std_offset: np.ndarray | None = None  # Per-angle posterior offset stds
+
     @property
     def n_params(self) -> int:
         """Number of parameters."""
@@ -442,6 +455,18 @@ def merge_shard_cmc_results(
     if not shard_results:
         raise ValueError("shard_results must be non-empty.")
 
+    # --- Hierarchical combination for large shard counts (CM-09) ---
+    # Combining K > 500 results at once requires O(K) memory for stacking
+    # arrays.  Chunking into groups of 500 and merging recursively reduces
+    # peak memory to O(500) × ceil(K/500) with identical numerical result.
+    _CHUNK = 500
+    if len(shard_results) > _CHUNK:
+        chunks = [
+            shard_results[i : i + _CHUNK] for i in range(0, len(shard_results), _CHUNK)
+        ]
+        chunk_merged = [merge_shard_cmc_results(c, parameter_names) for c in chunks]
+        return merge_shard_cmc_results(chunk_merged, parameter_names)
+
     # Determine canonical parameter names
     if parameter_names is None:
         parameter_names = shard_results[0].parameter_names
@@ -555,6 +580,18 @@ def merge_shard_cmc_results(
             "n_shards": len(shard_results),
             "combination_method": "inverse_variance",
         },
+        convergence_status=(
+            "converged"
+            if convergence_passed
+            else (
+                "divergences"
+                if any(
+                    getattr(sr, "metadata", {}).get("divergence_rate", 0.0) > 0.05
+                    for sr in shard_results
+                )
+                else "not_converged"
+            )
+        ),
     )
 
 
