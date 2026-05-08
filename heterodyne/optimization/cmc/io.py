@@ -200,7 +200,6 @@ def save_samples_npz(result: CMCResult, output_path: Path) -> None:
 
     Shape stored: ``posterior_samples`` is ``(n_chains, n_samples, n_params)``.
     """
-    from heterodyne.config.parameter_registry import ParameterRegistry
 
     samples_3d = result.get_samples_array()
     names = result.parameter_names
@@ -224,11 +223,8 @@ def save_samples_npz(result: CMCResult, output_path: Path) -> None:
         ]
     )
 
-    scaling = ParameterRegistry().get_scaling_names()
-    first_s = scaling[0] if scaling else "contrast"
-    n_phi = sum(1 for n in names if n.startswith(f"{first_s}_")) or (
-        1 if first_s in names else 0
-    )
+    # n_phi from metadata (set by fit_cmc_jax); fall back to 0 when absent.
+    n_phi = int(result.metadata.get("n_phi", 0))
 
     np.savez_compressed(
         output_path,
@@ -266,20 +262,22 @@ def load_samples_npz(input_path: Path) -> dict[str, Any]:
         raise ValueError(f"Path is not a regular file: {input_path}")
 
     # NPZ archives store raw numpy binary arrays; no object serialization is used.
-    data = np.load(input_path)
-    return {
-        "schema_version": tuple(data["schema_version"]),
-        "posterior_samples": data["posterior_samples"],
-        "param_names": data["param_names"].tolist(),
-        "r_hat": data["r_hat"],
-        "ess_bulk": data["ess_bulk"],
-        "ess_tail": data["ess_tail"],
-        "divergences": int(data["divergences"][0]),
-        "analysis_mode": str(data["analysis_mode"][0]),
-        "n_phi": int(data["n_phi"][0]),
-        "n_chains": int(data["n_chains"][0]),
-        "n_samples": int(data["n_samples"][0]),
-    }
+    # Use context manager to ensure the underlying zip file is closed after reading.
+    with np.load(input_path) as data:
+        result = {
+            "schema_version": tuple(data["schema_version"]),
+            "posterior_samples": np.array(data["posterior_samples"]),
+            "param_names": data["param_names"].tolist(),
+            "r_hat": np.array(data["r_hat"]),
+            "ess_bulk": np.array(data["ess_bulk"]),
+            "ess_tail": np.array(data["ess_tail"]),
+            "divergences": int(data["divergences"][0]),
+            "analysis_mode": str(data["analysis_mode"][0]),
+            "n_phi": int(data["n_phi"][0]),
+            "n_chains": int(data["n_chains"][0]),
+            "n_samples": int(data["n_samples"][0]),
+        }
+    return result
 
 
 def samples_to_arviz(samples_data: dict[str, Any]) -> Any:
