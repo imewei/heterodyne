@@ -300,8 +300,8 @@
     "hash": "672c1255b1fac00e60f152831d7f52f1"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_priors.py": {
-    "mtime": 1778207727.5736022,
-    "hash": "994ff5efa3bee143982ddbd979e59581"
+    "mtime": 1778224568.0748982,
+    "hash": "666ef2ef2e3a2cfba2af853bfa4ac6a9"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_worker_pool.py": {
     "mtime": 1773371305.7119627,
@@ -320,32 +320,36 @@
     "hash": "4e4b91792a91565bf33457d10e143ba7"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_core.py": {
-    "mtime": 1778207907.5182636,
-    "hash": "b818aa6eba8865ef9c8ac68b13aa777e"
+    "mtime": 1778224455.6418245,
+    "hash": "e7cbcaa60eb0cd3952451b8a4ce7583b"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_scaling_estimation.py": {
     "mtime": 1773371305.7299628,
     "hash": "2537bcc60a0e6129486aa6bfbcf994e8"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_diagnostics_scientific.py": {
-    "mtime": 1778191916.1868799,
-    "hash": "9cb9822a7d1631f2fc870784a78a5943"
+    "mtime": 1778224138.9055226,
+    "hash": "f127b21d087a94d7a1da53aa4c2d35c1"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_model_validation.py": {
     "mtime": 1773371305.8149636,
     "hash": "58cb5dea33a69baa68d0a1ddd119385f"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_results.py": {
-    "mtime": 1773371305.8319635,
-    "hash": "7b44bc1109dbd390c75fa9ebfb74e438"
+    "mtime": 1778223624.0815814,
+    "hash": "bcadad0a0c19122a7cda20337242b638"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_reparameterization.py": {
     "mtime": 1773371305.7229626,
     "hash": "13ff068ce96ad910b22cd2da48308d3f"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_sampler.py": {
-    "mtime": 1778216893.2434928,
-    "hash": "c20572420758d0c559d8ee8989c4d695"
+    "mtime": 1778224290.3121915,
+    "hash": "7689a734b4972cd8833dc2a27f6d4cfe"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_io.py": {
+    "mtime": 1778224289.0041945,
+    "hash": "1bd834b43f641b05b60e8dba4e01f079"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/data/test_angle_filtering.py": {
     "mtime": 1773371305.852964,
@@ -808,44 +812,44 @@
     "hash": "8546bf8112b40d061be6d02db01b59e7"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/io.py": {
-    "mtime": 1773371305.7279627,
-    "hash": "0bf16cbd7e14d928fe3cf4c678b010f0"
+    "mtime": 1778224858.4999402,
+    "hash": "20c0bb2934c8bf78eebb2e76d9181aac"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/model.py": {
     "mtime": 1778211527.507411,
     "hash": "f1c3b61b75f8abf8a20b851ad05d74ac"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/sampler.py": {
-    "mtime": 1778219571.326029,
-    "hash": "105c075aeda0447f4ad2cdc54f58f992"
+    "mtime": 1778226735.8259451,
+    "hash": "44a3e7edb8d057b45a344c9d8dafc3dd"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/diagnostics.py": {
-    "mtime": 1778219492.7683287,
-    "hash": "fa10f10adcc9c283ea5700f940889145"
+    "mtime": 1778224121.61356,
+    "hash": "59cafad77f9922ed93415360d7dd8a74"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/__init__.py": {
-    "mtime": 1773039249.45616,
-    "hash": "4e26281ec4544d20e9b1b6d48ba78008"
+    "mtime": 1778223591.1836433,
+    "hash": "aa27e9931fd2b612a05a972f775f34e8"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/scaling.py": {
     "mtime": 1773039212.3191636,
     "hash": "a2057744a2eb1295d955e16a5b7083ab"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/priors.py": {
-    "mtime": 1773371305.740963,
-    "hash": "f334aa0a66f3376a540d20b9e1240700"
+    "mtime": 1778224957.3411453,
+    "hash": "0b3327689ced7f30d97f13210083eeb5"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/config.py": {
-    "mtime": 1778216876.6935196,
-    "hash": "8ce836030a51ffbb7a1459484a790584"
+    "mtime": 1778224935.8281057,
+    "hash": "456396ce4ababf0908fab717bb7f7536"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/core.py": {
-    "mtime": 1778219601.7689152,
-    "hash": "65cd1134d09ae826a483f2e6914cb3fe"
+    "mtime": 1778224968.5611649,
+    "hash": "ef03e826ed9868e68aac6f5e9120fc1d"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/results.py": {
-    "mtime": 1773371305.7299628,
-    "hash": "1b7149d6ab05c58954a0723cf530420f"
+    "mtime": 1778223379.1740189,
+    "hash": "5fa592f218b91557d73f6cd367f38bf4"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/reparameterization.py": {
     "mtime": 1773432871.4221337,
