@@ -174,8 +174,22 @@ def fit_cmc_jax(
         t_max_val = float(t_array[-1])
         t_ref = compute_t_ref(dt_val, t_max_val, fallback_value=1.0)
 
-        reparam_config = ReparamConfig(t_ref=t_ref)
-        logger.info("[CMC] Reference-time reparameterization: t_ref=%.4e", t_ref)
+        # reparameterization_d_total controls both D0_ref/alpha_ref and
+        # D0_sample/alpha_sample pairs; reparameterization_log_gamma controls v0/beta.
+        reparam_config = ReparamConfig(
+            t_ref=t_ref,
+            enable_d_ref=config.reparameterization_d_total,
+            enable_d_sample=config.reparameterization_d_total,
+            enable_v_ref=config.reparameterization_log_gamma,
+        )
+        logger.info(
+            "[CMC] Reference-time reparameterization: t_ref=%.4e "
+            "(d_ref=%s, d_sample=%s, v_ref=%s)",
+            t_ref,
+            config.reparameterization_d_total,
+            config.reparameterization_d_total,
+            config.reparameterization_log_gamma,
+        )
 
         nlsq_values = {
             name: float(nlsq_result.get_param(name))
@@ -288,9 +302,26 @@ def fit_cmc_jax(
     }
     init_fn = _init_strategy_map.get(config.init_strategy, numpyro_init.init_to_median)
 
+    # Elevate target acceptance for high-correlation regimes: when Z-space
+    # reparameterization is active the power-law pair geometry is decorrelated
+    # within each pair, but cross-pair correlations remain. A floor of 0.9
+    # (matching homodyne's laminar-flow policy) improves leapfrog step quality.
+    _MIN_TARGET_ACCEPT_REPARAM = 0.9
+    effective_target_accept = (
+        max(config.target_accept_prob, _MIN_TARGET_ACCEPT_REPARAM)
+        if use_reparam
+        else config.target_accept_prob
+    )
+    if use_reparam and effective_target_accept > config.target_accept_prob:
+        logger.info(
+            "[CMC] Elevating target_accept_prob %.2f → %.2f (reparam active)",
+            config.target_accept_prob,
+            effective_target_accept,
+        )
+
     kernel = NUTS(
         numpyro_model,
-        target_accept_prob=config.target_accept_prob,
+        target_accept_prob=effective_target_accept,
         max_tree_depth=config.max_tree_depth,
         dense_mass=config.dense_mass,
         init_strategy=init_fn(),
@@ -618,6 +649,39 @@ def fit_cmc_sharded(
         base_seed,
     )
 
+    # --- Bimodal detection across shards ---
+    # Run after combination so the combine path's Gaussian approximation
+    # can be checked for mode collapse. Results stored in metadata only —
+    # the caller gets a normal CMCResult but can inspect metadata["bimodal"].
+    bimodal_metadata: dict[str, Any] = {}
+    successful_with_samples = [
+        sr for sr in shard_results if sr.convergence_passed and sr.samples is not None
+    ]
+    if len(successful_with_samples) >= 2:
+        from heterodyne.optimization.cmc.diagnostics import check_shard_bimodality
+
+        shard_sample_dict = {
+            i: sr.samples  # type: ignore[misc]
+            for i, sr in enumerate(successful_with_samples)
+        }
+        bimodal_results = check_shard_bimodality(
+            shard_sample_dict,
+            min_weight=config.bimodal_min_weight,
+            min_separation=config.bimodal_min_separation,
+        )
+        bimodal_params = [
+            p for p, rs in bimodal_results.items() if any(r.is_bimodal for r in rs)
+        ]
+        bimodal_metadata["bimodal_detected"] = len(bimodal_params) > 0
+        bimodal_metadata["bimodal_params"] = bimodal_params
+        if bimodal_params:
+            logger.warning(
+                "[CMC-sharded] Bimodal posteriors detected for %d parameters: %s. "
+                "Gaussian consensus approximation may be inaccurate.",
+                len(bimodal_params),
+                bimodal_params,
+            )
+
     # --- Phase 5: finalize ---
     wall_time = time.perf_counter() - start_time
     logger.info(
@@ -644,6 +708,7 @@ def fit_cmc_sharded(
     metadata["n_failed_shards"] = sum(
         1 for r in shard_results if not r.convergence_passed
     )
+    metadata.update(bimodal_metadata)
 
     final = CMCResult(
         parameter_names=combined_result.parameter_names,
@@ -1081,51 +1146,6 @@ def _combine_shard_posteriors(
         wall_time_seconds=None,  # caller fills this in
         metadata={},
     )
-
-
-# ---------------------------------------------------------------------------
-# Prior tempering
-# ---------------------------------------------------------------------------
-
-
-def _temper_sigma(
-    sigma: np.ndarray | float,
-    num_shards: int,
-) -> np.ndarray | float:
-    """Scale measurement uncertainty for CMC prior tempering.
-
-    In Consensus Monte Carlo each shard receives 1/K of the total data.
-    To preserve the correct posterior geometry, the effective likelihood
-    contribution of each shard must be inflated by K (i.e., the log-
-    likelihood is multiplied by K).  Equivalently, the noise standard
-    deviation is divided by ``sqrt(K)``:
-
-    .. math::
-
-        \\sigma_{\\text{shard}} = \\sigma_{\\text{full}} / \\sqrt{K}
-
-    This ensures that the product of K shard sub-posteriors (each with
-    tempered sigma) approximates the full-data posterior.
-
-    Args:
-        sigma: Original measurement uncertainty (scalar or array).
-        num_shards: Number of shards K.  Must be >= 1.
-
-    Returns:
-        Tempered sigma of the same type as the input.
-
-    Raises:
-        ValueError: If ``num_shards < 1``.
-    """
-    if num_shards < 1:
-        raise ValueError(f"num_shards must be >= 1, got {num_shards}")
-
-    scale_factor = 1.0 / math.sqrt(num_shards)
-
-    if isinstance(sigma, float):
-        return sigma * scale_factor
-
-    return np.asarray(sigma) * scale_factor
 
 
 # ---------------------------------------------------------------------------

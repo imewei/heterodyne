@@ -394,20 +394,22 @@ class NUTSSampler:
         """
 
         try:
-            # NumPyro's MCMC exposes get_extra_fields only after a run;
-            # use the kernel's postprocess_fn / init to probe log density.
-            # The safest approach without running full sampling is to use
-            # numpyro's potential_fn via the NUTS kernel's _potential_fn.
+            # Use numpyro.infer.util.log_density to evaluate the model's
+            # unnormalized log-joint at init_params without running full NUTS.
+            # This works before any sampling and is the correct API — relying
+            # on kernel._potential_fn was wrong because it is None pre-run.
+            from numpyro.infer.util import log_density as _numpyro_log_density
+
             kernel = self._mcmc.sampler  # type: ignore[attr-defined]
-            if not hasattr(kernel, "_potential_fn") or kernel._potential_fn is None:
-                # Can't probe without a compiled potential — skip silently.
+            model_fn = kernel.model  # type: ignore[attr-defined]
+            if model_fn is None:
                 logger.debug(
-                    "_validate_init_log_density: potential_fn not available, skipping"
+                    "_validate_init_log_density: model not available on kernel, skipping"
                 )
                 return
 
-            potential_fn = kernel._potential_fn
-            log_density = -float(potential_fn(init_params))
+            log_density_val, _ = _numpyro_log_density(model_fn, (), {}, init_params)
+            log_density = float(log_density_val)
 
             if not math.isfinite(log_density):
                 param_summary = ", ".join(

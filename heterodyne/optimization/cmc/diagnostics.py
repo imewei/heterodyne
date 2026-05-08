@@ -647,13 +647,23 @@ def detect_bimodal(
     samples: np.ndarray,
     param_name: str,
     bic_threshold: float = 10.0,
+    min_weight: float = 0.0,
+    min_separation: float = 0.0,
 ) -> BimodalResult:
     """Fit 1- and 2-component Gaussian mixtures and compare BIC.
 
     Uses scikit-learn's ``GaussianMixture`` to estimate Bayesian
     Information Criterion for unimodal vs bimodal models.  A positive
     ``delta_bic`` larger than ``bic_threshold`` is treated as evidence
-    for bimodality.
+    for bimodality.  Two optional post-conditions can tighten the
+    criterion:
+
+    - ``min_weight``: the minor mode must have at least this mixture
+      weight (0–0.5).  Filters spurious bimodality from very unequal
+      modes.
+    - ``min_separation``: the modes must be separated by at least this
+      many sample standard deviations.  Filters bimodality in flat or
+      nearly uniform posteriors.
 
     Args:
         samples: 1-D array of posterior draws for the parameter.
@@ -661,6 +671,10 @@ def detect_bimodal(
         bic_threshold: Minimum ``delta_bic`` (BIC_unimodal − BIC_bimodal)
             required to declare bimodality.  Default 10.0 corresponds to
             strong evidence on the Raftery (1995) BIC scale.
+        min_weight: Minimum weight of the minor mode for the result to
+            be flagged as bimodal.  Default 0.0 (no weight filter).
+        min_separation: Minimum mode separation in sample standard
+            deviations.  Default 0.0 (no separation filter).
 
     Returns:
         :class:`BimodalResult` with fitted statistics.
@@ -694,11 +708,34 @@ def detect_bimodal(
     means: tuple[float, float] | None = None
     weights: tuple[float, float] | None = None
 
+    # Extract GMM-2 components once for post-condition checks and reporting
+    m2 = gm2.means_.ravel()
+    w2 = gm2.weights_.ravel()
+
     if is_bimodal:
-        m = gm2.means_.ravel()
-        w = gm2.weights_.ravel()
-        means = (float(m[0]), float(m[1]))
-        weights = (float(w[0]), float(w[1]))
+        # Apply optional post-conditions before confirming bimodality
+        minor_weight = float(min(w2))
+        separation_std = abs(float(m2[0]) - float(m2[1])) / (float(np.std(arr)) + 1e-30)
+        if minor_weight < min_weight:
+            logger.debug(
+                "Bimodal candidate %s suppressed: minor_weight=%.3f < min_weight=%.3f",
+                param_name,
+                minor_weight,
+                min_weight,
+            )
+            is_bimodal = False
+        elif separation_std < min_separation:
+            logger.debug(
+                "Bimodal candidate %s suppressed: separation=%.2f std < min_separation=%.2f",
+                param_name,
+                separation_std,
+                min_separation,
+            )
+            is_bimodal = False
+
+    if is_bimodal:
+        means = (float(m2[0]), float(m2[1]))
+        weights = (float(w2[0]), float(w2[1]))
         logger.warning(
             "Bimodal posterior detected for %s: delta_BIC=%.2f, "
             "means=(%.4e, %.4e), weights=(%.3f, %.3f)",
@@ -731,6 +768,8 @@ def detect_bimodal(
 def check_shard_bimodality(
     shard_samples: dict[int, dict[str, np.ndarray]],
     bic_threshold: float = 10.0,
+    min_weight: float = 0.0,
+    min_separation: float = 0.0,
 ) -> dict[str, list[BimodalResult]]:
     """Detect bimodality for each parameter across all CMC shards.
 
@@ -765,7 +804,13 @@ def check_shard_bimodality(
             if name not in shard_dict:
                 continue
             arr = np.asarray(shard_dict[name], dtype=float).ravel()
-            result = detect_bimodal(arr, param_name=name, bic_threshold=bic_threshold)
+            result = detect_bimodal(
+                arr,
+                param_name=name,
+                bic_threshold=bic_threshold,
+                min_weight=min_weight,
+                min_separation=min_separation,
+            )
             param_results.append(result)
         results[name] = param_results
 
