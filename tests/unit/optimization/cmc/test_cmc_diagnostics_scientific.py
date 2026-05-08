@@ -664,9 +664,13 @@ class TestCreateDiagnosticsDict:
             "divergence_rate",
             "max_r_hat",
             "min_ess_bulk",
+            "min_ess_tail",
+            "all_r_hat_ok",
+            "all_ess_ok",
             "warnings",
             "sampling_config",
             "timing",
+            "per_parameter",
         ):
             assert k in d
 

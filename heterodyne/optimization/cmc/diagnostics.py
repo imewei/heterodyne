@@ -643,8 +643,9 @@ def check_convergence(
     tuple[str, list[str]]
         ``(status, warnings)`` where status is
         ``"converged"`` | ``"divergences"`` | ``"not_converged"``.
+        ``"divergences"`` takes priority over ``"not_converged"`` when both
+        R-hat/ESS failures and excess divergences are present simultaneously.
     """
-    _log = get_logger(__name__)
 
     warnings: list[str] = []
 
@@ -652,7 +653,7 @@ def check_convergence(
     if max_r_hat_value > max_rhat:
         bad = [k for k, v in r_hat.items() if np.isfinite(v) and v > max_rhat]
         msg = f"R-hat > {max_rhat} for parameters: {bad} (max={max_r_hat_value:.3f})"
-        _log.warning(msg)
+        logger.warning(msg)
         warnings.append(msg)
 
     min_ess_value = min((v for v in ess_bulk.values() if not np.isnan(v)), default=0.0)
@@ -798,8 +799,6 @@ def log_analysis_summary(
     execution_time: float,
 ) -> None:
     """Log a formatted CMC analysis summary at INFO/ERROR level."""
-    _log = get_logger(__name__)
-
     r_hat_values = [v for v in r_hat.values() if not np.isnan(v)]
     ess_values = [v for v in ess_bulk.values() if not np.isnan(v)]
 
@@ -810,37 +809,39 @@ def log_analysis_summary(
     div_rate = divergences / total_transitions if total_transitions > 0 else 0.0
     success_rate = shards_succeeded / n_shards if n_shards > 0 else 0.0
 
-    _log.info("=" * 60)
-    _log.info("CMC ANALYSIS SUMMARY")
-    _log.info("=" * 60)
+    logger.info("=" * 60)
+    logger.info("CMC ANALYSIS SUMMARY")
+    logger.info("=" * 60)
 
     if convergence_status == "converged":
-        _log.info("Status: CONVERGED")
+        logger.info("Status: CONVERGED")
     else:
-        _log.error(f"Status: {convergence_status.upper()}")
+        logger.error(f"Status: {convergence_status.upper()}")
 
-    _log.info(f"  Shards:   {shards_succeeded}/{n_shards} ({success_rate:.0%} success)")
-    _log.info(f"  Runtime:  {execution_time:.1f}s ({execution_time / 60:.1f} min)")
-    _log.info(
+    logger.info(
+        f"  Shards:   {shards_succeeded}/{n_shards} ({success_rate:.0%} success)"
+    )
+    logger.info(f"  Runtime:  {execution_time:.1f}s ({execution_time / 60:.1f} min)")
+    logger.info(
         f"  R-hat (max): {max_rhat:.4f} "
         f"{'[OK]' if np.isfinite(max_rhat) and max_rhat <= DEFAULT_MAX_RHAT else '[FAIL]'}"
     )
-    _log.info(
+    logger.info(
         f"  ESS (min): {min_ess:.0f} "
         f"{'[OK]' if np.isfinite(min_ess) and min_ess >= DEFAULT_MIN_ESS else '[FAIL]'}"
     )
-    _log.info(f"  Divergences: {divergences} ({div_rate:.1%})")
+    logger.info(f"  Divergences: {divergences} ({div_rate:.1%})")
 
     recs = get_convergence_recommendations(
         max_rhat, min_ess, divergences, n_samples, n_chains, n_shards
     )
     if recs:
-        _log.info("-" * 40)
-        _log.info("RECOMMENDATIONS:")
+        logger.info("-" * 40)
+        logger.info("RECOMMENDATIONS:")
         for r in recs:
-            _log.info(f"  - {r}")
+            logger.info(f"  - {r}")
 
-    _log.info("=" * 60)
+    logger.info("=" * 60)
 
 
 # ---------------------------------------------------------------------------
