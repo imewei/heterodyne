@@ -539,3 +539,212 @@ class TestRhatEdgeCases:
         # ArviZ returns NaN for single-chain input (requires >= 2 chains)
         assert isinstance(r_hat, float)
         assert np.isnan(r_hat)
+
+
+# ============================================================================
+# Default Constants Tests
+# ============================================================================
+
+
+class TestDefaultConstants:
+    def test_default_min_ess_is_400(self):
+        from heterodyne.optimization.cmc.diagnostics import DEFAULT_MIN_ESS
+
+        assert DEFAULT_MIN_ESS == 400
+
+    def test_default_max_rhat(self):
+        from heterodyne.optimization.cmc.diagnostics import DEFAULT_MAX_RHAT
+
+        assert DEFAULT_MAX_RHAT == pytest.approx(1.05)
+
+    def test_default_max_divergence_rate(self):
+        from heterodyne.optimization.cmc.diagnostics import DEFAULT_MAX_DIVERGENCE_RATE
+
+        assert DEFAULT_MAX_DIVERGENCE_RATE == pytest.approx(0.05)
+
+
+# ============================================================================
+# check_convergence Tests
+# ============================================================================
+
+
+class TestCheckConvergence:
+    def _good(self):
+        return {"D0": 1.02, "alpha": 1.01}, {"D0": 500.0, "alpha": 600.0}
+
+    def test_converged(self):
+        from heterodyne.optimization.cmc.diagnostics import check_convergence
+
+        r, e = self._good()
+        status, warnings = check_convergence(
+            r, e, divergences=0, n_samples=1000, n_chains=4
+        )
+        assert status == "converged"
+        assert warnings == []
+
+    def test_high_rhat_not_converged(self):
+        from heterodyne.optimization.cmc.diagnostics import check_convergence
+
+        r = {"D0": 1.2, "alpha": 1.01}
+        e = {"D0": 500.0, "alpha": 600.0}
+        status, warnings = check_convergence(
+            r, e, divergences=0, n_samples=1000, n_chains=4
+        )
+        assert status == "not_converged"
+        assert any("R-hat" in w for w in warnings)
+
+    def test_low_ess_not_converged(self):
+        from heterodyne.optimization.cmc.diagnostics import check_convergence
+
+        r = {"D0": 1.02, "alpha": 1.01}
+        e = {"D0": 50.0, "alpha": 60.0}
+        status, warnings = check_convergence(
+            r, e, divergences=0, n_samples=1000, n_chains=4
+        )
+        assert status == "not_converged"
+        assert any("ESS" in w for w in warnings)
+
+    def test_high_divergence_rate_returns_divergences(self):
+        from heterodyne.optimization.cmc.diagnostics import check_convergence
+
+        r, e = self._good()
+        # 300 / (1 * 4 * 1000) = 7.5% > 5% threshold
+        status, _ = check_convergence(r, e, divergences=300, n_samples=1000, n_chains=4)
+        assert status == "divergences"
+
+    def test_num_shards_scales_denominator(self):
+        from heterodyne.optimization.cmc.diagnostics import check_convergence
+
+        r, e = self._good()
+        # 300 / (4 * 4 * 1000) = 1.875% < 5% → converged
+        status, _ = check_convergence(
+            r, e, divergences=300, n_samples=1000, n_chains=4, num_shards=4
+        )
+        assert status == "converged"
+
+    def test_nan_rhat_ignored(self):
+        from heterodyne.optimization.cmc.diagnostics import check_convergence
+
+        r = {"D0": float("nan"), "alpha": 1.01}
+        e = {"D0": 500.0, "alpha": 600.0}
+        status, _ = check_convergence(r, e, divergences=0, n_samples=1000, n_chains=4)
+        assert status == "converged"
+
+
+# ============================================================================
+# create_diagnostics_dict Tests
+# ============================================================================
+
+
+class TestCreateDiagnosticsDict:
+    def _call(self, **kwargs):
+        from heterodyne.optimization.cmc.diagnostics import create_diagnostics_dict
+
+        defaults = dict(
+            r_hat={"D0": 1.02},
+            ess_bulk={"D0": 500.0},
+            ess_tail={"D0": 450.0},
+            divergences=0,
+            convergence_status="converged",
+            warnings=[],
+            n_chains=4,
+            n_warmup=500,
+            n_samples=1000,
+            warmup_time=5.0,
+            sampling_time=10.0,
+        )
+        defaults.update(kwargs)
+        return create_diagnostics_dict(**defaults)
+
+    def test_required_keys(self):
+        d = self._call()
+        for k in (
+            "convergence_status",
+            "total_divergences",
+            "divergence_rate",
+            "max_r_hat",
+            "min_ess_bulk",
+            "warnings",
+            "sampling_config",
+            "timing",
+        ):
+            assert k in d
+
+    def test_divergence_rate_correct(self):
+        d = self._call(divergences=20, n_samples=1000, n_chains=4)
+        assert d["divergence_rate"] == pytest.approx(20 / (4 * 1000))
+
+    def test_num_shards_scales_rate(self):
+        d = self._call(divergences=20, n_samples=1000, n_chains=4, num_shards=2)
+        assert d["divergence_rate"] == pytest.approx(20 / (2 * 4 * 1000))
+
+    def test_per_parameter_section(self):
+        d = self._call(
+            r_hat={"D0": 1.02}, ess_bulk={"D0": 500.0}, ess_tail={"D0": 450.0}
+        )
+        assert "per_parameter" in d
+        assert d["per_parameter"]["D0"]["r_hat"] == pytest.approx(1.02)
+
+
+# ============================================================================
+# get_convergence_recommendations Tests
+# ============================================================================
+
+
+class TestGetConvergenceRecommendations:
+    def test_no_issues_returns_empty(self):
+        from heterodyne.optimization.cmc.diagnostics import (
+            get_convergence_recommendations,
+        )
+
+        recs = get_convergence_recommendations(1.02, 500, 0, 1000, 4)
+        assert recs == []
+
+    def test_high_rhat_recommendation(self):
+        from heterodyne.optimization.cmc.diagnostics import (
+            get_convergence_recommendations,
+        )
+
+        recs = get_convergence_recommendations(1.15, 500, 0, 1000, 4)
+        assert any("R-HAT" in r.upper() or "R-hat" in r for r in recs)
+
+    def test_low_ess_recommendation(self):
+        from heterodyne.optimization.cmc.diagnostics import (
+            get_convergence_recommendations,
+        )
+
+        recs = get_convergence_recommendations(1.01, 50, 0, 1000, 4)
+        assert any("ESS" in r for r in recs)
+
+    def test_high_divergences_recommendation(self):
+        from heterodyne.optimization.cmc.diagnostics import (
+            get_convergence_recommendations,
+        )
+
+        recs = get_convergence_recommendations(1.01, 500, 200, 1000, 4)
+        assert any("DIVERGEN" in r.upper() for r in recs)
+
+
+# ============================================================================
+# log_analysis_summary Tests
+# ============================================================================
+
+
+class TestLogAnalysisSummary:
+    def test_runs_without_error(self):
+        from heterodyne.optimization.cmc.diagnostics import log_analysis_summary
+
+        # The heterodyne logger (loguru-based) bypasses pytest capture sinks.
+        # Verify the function completes without raising — the CMC summary lines
+        # are visible in the captured stdout section of the test report.
+        log_analysis_summary(
+            convergence_status="converged",
+            r_hat={"D0": 1.02},
+            ess_bulk={"D0": 500.0},
+            divergences=0,
+            n_samples=1000,
+            n_chains=4,
+            n_shards=2,
+            shards_succeeded=2,
+            execution_time=15.0,
+        )

@@ -15,6 +15,13 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# ---------------------------------------------------------------------------
+# Default convergence thresholds (homodyne-parity)
+# ---------------------------------------------------------------------------
+DEFAULT_MIN_ESS: float = 400.0
+DEFAULT_MAX_RHAT: float = 1.05
+DEFAULT_MAX_DIVERGENCE_RATE: float = 0.05
+
 
 @dataclass
 class ConvergenceReport:
@@ -611,6 +618,229 @@ def compute_pair_correlations(
         len(names),
     )
     return result
+
+
+# ---------------------------------------------------------------------------
+# High-level convergence helpers (homodyne parity)
+# ---------------------------------------------------------------------------
+
+
+def check_convergence(
+    r_hat: dict[str, float],
+    ess_bulk: dict[str, float],
+    divergences: int,
+    n_samples: int,
+    n_chains: int,
+    max_rhat: float = DEFAULT_MAX_RHAT,
+    min_ess: float = DEFAULT_MIN_ESS,
+    max_divergence_rate: float = DEFAULT_MAX_DIVERGENCE_RATE,
+    num_shards: int = 1,
+) -> tuple[str, list[str]]:
+    """Check convergence criteria and return (status, warnings).
+
+    Returns
+    -------
+    tuple[str, list[str]]
+        ``(status, warnings)`` where status is
+        ``"converged"`` | ``"divergences"`` | ``"not_converged"``.
+    """
+    _log = get_logger(__name__)
+
+    warnings: list[str] = []
+
+    max_r_hat_value = max((v for v in r_hat.values() if not np.isnan(v)), default=1.0)
+    if max_r_hat_value > max_rhat:
+        bad = [k for k, v in r_hat.items() if np.isfinite(v) and v > max_rhat]
+        msg = f"R-hat > {max_rhat} for parameters: {bad} (max={max_r_hat_value:.3f})"
+        _log.warning(msg)
+        warnings.append(msg)
+
+    min_ess_value = min((v for v in ess_bulk.values() if not np.isnan(v)), default=0.0)
+    if min_ess_value < min_ess:
+        bad = [k for k, v in ess_bulk.items() if np.isfinite(v) and v < min_ess]
+        warnings.append(
+            f"ESS < {min_ess} for parameters: {bad} (min={min_ess_value:.0f})"
+        )
+
+    total_transitions = num_shards * n_samples * n_chains
+    divergence_rate = divergences / total_transitions if total_transitions > 0 else 0.0
+    if divergence_rate > max_divergence_rate:
+        warnings.append(
+            f"Divergence rate {divergence_rate:.1%} exceeds {max_divergence_rate:.1%} "
+            f"({divergences}/{total_transitions} transitions)"
+        )
+
+    if divergences > 0 and divergence_rate > max_divergence_rate:
+        status = "divergences"
+    elif warnings:
+        status = "not_converged"
+    else:
+        status = "converged"
+
+    return status, warnings
+
+
+def create_diagnostics_dict(
+    r_hat: dict[str, float],
+    ess_bulk: dict[str, float],
+    ess_tail: dict[str, float],
+    divergences: int,
+    convergence_status: str,
+    warnings: list[str],
+    n_chains: int,
+    n_warmup: int,
+    n_samples: int,
+    warmup_time: float,
+    sampling_time: float,
+    num_shards: int = 1,
+) -> dict[str, Any]:
+    """Build a diagnostics dictionary suitable for JSON serialization."""
+    r_hat_values = [v for v in r_hat.values() if not np.isnan(v)]
+    ess_values = [v for v in ess_bulk.values() if not np.isnan(v)]
+
+    total_transitions = num_shards * n_chains * n_samples
+    divergence_rate = divergences / total_transitions if total_transitions > 0 else 0.0
+
+    return {
+        "convergence_status": convergence_status,
+        "total_divergences": divergences,
+        "divergence_rate": divergence_rate,
+        "max_r_hat": max(r_hat_values) if r_hat_values else np.nan,
+        "min_ess_bulk": min(ess_values) if ess_values else np.nan,
+        "min_ess_tail": min(
+            (v for v in ess_tail.values() if not np.isnan(v)), default=np.nan
+        ),
+        "all_r_hat_ok": all(v <= DEFAULT_MAX_RHAT for v in r_hat_values),
+        "all_ess_ok": all(v >= DEFAULT_MIN_ESS for v in ess_values),
+        "warnings": warnings,
+        "sampling_config": {
+            "n_chains": n_chains,
+            "n_warmup": n_warmup,
+            "n_samples": n_samples,
+        },
+        "timing": {
+            "warmup_seconds": warmup_time,
+            "sampling_seconds": sampling_time,
+            "total_seconds": warmup_time + sampling_time,
+        },
+        "per_parameter": {
+            name: {
+                "r_hat": r_hat.get(name, np.nan),
+                "ess_bulk": ess_bulk.get(name, np.nan),
+                "ess_tail": ess_tail.get(name, np.nan),
+            }
+            for name in r_hat
+        },
+    }
+
+
+def get_convergence_recommendations(
+    max_rhat: float,
+    min_ess: float,
+    divergences: int,
+    n_samples: int,
+    n_chains: int,
+    num_shards: int = 1,
+) -> list[str]:
+    """Generate actionable recommendations for convergence issues."""
+    recommendations: list[str] = []
+
+    total_transitions = num_shards * n_samples * n_chains
+    div_rate = divergences / total_transitions if total_transitions > 0 else 0.0
+
+    if np.isfinite(max_rhat) and max_rhat > 1.1:
+        recommendations.append(
+            f"HIGH R-HAT ({max_rhat:.3f}): Chains have not mixed. "
+            f"Try: increase num_warmup, or use more chains (currently {n_chains})."
+        )
+    elif np.isfinite(max_rhat) and max_rhat > DEFAULT_MAX_RHAT:
+        recommendations.append(
+            f"MARGINAL R-HAT ({max_rhat:.3f}): Consider increasing num_samples "
+            "or num_warmup for better convergence."
+        )
+
+    if np.isfinite(min_ess) and min_ess < 100:
+        target = int(100 * n_samples / max(min_ess, 1))
+        recommendations.append(
+            f"LOW ESS ({min_ess:.0f}): High autocorrelation. "
+            f"Try: increase num_samples (currently {n_samples}) to at least {target}."
+        )
+    elif np.isfinite(min_ess) and min_ess < DEFAULT_MIN_ESS:
+        recommendations.append(
+            f"MODERATE ESS ({min_ess:.0f}): Consider increasing num_samples "
+            "for more reliable uncertainty estimates."
+        )
+
+    if div_rate > 0.10:
+        recommendations.append(
+            f"HIGH DIVERGENCES ({div_rate:.1%}): Model geometry issues. "
+            "Try: reduce max_points_per_shard, increase target_accept_prob to 0.95, "
+            "or check for data outliers."
+        )
+    elif div_rate > 0.01:
+        recommendations.append(
+            f"MODERATE DIVERGENCES ({div_rate:.1%}): Some geometry issues. "
+            "Consider increasing target_accept_prob to 0.90."
+        )
+
+    return recommendations
+
+
+def log_analysis_summary(
+    convergence_status: str,
+    r_hat: dict[str, float],
+    ess_bulk: dict[str, float],
+    divergences: int,
+    n_samples: int,
+    n_chains: int,
+    n_shards: int,
+    shards_succeeded: int,
+    execution_time: float,
+) -> None:
+    """Log a formatted CMC analysis summary at INFO/ERROR level."""
+    _log = get_logger(__name__)
+
+    r_hat_values = [v for v in r_hat.values() if not np.isnan(v)]
+    ess_values = [v for v in ess_bulk.values() if not np.isnan(v)]
+
+    max_rhat = max(r_hat_values) if r_hat_values else float("nan")
+    min_ess = min(ess_values) if ess_values else float("nan")
+
+    total_transitions = shards_succeeded * n_samples * n_chains
+    div_rate = divergences / total_transitions if total_transitions > 0 else 0.0
+    success_rate = shards_succeeded / n_shards if n_shards > 0 else 0.0
+
+    _log.info("=" * 60)
+    _log.info("CMC ANALYSIS SUMMARY")
+    _log.info("=" * 60)
+
+    if convergence_status == "converged":
+        _log.info("Status: CONVERGED")
+    else:
+        _log.error(f"Status: {convergence_status.upper()}")
+
+    _log.info(f"  Shards:   {shards_succeeded}/{n_shards} ({success_rate:.0%} success)")
+    _log.info(f"  Runtime:  {execution_time:.1f}s ({execution_time / 60:.1f} min)")
+    _log.info(
+        f"  R-hat (max): {max_rhat:.4f} "
+        f"{'[OK]' if np.isfinite(max_rhat) and max_rhat <= DEFAULT_MAX_RHAT else '[FAIL]'}"
+    )
+    _log.info(
+        f"  ESS (min): {min_ess:.0f} "
+        f"{'[OK]' if np.isfinite(min_ess) and min_ess >= DEFAULT_MIN_ESS else '[FAIL]'}"
+    )
+    _log.info(f"  Divergences: {divergences} ({div_rate:.1%})")
+
+    recs = get_convergence_recommendations(
+        max_rhat, min_ess, divergences, n_samples, n_chains, n_shards
+    )
+    if recs:
+        _log.info("-" * 40)
+        _log.info("RECOMMENDATIONS:")
+        for r in recs:
+            _log.info(f"  - {r}")
+
+    _log.info("=" * 60)
 
 
 # ---------------------------------------------------------------------------
