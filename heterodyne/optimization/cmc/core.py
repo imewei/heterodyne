@@ -918,7 +918,7 @@ def _combine_shard_posteriors(
         for sr in shard_results
         if sr.convergence_passed
         and sr.posterior_std is not None
-        and np.all(sr.posterior_std > 0)
+        and np.any(sr.posterior_std > 0)  # exclude only fully-degenerate shards
     ]
 
     if not successful:
@@ -1031,8 +1031,6 @@ def _combine_shard_posteriors(
     # already excluded; any skipped shard is reflected in n_skipped above).
     r_hat_finite = combined_r_hat[~np.isnan(combined_r_hat)]
     ess_finite = combined_ess_bulk[~np.isnan(combined_ess_bulk)]
-    n_total_failed = sum(1 for sr in shard_results if not sr.convergence_passed)
-
     convergence_passed = bool(
         len(successful) > 0
         and len(r_hat_finite) > 0
@@ -1048,7 +1046,7 @@ def _combine_shard_posteriors(
         "(%d skipped/failed), worst_rhat=%.3f, combined_ess_min=%.0f",
         len(successful),
         num_shards,
-        n_total_failed,
+        n_skipped,
         float(np.nanmax(combined_r_hat)) if combined_r_hat.size > 0 else float("nan"),
         float(np.nanmin(combined_ess_bulk))
         if combined_ess_bulk.size > 0
