@@ -258,7 +258,6 @@ def fit_cmc_jax(
             c2_data=c2_jax,
             sigma=sigma_jax,
             space=space,
-            nlsq_result=nlsq_result,
             reparam_config=reparam_config,
             scalings=scalings,
             contrast=contrast,

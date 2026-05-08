@@ -127,10 +127,8 @@ def get_heterodyne_model_reparam(
     sigma: jnp.ndarray | float,
     space: ParameterSpace,
     nlsq_params: jnp.ndarray | None = None,
-    nlsq_result: NLSQResult | None = None,
     reparam_config: ReparamConfig | None = None,
     scalings: dict[str, ParameterScaling] | None = None,
-    prior_width_factor: float = 2.0,
     contrast: float = 1.0,
     offset: float = 1.0,
     shard_grid: ShardGrid | None = None,
@@ -153,11 +151,9 @@ def get_heterodyne_model_reparam(
         c2_data: Observed correlation data
         sigma: Measurement uncertainty
         space: Parameter space
-        nlsq_params: Optional NLSQ fitted values for centering (legacy)
-        nlsq_result: Optional NLSQ result for reparameterization
+        nlsq_params: Optional NLSQ fitted values for centering (legacy path)
         reparam_config: Reparameterization config (enables new path)
         scalings: Pre-computed ParameterScaling per reparam-space param
-        prior_width_factor: Multiplier on NLSQ uncertainty for prior width
 
     Returns:
         NumPyro model function
@@ -717,7 +713,6 @@ def get_model_for_mode(
                 c2_data=c2_data,
                 sigma=sigma,
                 space=space,
-                nlsq_result=nlsq_result,
                 reparam_config=reparam_config,
                 scalings=scalings,
                 contrast=contrast,
