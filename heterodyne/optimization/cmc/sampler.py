@@ -336,6 +336,9 @@ class NUTSSampler:
             init_params=perturbed_params,
             extra_fields=("energy", "diverging"),
         )
+        # Block until JAX lazy evaluation completes so wall_time_seconds
+        # reflects true compute time, not deferred device_get() overhead.
+        jax.block_until_ready(self._mcmc.last_state)
         self._has_run = True
 
         samples = self._mcmc.get_samples()

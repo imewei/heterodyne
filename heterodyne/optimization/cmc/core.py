@@ -446,6 +446,15 @@ def fit_cmc_jax(
         convergence_passed = False
 
     metadata: dict[str, Any] = {}
+    # Store divergence_rate so fit_cmc_sharded can filter high-divergence shards
+    # before consensus combination (CM-02 fix).
+    _extra = mcmc.get_extra_fields()
+    _div = _extra.get("diverging", None)
+    if _div is not None:
+        _div_arr = np.asarray(_div, dtype=bool)
+        metadata["divergence_rate"] = (
+            float(np.mean(_div_arr)) if _div_arr.size > 0 else 0.0
+        )
     if use_reparam and reparam_config is not None:
         metadata["t_ref"] = reparam_config.t_ref
         metadata["prior_std"] = prior_std_dict
@@ -987,13 +996,15 @@ def _combine_shard_posteriors(
 
     n_params = len(param_names)
 
-    # --- Filter: exclude failed/degenerate shards before weighting ---
+    # --- Filter: exclude failed/degenerate/high-divergence shards ---
+    _max_div_rate = getattr(config, "max_divergence_rate", 0.10)
     successful = [
         sr
         for sr in shard_results
         if sr.convergence_passed
         and sr.posterior_std is not None
-        and np.any(sr.posterior_std > 0)  # exclude only fully-degenerate shards
+        and np.any(sr.posterior_std > 0)
+        and getattr(sr, "metadata", {}).get("divergence_rate", 0.0) <= _max_div_rate
     ]
 
     if not successful:
@@ -1024,12 +1035,34 @@ def _combine_shard_posteriors(
     n_skipped = len(shard_results) - len(successful)
     if n_skipped > 0:
         logger.warning(
-            "_combine_shard_posteriors: skipping %d failed shards "
+            "_combine_shard_posteriors: skipping %d failed/high-divergence shards "
             "(%d/%d successful remain)",
             n_skipped,
             len(successful),
             len(shard_results),
         )
+
+    # --- Heterogeneity check: IQR-based CV, robust to near-zero parameters ---
+    # α_ref, β, v_offset, φ₀ all default to ~0; std/|mean| diverges at zero.
+    # IQR / max(|median|, 1e-3) stays finite and comparable across all params.
+    if len(successful) >= 2:
+        _smeans = np.stack([sr.posterior_mean for sr in successful], axis=0)
+        _q75, _q25 = np.percentile(_smeans, [75, 25], axis=0)
+        _iqr = _q75 - _q25
+        _denom = np.maximum(np.abs(np.median(_smeans, axis=0)), 1e-3)
+        _cv_robust = _iqr / _denom
+        _max_cv_actual = float(np.max(_cv_robust))
+        _cfg_max_cv = getattr(config, "max_parameter_cv", 1.0)
+        if _max_cv_actual > _cfg_max_cv:
+            _worst = param_names[int(np.argmax(_cv_robust))]
+            _msg = (
+                f"High cross-shard heterogeneity: max IQR-CV={_max_cv_actual:.2f} "
+                f"(threshold {_cfg_max_cv}) on parameter {_worst!r}. "
+                "Consider increasing min_points_per_shard or using NLSQ warm-start."
+            )
+            if getattr(config, "heterogeneity_abort", False):
+                raise RuntimeError(_msg)
+            logger.warning("_combine_shard_posteriors: %s", _msg)
 
     combination_method = (
         getattr(config, "combination_method", "consensus_mc") or "consensus_mc"
@@ -1053,6 +1086,39 @@ def _combine_shard_posteriors(
         combined_var = np.mean(
             np.stack([sr.posterior_std**2 for sr in successful], axis=0), axis=0
         )
+        combined_std = np.sqrt(combined_var)
+    elif combination_method == "robust_consensus_mc" and len(successful) >= 2:
+        # Per-parameter z-score outlier detection before inverse-variance combination.
+        # scale = max(std, 1e-4*(|mean|+1)) keeps near-zero params (α_ref, β,
+        # v_offset, φ₀ ≈ 0) from producing infinite z-scores.
+        _smeans = np.stack([sr.posterior_mean for sr in successful], axis=0)  # (K,P)
+        _center = np.mean(_smeans, axis=0)
+        _scale = np.maximum(
+            np.std(_smeans, axis=0),
+            1e-4 * (np.abs(_center) + 1.0),
+        )
+        _z_max = np.max(np.abs(_smeans - _center) / _scale, axis=1)  # (K,)
+        _inlier = _z_max <= 3.0
+        _n_excl = int(np.sum(~_inlier))
+        if _n_excl > 0:
+            logger.warning(
+                "_combine_shard_posteriors: robust_consensus_mc excluded "
+                "%d/%d outlier shards (z-score > 3)",
+                _n_excl,
+                len(successful),
+            )
+        _pool = [
+            sr for sr, keep in zip(successful, _inlier.tolist()) if keep
+        ] or successful
+        weight_sum = np.zeros(n_params)
+        weighted_mean_sum = np.zeros(n_params)
+        for sr in _pool:
+            var_k = sr.posterior_std**2
+            w_k = 1.0 / var_k
+            weight_sum += w_k
+            weighted_mean_sum += w_k * sr.posterior_mean
+        combined_mean = weighted_mean_sum / np.where(weight_sum > 0, weight_sum, 1.0)
+        combined_var = 1.0 / np.where(weight_sum > 0, weight_sum, 1.0)
         combined_std = np.sqrt(combined_var)
     else:
         # Default: inverse-variance weighting (consensus_mc / fallback)
