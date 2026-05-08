@@ -623,6 +623,98 @@ class TestMCMCFailurePath:
         assert not result.convergence_passed
 
 
+class TestCombineShardPosteriors:
+    """Tests for failed-shard contamination fix in _combine_shard_posteriors."""
+
+    @pytest.mark.unit
+    def test_combine_excludes_failed_shards(self) -> None:
+        """Failed zero-std shards must be excluded; result equals the good shard."""
+        from types import SimpleNamespace
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import _combine_shard_posteriors
+
+        n_params = 3
+
+        def make_shard(converged: bool, mean_val: float = 2.0) -> SimpleNamespace:
+            r = SimpleNamespace()
+            r.convergence_passed = converged
+            r.parameter_names = [f"p{i}" for i in range(n_params)]
+            if converged:
+                r.posterior_mean = np.full(n_params, mean_val)
+                r.posterior_std = np.ones(n_params) * 0.5
+                r.r_hat = np.ones(n_params) * 1.01
+                r.ess_bulk = np.ones(n_params) * 200.0
+                r.ess_tail = np.ones(n_params) * 180.0
+                r.bfmi = [0.3]
+                r.samples = {f"p{i}": np.full(10, mean_val) for i in range(n_params)}
+            else:
+                r.posterior_mean = np.zeros(n_params)
+                r.posterior_std = np.zeros(n_params)
+                r.r_hat = None
+                r.ess_bulk = None
+                r.ess_tail = None
+                r.bfmi = None
+                r.samples = None
+            r.num_warmup = 10
+            r.num_samples = 100
+            r.num_chains = 1
+            return r
+
+        good = make_shard(converged=True)
+        bad = make_shard(converged=False)
+
+        result = _combine_shard_posteriors(
+            [good, bad], CMCConfig(), num_shards=2, base_seed=0
+        )
+
+        # With only one good shard, combined mean == good shard mean
+        np.testing.assert_allclose(
+            result.posterior_mean, good.posterior_mean, rtol=1e-9
+        )
+        # std should be finite (not dominated by 1e30 weight from bad shard)
+        assert np.all(np.isfinite(result.posterior_std))
+        assert np.all(result.posterior_std > 0)
+
+    @pytest.mark.unit
+    def test_combine_all_failed_returns_degenerate_result(self) -> None:
+        """All shards failed: must return a failed CMCResult instead of crashing."""
+        from types import SimpleNamespace
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import _combine_shard_posteriors
+
+        n_params = 3
+
+        def make_failed_shard() -> SimpleNamespace:
+            r = SimpleNamespace()
+            r.convergence_passed = False
+            r.parameter_names = [f"p{i}" for i in range(n_params)]
+            r.posterior_mean = np.zeros(n_params)
+            r.posterior_std = np.zeros(n_params)
+            r.r_hat = None
+            r.ess_bulk = None
+            r.ess_tail = None
+            r.bfmi = None
+            r.samples = None
+            r.num_warmup = 10
+            r.num_samples = 100
+            r.num_chains = 1
+            return r
+
+        bad1 = make_failed_shard()
+        bad2 = make_failed_shard()
+
+        result = _combine_shard_posteriors(
+            [bad1, bad2], CMCConfig(), num_shards=2, base_seed=0
+        )
+
+        assert not result.convergence_passed
+        assert result.metadata.get("all_shards_failed") is True
+        assert result.metadata.get("n_total_shards") == 2
+        assert np.all(np.isnan(result.posterior_std))
+
+
 class TestSamplingSynchronization:
     """Tests for forcing asynchronous JAX sampling results before diagnostics."""
 

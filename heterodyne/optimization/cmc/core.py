@@ -912,16 +912,58 @@ def _combine_shard_posteriors(
 
     n_params = len(param_names)
 
+    # --- Filter: exclude failed/degenerate shards before weighting ---
+    successful = [
+        sr
+        for sr in shard_results
+        if sr.convergence_passed
+        and sr.posterior_std is not None
+        and np.all(sr.posterior_std > 0)
+    ]
+
+    if not successful:
+        logger.error(
+            "_combine_shard_posteriors: all %d shards failed; "
+            "returning degenerate result",
+            len(shard_results),
+        )
+        return CMCResult(
+            parameter_names=param_names,
+            posterior_mean=np.zeros(n_params),
+            posterior_std=np.full(n_params, np.nan),
+            credible_intervals={},
+            convergence_passed=False,
+            r_hat=np.full(n_params, np.nan),
+            ess_bulk=np.full(n_params, np.nan),
+            ess_tail=np.full(n_params, np.nan),
+            bfmi=None,
+            samples=None,
+            map_estimate=None,
+            num_warmup=shard_results[0].num_warmup,
+            num_samples=shard_results[0].num_samples,
+            num_chains=shard_results[0].num_chains,
+            wall_time_seconds=None,
+            metadata={"all_shards_failed": True, "n_total_shards": len(shard_results)},
+        )
+
+    n_skipped = len(shard_results) - len(successful)
+    if n_skipped > 0:
+        logger.warning(
+            "_combine_shard_posteriors: skipping %d failed shards "
+            "(%d/%d successful remain)",
+            n_skipped,
+            len(successful),
+            len(shard_results),
+        )
+
     # --- Inverse-variance weighting ---
     # Weight_k = 1 / Var_k (per-parameter, diagonal approximation)
     weight_sum = np.zeros(n_params)
     weighted_mean_sum = np.zeros(n_params)
 
-    for sr in shard_results:
+    for sr in successful:
         var_k = sr.posterior_std**2
-        # Clip to avoid division by zero from degenerate shards
-        var_k_clipped = np.where(var_k > 1e-30, var_k, 1e-30)
-        w_k = 1.0 / var_k_clipped
+        w_k = 1.0 / var_k  # no clip needed — zero-std shards excluded above
         weight_sum += w_k
         weighted_mean_sum += w_k * sr.posterior_mean
 
@@ -930,40 +972,31 @@ def _combine_shard_posteriors(
     combined_std = np.sqrt(combined_var)
 
     # --- Worst-case R-hat (conservative) ---
-    r_hat_stacked = np.stack(
-        [sr.r_hat for sr in shard_results if sr.r_hat is not None],
-        axis=0,
-    )
+    r_hat_arrays = [sr.r_hat for sr in successful if sr.r_hat is not None]
     combined_r_hat = (
-        np.nanmax(r_hat_stacked, axis=0)
-        if r_hat_stacked.size > 0
+        np.nanmax(np.stack(r_hat_arrays, axis=0), axis=0)
+        if r_hat_arrays
         else np.full(n_params, np.nan)
     )
 
     # --- Summed ESS (approximate) ---
-    ess_bulk_stacked = np.stack(
-        [sr.ess_bulk for sr in shard_results if sr.ess_bulk is not None],
-        axis=0,
-    )
+    ess_bulk_arrays = [sr.ess_bulk for sr in successful if sr.ess_bulk is not None]
     combined_ess_bulk = (
-        np.nansum(ess_bulk_stacked, axis=0)
-        if ess_bulk_stacked.size > 0
+        np.nansum(np.stack(ess_bulk_arrays, axis=0), axis=0)
+        if ess_bulk_arrays
         else np.full(n_params, np.nan)
     )
 
-    ess_tail_stacked = np.stack(
-        [sr.ess_tail for sr in shard_results if sr.ess_tail is not None],
-        axis=0,
-    )
+    ess_tail_arrays = [sr.ess_tail for sr in successful if sr.ess_tail is not None]
     combined_ess_tail = (
-        np.nansum(ess_tail_stacked, axis=0)
-        if ess_tail_stacked.size > 0
+        np.nansum(np.stack(ess_tail_arrays, axis=0), axis=0)
+        if ess_tail_arrays
         else np.full(n_params, np.nan)
     )
 
     # --- BFMI: minimum across all shards and all chains ---
     all_bfmi_values: list[float] = []
-    for sr in shard_results:
+    for sr in successful:
         if sr.bfmi is not None:
             all_bfmi_values.extend(sr.bfmi)
     combined_bfmi = all_bfmi_values if all_bfmi_values else None
@@ -971,11 +1004,11 @@ def _combine_shard_posteriors(
     # --- Credible intervals from combined samples ---
     # Pool samples across shards for each parameter
     combined_samples: dict[str, np.ndarray] = {}
-    if all(sr.samples is not None for sr in shard_results):
+    if all(sr.samples is not None for sr in successful):
         for name in param_names:
             arrays = [
                 np.asarray(sr.samples[name])  # type: ignore[index]
-                for sr in shard_results
+                for sr in successful
                 if sr.samples is not None and name in sr.samples
             ]
             if arrays:
@@ -994,12 +1027,14 @@ def _combine_shard_posteriors(
     map_estimate = combined_mean.copy()
 
     # --- Convergence gate ---
+    # Only evaluate diagnostics over the successful shards (failed shards are
+    # already excluded; any skipped shard is reflected in n_skipped above).
     r_hat_finite = combined_r_hat[~np.isnan(combined_r_hat)]
     ess_finite = combined_ess_bulk[~np.isnan(combined_ess_bulk)]
-    n_failed = sum(1 for sr in shard_results if not sr.convergence_passed)
+    n_total_failed = sum(1 for sr in shard_results if not sr.convergence_passed)
 
     convergence_passed = bool(
-        n_failed == 0
+        len(successful) > 0
         and len(r_hat_finite) > 0
         and np.all(r_hat_finite < config.max_r_hat)
         and len(ess_finite) > 0
@@ -1009,10 +1044,11 @@ def _combine_shard_posteriors(
         convergence_passed = convergence_passed and min(combined_bfmi) > config.min_bfmi
 
     logger.info(
-        "[CMC-sharded] Consensus combination: %d/%d shards converged, "
-        "worst_rhat=%.3f, combined_ess_min=%.0f",
-        num_shards - n_failed,
+        "[CMC-sharded] Consensus combination: %d/%d shards converged "
+        "(%d skipped/failed), worst_rhat=%.3f, combined_ess_min=%.0f",
+        len(successful),
         num_shards,
+        n_total_failed,
         float(np.nanmax(combined_r_hat)) if combined_r_hat.size > 0 else float("nan"),
         float(np.nanmin(combined_ess_bulk))
         if combined_ess_bulk.size > 0
