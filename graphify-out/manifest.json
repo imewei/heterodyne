@@ -796,8 +796,8 @@
     "hash": "bec69e655870c6df760f3978869eb039"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/fit_quality.py": {
-    "mtime": 1773371305.731963,
-    "hash": "dca4bcae6832a97f5ea8a844840336b7"
+    "mtime": 1778270905.987522,
+    "hash": "530346fc597a69e2f4502985ac10c665"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/bounds.py": {
     "mtime": 1773371305.737963,
@@ -848,8 +848,8 @@
     "hash": "c3d067159f2d5651910f0800fca4bfaa"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/results.py": {
-    "mtime": 1778223379.1740189,
-    "hash": "5fa592f218b91557d73f6cd367f38bf4"
+    "mtime": 1778270905.987522,
+    "hash": "f0b52b7c4ee9f4d2787ded0bf8c0dc69"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/reparameterization.py": {
     "mtime": 1773432871.4221337,
@@ -1180,8 +1180,8 @@
     "hash": "7bbc9f9fc90fbe3bd69de1b43bc8a6be"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/architecture/cmc-fitting-architecture.md": {
-    "mtime": 1778257412.6889372,
-    "hash": "48d69937e8ddef5a44825a5a3a0f7682"
+    "mtime": 1778270905.9855218,
+    "hash": "966aad76852ff4a14c533188d9a964aa"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/architecture/physical-model-architecture.md": {
     "mtime": 1778161223.3131497,
@@ -1192,8 +1192,8 @@
     "hash": "677bb7435ca204762d5c32a51b4c4d8c"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/architecture/nlsq-fitting-architecture.md": {
-    "mtime": 1778184414.6277595,
-    "hash": "029a81abc9da8245628fed17d65c39bc"
+    "mtime": 1778270905.9855218,
+    "hash": "15145fcc14dac997b08149043f187f1b"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/architecture/heterodyne-architecture-overview.md": {
     "mtime": 1778161216.3401527,
@@ -1304,8 +1304,8 @@
     "hash": "53ff42ccddab8e3fd4c182bc35949402"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/cmc-fitting-architecture.md": {
-    "mtime": 1778257412.6889372,
-    "hash": "48d69937e8ddef5a44825a5a3a0f7682"
+    "mtime": 1778270905.9855218,
+    "hash": "966aad76852ff4a14c533188d9a964aa"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/physical-model-architecture.md": {
     "mtime": 1778161223.3131497,
@@ -1316,8 +1316,8 @@
     "hash": "677bb7435ca204762d5c32a51b4c4d8c"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/nlsq-fitting-architecture.md": {
-    "mtime": 1778184414.6277595,
-    "hash": "029a81abc9da8245628fed17d65c39bc"
+    "mtime": 1778270905.9855218,
+    "hash": "15145fcc14dac997b08149043f187f1b"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/heterodyne-architecture-overview.md": {
     "mtime": 1778161216.3401527,
