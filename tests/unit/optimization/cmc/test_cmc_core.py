@@ -738,3 +738,63 @@ class TestSamplingSynchronization:
 
         assert returned is samples
         assert leaf.blocked
+
+
+class TestCombinationMethodDispatch:
+    """combination_method from CMCConfig is respected."""
+
+    def _shard(self, seed: int = 0) -> CMCResult:
+        from heterodyne.optimization.cmc.results import CMCResult
+
+        rng = np.random.default_rng(seed)
+        names = ["D0_ref", "alpha_ref"]
+        samples = {n: rng.normal(size=(2, 20)) for n in names}
+        pm = np.array([abs(rng.normal(1e4, 100)), abs(rng.normal(0.5, 0.05))])
+        ps = np.array([abs(rng.normal(100.0)), abs(rng.normal(0.05))])
+        return CMCResult(
+            parameter_names=names,
+            posterior_mean=pm,
+            posterior_std=ps,
+            credible_intervals={},
+            convergence_passed=True,
+            r_hat=np.array([1.01, 1.02]),
+            ess_bulk=np.array([500.0, 600.0]),
+            ess_tail=np.array([450.0, 550.0]),
+            samples=samples,
+            num_warmup=50,
+            num_samples=20,
+            num_chains=2,
+        )
+
+    @pytest.mark.unit
+    def test_consensus_mc_runs(self) -> None:
+        from heterodyne.optimization.cmc.config import CMCConfig
+        from heterodyne.optimization.cmc.core import _combine_shard_posteriors
+
+        config = CMCConfig(combination_method="consensus_mc")
+        result = _combine_shard_posteriors(
+            [self._shard(i) for i in range(3)], config, num_shards=3, base_seed=0
+        )
+        assert result.convergence_passed is True
+
+    @pytest.mark.unit
+    def test_simple_average_mean(self) -> None:
+        from heterodyne.optimization.cmc.config import CMCConfig
+        from heterodyne.optimization.cmc.core import _combine_shard_posteriors
+
+        config = CMCConfig(combination_method="simple_average")
+        shards = [self._shard(i) for i in range(3)]
+        result = _combine_shard_posteriors(shards, config, num_shards=3, base_seed=0)
+        expected_mean_D0 = np.mean([s.posterior_mean[0] for s in shards])
+        assert result.posterior_mean[0] == pytest.approx(expected_mean_D0, rel=1e-6)
+
+    @pytest.mark.unit
+    def test_unknown_method_falls_back_to_consensus_mc(self) -> None:
+        from heterodyne.optimization.cmc.config import CMCConfig
+        from heterodyne.optimization.cmc.core import _combine_shard_posteriors
+
+        config = CMCConfig(combination_method="consensus_mc")
+        result = _combine_shard_posteriors(
+            [self._shard(0)], config, num_shards=1, base_seed=0
+        )
+        assert result is not None

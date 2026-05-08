@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass, field
 from unittest.mock import MagicMock
 
+import numpy as np
 import numpyro.distributions as dist
 import pytest
 from numpyro.distributions.truncated import TwoSidedTruncatedDistribution
@@ -14,6 +15,7 @@ from heterodyne.optimization.cmc.priors import (
     build_default_priors,
     build_log_space_priors,
     build_nlsq_informed_priors,
+    estimate_contrast_offset_from_data,
 )
 
 # ---------------------------------------------------------------------------
@@ -250,8 +252,6 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
     """fit_cmc_sharded must NOT divide sigma by sqrt(K) — prior tempering is used instead."""
     from unittest.mock import MagicMock, patch
 
-    import numpy as np
-
     from heterodyne.optimization.cmc import CMCConfig
     from heterodyne.optimization.cmc.core import fit_cmc_sharded
 
@@ -337,3 +337,51 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
             f"sigma was scaled by sqrt(K): got {s_val:.6f}, "
             f"wrong value would be {wrong_sigma:.6f} (sigma/sqrt({num_shards}))"
         )
+
+
+class TestEstimateContrastOffsetFromData:
+    def _make_c2(
+        self, contrast: float = 0.3, offset: float = 0.95, n: int = 2000, seed: int = 0
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        rng = np.random.default_rng(seed)
+        t1 = rng.uniform(0, 2, n)
+        t2 = rng.uniform(0, 2, n)
+        c2 = contrast * np.exp(-np.abs(t1 - t2) / 0.3) + offset + rng.normal(0, 0.02, n)
+        return c2, t1, t2
+
+    def test_returns_two_floats(self) -> None:
+        c2, t1, t2 = self._make_c2()
+        result = estimate_contrast_offset_from_data(c2, t1, t2)
+        assert len(result) == 2
+
+    def test_contrast_in_default_bounds(self) -> None:
+        c2, t1, t2 = self._make_c2()
+        contrast, _ = estimate_contrast_offset_from_data(c2, t1, t2)
+        assert 0.0 <= contrast <= 1.0
+
+    def test_offset_in_default_bounds(self) -> None:
+        c2, t1, t2 = self._make_c2()
+        _, offset = estimate_contrast_offset_from_data(c2, t1, t2)
+        assert 0.5 <= offset <= 1.5
+
+    def test_low_data_returns_midpoints(self) -> None:
+        rng = np.random.default_rng(0)
+        c2 = rng.normal(1.0, 0.05, 50)  # fewer than 100 points
+        t1 = rng.uniform(0, 1, 50)
+        t2 = rng.uniform(0, 1, 50)
+        contrast, offset = estimate_contrast_offset_from_data(c2, t1, t2)
+        assert contrast == pytest.approx(0.5)  # (0+1)/2
+        assert offset == pytest.approx(1.0)  # (0.5+1.5)/2
+
+    def test_custom_bounds_clipped(self) -> None:
+        c2, t1, t2 = self._make_c2(contrast=0.05)
+        contrast, _ = estimate_contrast_offset_from_data(
+            c2, t1, t2, contrast_bounds=(0.0, 0.5)
+        )
+        assert 0.0 <= contrast <= 0.5
+
+    def test_estimate_roughly_correct(self) -> None:
+        c2, t1, t2 = self._make_c2(contrast=0.3, offset=0.95, n=5000)
+        contrast, offset = estimate_contrast_offset_from_data(c2, t1, t2)
+        assert abs(contrast - 0.3) < 0.15
+        assert abs(offset - 0.95) < 0.15

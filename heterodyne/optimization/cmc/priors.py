@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import numpyro.distributions as dist
 from numpyro.distributions.truncated import TwoSidedTruncatedDistribution
 
@@ -958,3 +959,69 @@ def estimate_per_angle_scaling(
         len(angle_keys),
     )
     return result
+
+
+def estimate_contrast_offset_from_data(
+    c2_data: np.ndarray,
+    t1: np.ndarray,
+    t2: np.ndarray,
+    contrast_bounds: tuple[float, float] = (0.0, 1.0),
+    offset_bounds: tuple[float, float] = (0.5, 1.5),
+    lag_floor_quantile: float = 0.80,
+    lag_ceiling_quantile: float = 0.20,
+    value_quantile_low: float = 0.10,
+    value_quantile_high: float = 0.90,
+) -> tuple[float, float]:
+    """Estimate contrast and offset from C2 data via physics-informed quantile analysis.
+
+    Uses the correlation decay: C2 = contrast × g1² + offset.
+    At large lags g1² → 0 so C2 → offset; at small lags g1² ≈ 1
+    so C2 ≈ contrast + offset.
+
+    Returns
+    -------
+    tuple[float, float]
+        ``(contrast_est, offset_est)`` each clipped to their bounds.
+    """
+    delta_t = np.abs(np.asarray(t1) - np.asarray(t2))
+    c2 = np.asarray(c2_data)
+
+    if len(c2) < 100:
+        contrast_mid = (contrast_bounds[0] + contrast_bounds[1]) / 2.0
+        offset_mid = (offset_bounds[0] + offset_bounds[1]) / 2.0
+        logger.debug(
+            "estimate_contrast_offset_from_data: insufficient data (%d pts), "
+            "returning midpoints contrast=%.3f offset=%.3f",
+            len(c2),
+            contrast_mid,
+            offset_mid,
+        )
+        return contrast_mid, offset_mid
+
+    lag_hi = np.percentile(delta_t, lag_floor_quantile * 100)
+    lag_lo = np.percentile(delta_t, lag_ceiling_quantile * 100)
+
+    # OFFSET: large-lag region where g1² ≈ 0
+    mask_hi = delta_t >= lag_hi
+    if np.sum(mask_hi) >= 10:
+        offset_est = np.percentile(c2[mask_hi], value_quantile_low * 100)
+    else:
+        offset_est = np.percentile(c2, value_quantile_low * 100)
+    offset_est = float(np.clip(offset_est, offset_bounds[0], offset_bounds[1]))
+
+    # CONTRAST: small-lag region where g1² ≈ 1
+    mask_lo = delta_t <= lag_lo
+    if np.sum(mask_lo) >= 10:
+        ceiling = np.percentile(c2[mask_lo], value_quantile_high * 100)
+    else:
+        ceiling = np.percentile(c2, value_quantile_high * 100)
+    contrast_est = float(
+        np.clip(ceiling - offset_est, contrast_bounds[0], contrast_bounds[1])
+    )
+
+    logger.debug(
+        "estimate_contrast_offset_from_data: offset=%.4f contrast=%.4f",
+        offset_est,
+        contrast_est,
+    )
+    return contrast_est, offset_est

@@ -1031,20 +1031,32 @@ def _combine_shard_posteriors(
             len(shard_results),
         )
 
-    # --- Inverse-variance weighting ---
-    # Weight_k = 1 / Var_k (per-parameter, diagonal approximation)
-    weight_sum = np.zeros(n_params)
-    weighted_mean_sum = np.zeros(n_params)
+    combination_method = (
+        getattr(config, "combination_method", "consensus_mc") or "consensus_mc"
+    )
 
-    for sr in successful:
-        var_k = sr.posterior_std**2
-        w_k = 1.0 / var_k  # no clip needed — zero-std shards excluded above
-        weight_sum += w_k
-        weighted_mean_sum += w_k * sr.posterior_mean
-
-    combined_mean = weighted_mean_sum / np.where(weight_sum > 0, weight_sum, 1.0)
-    combined_var = 1.0 / np.where(weight_sum > 0, weight_sum, 1.0)
-    combined_std = np.sqrt(combined_var)
+    if combination_method == "simple_average":
+        # Equal-weight mean and variance across shards
+        combined_mean = np.mean(
+            np.stack([sr.posterior_mean for sr in successful], axis=0), axis=0
+        )
+        combined_var = np.mean(
+            np.stack([sr.posterior_std**2 for sr in successful], axis=0), axis=0
+        )
+        combined_std = np.sqrt(combined_var)
+    else:
+        # Default: inverse-variance weighting (consensus_mc, Scott et al. 2016)
+        # Weight_k = 1 / Var_k (per-parameter, diagonal approximation)
+        weight_sum = np.zeros(n_params)
+        weighted_mean_sum = np.zeros(n_params)
+        for sr in successful:
+            var_k = sr.posterior_std**2
+            w_k = 1.0 / var_k  # no clip needed — zero-std shards excluded above
+            weight_sum += w_k
+            weighted_mean_sum += w_k * sr.posterior_mean
+        combined_mean = weighted_mean_sum / np.where(weight_sum > 0, weight_sum, 1.0)
+        combined_var = 1.0 / np.where(weight_sum > 0, weight_sum, 1.0)
+        combined_std = np.sqrt(combined_var)
 
     # --- Worst-case R-hat (conservative) ---
     r_hat_arrays = [sr.r_hat for sr in successful if sr.r_hat is not None]
