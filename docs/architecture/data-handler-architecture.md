@@ -1,3 +1,5 @@
+<!-- Package: heterodyne | Last verified: 2026-05-08 -->
+
 # Data Handler Architecture
 
 ## Overview
@@ -260,6 +262,8 @@ priors and CMC NUTS priors.
 |---|---|---|---|
 | contrast | Optical contrast (per-angle) | 0.5 | — |
 | offset | Baseline offset (per-angle) | 1.0 | — |
+
+> See `physical-model-architecture.md §Parameters` for the authoritative contrast bounds.
 
 ---
 
@@ -649,6 +653,17 @@ fraction > 1 %).
 Helpers: `assess_stage()`, `suggest_fixes(report)` (returns prioritised
 action dicts), `apply_auto_corrections()`, `track_quality_history()`,
 `export_report(result, format="text" | "json")`.
+
+### QC Downstream Policy
+
+| QC Level | NLSQ Entry | CMC Entry | CLI Exit Code | Log Level |
+|---|---|---|---|---|
+| `GOOD` (χ² < 1.5, no bounds) | Proceeds | Proceeds with MAP warm-start | 0 | INFO |
+| `ACCEPTABLE` (χ² 1.5–3.0, or bounds hit) | Proceeds with warning | Proceeds with wider priors | 0 | WARNING |
+| `WARNING` (χ² ≥ 3.0 or None) | Skipped (no CMC warm-start) | Proceeds with default priors | 0 | WARNING |
+| `CRITICAL` (exception/timeout) | N/A | Skipped entirely | 1 | ERROR |
+
+QC level does not block pipeline progression by default — it gates warm-start quality, not execution. Set `CMCConfig(require_good_nlsq=True)` to abort CMC on poor NLSQ quality.
 
 ### Relationship to validation.py and validators.py
 

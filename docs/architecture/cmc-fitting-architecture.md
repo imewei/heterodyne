@@ -1,4 +1,27 @@
+<!-- Package: heterodyne | Last verified: 2026-05-08 -->
+
 # CMC Fitting Architecture
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Component Map](#component-map)
+- [Execution Flow](#execution-flow)
+- [NumPyro Model](#numpyro-model)
+- [Prior Construction](#prior-construction)
+- [Z-Space Reparameterization](#z-space-reparameterization)
+- [Smooth Bounded Transforms](#smooth-bounded-transforms)
+- [Sampler Infrastructure](#sampler-infrastructure)
+- [Backend Selection](#backend-selection)
+- [Consensus Monte Carlo Combination](#consensus-monte-carlo-combination)
+- [CMCConfig](#cmcconfig)
+- [Convergence Diagnostics](#convergence-diagnostics)
+- [CMCResult](#cmcresult)
+- [Data Preparation](#data-preparation)
+- [NLSQ-to-CMC Pipeline](#nlsq-to-cmc-pipeline)
+- [I/O Serialization Pipeline](#i-o-serialization-pipeline)
+- [Key Design Decisions](#key-design-decisions)
+- [Architectural Invariants & Historical Fixes](#architectural-invariants--historical-fixes)
 
 ## Overview
 
@@ -13,6 +36,18 @@ A Z-space reparameterization reduces posterior correlation for three
 power-law parameter pairs (D0/alpha, v0/beta), and a runtime backend
 selector dispatches to sequential CPU, multi-process CPU, JAX pjit
 distributed, GPU, PBS cluster, or manual worker-pool execution.
+
+---
+
+## Key Files Reference
+
+| File | Responsibility |
+|---|---|
+| `heterodyne/core/physics_cmc.py` | 14-parameter JAX physics kernel (element-wise path for CMC) |
+| `heterodyne/optimization/cmc/model.py` | Log-probability and prior definitions |
+| `heterodyne/optimization/cmc/core.py` | `fit_cmc_jax()` entry point and shard orchestration |
+| `heterodyne/optimization/cmc/sampler.py` | `NUTSSampler` + `SamplingPlan` |
+| `heterodyne/optimization/cmc/config.py` | `CMCConfig` |
 
 ---
 
@@ -279,6 +314,8 @@ Inputs are ravelled so 2-D C2 matrices are handled correctly.
 ---
 
 ## Z-Space Reparameterization
+
+We map constrained physical parameters θ (e.g., D₀ > 0, α ∈ (−1, 2)) to unconstrained Z-space z ∈ (−∞, ∞) using a Bijector chain (Log/Sigmoid + Affine transforms). This prevents NUTS from hitting parameter boundaries, which causes divergent transitions and destroys sampler efficiency. Without this transform, constrained posteriors near zero produce pathological funnel geometry where NUTS step sizes collapse — a well-known HMC failure mode. The transform also improves mixing for the correlated D₀/α and v₀/β parameter pairs, which exhibit strong posterior correlation in the unconstrained space.
 
 Power-law pairs (D0, alpha) form banana-shaped posteriors because
 `D0 * t^alpha` is approximately constant at the data's characteristic time
@@ -967,7 +1004,21 @@ initialization:
 
 ---
 
-## Critical Features & Fixes
+## Architectural Invariants & Historical Fixes
+
+### Design Invariants
+
+The following invariants were established through production experience. New code must not violate them.
+
+- **Shard size MUST use `"auto"`** — NUTS is O(n) per leapfrog step. Fixed large shard sizes cause memory exhaustion or pathologically slow sampling.
+- **Priors for diffusion coefficients MUST use LogNormal** — enforces positivity in the unconstrained Z-space. Normal priors on D₀ allow negative samples.
+- **`jax.block_until_ready()` MUST be called after `mcmc.run()`** — XLA lazy evaluation defers compute to the first `device_get()`; without this, `wall_time_seconds` measures only dispatch overhead.
+- **Divergence rate MUST be stored in `CMCResult.metadata["divergence_rate"]`** — enables shard-level quality filtering before consensus combination.
+- **Cross-shard heterogeneity MUST be checked before combination** — IQR/max(|median|, 1e-3) CV, not std/|mean|, because α, β, φ₀ parameters have near-zero medians.
+- **Bimodal detection MUST run after `_combine_shard_posteriors`** — calling it before defeats its purpose (mode separation only apparent in the combined posterior).
+- **Preflight log-density check uses `numpyro.infer.util.log_density()`** — `kernel._potential_fn` is `None` before sampling; checking it always silently no-ops.
+
+### Critical Features & Fixes
 
 | Version | Fix | Files |
 |---|---|---|
@@ -992,3 +1043,5 @@ initialization:
 | 2026-05-08 | **Phase 3 — CM-03: cross-shard heterogeneity detection**: `max_parameter_cv` and `heterogeneity_abort` config fields existed but had no enforcement. Added IQR-based CV check (`IQR / max(\|median\|, 1e-3)`) between shard filtering and combination — uses IQR rather than std/\|mean\| so near-zero params (α, β, v_offset, φ₀ ≈ 0) stay finite. Raises `RuntimeError` or logs warning per `heterogeneity_abort`. | `core.py` |
 | 2026-05-08 | **Phase 3 — CM-01: `robust_consensus_mc` wiring**: `_combine_shard_posteriors` routed all non-`simple_average` methods (including `robust_consensus_mc`) to the same inverse-variance `else` branch — the config option was a silent no-op. Added dedicated `elif` branch with per-parameter z-score outlier detection before inverse-variance combination. `scale = max(std, 1e-4*(|mean|+1))` prevents near-zero parameters from producing infinite z-scores. | `core.py` |
 | 2026-05-08 | **Phase 2 — homodyne parity additions**: (1) `ParameterStats` hybrid dict/sequence; `CMCResult.get_samples_array()`, `CMCResult.get_posterior_stats()`; (2) `DEFAULT_MIN_ESS/MAX_RHAT/MAX_DIVERGENCE_RATE` constants; `check_convergence()`, `create_diagnostics_dict()`, `log_analysis_summary()`, `get_convergence_recommendations()`; (3) full io.py save pipeline (7 functions); (4) `SamplingPlan.chain_method` wired through `from_config()`, `for_shard()`, `AdaptiveSamplingPlan.get_plan()`, and retry loop; (5) `estimate_contrast_offset_from_data()` in priors; (6) `combination_method` dispatch in `_combine_shard_posteriors`. | `results.py`, `diagnostics.py`, `io.py`, `sampler.py`, `config.py`, `priors.py`, `core.py` |
+
+For the full bug narrative, see `docs/changelog/cmc-architecture-fixes.md`.

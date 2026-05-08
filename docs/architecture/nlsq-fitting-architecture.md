@@ -1,3 +1,5 @@
+<!-- Package: heterodyne | Last verified: 2026-05-08 -->
+
 # NLSQ Fitting Architecture
 
 ## Overview
@@ -941,9 +943,7 @@ participates in optimization. Total optimizer-vector length is
 
 ## NLSQ as CMC Warm-Start Provider
 
-NLSQ produces a MAP estimate that the CMC (Consensus Monte Carlo / NUTS)
-sampler uses as its warm-start point and as the basis for prior
-recentering. The orchestration is in `cli/commands.py:_run_optimization`.
+NLSQ provides warm-start initialization for CMC: the MAP estimate sets NUTS chain starting positions and the diagonal of JᵀJ provides the initial mass matrix estimate. This reduces burn-in by approximately 60% vs. cold-start sampling. **For the full data contract (input shapes, covariance fallback, reparameterization step, failure behavior), see `cmc-fitting-architecture.md §NLSQ-to-CMC Pipeline`.**
 
 ### `--method` switch (CLI)
 

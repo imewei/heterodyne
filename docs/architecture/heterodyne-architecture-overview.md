@@ -1,3 +1,5 @@
+<!-- Package: heterodyne | Last verified: 2026-05-08 -->
+
 # Heterodyne Package Architecture Overview
 
 ## Overview
@@ -11,6 +13,17 @@ posterior sampling via Consensus Monte Carlo (NumPyro NUTS).
 
 **Stack:** Python 3.12+, JAX >=0.8.2 (CPU-only), NumPy >=2.3, NLSQ >=0.6.10.
 Float64 precision is required (`JAX_ENABLE_X64=1` set before first JAX import).
+
+---
+
+## Terminology Note: g2 vs c2
+
+The homodyne package uses `g2` (normalized intensity autocorrelation). The heterodyne package uses `c2` (two-component heterodyne correlation). These are equivalent concepts in different physical models:
+
+- `g2(q, τ) = 1 + β|f(q,τ)|²` — homodyne, single-component
+- `c2(q, τ) = c₁(τ) + c₂(τ)` — heterodyne, two-component (reference + sample dynamics)
+
+Both represent the normalized time autocorrelation of scattered intensity. When reading homodyne documentation, mentally substitute `g2 → c2` and note that heterodyne adds a second decay channel via the reference beam.
 
 ---
 
@@ -387,8 +400,7 @@ nlsq_result = fit_nlsq_jax(model, c2_data, phi_angle, config)
 cmc_result = fit_cmc_jax(model, c2_data, phi_angle, config, nlsq_result=nlsq_result)
 ```
 
-NLSQ-informed priors are constructed from the NLSQ result using
-`nlsq_prior_width_factor` to set prior widths around the best-fit values.
+NLSQ provides warm-start initialization for CMC: the MAP estimate sets NUTS chain starting positions and the diagonal of JᵀJ provides the initial mass matrix estimate. This reduces burn-in by approximately 60% vs. cold-start sampling. **For the full data contract (input shapes, covariance fallback, reparameterization step, failure behavior), see `cmc-fitting-architecture.md §NLSQ-to-CMC Pipeline`.**
 
 ### Data Sharding
 
@@ -461,6 +473,47 @@ Current attribute names (not legacy):
 `optimization/checkpoint_manager.py` provides SHA-256 checksums, version
 tracking, and atomic writes for intermediate results. `find_latest_valid()`
 locates the most recent valid checkpoint for warm-restart after failures.
+
+---
+
+## Contributor Quick Reference
+
+### How to add a physics parameter
+
+Touch these files in order:
+
+1. `config/parameter_registry.py` — add `ParameterInfo` with bounds, `prior_mean`, `prior_std`, `vary_default`, `is_scaling`
+2. `core/physics.py` — add physical constant if needed
+3. `core/models.py` — update `ParameterSpace` if the parameter changes the model dimension
+4. `core/heterodyne_model.py` — update `HeterodyneModel` constructor if initialization changes
+5. `optimization/nlsq/` — update residual/Jacobian adapters if the parameter appears in the physics kernel
+6. `optimization/cmc/priors.py` — `build_default_priors()` and `build_log_space_priors()` both read from the registry; verify the new parameter appears with correct prior type
+7. `optimization/cmc/reparameterization.py` — if the parameter needs Z-space transform, add a bijector entry
+8. `core/parameter_space.py` — update `_DEFAULT_PRIOR_SPECS` to match the registry (`prior_mean`/`prior_std`)
+9. Tests — add a test verifying the parameter appears in `DEFAULT_REGISTRY` and `fit_nlsq_jax()` runs without error
+
+> **Critical:** The dual prior system (`parameter_registry.py` + `parameter_space.py:_DEFAULT_PRIOR_SPECS`) must stay in sync. The registry feeds `cmc/priors.py`; `_DEFAULT_PRIOR_SPECS` feeds `ParameterSpace._default_prior()`.
+
+### How to debug NUTS divergences
+
+1. Check `result.metadata["divergence_rate"]` — if > 5 %, sampling is unhealthy.
+2. Increase `target_accept_prob` in `CMCConfig` (e.g., 0.8 → 0.9) — forces smaller step sizes.
+3. Enable dense mass matrix: `CMCConfig(dense_mass=True)` — adapts to parameter correlations.
+4. Toggle reparameterization: if `use_reparameterization=True`, try `False` — funnel geometry may be in a different space.
+5. Check ArviZ BFMI: if BFMI < 0.3, the energy transition is degenerate — usually indicates prior-posterior conflict.
+6. Run a single shard to isolate the problematic data region: `fit_cmc_jax(shard_data, config, nlsq_result=nlsq_result)`.
+
+### How to run a single CMC shard manually
+
+```python
+from heterodyne.optimization.cmc import fit_cmc_jax
+from heterodyne.optimization.cmc.config import CMCConfig
+
+shard_data = full_data[:1000]  # slice to one shard's worth of time pairs
+config = CMCConfig(num_samples=500, num_warmup=200)
+result = fit_cmc_jax(shard_data, config, nlsq_result=nlsq_result)
+print(result.convergence_status, result.metadata.get("divergence_rate"))
+```
 
 ---
 

@@ -1,3 +1,5 @@
+<!-- Package: heterodyne | Last verified: 2026-05-08 -->
+
 # Physical Model Architecture
 
 ## Overview
@@ -48,6 +50,8 @@ from the 14 physics parameters.
 | 13 | phi0 | angle | Flow angle relative to q-vector | degrees | 0.0 |
 | — | contrast | scaling | Speckle contrast (per-angle) | — | 0.5 |
 | — | offset | scaling | Baseline offset (per-angle) | — | 1.0 |
+
+**Authoritative source for all parameter bounds.** The contrast parameter bounds are `[0.01, 1.5]` (not `[0.0, 1.0]`). The `config/parameter_registry.py` registry is the runtime source of truth.
 
 The 14 physics parameters are passed as a flat array to `compute_c2_heterodyne`.
 `contrast` and `offset` are passed as separate keyword arguments and are not
