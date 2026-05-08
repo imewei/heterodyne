@@ -76,6 +76,7 @@ docs/_build/
 docs/source/_build/
 docs/build/
 docs/.claude-progress.md
+docs/superpowers
 
 # PyBuilder
 .pybuilder/
