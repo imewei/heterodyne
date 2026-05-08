@@ -23,18 +23,26 @@ _SCALING_NAMES = frozenset(
 )
 
 
-def classify_fit_quality(reduced_chi_squared: float | None) -> str:
+def classify_fit_quality(
+    reduced_chi_squared: float | None,
+    n_at_bounds: int = 0,
+) -> str:
     """Classify fit quality into a 3-level flag.
 
-    Thresholds match the homodyne NLSQWrapper convention:
+    Thresholds:
 
-    - ``"good"``     — reduced chi-squared < 1.5
-    - ``"marginal"`` — 1.5 <= reduced chi-squared < 3.0
+    - ``"good"``     — reduced chi-squared < 1.5 **and** no parameters at bounds
+    - ``"marginal"`` — 1.5 <= reduced chi-squared < 3.0, or any parameter at a bound
     - ``"poor"``     — reduced chi-squared >= 3.0 or unavailable
 
     Args:
         reduced_chi_squared: Reduced chi-squared statistic, or ``None``
             if not computed.
+        n_at_bounds: Number of fitted parameters that landed at their
+            optimization bounds.  When > 0, a chi-squared-``"good"`` fit is
+            demoted to ``"marginal"`` because a bound-saturated parameter may
+            have absorbed residual error, masking a genuine convergence problem.
+            Defaults to ``0`` (no bounds check; backward-compatible).
 
     Returns:
         One of ``"good"``, ``"marginal"``, or ``"poor"``.
@@ -42,7 +50,7 @@ def classify_fit_quality(reduced_chi_squared: float | None) -> str:
     if reduced_chi_squared is None:
         return "poor"
     if reduced_chi_squared < 1.5:
-        return "good"
+        return "marginal" if n_at_bounds > 0 else "good"
     if reduced_chi_squared < 3.0:
         return "marginal"
     return "poor"

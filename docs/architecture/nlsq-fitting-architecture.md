@@ -710,6 +710,48 @@ A condition-number guard adds `1e-10·I` Tikhonov regularization when
 `cond(JᵀJ) > 1e14`, falls back to `pinv` on `LinAlgError`, and returns
 `None` when both fail.
 
+---
+
+## Parallel Chunk Accumulation
+
+`optimization/nlsq/parallel_accumulator.py` provides the Gauss-Newton JᵀJ
+accumulation layer used by the Out-of-Core and Hybrid Streaming strategies.
+
+### `GaussNewtonAccumulation`
+
+Dataclass holding the accumulated normal-equation components for one or more
+chunks: `JtJ` (n_params × n_params), `Jtr` (n_params,), `chi2` (scalar),
+`n_points` (int). Supports `+` for combining partial results from parallel
+workers.
+
+### `accumulate_chunks_sequential(chunks) → GaussNewtonAccumulation`
+
+Iterates over a list of chunk callables sequentially, accumulating JᵀJ, Jᵀr,
+and chi² into a single `GaussNewtonAccumulation`. Used as a fallback and for
+small chunk counts (< 10).
+
+### `accumulate_chunks_parallel(chunks, n_workers) → GaussNewtonAccumulation`
+
+Distributes chunks across a thread pool (gate: `n_chunks ≥ 10`). Exploits
+the associativity of matrix addition — partial JᵀJ sums can be reduced in
+any order without affecting the result. Falls back to sequential on
+`OSError`, `RuntimeError`, `PicklingError`, or timeout.
+
+### `create_ooc_kernels(physics_config, ...) → tuple[Callable, Callable]`
+
+JIT-kernel factory for out-of-core workers. Returns two `@jax.jit` kernels:
+- `compute_chunk_accumulators(p, data...) → (JtJ, Jtr, chi2)` — full Jacobian
+- `compute_chunk_chi2(p, data...) → chi2` — cost probe without Jacobian
+
+Both kernels close over physics constants (q, dt, n_phi, t_unique) so JIT
+compilation happens once per worker init, not per iteration.
+
+### `should_use_parallel_accumulation(n_chunks, threshold=10) → bool`
+
+Decision helper: returns `True` when `n_chunks ≥ threshold`. Keeps the
+sequential path for small chunk counts where thread-pool overhead exceeds
+the parallelism benefit.
+
 ### TimedContext
 
 ```python
@@ -723,14 +765,20 @@ attached to the result's `wall_time_seconds`.
 
 ### Quality Flag
 
-`validation/fit_quality.py:classify_fit_quality(reduced_chi_squared)`
-returns one of three flags using these thresholds:
+`validation/fit_quality.py:classify_fit_quality(reduced_chi_squared, n_at_bounds=0)`
+returns one of three flags:
 
-| Flag | Reduced χ² range |
+| Flag | Condition |
 |---|---|
-| `"good"` | `< 1.5` |
-| `"marginal"` | `1.5 ≤ χ² < 3.0` |
-| `"poor"` | `≥ 3.0` or `None` |
+| `"good"` | χ² < 1.5 **and** `n_at_bounds == 0` |
+| `"marginal"` | 1.5 ≤ χ² < 3.0, **or** χ² < 1.5 but `n_at_bounds > 0` |
+| `"poor"` | χ² ≥ 3.0 or `None` |
+
+The `n_at_bounds` parameter (default `0`) counts parameters that landed at
+their optimization bounds. A bound-saturated parameter may absorb residual
+error and mask convergence problems — so a chi-squared-good fit is demoted
+to "marginal" when any parameter hits a bound.  Existing callers that omit
+`n_at_bounds` see unchanged behavior.
 
 `FitQualityValidator` adds bounds-proximity checks (`edge_fraction = 0.005`
 of the bound span) and stricter chi² thresholds for `ValidationReport`
