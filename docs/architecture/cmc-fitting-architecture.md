@@ -310,7 +310,7 @@ Immutable configuration specifying a sampling run:
 | `num_chains` | 4 | Independent MCMC chains |
 | `target_accept` | 0.8 | NUTS dual-averaging target acceptance probability |
 | `max_tree_depth` | 10 | NUTS binary tree depth limit |
-| `dense_mass` | False | Full-covariance vs diagonal mass matrix. **Note:** homodyne defaults to `True`. For correlated power-law pairs (D0/alpha, v0/beta), a diagonal mass matrix inflates divergences; `True` is recommended for production runs. |
+| `dense_mass` | True | Full-covariance vs diagonal mass matrix. The 14-param model has three correlated power-law pairs (D0/alpha ×2, v0/beta); a diagonal mass matrix inflates divergences on these banana-shaped posteriors. |
 | `seed` | None | Explicit random seed (crypto-random if None) |
 
 `SamplingPlan.from_config()` builds a plan from `CMCConfig` with optional
@@ -513,7 +513,7 @@ CMCConfig is organized into 14 logical sections:
 | `num_chains` | 4 | Independent chains per shard |
 | `target_accept_prob` | 0.8 | Dual-averaging target (0.5-0.99) |
 | `max_tree_depth` | 10 | NUTS tree depth limit |
-| `dense_mass` | False | Full-covariance mass matrix |
+| `dense_mass` | True | Full-covariance mass matrix |
 | `init_strategy` | `"init_to_median"` | NUTS initialization |
 | `adaptive_sampling` | — | Scale warmup/samples by shard size |
 | `min_warmup` | — | Adaptive warmup floor |
@@ -786,3 +786,4 @@ initialization:
 | 2026-05-08 | **C5 — MP worker reparam crash**: worker called `reparam_to_physics_jax(params, reparam_config)` but signature is `(log_at_tref, alpha, t_ref)`. Worker samples physics-space priors directly — no back-transform needed. Removed broken block. | `backends/multiprocessing_backend.py` |
 | 2026-05-08 | **ArviZ/NumPyro import-order incompatibility**: `arviz_base.io_numpyro` accesses `numpyro.infer.initialization` as a package attribute, but heterodyne's import chain loads it into `sys.modules` without setting the attribute (circular-import timing). Fixed by explicit attribute patch before `az.from_numpyro()`. | `core.py` |
 | 2026-05-08 | **Dead parameters removed from `get_heterodyne_model_reparam`**: `nlsq_result` and `prior_width_factor` were accepted but never read. The new path uses `scalings`; the legacy clip path hardcodes `scale = (bounds[1]-bounds[0])/6`. Both removed from signature and call sites. | `model.py`, `core.py` |
+| 2026-05-08 | **`dense_mass` default changed to `True`**: The 14-param model has three correlated power-law pairs that produce banana-shaped posteriors. A diagonal mass matrix (`False`) cannot navigate these cross-correlations and inflates divergences. Changed in `CMCConfig`, `SamplingPlan`, and PBS backend fallback. | `config.py`, `sampler.py`, `backends/pbs.py` |
