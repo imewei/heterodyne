@@ -354,6 +354,17 @@ def fit_cmc_jax(
         "[CMC] NUTS sampling complete: collected %d posterior draws", sample_count
     )
     logger.info("[CMC] Phase 4/4: diagnostics and result construction")
+    # arviz_base.io_numpyro accesses numpyro.infer.initialization as an attribute.
+    # Heterodyne's import chain loads the submodule but doesn't always register it
+    # as a package attribute (Python import-order quirk). Set it explicitly.
+    import sys as _sys
+
+    import numpyro.infer as _numpyro_infer
+
+    if not hasattr(_numpyro_infer, "initialization"):
+        _init_mod = _sys.modules.get("numpyro.infer.initialization")
+        if _init_mod is not None:
+            _numpyro_infer.initialization = _init_mod
     idata = az.from_numpyro(mcmc)
 
     if use_reparam and reparam_config is not None:
