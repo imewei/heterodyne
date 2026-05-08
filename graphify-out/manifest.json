@@ -816,12 +816,12 @@
     "hash": "f1c3b61b75f8abf8a20b851ad05d74ac"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/sampler.py": {
-    "mtime": 1778216880.181514,
-    "hash": "cf222e0900029d0a176ad5193dc1df6a"
+    "mtime": 1778219571.326029,
+    "hash": "105c075aeda0447f4ad2cdc54f58f992"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/diagnostics.py": {
-    "mtime": 1778104596.4066489,
-    "hash": "dc5b2025f9bcc5f76289af9eb4105a47"
+    "mtime": 1778219492.7683287,
+    "hash": "fa10f10adcc9c283ea5700f940889145"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/__init__.py": {
     "mtime": 1773039249.45616,
@@ -840,8 +840,8 @@
     "hash": "8ce836030a51ffbb7a1459484a790584"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/core.py": {
-    "mtime": 1778213592.8944442,
-    "hash": "34bc9ade94651d742f226af014c618a6"
+    "mtime": 1778219601.7689152,
+    "hash": "65cd1134d09ae826a483f2e6914cb3fe"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/results.py": {
     "mtime": 1773371305.7299628,
@@ -1176,8 +1176,8 @@
     "hash": "7bbc9f9fc90fbe3bd69de1b43bc8a6be"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/architecture/cmc-fitting-architecture.md": {
-    "mtime": 1778217968.7426603,
-    "hash": "c2a53192ad6543a85deaf423ea7e9458"
+    "mtime": 1778222036.3026636,
+    "hash": "6abfbdd80c10c5cc216f0ce67b137f8c"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/architecture/physical-model-architecture.md": {
     "mtime": 1778161223.3131497,
@@ -1300,8 +1300,8 @@
     "hash": "53ff42ccddab8e3fd4c182bc35949402"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/cmc-fitting-architecture.md": {
-    "mtime": 1778217968.7426603,
-    "hash": "c2a53192ad6543a85deaf423ea7e9458"
+    "mtime": 1778222036.3026636,
+    "hash": "6abfbdd80c10c5cc216f0ce67b137f8c"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/physical-model-architecture.md": {
     "mtime": 1778161223.3131497,
