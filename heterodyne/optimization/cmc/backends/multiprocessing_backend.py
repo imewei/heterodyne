@@ -773,14 +773,6 @@ def _run_shard_worker(
                     param = numpyro.sample(name, prior.to_numpyro(name))
                     params = params.at[i].set(param)
 
-            # Apply reparameterised-to-physics transform when configured
-            if reparam_config is not None:
-                from heterodyne.optimization.cmc.reparameterization import (
-                    reparam_to_physics_jax,
-                )
-
-                params = reparam_to_physics_jax(params, reparam_config)
-
             # Compute 14-parameter heterodyne c2 prediction.
             # t_jax, sigma_jax, c2_jax are closure-captured from the outer
             # function scope; ruff F821 cannot resolve closures statically.

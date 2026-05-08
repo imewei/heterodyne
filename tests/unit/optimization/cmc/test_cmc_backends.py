@@ -108,3 +108,38 @@ class TestDivergenceRateConstants:
     def test_high_value(self) -> None:
         """HIGH should be no more than 10 % — warns before CRITICAL."""
         assert DIVERGENCE_RATE_HIGH <= 0.10
+
+
+def test_reparam_to_physics_jax_signature() -> None:
+    """reparam_to_physics_jax takes (log_at_tref, alpha, t_ref) — three scalars.
+
+    Documents the correct call signature. The MP worker must NOT call it with
+    (params_array, reparam_config) — two args of wrong types.
+    """
+    import inspect
+
+    from heterodyne.optimization.cmc.reparameterization import reparam_to_physics_jax
+
+    sig = inspect.signature(reparam_to_physics_jax)
+    param_names = list(sig.parameters.keys())
+    assert param_names == ["log_at_tref", "alpha", "t_ref"], (
+        f"Unexpected signature: {param_names}"
+    )
+
+
+def test_mp_worker_model_does_not_contain_wrong_reparam_call() -> None:
+    """The MP worker's _shard_model must not call reparam_to_physics_jax(params, config).
+
+    Verifies the broken call was removed. The worker samples physics-space
+    parameters directly from priors — no back-transform is needed.
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb)
+    # The broken call pattern: two args where first is params array
+    assert "reparam_to_physics_jax(params, reparam_config)" not in source, (
+        "Found broken reparam_to_physics_jax(params, reparam_config) call in "
+        "multiprocessing_backend. This crashes at runtime — remove the block."
+    )
