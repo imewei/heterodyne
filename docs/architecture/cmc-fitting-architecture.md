@@ -23,20 +23,26 @@ optimization/cmc/
 ├── core.py               # fit_cmc_jax() unified entry, fit_cmc_sharded()
 ├── model.py              # NumPyro models (meshgrid + element-wise paths)
 ├── priors.py             # build_default_priors(), build_nlsq_informed_priors(),
-│                         #   build_log_space_priors(), temper_priors()
-├── sampler.py            # SamplingPlan, NUTSSampler, AdaptiveSamplingPlan,
+│                         #   build_log_space_priors(), temper_priors(),
+│                         #   estimate_contrast_offset_from_data()
+├── sampler.py            # SamplingPlan (+ chain_method), NUTSSampler, AdaptiveSamplingPlan,
 │                         #   run_nuts_with_retry(), SamplingStats
 ├── reparameterization.py # ReparamConfig, compute_t_ref(), power-law decorrelation
 ├── scaling.py            # ParameterScaling, smooth_bound() (tanh-based)
 ├── diagnostics.py        # R-hat, ESS, BFMI, divergence analysis,
-│                         #   bimodal detection, cross-shard clustering
+│                         #   bimodal detection, cross-shard clustering,
+│                         #   check_convergence(), create_diagnostics_dict(),
+│                         #   log_analysis_summary(), get_convergence_recommendations()
 ├── config.py             # CMCConfig dataclass (14 config sections)
-├── results.py            # CMCResult, merge_shard_cmc_results(), compare_cmc_nlsq()
+├── results.py            # CMCResult (+ get_samples_array, get_posterior_stats),
+│                         #   ParameterStats, merge_shard_cmc_results(), compare_cmc_nlsq()
 ├── data_prep.py          # ShardingStrategy, PreparedData, sigma estimation
 ├── plotting.py           # CMC-specific plotting: convergence traces, diagonal overlays,
 │                         #   residual maps, parameter sensitivity, pair correlations
-├── io.py                 # Posterior serialization: save/load ArviZ InferenceData (NetCDF),
-│                         #   per-shard NPZ archives, list_shards()
+├── io.py                 # Full result serialization: save_samples_npz, load_samples_npz,
+│                         #   samples_to_arviz, save_fitted_data_npz, save_parameters_json,
+│                         #   save_diagnostics_json, save_all_results;
+│                         #   also per-shard NPZ archives, ArviZ NetCDF, list_shards()
 └── backends/
     ├── base.py           # MCMCBackend protocol, CMCBackend ABC,
     │                     #   select_backend(), consensus_mc(), robust_consensus_mc()
@@ -253,6 +259,23 @@ Scales prior widths by `sqrt(K)` for K-shard Consensus MC:
 Checks that all varying parameters have priors, prior support overlaps
 parameter bounds, and no degenerate (scale < 1e-12) priors exist.
 
+### `estimate_contrast_offset_from_data()`
+
+Physics-informed quantile estimator for initializing contrast and offset priors
+from C2 data:
+
+```python
+contrast, offset = estimate_contrast_offset_from_data(c2_data, t1, t2)
+```
+
+Uses the correlation decay structure `C2 = contrast × g1² + offset`:
+- **Offset** → 10th-percentile of the large-lag region (top 20% of lags; where g1² ≈ 0)
+- **Contrast** → 90th-percentile of the small-lag ceiling (bottom 20% of lags) minus offset
+
+Both estimates are clipped to configurable `contrast_bounds`/`offset_bounds`. Falls back to
+`(bounds_mid_contrast, bounds_mid_offset)` when fewer than 100 data points are present.
+Inputs are ravelled so 2-D C2 matrices are handled correctly.
+
 ---
 
 ## Z-Space Reparameterization
@@ -327,6 +350,7 @@ Immutable configuration specifying a sampling run:
 | `target_accept` | 0.8 | NUTS dual-averaging target acceptance probability |
 | `max_tree_depth` | 10 | NUTS binary tree depth limit |
 | `dense_mass` | True | Full-covariance vs diagonal mass matrix. The 14-param model has three correlated power-law pairs (D0/alpha ×2, v0/beta); a diagonal mass matrix inflates divergences on these banana-shaped posteriors. |
+| `chain_method` | `"sequential"` | NumPyro chain execution: `"sequential"`, `"parallel"`, or `"vectorized"`. Propagated through `from_config()`, `for_shard()`, `AdaptiveSamplingPlan.get_plan()`, and retry loop. |
 | `seed` | None | Explicit random seed (crypto-random if None) |
 
 `SamplingPlan.from_config()` builds a plan from `CMCConfig` with optional
@@ -476,12 +500,20 @@ Credible intervals are reconstructed from combined Gaussian approximation.
 
 ### Combination methods
 
-| Method | Description |
+`_combine_shard_posteriors` reads `config.combination_method` and dispatches:
+
+| Method | Implementation |
 |---|---|
-| `consensus_mc` | Full precision-matrix weighting |
-| `robust_consensus_mc` | Outlier-resistant precision weighting |
-| `weighted_gaussian` | Weighted Gaussian approximation |
-| `simple_average` | Unweighted mean of shard posteriors |
+| `consensus_mc` (default) | Inverse-variance weighting (Scott et al. 2016) |
+| `simple_average` | Equal-weight mean and variance across successful shards |
+| `robust_consensus_mc` | Falls back to `consensus_mc` (not yet separately implemented) |
+| `weighted_gaussian` | Falls back to `consensus_mc` (not yet separately implemented) |
+
+Unknown method names produce a `logger.warning` and fall back to `consensus_mc`.
+
+The full `backends/base.py` also exposes `consensus_mc()` and `robust_consensus_mc()`
+operating on numpy arrays (not `CMCResult` objects); these are used by the backend
+layer, not by `_combine_shard_posteriors`.
 
 ---
 
@@ -659,6 +691,23 @@ internal code must use the new names.
   mode statistics, separation significance, and checks whether consensus mean
   falls in the density trough between modes.
 
+### High-level convergence helpers (homodyne parity)
+
+```python
+DEFAULT_MIN_ESS = 400.0          # minimum acceptable bulk ESS
+DEFAULT_MAX_RHAT = 1.05          # maximum acceptable R-hat
+DEFAULT_MAX_DIVERGENCE_RATE = 0.05  # maximum divergence rate (5%)
+```
+
+| Function | Returns | Description |
+|---|---|---|
+| `check_convergence(r_hat, ess_bulk, divergences, n_samples, n_chains, ..., num_shards=1)` | `tuple[str, list[str]]` | Returns `("converged"\|"divergences"\|"not_converged", warnings)`. `"divergences"` takes priority. `num_shards` scales the denominator for CMC. |
+| `create_diagnostics_dict(r_hat, ess_bulk, ess_tail, divergences, ...)` | `dict[str, Any]` | JSON-serializable dict with `convergence_status`, `divergence_rate`, `max_r_hat`, `min_ess_bulk`, `per_parameter`, `sampling_config`, `timing`. |
+| `log_analysis_summary(convergence_status, r_hat, ess_bulk, ..., n_shards, shards_succeeded, execution_time)` | `None` | Logs formatted summary at INFO/ERROR with OK/FAIL indicators. |
+| `get_convergence_recommendations(max_rhat, min_ess, divergences, n_samples, n_chains, num_shards=1)` | `list[str]` | Returns actionable recommendation strings for high R-hat, low ESS, or high divergence rates. |
+
+These functions use `dict[str, float]` for r_hat/ess (keyed by parameter name). Heterodyne's `CMCResult` stores these as `np.ndarray` — callers must convert via `_r_hat_dict(result)` / `_ess_bulk_dict(result)` helpers in `io.py`.
+
 ### Sharded convergence
 
 `validate_convergence_sharded()` runs per-shard validation and returns a
@@ -688,6 +737,30 @@ to fail.
 | `num_chains` | `int` | Number of chains |
 | `wall_time_seconds` | `float \| None` | Elapsed wall-clock time |
 | `metadata` | `dict[str, Any]` | Additional metadata (n_shards, combination_method, etc.) |
+
+### CMCResult methods
+
+- `get_samples_array() -> np.ndarray`: Returns samples as `(num_chains, num_samples, n_params)`.
+  Flat 1-D arrays of shape `num_chains * num_samples` are automatically reshaped. Missing
+  parameters are filled with zeros.
+- `get_posterior_stats() -> dict[str, dict[str, float]]`: Returns per-parameter dict with
+  `mean`, `std`, `median`, `hdi_5%`, `hdi_95%`, `r_hat`, `ess_bulk`, `ess_tail`.
+  Diagnostic fields come from the array-form `r_hat`/`ess_bulk`/`ess_tail` fields indexed
+  by position. Parameters absent from `self.samples` are omitted.
+
+### ParameterStats
+
+`ParameterStats(dict)` is a hybrid dict/sequence class for CLI and plotting compatibility:
+
+```python
+ps = ParameterStats(["D0_ref", "alpha_ref"], [1e4, 0.5])
+ps["D0_ref"]   # → 1e4  (dict-style)
+ps[0]          # → 1e4  (int index)
+ps.as_array    # → np.array([1e4, 0.5])
+np.asarray(ps) # → array via __array__ protocol
+```
+
+Exported from `heterodyne.optimization.cmc` as part of the public API.
 
 ### Standalone functions
 
@@ -754,6 +827,24 @@ initialization:
 
 ---
 
+## I/O Serialization Pipeline
+
+`io.py` provides a complete result serialization API (homodyne parity):
+
+| Function | Output | Description |
+|---|---|---|
+| `save_samples_npz(result, path)` | `samples.npz` | Shape `(n_chains, n_samples, n_params)`; schema version 1.0; r_hat/ESS arrays; `n_phi` from `result.metadata["n_phi"]` |
+| `load_samples_npz(path)` | `dict[str, Any]` | Context-manager load (no file-descriptor leak); validates `.npz` extension and existence |
+| `samples_to_arviz(data)` | `az.InferenceData` | Converts loaded dict to ArviZ posterior group |
+| `save_fitted_data_npz(result, c2_exp, c2_fitted, c2_fitted_std, t1, t2, phi_angles, q, path)` | `fitted_data.npz` | Stores `c2_exp`, `c2_fitted`, `residuals`, 90% CI bands (`1.645 × std`) |
+| `save_parameters_json(result, path)` | `parameters.json` | Calls `result.get_posterior_stats()`; NaN→`null`, Inf→`"Infinity"` |
+| `save_diagnostics_json(result, path, warnings=None)` | `diagnostics.json` | Calls `create_diagnostics_dict()`; numpy-safe JSON converter |
+| `save_all_results(result, output_dir, ...)` | `dict[str, Path]` | Orchestrates all above; `fitted_data.npz` only when all data arrays provided |
+
+**Schema version** `SAMPLES_SCHEMA_VERSION = (1, 0)` allows future format evolution with backward-compatible loading.
+
+---
+
 ## Key Design Decisions
 
 1. **CPU-only optimization**: All backends assume CPU execution. No GPU backend
@@ -817,3 +908,4 @@ initialization:
 | 2026-05-08 | **W4 — Bimodal detection not called after shard combination**: `check_shard_bimodality()` was never invoked in `fit_cmc_sharded`. CMCConfig fields `bimodal_min_weight` and `bimodal_min_separation` had no effect. Fixed: call added after `_combine_shard_posteriors`; results stored in `CMCResult.metadata`. | `core.py` |
 | 2026-05-08 | **W5 — Bimodal detection post-conditions not enforced**: `detect_bimodal()` / `check_shard_bimodality()` had no `min_weight` or `min_separation` parameters, so `CMCConfig.bimodal_min_weight` and `bimodal_min_separation` were unreachable. Fixed: both parameters added and applied as post-conditions after the BIC test. | `diagnostics.py` |
 | 2026-05-08 | **W6 — Preflight log-density check always skipped**: `_validate_init_log_density` checked `kernel._potential_fn` which is `None` before any sampling run → preflight silently no-ops on every call. Fixed: now uses `numpyro.infer.util.log_density(kernel.model, (), {}, init_params)` which is always callable. | `sampler.py` |
+| 2026-05-08 | **Phase 2 — homodyne parity additions**: (1) `ParameterStats` hybrid dict/sequence; `CMCResult.get_samples_array()`, `CMCResult.get_posterior_stats()`; (2) `DEFAULT_MIN_ESS/MAX_RHAT/MAX_DIVERGENCE_RATE` constants; `check_convergence()`, `create_diagnostics_dict()`, `log_analysis_summary()`, `get_convergence_recommendations()`; (3) full io.py save pipeline (7 functions); (4) `SamplingPlan.chain_method` wired through `from_config()`, `for_shard()`, `AdaptiveSamplingPlan.get_plan()`, and retry loop; (5) `estimate_contrast_offset_from_data()` in priors; (6) `combination_method` dispatch in `_combine_shard_posteriors`. | `results.py`, `diagnostics.py`, `io.py`, `sampler.py`, `config.py`, `priors.py`, `core.py` |
