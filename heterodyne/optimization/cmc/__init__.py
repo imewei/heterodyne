@@ -27,7 +27,7 @@ from heterodyne.optimization.cmc.priors import (
     validate_initial_value_bounds,
 )
 from heterodyne.optimization.cmc.reparameterization import ReparamConfig, compute_t_ref
-from heterodyne.optimization.cmc.results import CMCResult
+from heterodyne.optimization.cmc.results import CMCResult, ParameterStats
 from heterodyne.optimization.cmc.sampler import (
     DIVERGENCE_RATE_CRITICAL,
     DIVERGENCE_RATE_HIGH,
@@ -41,6 +41,7 @@ __all__ = [
     "fit_cmc_jax",
     "CMCConfig",
     "CMCResult",
+    "ParameterStats",
     "get_heterodyne_model",
     "get_model_param_count",
     "validate_model_output",

@@ -463,6 +463,7 @@ class TestGetPosteriorStats:
 
     def test_mean_matches_samples(self) -> None:
         result = _make_cmc_result()
+        assert result.samples is not None
         stats = result.get_posterior_stats()
         for name in result.parameter_names:
             expected = float(np.mean(result.samples[name]))
@@ -470,6 +471,7 @@ class TestGetPosteriorStats:
 
     def test_skips_missing_samples(self) -> None:
         result = _make_cmc_result()
+        assert result.samples is not None
         result.samples.pop("v0")
         stats = result.get_posterior_stats()
         assert "v0" not in stats
