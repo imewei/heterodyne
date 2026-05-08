@@ -11,6 +11,39 @@ if TYPE_CHECKING:
     pass
 
 
+class ParameterStats(dict):
+    """Hybrid mapping/sequence for posterior summaries.
+
+    Supports dict-style access by name (``ps["D0_ref"]``) and
+    integer-index access (``ps[0]``).  Inherits ``dict`` so existing
+    ``.get()`` / ``in`` checks continue to work unchanged.
+    """
+
+    def __init__(self, ordered_names: list[str], values: list[float]) -> None:
+        super().__init__(zip(ordered_names, values, strict=True))
+        self._ordered_names = list(ordered_names)
+        self._ordered_values = list(values)
+
+    def __getitem__(self, key: int | str) -> float:  # type: ignore[override]
+        if isinstance(key, int):
+            return self._ordered_values[key]
+        return super().__getitem__(key)
+
+    def __len__(self) -> int:
+        return len(self._ordered_values)
+
+    def __array__(self, dtype=None) -> np.ndarray:
+        return np.asarray(self._ordered_values, dtype=dtype)
+
+    @property
+    def as_array(self) -> np.ndarray:
+        """Ordered values as a numpy array."""
+        return np.asarray(self._ordered_values, dtype=float)
+
+    def tolist(self) -> list[float]:
+        return list(self._ordered_values)
+
+
 @dataclass
 class CMCResult:
     """Result of CMC (Consensus Monte Carlo) analysis.
@@ -175,6 +208,67 @@ class CMCResult:
             lines.append(f"Wall time: {self.wall_time_seconds:.1f} s")
 
         return "\n".join(lines)
+
+    def get_samples_array(self) -> np.ndarray:
+        """Return samples as a 3-D array of shape (num_chains, num_samples, n_params).
+
+        Parameters with missing or None samples are filled with zeros.
+        Flat 1-D sample arrays of shape ``num_chains * num_samples`` are
+        reshaped to ``(num_chains, num_samples)`` automatically.
+        """
+        n_params = len(self.parameter_names)
+        out = np.zeros((self.num_chains, self.num_samples, n_params))
+        if self.samples is None:
+            return out
+        for i, name in enumerate(self.parameter_names):
+            if name not in self.samples:
+                continue
+            arr = np.asarray(self.samples[name])
+            if arr.ndim == 1:
+                total = arr.shape[0]
+                nc = self.num_chains
+                ns = self.num_samples
+                if nc > 1 and total == nc * ns:
+                    arr = arr.reshape(nc, ns)
+                else:
+                    arr = arr[np.newaxis, :]
+            out[:, :, i] = arr[: self.num_chains, : self.num_samples]
+        return out
+
+    def get_posterior_stats(self) -> dict[str, dict[str, float]]:
+        """Return per-parameter posterior statistics.
+
+        Returns a dict keyed by parameter name. Each value contains
+        ``mean``, ``std``, ``median``, ``hdi_5%``, ``hdi_95%``,
+        ``r_hat``, ``ess_bulk``, ``ess_tail``.
+
+        Parameters absent from ``self.samples`` are omitted.
+        """
+        stats: dict[str, dict[str, float]] = {}
+        if self.samples is None:
+            return stats
+        for i, name in enumerate(self.parameter_names):
+            if name not in self.samples:
+                continue
+            flat = np.asarray(self.samples[name]).flatten()
+            r_hat_val = float(self.r_hat[i]) if self.r_hat is not None else float("nan")
+            ess_bulk_val = (
+                float(self.ess_bulk[i]) if self.ess_bulk is not None else float("nan")
+            )
+            ess_tail_val = (
+                float(self.ess_tail[i]) if self.ess_tail is not None else float("nan")
+            )
+            stats[name] = {
+                "mean": float(np.nanmean(flat)),
+                "std": float(np.nanstd(flat)),
+                "median": float(np.nanmedian(flat)),
+                "hdi_5%": float(np.nanpercentile(flat, 5)),
+                "hdi_95%": float(np.nanpercentile(flat, 95)),
+                "r_hat": r_hat_val,
+                "ess_bulk": ess_bulk_val,
+                "ess_tail": ess_tail_val,
+            }
+        return stats
 
 
 # ---------------------------------------------------------------------------

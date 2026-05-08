@@ -6,6 +6,9 @@ Covers:
 - :func:`compute_nlsq_comparison_metrics`
 - :func:`compute_precision_analysis`
 - :func:`check_shard_bimodality` (requires scikit-learn)
+- :class:`ParameterStats` (results.py)
+- :meth:`CMCResult.get_samples_array` (results.py)
+- :meth:`CMCResult.get_posterior_stats` (results.py)
 """
 
 from __future__ import annotations
@@ -18,6 +21,49 @@ from heterodyne.optimization.cmc.diagnostics import (
     compute_nlsq_comparison_metrics,
     compute_precision_analysis,
 )
+from heterodyne.optimization.cmc.results import CMCResult, ParameterStats
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_cmc_result(
+    n_chains: int = 2,
+    n_samples: int = 50,
+    param_names: list[str] | None = None,
+) -> CMCResult:
+    if param_names is None:
+        param_names = ["D0_ref", "alpha_ref", "v0"]
+    n_params = len(param_names)
+    rng = np.random.default_rng(42)
+    samples = {
+        n: rng.normal(size=(n_chains, n_samples)).astype(np.float64)
+        for n in param_names
+    }
+    pm = np.array([float(np.mean(samples[n])) for n in param_names])
+    ps = np.array([float(np.std(samples[n])) for n in param_names])
+    return CMCResult(
+        parameter_names=param_names,
+        posterior_mean=pm,
+        posterior_std=ps,
+        credible_intervals={
+            n: {"2.5%": pm[i] - 2 * ps[i], "97.5%": pm[i] + 2 * ps[i]}
+            for i, n in enumerate(param_names)
+        },
+        convergence_passed=True,
+        r_hat=np.ones(n_params) * 1.01,
+        ess_bulk=np.ones(n_params) * 500.0,
+        ess_tail=np.ones(n_params) * 450.0,
+        bfmi=[0.85, 0.90],
+        samples=samples,
+        num_warmup=200,
+        num_samples=n_samples,
+        num_chains=n_chains,
+        wall_time_seconds=12.3,
+        metadata={"n_shards": 2, "analysis_mode": "static", "num_divergences": 3},
+    )
+
 
 # ---------------------------------------------------------------------------
 # BimodalResult construction
@@ -304,3 +350,127 @@ class TestCheckShardBimodality:
         result = check_shard_bimodality(shard_samples)
         # D0_ref appears only in shard 0 → exactly one BimodalResult
         assert len(result["D0_ref"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# ParameterStats
+# ---------------------------------------------------------------------------
+
+
+class TestParameterStats:
+    def test_dict_access_by_name(self) -> None:
+        ps = ParameterStats(["D0_ref", "alpha_ref"], [1e4, 0.5])
+        assert ps["D0_ref"] == pytest.approx(1e4)
+        assert ps["alpha_ref"] == pytest.approx(0.5)
+
+    def test_int_index_access(self) -> None:
+        ps = ParameterStats(["D0_ref", "alpha_ref"], [1e4, 0.5])
+        assert ps[0] == pytest.approx(1e4)
+        assert ps[1] == pytest.approx(0.5)
+
+    def test_len(self) -> None:
+        ps = ParameterStats(["a", "b", "c"], [1.0, 2.0, 3.0])
+        assert len(ps) == 3
+
+    def test_as_array(self) -> None:
+        ps = ParameterStats(["D0_ref", "alpha_ref"], [1e4, 0.5])
+        arr = ps.as_array
+        assert arr.shape == (2,)
+        assert arr[0] == pytest.approx(1e4)
+
+    def test_numpy_array_protocol(self) -> None:
+        ps = ParameterStats(["a", "b"], [3.0, 4.0])
+        arr = np.asarray(ps)
+        assert arr[0] == pytest.approx(3.0)
+
+    def test_tolist(self) -> None:
+        ps = ParameterStats(["a", "b"], [1.0, 2.0])
+        assert ps.tolist() == pytest.approx([1.0, 2.0])
+
+    def test_empty(self) -> None:
+        ps = ParameterStats([], [])
+        assert len(ps) == 0
+
+
+# ---------------------------------------------------------------------------
+# CMCResult.get_samples_array
+# ---------------------------------------------------------------------------
+
+
+class TestGetSamplesArray:
+    def test_shape_2d_samples(self) -> None:
+        result = _make_cmc_result(n_chains=2, n_samples=50)
+        arr = result.get_samples_array()
+        assert arr.shape == (2, 50, 3)
+
+    def test_shape_1d_flat_samples(self) -> None:
+        rng = np.random.default_rng(0)
+        # 2 chains × 50 samples stored flat
+        flat_samples = {"D0_ref": rng.normal(size=100)}
+        result = CMCResult(
+            parameter_names=["D0_ref"],
+            posterior_mean=np.array([0.0]),
+            posterior_std=np.array([1.0]),
+            credible_intervals={"D0_ref": {"2.5%": -2.0, "97.5%": 2.0}},
+            convergence_passed=True,
+            samples=flat_samples,
+            num_warmup=10,
+            num_samples=50,
+            num_chains=2,
+        )
+        arr = result.get_samples_array()
+        assert arr.shape == (2, 50, 1)
+
+    def test_missing_samples_returns_zeros(self) -> None:
+        result = CMCResult(
+            parameter_names=["D0_ref"],
+            posterior_mean=np.array([0.0]),
+            posterior_std=np.array([1.0]),
+            credible_intervals={},
+            convergence_passed=True,
+            samples=None,
+            num_warmup=10,
+            num_samples=20,
+            num_chains=2,
+        )
+        arr = result.get_samples_array()
+        assert arr.shape == (2, 20, 1)
+        assert np.all(arr == 0.0)
+
+
+# ---------------------------------------------------------------------------
+# CMCResult.get_posterior_stats
+# ---------------------------------------------------------------------------
+
+
+class TestGetPosteriorStats:
+    def test_keys_present(self) -> None:
+        result = _make_cmc_result()
+        stats = result.get_posterior_stats()
+        for name in result.parameter_names:
+            assert name in stats
+            for key in (
+                "mean",
+                "std",
+                "median",
+                "hdi_5%",
+                "hdi_95%",
+                "r_hat",
+                "ess_bulk",
+                "ess_tail",
+            ):
+                assert key in stats[name]
+
+    def test_mean_matches_samples(self) -> None:
+        result = _make_cmc_result()
+        stats = result.get_posterior_stats()
+        for name in result.parameter_names:
+            expected = float(np.mean(result.samples[name]))
+            assert stats[name]["mean"] == pytest.approx(expected, rel=1e-6)
+
+    def test_skips_missing_samples(self) -> None:
+        result = _make_cmc_result()
+        result.samples.pop("v0")
+        stats = result.get_posterior_stats()
+        assert "v0" not in stats
+        assert "D0_ref" in stats
