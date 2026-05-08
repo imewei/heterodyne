@@ -54,25 +54,31 @@ optimization/cmc/
 ### Single-run path: `fit_cmc_jax()`
 
 ```
-fit_cmc_jax(model, c2_data, phi_angle, config, nlsq_result)
+fit_cmc_jax(model, c2_data, phi_angle, config, nlsq_result,
+            t_override=None, priors_override=None, prior_width_multiplier=1.0)
         │
         ├─ estimate_sigma(c2_data, method)
         │     diagonal / constant / local / residual / bootstrap
         │
-        ├─ select_backend(config)
-        │     ├── len(devices) > 1  → PjitBackend
-        │     └── single CPU device → CPUBackend
-        │
         ├─ ReparamConfig + compute_t_ref(dt, t_max)
-        │     t_ref = sqrt(dt × t_max)
+        │     t_ref = sqrt(dt × t_max)   [uses t_override if provided]
         │
         ├─ transform_nlsq_to_reparam_space(nlsq_values, nlsq_unc, t_ref)
         │     delta-method uncertainty propagation to Z-space
+        │     scale *= prior_width_multiplier  [applied when called from sharded path]
         │
         ├─ get_heterodyne_model_reparam(...)   # reparameterized path
-        │   or get_heterodyne_model(...)       # physics-space path
+        │   or get_heterodyne_model(..., priors_override=priors_override)
+        │                                      # physics-space path; injected priors
+        │                                      #   override space.priors when provided
         │
-        ├─ backend.run(model, config, rng_key, init_params)
+        ├─ mcmc.run(..., extra_fields=("energy", "diverging"))
+        │     [both fields required: "energy" for BFMI, "diverging" for
+        │      get_divergence_stats() and high-divergence shard filtering]
+        │
+        ├─ patch numpyro.infer.initialization attribute if missing
+        │     [import-order quirk: submodule may be in sys.modules but not
+        │      set as package attribute; az.from_numpyro() requires it]
         │
         ├─ transform_to_physics_space(samples, reparam_config)
         │
@@ -80,23 +86,48 @@ fit_cmc_jax(model, c2_data, phi_angle, config, nlsq_result)
               R-hat, ESS, BFMI, posterior contraction checks
 ```
 
+**Key parameters:**
+
+| Parameter | Purpose |
+|---|---|
+| `t_override` | Shard time slice — replaces `model.t` for model construction. Used by `fit_cmc_sharded` to match shard C2 shape. Without this, shard C2 of shape `(M,M)` is observed against a model built on full `model.t` → shape mismatch crash. |
+| `priors_override` | Pre-built (tempered) NumPyro distributions to use instead of `space.priors`. Used by `fit_cmc_sharded` to inject `temper_priors(priors, K)` for CMC correctness. |
+| `prior_width_multiplier` | Multiplier applied to reparam-path `ParameterScaling.scale` — equivalent to prior tempering for the reparameterized path. Set to `sqrt(K)` by `fit_cmc_sharded`. |
+
 ### Sharded path: `fit_cmc_sharded()`
 
 ```
 fit_cmc_sharded(model, c2_data, config, nlsq_result)
         │
-        ├─ Data preparation: validate + estimate sigma
+        ├─ Data preparation: validate + estimate sigma (full data, unscaled)
         │
-        ├─ Sharding: stratified / random / contiguous / angle-balanced
-        │     partitioning of data into K shards
+        ├─ Sharding: random / contiguous
+        │     Each shard dict stores:
+        │       c2_shard   — sub-matrix of C2 (shape M×M)
+        │       sigma_shard — matched sigma slice
+        │       t_indices  — time-axis indices for this shard
+        │       indices    — flat C2 matrix indices (for audit)
+        │     [Random non-square shards raise ValueError — use contiguous]
         │
-        ├─ Prior tempering: scale prior width by sqrt(K)
-        │     preserves correct posterior under shard factorization
+        ├─ Prior tempering (correct CMC math, Scott et al. 2016):
+        │     base_priors = build_nlsq_informed_priors() or build_default_priors()
+        │     shard_priors = temper_priors(base_priors, K)
+        │       → widens prior scale by sqrt(K) per shard
+        │       → sigma passed unscaled (dividing sigma by sqrt(K) was WRONG:
+        │          it multiplied shard likelihood by K, not prior by 1/K)
         │
-        ├─ Per-shard NUTS sampling via selected backend
-        │     (parallel or sequential across shards)
+        ├─ Per-shard: fit_cmc_jax(c2_shard, sigma_shard, t_override=t_shard,
+        │               priors_override=shard_priors, prior_width_mult=sqrt(K))
         │
-        ├─ Consensus MC combination
+        ├─ Filter successful shards before combination:
+        │     successful = [sr for sr in results
+        │                   if sr.convergence_passed and any(sr.posterior_std > 0)]
+        │     [Failed zero-std shards excluded — the 1e-30 variance clip
+        │      gave them weight 1/1e-30, dominating the consensus]
+        │     [All-failed → return CMCResult(convergence_passed=False,
+        │                                   metadata={"all_shards_failed": True})]
+        │
+        ├─ Consensus MC combination over successful shards
         │     precision-weighted posterior: Λ_combined = Σ_k Λ_k
         │     μ_combined = Λ_combined⁻¹ Σ_k Λ_k μ_k
         │
@@ -117,8 +148,8 @@ different per-angle scaling modes and parameterization strategies:
 
 | Constructor | Purpose |
 |---|---|
-| `get_heterodyne_model()` | Basic model: direct prior sampling, meshgrid or element-wise physics |
-| `get_heterodyne_model_reparam()` | Reparameterized: Z-space + smooth bounds + NLSQ-informed priors (or legacy clip path) |
+| `get_heterodyne_model(priors_override=None)` | Basic model: direct prior sampling, meshgrid or element-wise physics. When `priors_override` is provided (e.g. from `fit_cmc_sharded`), those distributions are used instead of `space.priors`. |
+| `get_heterodyne_model_reparam(nlsq_params, reparam_config, scalings)` | Reparameterized: Z-space + smooth bounds. Scalings encode NLSQ-informed prior centres and widths (already tempered when called from the sharded path). Note: `nlsq_result` and `prior_width_factor` were removed from this signature — they were never read; `scalings` carries all prior-width information. |
 | `get_heterodyne_model_constant()` | Fixed per-angle contrast/offset from NLSQ |
 | `get_heterodyne_model_constant_averaged()` | Fixed angle-averaged contrast/offset |
 | `get_heterodyne_model_individual()` | Per-angle sampled contrast/offset via `numpyro.plate` |
@@ -279,7 +310,7 @@ Immutable configuration specifying a sampling run:
 | `num_chains` | 4 | Independent MCMC chains |
 | `target_accept` | 0.8 | NUTS dual-averaging target acceptance probability |
 | `max_tree_depth` | 10 | NUTS binary tree depth limit |
-| `dense_mass` | False | Full-covariance vs diagonal mass matrix |
+| `dense_mass` | False | Full-covariance vs diagonal mass matrix. **Note:** homodyne defaults to `True`. For correlated power-law pairs (D0/alpha, v0/beta), a diagonal mass matrix inflates divergences; `True` is recommended for production runs. |
 | `seed` | None | Explicit random seed (crypto-random if None) |
 
 `SamplingPlan.from_config()` builds a plan from `CMCConfig` with optional
@@ -305,11 +336,28 @@ Parameter-aware floors:
 High-level wrapper around NumPyro's MCMC:
 
 - `from_plan()`: factory that constructs NUTS kernel and MCMC object
-- `run()`: executes sampling with per-chain perturbation of init params
+- `run()`: executes sampling with per-chain perturbation of init params.
+  Requests `extra_fields=("energy", "diverging")` — both fields are required:
+  `"energy"` for BFMI computation, `"diverging"` for `get_divergence_stats()`.
+  Requesting only `"energy"` caused divergence counts to always be zero.
 - `run_with_init_values()`: warm-start from NLSQ MAP with preflight log-density
   validation
-- `get_divergence_stats()`: divergence rate, mean tree depth, max-depth fraction
+- `get_divergence_stats()`: reads `extra["diverging"]` for true divergence rate,
+  `extra["tree_depth"]` for mean depth and max-depth fraction
 - `get_diagnostics()`: returns ArviZ `InferenceData` via `az.from_numpyro()`
+
+**ArviZ compatibility:** `az.from_numpyro()` accesses `numpyro.infer.initialization`
+as a package attribute. Heterodyne's import chain loads the submodule into
+`sys.modules` but due to Python's circular-import timing the attribute is not
+always set on the package object. `fit_cmc_jax` patches this explicitly before
+calling `az.from_numpyro()`:
+
+```python
+if not hasattr(numpyro.infer, "initialization"):
+    _mod = sys.modules.get("numpyro.infer.initialization")
+    if _mod is not None:
+        numpyro.infer.initialization = _mod
+```
 
 ### run_nuts_with_retry()
 
@@ -384,10 +432,23 @@ standard deviations on any parameter have their precision downweighted by
 
 ### merge_shard_cmc_results()
 
-Simpler inverse-variance combination operating on `CMCResult` objects:
+Simpler inverse-variance combination operating on `CMCResult` objects.
+
+**Failed-shard filtering (critical):** Before weighting, shards where
+`convergence_passed=False` or `all(posterior_std == 0)` are excluded.
+Without this filter, zero-std failed shards receive weight `1/1e-30 = 1e30`
+and dominate the consensus entirely. The filter uses `any(posterior_std > 0)`
+so valid shards with one fixed parameter (std=0 for that param) are preserved.
+
+When all shards fail the function returns immediately with a degenerate
+`CMCResult(convergence_passed=False, posterior_std=NaN,
+metadata={"all_shards_failed": True})` rather than crashing on `np.stack([])`.
 
 ```
-precision_i = 1 / std_i^2
+# Effective implementation:
+successful = [sr for sr in shard_results
+              if sr.convergence_passed and any(sr.posterior_std > 0)]
+precision_i = 1 / std_i^2          # over successful shards only
 combined_mean = Σ(precision_i × mean_i) / Σ(precision_i)
 combined_std  = 1 / sqrt(Σ(precision_i))
 ```
@@ -438,7 +499,7 @@ CMCConfig is organized into 14 logical sections:
 
 | Field | Default | Description |
 |---|---|---|
-| `backend_name` | `"auto"` | `"auto"`, `"multiprocessing"`, `"pjit"`, `"cpu"`, `"gpu"` |
+| `backend_name` | `"auto"` | `"auto"`, `"multiprocessing"`, `"pjit"`, `"cpu"` (no GPU backend) |
 | `chain_method` | `"sequential"` | `"sequential"` or `"parallel"` within each worker |
 | `enable_checkpoints` | — | Persist intermediate shard results |
 | `checkpoint_dir` | — | Directory for shard checkpoint files |
@@ -670,8 +731,8 @@ initialization:
 
 ## Key Design Decisions
 
-1. **CPU-only optimization**: All backends assume CPU execution. The GPU
-   backend is a wrapper but heterodyne is not designed for GPU workloads.
+1. **CPU-only optimization**: All backends assume CPU execution. No GPU backend
+   exists — `backend_name="gpu"` is not a valid option.
 
 2. **No analytical integrals**: The physics model always uses numerical
    integration (`trapezoid_cumsum`). Transport coefficient integrals have no
@@ -685,10 +746,43 @@ initialization:
    everywhere in the MCMC model to maintain differentiability at parameter
    boundaries.
 
-5. **Prior tempering**: Shard sub-posteriors use priors widened by `sqrt(K)`
-   so that the K-fold product of sub-posteriors recovers the full-data
-   posterior (when Gaussian).
+5. **Prior tempering (not sigma-scaling)**: CMC shard sub-posteriors must be
+   `prior^(1/K) · likelihood(data_k|θ)`. Widening the prior by `sqrt(K)` via
+   `temper_priors(priors, K)` is correct. Dividing sigma by `sqrt(K)` is wrong:
+   it multiplies the likelihood by K per shard, giving K² over-weighting in the
+   combined posterior. `_temper_sigma()` has been removed.
 
 6. **Element-wise path for CMC**: Per-shard NUTS evaluation uses `ShardGrid`
-   + `compute_c2_elementwise()` to avoid O(N^2) memory allocation per
-   leapfrog step.
+   + `compute_c2_elementwise()` to avoid O(N²) memory allocation per leapfrog
+   step.
+
+7. **Shard time-slice alignment**: Each shard's C2 sub-matrix has shape `(M,M)`
+   where M < N. The NumPyro model must be built with `t[shard_t_indices]` (M
+   time points), not `model.t` (N time points). Mismatch causes a shape error
+   at NUTS runtime. `t_indices` is stored in every shard dict; `fit_cmc_jax`
+   accepts `t_override` for this purpose.
+
+8. **Collect both extra fields**: NUTS must request `extra_fields=("energy",
+   "diverging")`. `"energy"` is needed for BFMI; `"diverging"` is needed for
+   `get_divergence_stats()`. Requesting only `"energy"` silently returns zero
+   divergences regardless of actual NUTS behavior.
+
+9. **Physics-space priors in MP workers**: The `multiprocessing_backend.py`
+   worker's `_shard_model` samples directly from `parameter_space.priors[name]`
+   (physics-space distributions). No back-transform is needed or valid there.
+   The prior tempering is handled via `priors_override` passed from
+   `fit_cmc_sharded`, not by a post-sampling reparameterization.
+
+---
+
+## Critical Features & Fixes
+
+| Version | Fix | Files |
+|---|---|---|
+| 2026-05-08 | **C1 — Sharded likelihood shape mismatch**: shard C2 of shape `(M,M)` was observed against model built with full `model.t` (N points) → crash. Added `t_indices` to shard dicts; `fit_cmc_jax` accepts `t_override`. Random non-square shards raise `ValueError`. | `core.py` |
+| 2026-05-08 | **C4 — Divergence tracking disabled**: `extra_fields=("energy",)` only; `get_divergence_stats()` reads `"diverging"` → always zero. Added `"diverging"` to all 4 `mcmc.run()` call sites. | `core.py`, `sampler.py`, `backends/multiprocessing_backend.py` |
+| 2026-05-08 | **C2 — Wrong CMC prior tempering**: `_temper_sigma()` divided sigma by `sqrt(K)`, multiplying each shard likelihood by K → K²-over-weighted posterior. Replaced with `temper_priors(priors, K)`. `temper_priors()` already existed in `priors.py` but was unused. | `core.py`, `model.py` |
+| 2026-05-08 | **C3 — Failed-shard contamination**: zero-std failed shards received weight `1/1e-30 = 1e30` in consensus; `np.stack([])` crashed when all shards failed. Added pre-combination filter on `successful` shards; all-failed returns degenerate `CMCResult`. | `core.py` |
+| 2026-05-08 | **C5 — MP worker reparam crash**: worker called `reparam_to_physics_jax(params, reparam_config)` but signature is `(log_at_tref, alpha, t_ref)`. Worker samples physics-space priors directly — no back-transform needed. Removed broken block. | `backends/multiprocessing_backend.py` |
+| 2026-05-08 | **ArviZ/NumPyro import-order incompatibility**: `arviz_base.io_numpyro` accesses `numpyro.infer.initialization` as a package attribute, but heterodyne's import chain loads it into `sys.modules` without setting the attribute (circular-import timing). Fixed by explicit attribute patch before `az.from_numpyro()`. | `core.py` |
+| 2026-05-08 | **Dead parameters removed from `get_heterodyne_model_reparam`**: `nlsq_result` and `prior_width_factor` were accepted but never read. The new path uses `scalings`; the legacy clip path hardcodes `scale = (bounds[1]-bounds[0])/6`. Both removed from signature and call sites. | `model.py`, `core.py` |
