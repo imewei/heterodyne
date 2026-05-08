@@ -983,8 +983,8 @@ def estimate_contrast_offset_from_data(
     tuple[float, float]
         ``(contrast_est, offset_est)`` each clipped to their bounds.
     """
-    delta_t = np.abs(np.asarray(t1) - np.asarray(t2))
-    c2 = np.asarray(c2_data)
+    delta_t = np.abs(np.asarray(t1) - np.asarray(t2)).ravel()
+    c2 = np.asarray(c2_data).ravel()
 
     if len(c2) < 100:
         contrast_mid = (contrast_bounds[0] + contrast_bounds[1]) / 2.0

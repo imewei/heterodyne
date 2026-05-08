@@ -1035,6 +1035,16 @@ def _combine_shard_posteriors(
         getattr(config, "combination_method", "consensus_mc") or "consensus_mc"
     )
 
+    _known_methods = frozenset(
+        {"consensus_mc", "simple_average", "robust_consensus_mc", "weighted_gaussian"}
+    )
+    if combination_method not in _known_methods:
+        logger.warning(
+            "_combine_shard_posteriors: unknown combination_method %r; "
+            "falling back to inverse-variance (consensus_mc).",
+            combination_method,
+        )
+
     if combination_method == "simple_average":
         # Equal-weight mean and variance across shards
         combined_mean = np.mean(
@@ -1045,7 +1055,7 @@ def _combine_shard_posteriors(
         )
         combined_std = np.sqrt(combined_var)
     else:
-        # Default: inverse-variance weighting (consensus_mc, Scott et al. 2016)
+        # Default: inverse-variance weighting (consensus_mc / fallback)
         # Weight_k = 1 / Var_k (per-parameter, diagonal approximation)
         weight_sum = np.zeros(n_params)
         weighted_mean_sum = np.zeros(n_params)

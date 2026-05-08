@@ -623,6 +623,7 @@ class AdaptiveSamplingPlan:
             max_tree_depth=self.base_plan.max_tree_depth,
             adapt_step_size=self.base_plan.adapt_step_size,
             dense_mass=self.base_plan.dense_mass,
+            chain_method=self.base_plan.chain_method,
             seed=self.base_plan.seed,
         )
 
@@ -833,7 +834,6 @@ def run_nuts_with_retry(
             current_sampler = NUTSSampler.from_plan(
                 new_plan,
                 model_fn,
-                chain_method="sequential",
             )
     else:
         # Exhausted retries

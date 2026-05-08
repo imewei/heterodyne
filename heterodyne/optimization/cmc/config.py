@@ -44,7 +44,9 @@ _VALID_SHARDING_STRATEGY: frozenset[str] = frozenset(
 _VALID_BACKEND_NAME: frozenset[str] = frozenset(
     {"auto", "multiprocessing", "pjit", "cpu"}
 )
-_VALID_CHAIN_METHOD: frozenset[str] = frozenset({"parallel", "sequential"})
+_VALID_CHAIN_METHOD: frozenset[str] = frozenset(
+    {"parallel", "sequential", "vectorized"}
+)
 _VALID_INIT_STRATEGY: frozenset[str] = frozenset(
     {"init_to_median", "init_to_sample", "init_to_value"}
 )
