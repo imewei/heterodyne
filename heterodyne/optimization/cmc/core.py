@@ -75,6 +75,9 @@ def fit_cmc_jax(
         config: CMC configuration (default if None)
         sigma: Measurement uncertainty (estimated if None)
         nlsq_result: Optional NLSQ result for warm-starting
+        t_override: Optional time array replacing ``model.t`` for model
+            construction. Used by ``fit_cmc_sharded`` to pass shard time
+            slices. If ``None``, falls back to ``model.t``.
 
     Returns:
         CMCResult with posterior samples and diagnostics
@@ -513,6 +516,7 @@ def fit_cmc_sharded(
 
     shard_results: list[CMCResult] = []
     base_seed = config.seed if config.seed is not None else secrets.randbelow(2**31)
+    t_np = np.asarray(model.t)
 
     for shard_idx, shard in enumerate(shards):
         logger.info(
@@ -527,7 +531,6 @@ def fit_cmc_sharded(
         tempered_sigma = _temper_sigma(shard_sigma_raw, num_shards)
 
         # Build shard time array from stored t_indices
-        t_np = np.asarray(model.t)
         t_shard = t_np[shard["t_indices"]]
 
         # Per-shard config: unique seed, same NUTS hyper-parameters

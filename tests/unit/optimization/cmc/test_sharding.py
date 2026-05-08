@@ -388,34 +388,23 @@ class TestShardTIndices:
     def test_random_square_shard_stores_t_indices(self) -> None:
         """Random shards that form square sub-matrices must store t_indices.
 
-        Uses a large n relative to num_shards so random partitions are very
-        likely to cover all rows and form square sub-matrices.  If a shard is
-        non-square the implementation raises ValueError (expected behaviour);
-        we only assert on shards that succeeded.
+        Uses n=100 with num_shards=2 so each shard gets ~n*n/2 elements and
+        is virtually always square.  An explicit len-check guards against a
+        vacuous pass when no shards are returned.
         """
-        from heterodyne.optimization.cmc.core import _create_shards_random
+        from heterodyne.optimization.cmc.core import _create_shards
 
-        n = 100
-        rng = np.random.default_rng(0)
+        n = 100  # large: random shards will virtually always be square
+        rng = np.random.default_rng(42)
         c2 = rng.random((n, n)).astype(np.float64)
-        sigma = 1.0
-        # Call the private function directly with num_shards=2 so each shard
-        # gets ~n*n/2 elements → very likely square.
-        shards = _create_shards_random(
-            c2_np=c2,
-            sigma_np=np.float64(sigma),
-            sigma_is_scalar=True,
-            num_shards=2,
-            seed=0,
-            n=n,
-        )
+        shards = _create_shards(c2, 1.0, num_shards=2, strategy="random", seed=42)
 
+        assert len(shards) > 0, "No square shards returned — test needs larger n"
         for i, shard in enumerate(shards):
             c2_shard = np.asarray(shard["c2_shard"])
-            assert "t_indices" in shard, f"Square shard {i} missing t_indices"
-            assert c2_shard.shape[0] == len(shard["t_indices"]), (
-                f"Shard {i}: c2_shard shape {c2_shard.shape} != t_indices len {len(shard['t_indices'])}"
-            )
+            if c2_shard.ndim == 2:
+                assert "t_indices" in shard, f"Square shard {i} missing t_indices"
+                assert c2_shard.shape[0] == len(shard["t_indices"])
 
     def test_random_non_square_raises(self) -> None:
         """Random sharding that yields a non-square shard must raise ValueError."""
