@@ -199,6 +199,33 @@ class TestNUTSSampler:
             sampler.get_diagnostics()
 
 
+class TestSamplingPlanChainMethod:
+    def test_default_is_sequential(self):
+        plan = SamplingPlan()
+        assert plan.chain_method == "sequential"
+
+    def test_from_config_reads_sequential(self):
+        from heterodyne.optimization.cmc.config import CMCConfig
+
+        plan = SamplingPlan.from_config(CMCConfig(chain_method="sequential"))
+        assert plan.chain_method == "sequential"
+
+    def test_from_config_reads_parallel(self):
+        from heterodyne.optimization.cmc.config import CMCConfig
+
+        plan = SamplingPlan.from_config(CMCConfig(chain_method="parallel"))
+        assert plan.chain_method == "parallel"
+
+    def test_for_shard_preserves_chain_method(self):
+        plan = SamplingPlan(chain_method="parallel")
+        shard_plan = plan.for_shard(shard_size=1000, full_size=10000)
+        assert shard_plan.chain_method == "parallel"
+
+    def test_invalid_chain_method_raises(self):
+        with pytest.raises(ValueError, match="chain_method"):
+            SamplingPlan(chain_method="invalid")
+
+
 @pytest.mark.unit
 def test_nuts_sampler_run_requests_diverging_extra_field() -> None:
     """NUTSSampler.run() must collect 'diverging' extra field for diagnostics.

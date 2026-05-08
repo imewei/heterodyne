@@ -57,6 +57,7 @@ class SamplingPlan:
     max_tree_depth: int = 10
     adapt_step_size: bool = True
     dense_mass: bool = True
+    chain_method: str = "sequential"
     seed: int | None = None
 
     def __post_init__(self) -> None:
@@ -73,6 +74,11 @@ class SamplingPlan:
             )
         if self.max_tree_depth < 1:
             raise ValueError(f"max_tree_depth must be >= 1, got {self.max_tree_depth}")
+        if self.chain_method not in ("sequential", "parallel", "vectorized"):
+            raise ValueError(
+                f"chain_method must be 'sequential', 'parallel', or 'vectorized', "
+                f"got {self.chain_method!r}"
+            )
 
     @property
     def effective_seed(self) -> int:
@@ -139,6 +145,7 @@ class SamplingPlan:
             max_tree_depth=config.max_tree_depth,
             adapt_step_size=True,
             dense_mass=config.dense_mass,
+            chain_method=config.chain_method,
             seed=config.seed,
         )
 
@@ -196,6 +203,7 @@ class SamplingPlan:
             max_tree_depth=self.max_tree_depth,
             adapt_step_size=self.adapt_step_size,
             dense_mass=self.dense_mass,
+            chain_method=self.chain_method,
             seed=self.seed,
         )
 
@@ -229,7 +237,7 @@ class NUTSSampler:
         plan: SamplingPlan,
         model: Callable[..., Any],
         init_strategy: str = "init_to_median",
-        chain_method: str = "sequential",
+        chain_method: str | None = None,
     ) -> NUTSSampler:
         """Create a NUTSSampler from a SamplingPlan and NumPyro model.
 
@@ -245,6 +253,10 @@ class NUTSSampler:
         Returns:
             Configured NUTSSampler ready for :meth:`run`.
         """
+        effective_chain_method = (
+            chain_method if chain_method is not None else plan.chain_method
+        )
+
         init_fn_map: dict[str, Callable[..., Any]] = {
             "init_to_median": numpyro_init.init_to_median,
             "init_to_sample": numpyro_init.init_to_sample,
@@ -266,7 +278,7 @@ class NUTSSampler:
             num_warmup=plan.num_warmup,
             num_samples=plan.num_samples,
             num_chains=plan.num_chains,
-            chain_method=chain_method,
+            chain_method=effective_chain_method,
             progress_bar=True,
         )
 
@@ -277,7 +289,7 @@ class NUTSSampler:
             plan.num_warmup,
             plan.num_samples,
             plan.target_accept,
-            chain_method,
+            effective_chain_method,
         )
 
         return cls(mcmc, plan)
