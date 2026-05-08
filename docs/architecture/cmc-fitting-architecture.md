@@ -62,10 +62,20 @@ fit_cmc_jax(model, c2_data, phi_angle, config, nlsq_result,
         │
         ├─ ReparamConfig + compute_t_ref(dt, t_max)
         │     t_ref = sqrt(dt × t_max)   [uses t_override if provided]
+        │     ReparamConfig flags wired from CMCConfig:
+        │       enable_d_ref    = config.reparameterization_d_total
+        │       enable_d_sample = config.reparameterization_d_total
+        │       enable_v_ref    = config.reparameterization_log_gamma
+        │     [Previously all flags defaulted to False regardless of config]
         │
         ├─ transform_nlsq_to_reparam_space(nlsq_values, nlsq_unc, t_ref)
         │     delta-method uncertainty propagation to Z-space
         │     scale *= prior_width_multiplier  [applied when called from sharded path]
+        │
+        ├─ effective_target_accept = max(config.target_accept_prob, 0.9)
+        │     [reparameterized path only; Z-space posteriors are well-conditioned
+        │      but have longer correlation lengths → higher acceptance floor
+        │      prevents NUTS from choosing too-large step sizes]
         │
         ├─ get_heterodyne_model_reparam(...)   # reparameterized path
         │   or get_heterodyne_model(..., priors_override=priors_override)
@@ -131,8 +141,14 @@ fit_cmc_sharded(model, c2_data, config, nlsq_result)
         │     precision-weighted posterior: Λ_combined = Σ_k Λ_k
         │     μ_combined = Λ_combined⁻¹ Σ_k Λ_k μ_k
         │
+        ├─ check_shard_bimodality(shard_sample_dict,
+        │       min_weight=config.bimodal_min_weight,
+        │       min_separation=config.bimodal_min_separation)
+        │     → stored in CMCResult.metadata["bimodal_detected"]
+        │                          metadata["bimodal_params"]
+        │
         ├─ Diagnostics: R-hat, ESS, BFMI, divergence rate,
-        │     bimodal detection, cross-shard clustering
+        │     cross-shard clustering
         │
         └─ Output: CMCResult with posterior samples + convergence metrics
 ```
@@ -341,7 +357,9 @@ High-level wrapper around NumPyro's MCMC:
   `"energy"` for BFMI computation, `"diverging"` for `get_divergence_stats()`.
   Requesting only `"energy"` caused divergence counts to always be zero.
 - `run_with_init_values()`: warm-start from NLSQ MAP with preflight log-density
-  validation
+  validation via `numpyro.infer.util.log_density(kernel.model, (), {}, init_params)`.
+  The previous approach used `kernel._potential_fn`, which is `None` before any
+  sampling run and caused the preflight check to always be silently skipped.
 - `get_divergence_stats()`: reads `extra["diverging"]` for true divergence rate,
   `extra["tree_depth"]` for mean depth and max-depth fraction
 - `get_diagnostics()`: returns ArviZ `InferenceData` via `az.from_numpyro()`
@@ -622,10 +640,17 @@ internal code must use the new names.
 
 - **Bimodal detection** (`detect_bimodal()`): GMM 1-vs-2 component BIC
   comparison per parameter. `delta_BIC > 10` declares bimodality (strong
-  evidence on Raftery scale).
+  evidence on Raftery scale). Two post-conditions gate the final flag:
+  `min_weight` (minor-mode weight must exceed threshold) and
+  `min_separation` (mode distance in posterior std-devs must exceed threshold).
+  Both are wired from `CMCConfig.bimodal_min_weight` and
+  `CMCConfig.bimodal_min_separation`.
 
 - **Cross-shard bimodality** (`check_shard_bimodality()`): Runs bimodal
-  detection for every (parameter, shard) combination.
+  detection for every (parameter, shard) combination. Called from
+  `fit_cmc_sharded` immediately after `_combine_shard_posteriors`; results
+  stored in `CMCResult.metadata["bimodal_detected"]` and
+  `metadata["bimodal_params"]`.
 
 - **Cross-shard clustering** (`cluster_shard_modes()`): 2-means clustering
   of shard means on bimodal parameters to identify mode populations.
@@ -787,3 +812,8 @@ initialization:
 | 2026-05-08 | **ArviZ/NumPyro import-order incompatibility**: `arviz_base.io_numpyro` accesses `numpyro.infer.initialization` as a package attribute, but heterodyne's import chain loads it into `sys.modules` without setting the attribute (circular-import timing). Fixed by explicit attribute patch before `az.from_numpyro()`. | `core.py` |
 | 2026-05-08 | **Dead parameters removed from `get_heterodyne_model_reparam`**: `nlsq_result` and `prior_width_factor` were accepted but never read. The new path uses `scalings`; the legacy clip path hardcodes `scale = (bounds[1]-bounds[0])/6`. Both removed from signature and call sites. | `model.py`, `core.py` |
 | 2026-05-08 | **`dense_mass` default changed to `True`**: The 14-param model has three correlated power-law pairs that produce banana-shaped posteriors. A diagonal mass matrix (`False`) cannot navigate these cross-correlations and inflates divergences. Changed in `CMCConfig`, `SamplingPlan`, and PBS backend fallback. | `config.py`, `sampler.py`, `backends/pbs.py` |
+| 2026-05-08 | **W2 — Reparam path uses too-low acceptance target**: `config.target_accept_prob` (default 0.8) was used unchanged for the reparameterized path. Z-space posteriors have longer correlation lengths; NUTS picks excessively large step sizes at 0.8, causing divergences. Fixed: `effective_target_accept = max(config.target_accept_prob, 0.9)` for the reparam path only. | `core.py` |
+| 2026-05-08 | **W3 — ReparamConfig flags not wired from CMCConfig**: `ReparamConfig()` was constructed with all enable flags at their defaults (`False`), making `config.reparameterization_d_total` and `config.reparameterization_log_gamma` silently ignored. Fixed: flags are now explicitly set from the config fields. | `core.py` |
+| 2026-05-08 | **W4 — Bimodal detection not called after shard combination**: `check_shard_bimodality()` was never invoked in `fit_cmc_sharded`. CMCConfig fields `bimodal_min_weight` and `bimodal_min_separation` had no effect. Fixed: call added after `_combine_shard_posteriors`; results stored in `CMCResult.metadata`. | `core.py` |
+| 2026-05-08 | **W5 — Bimodal detection post-conditions not enforced**: `detect_bimodal()` / `check_shard_bimodality()` had no `min_weight` or `min_separation` parameters, so `CMCConfig.bimodal_min_weight` and `bimodal_min_separation` were unreachable. Fixed: both parameters added and applied as post-conditions after the BIC test. | `diagnostics.py` |
+| 2026-05-08 | **W6 — Preflight log-density check always skipped**: `_validate_init_log_density` checked `kernel._potential_fn` which is `None` before any sampling run → preflight silently no-ops on every call. Fixed: now uses `numpyro.infer.util.log_density(kernel.model, (), {}, init_params)` which is always callable. | `sampler.py` |
