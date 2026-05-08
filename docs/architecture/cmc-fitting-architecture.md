@@ -380,6 +380,9 @@ High-level wrapper around NumPyro's MCMC:
   Requests `extra_fields=("energy", "diverging")` — both fields are required:
   `"energy"` for BFMI computation, `"diverging"` for `get_divergence_stats()`.
   Requesting only `"energy"` caused divergence counts to always be zero.
+  After `mcmc.run()`, calls `jax.block_until_ready(mcmc.last_state)` to force
+  XLA lazy evaluation to complete before the timer stops — without this,
+  `wall_time_seconds` underestimates true compute time.
 - `run_with_init_values()`: warm-start from NLSQ MAP with preflight log-density
   validation via `numpyro.infer.util.log_density(kernel.model, (), {}, init_params)`.
   The previous approach used `kernel._potential_fn`, which is `None` before any
@@ -477,10 +480,11 @@ standard deviations on any parameter have their precision downweighted by
 Simpler inverse-variance combination operating on `CMCResult` objects.
 
 **Failed-shard filtering (critical):** Before weighting, shards where
-`convergence_passed=False` or `all(posterior_std == 0)` are excluded.
-Without this filter, zero-std failed shards receive weight `1/1e-30 = 1e30`
-and dominate the consensus entirely. The filter uses `any(posterior_std > 0)`
-so valid shards with one fixed parameter (std=0 for that param) are preserved.
+`convergence_passed=False`, `all(posterior_std == 0)`, or
+`divergence_rate > config.max_divergence_rate` are excluded. The divergence
+rate is stored in `CMCResult.metadata["divergence_rate"]` by `fit_cmc_jax`
+from `mcmc.get_extra_fields()["diverging"]`. Without this gate, shards with
+corrupt posteriors from excessive NUTS divergences bias the consensus.
 
 When all shards fail the function returns immediately with a degenerate
 `CMCResult(convergence_passed=False, posterior_std=NaN,
@@ -488,12 +492,26 @@ metadata={"all_shards_failed": True})` rather than crashing on `np.stack([])`.
 
 ```
 # Effective implementation:
+_max_div_rate = config.max_divergence_rate  # default 0.10
 successful = [sr for sr in shard_results
-              if sr.convergence_passed and any(sr.posterior_std > 0)]
+              if sr.convergence_passed
+              and any(sr.posterior_std > 0)
+              and sr.metadata.get("divergence_rate", 0.0) <= _max_div_rate]
 precision_i = 1 / std_i^2          # over successful shards only
 combined_mean = Σ(precision_i × mean_i) / Σ(precision_i)
 combined_std  = 1 / sqrt(Σ(precision_i))
 ```
+
+**Heterogeneity check:** After filtering, before combination, an IQR-based
+cross-shard CV is computed. Raw `std/|mean|` is avoided because α_ref, β,
+v_offset, and φ₀ all default to ~0 and would produce infinite CV. Instead:
+
+```
+IQR-CV = (Q75 - Q25) / max(|median|, 1e-3)   # per parameter
+```
+
+If `max(IQR-CV) > config.max_parameter_cv` (default 1.0): raises `RuntimeError`
+when `config.heterogeneity_abort=True`, otherwise logs a warning and continues.
 
 Diagnostics use worst-case values: maximum R-hat, minimum ESS, minimum BFMI.
 Credible intervals are reconstructed from combined Gaussian approximation.
@@ -506,8 +524,14 @@ Credible intervals are reconstructed from combined Gaussian approximation.
 |---|---|
 | `consensus_mc` (default) | Inverse-variance weighting (Scott et al. 2016) |
 | `simple_average` | Equal-weight mean and variance across successful shards |
-| `robust_consensus_mc` | Falls back to `consensus_mc` (not yet separately implemented) |
-| `weighted_gaussian` | Falls back to `consensus_mc` (not yet separately implemented) |
+| `robust_consensus_mc` | Per-parameter z-score outlier detection, then inverse-variance on inliers |
+| `weighted_gaussian` | Falls back to `consensus_mc` (not separately implemented) |
+
+**`robust_consensus_mc` outlier detection:** Uses z-score rather than raw MAD
+to handle near-zero parameters. Scale = `max(std, 1e-4 * (|mean| + 1))` keeps
+α, β, v_offset, φ₀ finite. Shards where `max|z| > 3` across any parameter are
+excluded; the inlier pool then undergoes standard inverse-variance combination.
+Falls back to the full `successful` set if outlier removal would exclude all shards.
 
 Unknown method names produce a `logger.warning` and fall back to `consensus_mc`.
 
@@ -908,4 +932,8 @@ initialization:
 | 2026-05-08 | **W4 — Bimodal detection not called after shard combination**: `check_shard_bimodality()` was never invoked in `fit_cmc_sharded`. CMCConfig fields `bimodal_min_weight` and `bimodal_min_separation` had no effect. Fixed: call added after `_combine_shard_posteriors`; results stored in `CMCResult.metadata`. | `core.py` |
 | 2026-05-08 | **W5 — Bimodal detection post-conditions not enforced**: `detect_bimodal()` / `check_shard_bimodality()` had no `min_weight` or `min_separation` parameters, so `CMCConfig.bimodal_min_weight` and `bimodal_min_separation` were unreachable. Fixed: both parameters added and applied as post-conditions after the BIC test. | `diagnostics.py` |
 | 2026-05-08 | **W6 — Preflight log-density check always skipped**: `_validate_init_log_density` checked `kernel._potential_fn` which is `None` before any sampling run → preflight silently no-ops on every call. Fixed: now uses `numpyro.infer.util.log_density(kernel.model, (), {}, init_params)` which is always callable. | `sampler.py` |
+| 2026-05-08 | **Phase 3 — CM-04: `jax.block_until_ready()` in `NUTSSampler.run()`**: timing measurement was unreliable — XLA's lazy evaluation deferred actual compute to the first `device_get()` call, so `wall_time_seconds` measured only dispatch time. Fixed by calling `jax.block_until_ready(mcmc.last_state)` immediately after `mcmc.run()`. | `sampler.py` |
+| 2026-05-08 | **Phase 3 — CM-02: divergence-rate shard filter**: `fit_cmc_jax` now extracts `mcmc.get_extra_fields()["diverging"]` and stores `divergence_rate` in `CMCResult.metadata`. `_combine_shard_posteriors` gates the `successful` filter on `metadata.get("divergence_rate", 0.0) <= config.max_divergence_rate` (default 10%), preventing high-divergence shards from contaminating the consensus posterior. | `core.py` |
+| 2026-05-08 | **Phase 3 — CM-03: cross-shard heterogeneity detection**: `max_parameter_cv` and `heterogeneity_abort` config fields existed but had no enforcement. Added IQR-based CV check (`IQR / max(\|median\|, 1e-3)`) between shard filtering and combination — uses IQR rather than std/\|mean\| so near-zero params (α, β, v_offset, φ₀ ≈ 0) stay finite. Raises `RuntimeError` or logs warning per `heterogeneity_abort`. | `core.py` |
+| 2026-05-08 | **Phase 3 — CM-01: `robust_consensus_mc` wiring**: `_combine_shard_posteriors` routed all non-`simple_average` methods (including `robust_consensus_mc`) to the same inverse-variance `else` branch — the config option was a silent no-op. Added dedicated `elif` branch with per-parameter z-score outlier detection before inverse-variance combination. `scale = max(std, 1e-4*(|mean|+1))` prevents near-zero parameters from producing infinite z-scores. | `core.py` |
 | 2026-05-08 | **Phase 2 — homodyne parity additions**: (1) `ParameterStats` hybrid dict/sequence; `CMCResult.get_samples_array()`, `CMCResult.get_posterior_stats()`; (2) `DEFAULT_MIN_ESS/MAX_RHAT/MAX_DIVERGENCE_RATE` constants; `check_convergence()`, `create_diagnostics_dict()`, `log_analysis_summary()`, `get_convergence_recommendations()`; (3) full io.py save pipeline (7 functions); (4) `SamplingPlan.chain_method` wired through `from_config()`, `for_shard()`, `AdaptiveSamplingPlan.get_plan()`, and retry loop; (5) `estimate_contrast_offset_from_data()` in priors; (6) `combination_method` dispatch in `_combine_shard_posteriors`. | `results.py`, `diagnostics.py`, `io.py`, `sampler.py`, `config.py`, `priors.py`, `core.py` |
