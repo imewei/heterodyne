@@ -724,13 +724,17 @@ def _run_shard_worker(
         contrast: float = float(shard_data.get("contrast", 1.0))
         offset: float = float(shard_data.get("offset", 1.0))
 
-        # Reconstruct reparameterisation config if serialised
-        reparam_config = None
+        # reparam_config_dict is included in the wire format for forward
+        # compatibility, but _shard_model samples directly from physics-space
+        # priors and does not apply a back-transform.  The deserialization
+        # below is intentionally kept so that the key remains accepted without
+        # error; reparam_config itself is not consumed after the C5 fix that
+        # removed the broken reparam_to_physics_jax back-transform call.
         reparam_config_dict = shard_data.get("reparam_config_dict")
         if reparam_config_dict is not None:
             from heterodyne.optimization.cmc.reparameterization import ReparamConfig
 
-            reparam_config = ReparamConfig(**reparam_config_dict)
+            _reparam_config = ReparamConfig(**reparam_config_dict)  # noqa: F841 — wire-compat only
 
         # Reconstruct parameter space
         from heterodyne.config.parameter_space import ParameterSpace
