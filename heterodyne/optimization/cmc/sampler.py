@@ -829,6 +829,7 @@ def run_nuts_with_retry(
                 max_tree_depth=plan.max_tree_depth,
                 adapt_step_size=plan.adapt_step_size,
                 dense_mass=plan.dense_mass,
+                chain_method=plan.chain_method,
                 seed=plan.seed,
             )
             current_sampler = NUTSSampler.from_plan(
