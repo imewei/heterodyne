@@ -25,6 +25,11 @@ from heterodyne.optimization.cmc.model import (
     get_heterodyne_model,
     get_heterodyne_model_reparam,
 )
+from heterodyne.optimization.cmc.priors import (
+    build_default_priors,
+    build_nlsq_informed_priors,
+    temper_priors,
+)
 from heterodyne.optimization.cmc.reparameterization import (
     ReparamConfig,
     compute_t_ref,
@@ -239,6 +244,12 @@ def fit_cmc_jax(
                 if sname in scalings:
                     prior_std_dict[name] = scalings[sname].scale
 
+        if priors_override is not None:
+            logger.debug(
+                "[CMC] priors_override provided but use_reparam=True: "
+                "tempering applied via prior_width_multiplier=%.3f instead",
+                prior_width_multiplier,
+            )
         numpyro_model = get_heterodyne_model_reparam(
             t=t_for_model,
             q=model.q,
@@ -530,11 +541,6 @@ def fit_cmc_sharded(
     # --- Build tempered priors for CMC shards ---
     # Correct CMC tempering: widen prior by sqrt(K) per shard (prior^(1/K)),
     # keep sigma unscaled. _temper_sigma (sigma/sqrt(K)) was mathematically wrong.
-    from heterodyne.optimization.cmc.priors import (
-        build_default_priors,
-        build_nlsq_informed_priors,
-        temper_priors,
-    )
 
     _space = model.param_manager.space
     if nlsq_result is not None and nlsq_result.success:

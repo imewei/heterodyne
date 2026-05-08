@@ -307,15 +307,15 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
     with (
         patch("heterodyne.optimization.cmc.core.fit_cmc_jax", side_effect=capture_fit),
         patch(
-            "heterodyne.optimization.cmc.priors.build_nlsq_informed_priors",
+            "heterodyne.optimization.cmc.core.build_nlsq_informed_priors",
             return_value=fake_priors,
         ),
         patch(
-            "heterodyne.optimization.cmc.priors.build_default_priors",
+            "heterodyne.optimization.cmc.core.build_default_priors",
             return_value=fake_priors,
         ),
         patch(
-            "heterodyne.optimization.cmc.priors.temper_priors",
+            "heterodyne.optimization.cmc.core.temper_priors",
             return_value=fake_priors,
         ),
     ):
