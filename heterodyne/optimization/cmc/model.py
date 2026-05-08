@@ -39,6 +39,7 @@ def get_heterodyne_model(
     contrast: float = 1.0,
     offset: float = 1.0,
     shard_grid: ShardGrid | None = None,
+    priors_override: dict | None = None,
 ):
     """Create NumPyro model for heterodyne correlation fitting.
 
@@ -57,6 +58,10 @@ def get_heterodyne_model(
             the memory-efficient element-wise path (no N×N allocation).
             ``c2_data`` and ``sigma`` must then be flattened to match
             the shard grid's paired indices.
+        priors_override: Optional dictionary mapping parameter names to
+            NumPyro distributions.  When provided, overrides the default
+            ``space.priors[name]`` for any matching parameter name.  Used
+            by ``fit_cmc_sharded`` to inject tempered priors.
 
     Returns:
         NumPyro model function
@@ -74,8 +79,11 @@ def get_heterodyne_model(
 
         for i, name in enumerate(ALL_PARAM_NAMES):
             if name in varying_names:
-                prior = space.priors[name]
-                param = numpyro.sample(name, prior.to_numpyro(name))
+                if priors_override is not None and name in priors_override:
+                    param = numpyro.sample(name, priors_override[name])
+                else:
+                    prior = space.priors[name]
+                    param = numpyro.sample(name, prior.to_numpyro(name))
                 params = params.at[i].set(param)
 
         # Compute model prediction — dispatch to appropriate path

@@ -239,3 +239,101 @@ class TestBuildLogSpacePriors:
         priors = build_log_space_priors(["D0_ref"], registry=registry)
         expected_sigma = math.sqrt(math.log1p((std / center) ** 2))
         assert float(priors["D0_ref"].scale) == pytest.approx(expected_sigma, rel=1e-6)
+
+
+# ===========================================================================
+# fit_cmc_sharded sigma tempering regression
+# ===========================================================================
+
+
+def test_fit_cmc_sharded_does_not_scale_sigma():
+    """fit_cmc_sharded must NOT divide sigma by sqrt(K) — prior tempering is used instead."""
+    from unittest.mock import MagicMock, patch
+
+    import numpy as np
+
+    from heterodyne.optimization.cmc import CMCConfig
+    from heterodyne.optimization.cmc.core import fit_cmc_sharded
+
+    n = 40
+    c2 = np.ones((n, n), dtype=np.float64) * 0.5
+    sigma_val = 0.1
+    num_shards = 4
+    wrong_sigma = sigma_val / math.sqrt(num_shards)
+
+    sigma_values_passed = []
+
+    def capture_fit(
+        model,
+        c2_data,
+        phi_angle=0.0,
+        config=None,
+        sigma=None,
+        nlsq_result=None,
+        t_override=None,
+        priors_override=None,
+        prior_width_multiplier=1.0,
+    ):
+        s = sigma
+        if s is not None:
+            val = float(np.mean(np.asarray(s))) if hasattr(s, "__len__") else float(s)
+            sigma_values_passed.append(val)
+        # Return a minimal successful-looking CMCResult mock
+        r = MagicMock()
+        r.convergence_passed = True
+        r.parameter_names = ["D0_ref"]
+        r.posterior_mean = np.array([1.0])
+        r.posterior_std = np.array([0.1])
+        r.r_hat = np.array([1.0])
+        r.ess_bulk = np.array([100.0])
+        r.ess_tail = np.array([80.0])
+        r.bfmi = [0.3]
+        r.samples = {"D0_ref": np.ones(10)}
+        r.num_warmup = 10
+        r.num_samples = 10
+        r.num_chains = 1
+        r.metadata = {}
+        return r
+
+    mock_model = MagicMock()
+    mock_model.t = np.linspace(0.001, 0.04, n)
+    mock_model.param_manager.space.varying_names = ["D0_ref"]
+    mock_model.param_manager.varying_names = ["D0_ref"]
+    mock_model.param_manager.space.priors = {}
+    mock_model.scaling.get_for_angle.return_value = (1.0, 0.0)
+
+    fake_priors = {"D0_ref": MagicMock()}
+
+    with (
+        patch("heterodyne.optimization.cmc.core.fit_cmc_jax", side_effect=capture_fit),
+        patch(
+            "heterodyne.optimization.cmc.priors.build_nlsq_informed_priors",
+            return_value=fake_priors,
+        ),
+        patch(
+            "heterodyne.optimization.cmc.priors.build_default_priors",
+            return_value=fake_priors,
+        ),
+        patch(
+            "heterodyne.optimization.cmc.priors.temper_priors",
+            return_value=fake_priors,
+        ),
+    ):
+        try:
+            fit_cmc_sharded(
+                model=mock_model,
+                c2_data=c2,
+                sigma=sigma_val,
+                num_shards=num_shards,
+                sharding_strategy="contiguous",
+                config=CMCConfig(num_warmup=10, num_samples=10),
+            )
+        except Exception:
+            pass
+
+    assert len(sigma_values_passed) > 0, "fit_cmc_jax was never called"
+    for s_val in sigma_values_passed:
+        assert abs(s_val - wrong_sigma) > 1e-6, (
+            f"sigma was scaled by sqrt(K): got {s_val:.6f}, "
+            f"wrong value would be {wrong_sigma:.6f} (sigma/sqrt({num_shards}))"
+        )

@@ -63,6 +63,8 @@ def fit_cmc_jax(
     sigma: np.ndarray | float | None = None,
     nlsq_result: NLSQResult | None = None,
     t_override: np.ndarray | None = None,
+    priors_override: dict | None = None,
+    prior_width_multiplier: float = 1.0,
 ) -> CMCResult:
     """Fit heterodyne model using Consensus Monte Carlo.
 
@@ -78,6 +80,15 @@ def fit_cmc_jax(
         t_override: Optional time array replacing ``model.t`` for model
             construction. Used by ``fit_cmc_sharded`` to pass shard time
             slices. If ``None``, falls back to ``model.t``.
+        priors_override: Optional dict of pre-built NumPyro distributions
+            keyed by parameter name.  When provided, these distributions
+            replace the default ``space.priors`` for matching parameters.
+            Used by ``fit_cmc_sharded`` to inject tempered shard priors
+            into the non-reparam model path.
+        prior_width_multiplier: Scalar multiplier applied to the ``scale``
+            of each reparam-path prior AFTER ``nlsq_prior_width_factor``
+            scaling.  Default 1.0 (no change).  Used by
+            ``fit_cmc_sharded`` to widen reparam priors by ``sqrt(K)``.
 
     Returns:
         CMCResult with posterior samples and diagnostics
@@ -198,6 +209,9 @@ def fit_cmc_jax(
             unc = reparam_uncertainties.get(sname, 0.0)
             scale = unc * config.nlsq_prior_width_factor if unc > 0 else 1.0
             scale = max(scale, 1e-10)
+            scale = (
+                scale * prior_width_multiplier
+            )  # temper reparam prior width for CMC shards
 
             if sname.startswith("log_"):
                 low = center - 10.0 * scale
@@ -250,6 +264,7 @@ def fit_cmc_jax(
             space=space,
             contrast=contrast,
             offset=offset,
+            priors_override=priors_override,
         )
 
     # --- Phase 3: sampling ---
@@ -439,9 +454,10 @@ def fit_cmc_sharded(
     subsets, runs NUTS on each shard sub-posterior (sequentially), then
     combines the shard posteriors via inverse-variance weighted consensus.
 
-    Prior tempering is applied automatically: each shard's likelihood
-    contributes only 1/K of the full data, so prior scales are multiplied
-    by ``sqrt(num_shards)`` to preserve the correct posterior geometry.
+    Prior tempering is applied automatically: each shard's prior distribution
+    is widened by ``sqrt(num_shards)`` (i.e., ``prior^(1/K)``) while sigma
+    is passed unscaled. This is the correct Consensus Monte Carlo approach
+    (Scott et al., 2016).
 
     Args:
         model: HeterodyneModel with configured parameters.
@@ -511,6 +527,25 @@ def fit_cmc_sharded(
         [len(s["indices"]) for s in shards],
     )
 
+    # --- Build tempered priors for CMC shards ---
+    # Correct CMC tempering: widen prior by sqrt(K) per shard (prior^(1/K)),
+    # keep sigma unscaled. _temper_sigma (sigma/sqrt(K)) was mathematically wrong.
+    from heterodyne.optimization.cmc.priors import (
+        build_default_priors,
+        build_nlsq_informed_priors,
+        temper_priors,
+    )
+
+    _space = model.param_manager.space
+    if nlsq_result is not None and nlsq_result.success:
+        base_priors = build_nlsq_informed_priors(
+            nlsq_result, _space, width_factor=config.nlsq_prior_width_factor
+        )
+    else:
+        base_priors = build_default_priors(_space)
+    shard_priors = temper_priors(base_priors, num_shards)
+    prior_width_mult = math.sqrt(num_shards)
+
     # --- Phase 3: per-shard sampling ---
     logger.info("[CMC-sharded] Phase 3/5: sampling %d shards sequentially", num_shards)
 
@@ -526,9 +561,8 @@ def fit_cmc_sharded(
             len(shard["indices"]),
         )
 
-        # Build per-shard sigma (tempered)
-        shard_sigma_raw = shard["sigma_shard"]
-        tempered_sigma = _temper_sigma(shard_sigma_raw, num_shards)
+        # sigma passed unscaled — tempering is handled via widened priors
+        shard_sigma = shard["sigma_shard"]
 
         # Build shard time array from stored t_indices
         t_shard = t_np[shard["t_indices"]]
@@ -541,9 +575,11 @@ def fit_cmc_sharded(
             c2_data=shard["c2_shard"],
             phi_angle=phi_angle,
             config=shard_config,
-            sigma=tempered_sigma,
+            sigma=shard_sigma,
             nlsq_result=nlsq_result,
             t_override=t_shard,
+            priors_override=shard_priors,
+            prior_width_multiplier=prior_width_mult,
         )
         shard_results.append(shard_result)
 
