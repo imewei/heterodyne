@@ -654,7 +654,7 @@ class TestCreateDiagnosticsDict:
             sampling_time=10.0,
         )
         defaults.update(kwargs)
-        return create_diagnostics_dict(**defaults)
+        return create_diagnostics_dict(**defaults)  # type: ignore[arg-type]
 
     def test_required_keys(self):
         d = self._call()
