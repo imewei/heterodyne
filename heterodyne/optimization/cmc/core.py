@@ -62,6 +62,7 @@ def fit_cmc_jax(
     config: CMCConfig | None = None,
     sigma: np.ndarray | float | None = None,
     nlsq_result: NLSQResult | None = None,
+    t_override: np.ndarray | None = None,
 ) -> CMCResult:
     """Fit heterodyne model using Consensus Monte Carlo.
 
@@ -80,6 +81,8 @@ def fit_cmc_jax(
     """
     if config is None:
         config = CMCConfig()
+
+    t_for_model = jnp.asarray(t_override) if t_override is not None else model.t
 
     logger.info(
         "[CMC] Starting analysis: chains=%d, samples=%d, warmup=%d",
@@ -143,7 +146,9 @@ def fit_cmc_jax(
     prior_std_dict: dict[str, float] = {}
 
     if use_reparam:
-        t_array = np.asarray(model.t)
+        t_array = (
+            np.asarray(t_override) if t_override is not None else np.asarray(model.t)
+        )
         dt_val = (
             float(t_array[1] - t_array[0]) if len(t_array) > 1 else float(t_array[0])
         )
@@ -218,7 +223,7 @@ def fit_cmc_jax(
                     prior_std_dict[name] = scalings[sname].scale
 
         numpyro_model = get_heterodyne_model_reparam(
-            t=model.t,
+            t=t_for_model,
             q=model.q,
             dt=model.dt,
             phi_angle=phi_angle,
@@ -233,7 +238,7 @@ def fit_cmc_jax(
         )
     else:
         numpyro_model = get_heterodyne_model(
-            t=model.t,
+            t=t_for_model,
             q=model.q,
             dt=model.dt,
             phi_angle=phi_angle,
@@ -314,8 +319,12 @@ def fit_cmc_jax(
         return _create_failed_result(varying_names, str(e))
 
     # --- Phase 4: diagnostics and output ---
-    sample_count = max((np.asarray(values).shape[0] for values in samples.values()), default=0)
-    logger.info("[CMC] NUTS sampling complete: collected %d posterior draws", sample_count)
+    sample_count = max(
+        (np.asarray(values).shape[0] for values in samples.values()), default=0
+    )
+    logger.info(
+        "[CMC] NUTS sampling complete: collected %d posterior draws", sample_count
+    )
     logger.info("[CMC] Phase 4/4: diagnostics and result construction")
     idata = az.from_numpyro(mcmc)
 
@@ -517,6 +526,10 @@ def fit_cmc_sharded(
         shard_sigma_raw = shard["sigma_shard"]
         tempered_sigma = _temper_sigma(shard_sigma_raw, num_shards)
 
+        # Build shard time array from stored t_indices
+        t_np = np.asarray(model.t)
+        t_shard = t_np[shard["t_indices"]]
+
         # Per-shard config: unique seed, same NUTS hyper-parameters
         shard_config = _make_shard_config(config, seed=base_seed + shard_idx)
 
@@ -527,6 +540,7 @@ def fit_cmc_sharded(
             config=shard_config,
             sigma=tempered_sigma,
             nlsq_result=nlsq_result,
+            t_override=t_shard,
         )
         shard_results.append(shard_result)
 
@@ -737,18 +751,17 @@ def _create_shards_random(
                     "c2_shard": jnp.asarray(c2_sq),
                     "sigma_shard": sigma_shard_out,
                     "indices": split_indices,
+                    "t_indices": unique_rows.astype(np.int64),
                 }
             )
         else:
-            # Non-square: store as flattened 1-D array
-            shards.append(
-                {
-                    "c2_shard": jnp.asarray(c2_shard_vals),
-                    "sigma_shard": sigma_shard
-                    if not sigma_is_scalar
-                    else float(sigma_np),  # type: ignore[arg-type]
-                    "indices": split_indices,
-                }
+            # Non-square: random flat-index sharding produces data that cannot
+            # be matched to a model prediction — raise instead of silently
+            # producing wrong likelihood shapes.
+            raise ValueError(
+                f"Shard {len(shards)}: random sharding produced a non-square "
+                f"subset (unique_rows={len(unique_rows)}, unique_cols={len(unique_cols)}). "
+                "Use strategy='contiguous' for reliable sharding."
             )
 
     return shards
@@ -787,6 +800,7 @@ def _create_shards_contiguous(
                 "c2_shard": jnp.asarray(c2_block),
                 "sigma_shard": sigma_block,
                 "indices": flat_indices,
+                "t_indices": np.arange(start, stop, dtype=np.int64),
             }
         )
 

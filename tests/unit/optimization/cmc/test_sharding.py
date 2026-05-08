@@ -358,3 +358,72 @@ class TestCMCConfigShardingFields:
         config = make_cmc_config(num_shards="manual")
         errors = config.validate()
         assert any("num_shards" in e for e in errors)
+
+
+# ============================================================================
+# C1 fix: t_indices stored in shards
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestShardTIndices:
+    """Contiguous and random shards must store t_indices for shape-correct model calls."""
+
+    def test_contiguous_shard_stores_t_indices(self) -> None:
+        """Contiguous shards must store t_indices so model uses the shard slice."""
+        from heterodyne.optimization.cmc.core import _create_shards
+
+        n = 20
+        c2 = np.random.default_rng(0).random((n, n)).astype(np.float64)
+        shards = _create_shards(c2, 1.0, num_shards=4, strategy="contiguous", seed=0)
+
+        for i, shard in enumerate(shards):
+            assert "t_indices" in shard, f"Shard {i} missing t_indices"
+            idx = shard["t_indices"]
+            c2_shard = np.asarray(shard["c2_shard"])
+            assert c2_shard.shape == (len(idx), len(idx)), (
+                f"Shard {i}: c2_shard shape {c2_shard.shape} != t_indices len {len(idx)}"
+            )
+
+    def test_random_square_shard_stores_t_indices(self) -> None:
+        """Random shards that form square sub-matrices must store t_indices.
+
+        Uses a large n relative to num_shards so random partitions are very
+        likely to cover all rows and form square sub-matrices.  If a shard is
+        non-square the implementation raises ValueError (expected behaviour);
+        we only assert on shards that succeeded.
+        """
+        from heterodyne.optimization.cmc.core import _create_shards_random
+
+        n = 100
+        rng = np.random.default_rng(0)
+        c2 = rng.random((n, n)).astype(np.float64)
+        sigma = 1.0
+        # Call the private function directly with num_shards=2 so each shard
+        # gets ~n*n/2 elements → very likely square.
+        shards = _create_shards_random(
+            c2_np=c2,
+            sigma_np=np.float64(sigma),
+            sigma_is_scalar=True,
+            num_shards=2,
+            seed=0,
+            n=n,
+        )
+
+        for i, shard in enumerate(shards):
+            c2_shard = np.asarray(shard["c2_shard"])
+            assert "t_indices" in shard, f"Square shard {i} missing t_indices"
+            assert c2_shard.shape[0] == len(shard["t_indices"]), (
+                f"Shard {i}: c2_shard shape {c2_shard.shape} != t_indices len {len(shard['t_indices'])}"
+            )
+
+    def test_random_non_square_raises(self) -> None:
+        """Random sharding that yields a non-square shard must raise ValueError."""
+        from heterodyne.optimization.cmc.core import _create_shards
+
+        # Small n, many shards → high probability of non-square shards
+        n = 20
+        rng = np.random.default_rng(42)
+        c2 = rng.random((n, n)).astype(np.float64)
+        with pytest.raises(ValueError, match="non-square"):
+            _create_shards(c2, 1.0, num_shards=4, strategy="random", seed=42)
