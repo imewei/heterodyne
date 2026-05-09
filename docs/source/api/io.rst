@@ -3,7 +3,19 @@ I/O Utilities
 =============
 
 Serialization of NLSQ and MCMC results to JSON, NPZ, and diagnostic
-output formats.
+output formats.  The :mod:`heterodyne.optimization.cmc.io` module
+provides additional shard-level CMC I/O; see :doc:`cmc`.
+
+JSON Utilities
+==============
+
+JSON-safe serialization helpers for JAX arrays, NumPy scalars, and
+custom result types.
+
+.. automodule:: heterodyne.io.json_utils
+   :members: json_safe, json_serializer
+   :undoc-members:
+   :show-inheritance:
 
 NLSQ Writers
 ============

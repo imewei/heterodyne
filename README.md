@@ -172,12 +172,17 @@ YAML config --> XPCSDataLoader(HDF5) --> HeterodyneModel --> NLSQ or CMC --> Res
 ## Optimization Methods
 
 **NLSQ** (primary) -- JAX-native trust-region Levenberg-Marquardt with automatic
-anti-degeneracy defense, CMA-ES global search for multi-scale problems, and memory-aware
-routing for large datasets.
+anti-degeneracy defense, CMA-ES global search (including BIPOP bi-population restarts)
+for multi-scale problems, and memory-aware routing for large datasets.
 
 **CMC** (secondary) -- Consensus Monte Carlo using NumPyro NUTS sampling with automatic
-sharding, NLSQ warm-start priors, and multiprocessing across CPU cores. Produces
-publication-quality posterior distributions with ArviZ diagnostics.
+sharding, NLSQ warm-start priors, and multiprocessing across CPU cores.  Produces
+publication-quality posterior distributions with ArviZ diagnostics.  Configurable
+``chain_method`` (``sequential``, ``vectorized``, ``parallel``) and
+``combination_method`` (``consensus``, ``mixture``) control sampling and aggregation
+strategy.  Built-in convergence checking (R-hat, ESS, BFMI) with actionable
+recommendations is available via ``check_convergence`` in
+``heterodyne.optimization.cmc.diagnostics``.
 
 ## Configuration
 
@@ -198,6 +203,8 @@ optimization:
     anti_degeneracy:
       per_angle_mode: "auto"   # auto, constant, individual, fourier
   cmc:
+    chain_method: "vectorized"      # sequential | vectorized | parallel
+    combination_method: "consensus" # consensus | mixture
     sharding:
       max_points_per_shard: "auto"
 ```
@@ -239,6 +246,7 @@ make verify     # Full local CI verification before pushing
 
 ## Documentation
 
+- [Full documentation](https://heterodyne.readthedocs.io) — API reference, theory, user guide, architecture deep-dives
 - [Changelog](CHANGELOG.md)
 
 ## Citation

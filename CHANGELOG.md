@@ -51,9 +51,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Regression tests for gradient safety and 3-D time windowing (`d0e32b3`).
 - Sphinx documentation tree (`2596017`).
 - Performance optimization ledger and QA report (`1b1bbbe`).
+- **CMC diagnostics:** `check_convergence`, `create_diagnostics_dict`, `log_analysis_summary`, `get_convergence_recommendations`, `DEFAULT_MIN_ESS` — structured convergence checking with recommendations (`126c7b2`, `5aab5da`).
+- **CMC I/O save pipeline:** `save_shard_results`, `save_samples_npz`, `save_fitted_data_npz`, `save_parameters_json`, `save_diagnostics_json`, `save_all_results`, `samples_to_arviz` in `optimization/cmc/io.py` — full homodyne parity (`6e5cde9`).
+- **CMC combination dispatch:** `estimate_contrast_offset_from_data` and `combination_method` routing in consensus aggregation (`964ec65`).
+- **CMC chain_method:** `chain_method` propagated from `CMCConfig` through `SamplingPlan` and `NUTSSampler`; `vectorized` added to `_VALID_CHAIN_METHOD` (`5aab5da`, `452cfd2`, `7d7bffc`).
+- **CMC bimodality detection:** `BimodalResult`, `detect_bimodal`, `check_shard_bimodality`, `ModeCluster`, `BimodalConsensusResult`, `summarize_cross_shard_bimodality`, `cluster_shard_modes` (`15bc947`).
+- **NLSQ residuals_normalized:** Exposed normalized residual array in `NLSQResult`; parity with homodyne (`3d9a458`).
+- **CMA-ES BIPOP restart:** BIPOP (bi-population) restart strategy for CMA-ES global optimization (`3d9a458`).
 
 ### Improved
 - **Coverage:** Improved test coverage from 84% to 98% (`91d9ab8`).
+- **Architecture docs:** Five architecture docs (overview, NLSQ, CMC, data-handler, physical-model) updated with three-brain consensus review — corrected 24 documented gaps (`db9f2e6`, `3d9a458`).
 
 ## [2.0.0] - 2026-01-24
 *Initial release (v2.0).*

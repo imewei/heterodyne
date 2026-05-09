@@ -74,3 +74,14 @@ Multi-Start Optimizer
    :members: MultiStartOptimizer
    :undoc-members:
    :show-inheritance:
+
+Input Validation
+================
+
+Pre-fit validation: shape/dtype checks, finite-value guards, parameter
+bound enforcement, and convergence quality assessors.
+
+.. automodule:: heterodyne.optimization.nlsq.validation
+   :members:
+   :undoc-members:
+   :show-inheritance:
