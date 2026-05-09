@@ -305,6 +305,17 @@ Verified against `cmaes_wrapper.py:CMAESConfig` and `config.py:NLSQConfig`:
 | `cmaes_anti_degeneracy` | `False` | Wrap objective with degeneracy penalty |
 | `cmaes_warmstart_auto_skip` | `True` | Skip CMA-ES when NLSQ warm-start is already good |
 | `cmaes_warmstart_skip_threshold` | 5.0 | Reduced-χ² ceiling that triggers skip |
+| `cmaes_restart_strategy` | `"bipop"` | Restart strategy: `"bipop"` or `"none"` |
+| `cmaes_max_restarts` | 9 | Maximum BIPOP restarts (ignored when strategy is `"none"`) |
+
+**BIPOP restart strategy.** When `restart_strategy="bipop"`, `CMAESWrapper.fit()` calls
+`cma.fmin2(..., restarts=max_restarts, bipop=True)` which alternates large-population
+(global exploration) and small-population (local refinement) restarts for robust
+multi-modal convergence. **Warmstart override:** because the NLSQ warm-start always
+produces a tight initial sigma, `_fit_joint_cmaes_multi_phi()` overrides
+`restart_strategy="bipop"` → `"none"` automatically — BIPOP large-population restarts
+are incoherent with a small sigma derived from the NLSQ solution. Setting
+`restart_strategy="none"` explicitly in config bypasses this override.
 
 **Note on `cmaes_preset`:** The string preset (e.g. `"cmaes-global"`)
 referenced in user-facing CLI/YAML docs is a config-loader convenience,

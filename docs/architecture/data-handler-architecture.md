@@ -826,6 +826,46 @@ in tandem with the categorical guidance from
 (< 100 MB) up to "very_large" (> 10 GB) drive both chunk-size choices
 and the on-disk caching policy.
 
+### Adaptive Chunking (`AdaptiveChunker`, `MemoryPressureMonitor`)
+
+`AdaptiveChunker` (`data/memory_manager.py`) computes chunk sizes at
+runtime from current available memory:
+
+```python
+from heterodyne.data.memory_manager import AdaptiveChunker, MemoryPressureMonitor
+
+chunker = AdaptiveChunker(safety_factor=0.8)
+n_chunks, chunk_size = chunker.plan(total_elements=n_t**2, bytes_per_element=8)
+```
+
+`MemoryPressureMonitor` polls system memory at a configurable interval
+and adjusts the `AdaptiveChunker`'s effective budget when pressure
+exceeds a threshold — preventing OOM on concurrent workloads without
+requiring a fixed budget at startup.
+
+### Background I/O (`PrefetchLoader`, `AsyncWriter`)
+
+`heterodyne/utils/async_io.py` provides two thread-based I/O helpers:
+
+- **`PrefetchLoader[T]`** — wraps any iterable and prefetches the next
+  item in a background thread so CPU-bound processing and I/O
+  overlap. Used by streaming NLSQ strategies to hide HDF5 read
+  latency behind computation.
+- **`AsyncWriter`** — dispatches `np.savez` and `json.dump` calls to a
+  background thread pool so result writing does not block the main
+  optimization loop.
+
+```python
+from heterodyne.utils.async_io import PrefetchLoader, AsyncWriter
+
+for batch in PrefetchLoader(dataset, max_prefetch=2):
+    process(batch)
+
+with AsyncWriter(max_pending=4) as writer:
+    writer.save_npz(path, **arrays)
+    writer.save_json(path, data)
+```
+
 ---
 
 ## Result Writing
@@ -856,6 +896,7 @@ After fitting, results are written to `output_dir` by the writers in
 | `metadata_json` | JSON-encoded metadata dict |
 | `uncertainties`, `covariance` | Parameter uncertainty (when present) |
 | `residuals` | Optional, gated by `include_residuals=True` |
+| `residuals_normalized` | `residuals / (0.05 * c2_exp)` — relative error in signal units; present when `c2_exp` is passed to the writer |
 | `jacobian` | Optional, gated by `include_jacobian=False` (large) |
 | `fitted_correlation` | Reconstructed c2 from final parameters |
 
@@ -1073,7 +1114,8 @@ output_dir/{nlsq_parameters.json, nlsq_metadata.json,
 | `data/angle_filtering.py` | `filter_by_angle_range`, `select_single_angle` |
 | `data/phi_filtering.py` | `PhiAngleFilter`, `PhiFilterResult` (range + symmetric averaging) |
 | `data/preprocessing.py` | `PreprocessingPipeline`, `PreprocessingResult`, `PreprocessingProvenance`, `NoiseReductionMethod` |
-| `data/memory_manager.py` | `MemoryManager`, `MemoryBudget` (thread-safe budget tracker) |
+| `data/memory_manager.py` | `MemoryManager`, `MemoryBudget`, `AdaptiveChunker`, `MemoryPressureMonitor` |
+| `utils/async_io.py` | `PrefetchLoader` (background prefetch), `AsyncWriter` (non-blocking NPZ/JSON saves) |
 | `data/types.py` | `AngleRange` dataclass |
 | `data/config.py` | `DataConfig` dataclass |
 | `data/validation.py` | Hard-validation rules and check definitions |

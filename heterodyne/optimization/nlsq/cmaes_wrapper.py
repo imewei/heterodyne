@@ -51,6 +51,14 @@ class CMAESConfig:
         tolx: Termination tolerance on parameter changes.
         tolfun: Termination tolerance on cost function changes.
         seed: Random seed for reproducibility.
+        restart_strategy: Restart strategy for CMA-ES.  ``"bipop"`` alternates
+            large/small population restarts for robust global search.  ``"none"``
+            runs a single CMA-ES run with no restarts.  Callers should override
+            to ``"none"`` when a warmstart sigma is already small (warmstart mode),
+            because BIPOP large-population restarts are incoherent with a tight
+            initial distribution.
+        max_restarts: Maximum number of BIPOP restarts.  Ignored when
+            ``restart_strategy="none"``.
     """
 
     sigma0: float = 0.5
@@ -60,6 +68,8 @@ class CMAESConfig:
     tolfun: float = 1e-11
     seed: int = 42
     diagonal_filtering: str = "none"
+    restart_strategy: str = "bipop"
+    max_restarts: int = 9
 
     def __post_init__(self) -> None:
         """Validate configuration values."""
@@ -74,6 +84,13 @@ class CMAESConfig:
                 f"diagonal_filtering must be 'remove' or 'none', "
                 f"got {self.diagonal_filtering!r}"
             )
+        if self.restart_strategy not in ("bipop", "none"):
+            raise ValueError(
+                f"restart_strategy must be 'bipop' or 'none', "
+                f"got {self.restart_strategy!r}"
+            )
+        if self.max_restarts < 0:
+            raise ValueError("max_restarts must be >= 0")
 
 
 class CMAESWrapper:
@@ -165,17 +182,30 @@ class CMAESWrapper:
         )
 
         t0 = time.perf_counter()
-        es = cma.CMAEvolutionStrategy(x0.tolist(), self._config.sigma0, opts)
-        es.optimize(objective_fn)
+        if self._config.restart_strategy == "bipop" and self._config.max_restarts > 0:
+            logger.info("CMA-ES BIPOP: max_restarts=%d", self._config.max_restarts)
+            xbest, es = cma.fmin2(
+                objective_fn,
+                x0.tolist(),
+                self._config.sigma0,
+                opts,
+                restarts=self._config.max_restarts,
+                bipop=True,
+            )
+            best_x = np.asarray(xbest, dtype=np.float64)
+        else:
+            es = cma.CMAEvolutionStrategy(x0.tolist(), self._config.sigma0, opts)
+            es.optimize(objective_fn)
+            best_x = np.asarray(es.result.xbest, dtype=np.float64)
         wall_time = time.perf_counter() - t0
 
-        best_x = np.asarray(es.result.xbest, dtype=np.float64)
         best_cost = float(es.result.fbest)
         n_evals = int(es.result.evaluations)
         n_iters = int(es.result.iterations)
 
         logger.info(
-            "CMA-ES finished: cost=%.6e, evals=%d, iters=%d, wall=%.2fs",
+            "CMA-ES finished: strategy=%s, cost=%.6e, evals=%d, iters=%d, wall=%.2fs",
+            self._config.restart_strategy,
             best_cost,
             n_evals,
             n_iters,

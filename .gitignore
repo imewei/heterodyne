@@ -246,3 +246,6 @@ graphify-out/.graphify_*.json
 graphify-out/.graphify_*.txt
 graphify-out/.obsidian/
 graphify-out/_COMMUNITY_*.md
+
+# Three Brain Output
+three-brain-out/

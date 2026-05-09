@@ -80,6 +80,7 @@ def save_nlsq_npz_file(
     output_path: Path | str,
     include_residuals: bool = True,
     include_jacobian: bool = False,
+    c2_exp: np.ndarray | None = None,
 ) -> Path:
     """Save NLSQ results to compressed NPZ file.
 
@@ -90,6 +91,9 @@ def save_nlsq_npz_file(
         output_path: Output file path
         include_residuals: Whether to include residual array
         include_jacobian: Whether to include Jacobian matrix (large)
+        c2_exp: Experimental correlation data used to compute
+            ``residuals_normalized = residuals / (0.05 * c2_exp)``.
+            Saved alongside raw residuals when provided.
 
     Returns:
         Path to saved file
@@ -128,7 +132,11 @@ def save_nlsq_npz_file(
         arrays["covariance"] = np.asarray(result.covariance)
 
     if include_residuals and result.residuals is not None:
-        arrays["residuals"] = np.asarray(result.residuals)
+        residuals = np.asarray(result.residuals)
+        arrays["residuals"] = residuals
+        if c2_exp is not None:
+            denom = np.where(c2_exp != 0, c2_exp, 1.0)
+            arrays["residuals_normalized"] = residuals / (0.05 * denom)
 
     if include_jacobian and result.jacobian is not None:
         arrays["jacobian"] = np.asarray(result.jacobian)

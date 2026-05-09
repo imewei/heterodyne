@@ -22,6 +22,7 @@ import pytest
 
 if TYPE_CHECKING:
     from heterodyne import CMCConfig, HeterodyneModel, NLSQConfig
+    from heterodyne.optimization.cmc.results import CMCResult
 
 
 class TestInitParamsShape:

@@ -640,19 +640,19 @@ class TestCreateDiagnosticsDict:
     def _call(self, **kwargs):
         from heterodyne.optimization.cmc.diagnostics import create_diagnostics_dict
 
-        defaults = dict(
-            r_hat={"D0": 1.02},
-            ess_bulk={"D0": 500.0},
-            ess_tail={"D0": 450.0},
-            divergences=0,
-            convergence_status="converged",
-            warnings=[],
-            n_chains=4,
-            n_warmup=500,
-            n_samples=1000,
-            warmup_time=5.0,
-            sampling_time=10.0,
-        )
+        defaults = {
+            "r_hat": {"D0": 1.02},
+            "ess_bulk": {"D0": 500.0},
+            "ess_tail": {"D0": 450.0},
+            "divergences": 0,
+            "convergence_status": "converged",
+            "warnings": [],
+            "n_chains": 4,
+            "n_warmup": 500,
+            "n_samples": 1000,
+            "warmup_time": 5.0,
+            "sampling_time": 10.0,
+        }
         defaults.update(kwargs)
         return create_diagnostics_dict(**defaults)  # type: ignore[arg-type]
 

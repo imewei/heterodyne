@@ -239,7 +239,7 @@ def run_nlsq(
     for label, path in saved_json.items():
         logger.info("Saved NLSQ %s: %s", label, path)
     npz_path = output_dir / "nlsq_data.npz"
-    save_nlsq_npz_file(aggregate, npz_path)
+    save_nlsq_npz_file(aggregate, npz_path, c2_exp=c2_fit)
     logger.info("Saved NLSQ data: %s", npz_path)
 
     logger.info("NLSQ analysis complete")

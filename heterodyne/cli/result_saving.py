@@ -22,6 +22,7 @@ def save_nlsq_results(
     results: list[NLSQResult],
     output_dir: Path,
     phi_angles: list[float],
+    c2_exp: np.ndarray | None = None,
 ) -> list[Path]:
     """Save NLSQ results to disk.
 
@@ -29,6 +30,8 @@ def save_nlsq_results(
         results: NLSQ results to save.
         output_dir: Output directory.
         phi_angles: Corresponding phi angles.
+        c2_exp: Experimental correlation data for normalized residuals.
+            Shape must be (n_phi, ...) or (...) matching the result order.
 
     Returns:
         List of paths to saved files.
@@ -37,14 +40,17 @@ def save_nlsq_results(
 
     saved_paths: list[Path] = []
 
-    for result, phi in zip(results, phi_angles, strict=True):
+    for i, (result, phi) in enumerate(zip(results, phi_angles, strict=True)):
         prefix = f"nlsq_phi{int(phi)}" if len(phi_angles) > 1 else "nlsq"
 
         json_paths = save_nlsq_json_files(result, output_dir, prefix=prefix)
         saved_paths.extend(json_paths.values())
 
         npz_path = output_dir / f"{prefix}_data.npz"
-        save_nlsq_npz_file(result, npz_path)
+        c2_exp_phi: np.ndarray | None = None
+        if c2_exp is not None:
+            c2_exp_phi = c2_exp[i] if c2_exp.ndim == 3 else c2_exp
+        save_nlsq_npz_file(result, npz_path, c2_exp=c2_exp_phi)
         saved_paths.append(npz_path)
 
     logger.info("Saved %d NLSQ result files to %s", len(saved_paths), output_dir)

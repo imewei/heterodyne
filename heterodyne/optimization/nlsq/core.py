@@ -731,6 +731,17 @@ def _fit_joint_cmaes_multi_phi(
     logger.info("[CMA-ES] Phase 2: Running CMA-ES global optimization...")
     n_time = int(c2_data_batch.shape[-1])
     n_off_diagonal_data = int(n_phi * n_time * (n_time - 1))
+    restart_strategy = getattr(config, "cmaes_restart_strategy", "bipop")
+    max_restarts = getattr(config, "cmaes_max_restarts", 9)
+    # Warmstart is always active in this path: BIPOP large-population restarts
+    # are incoherent with a tight initial sigma derived from the NLSQ solution.
+    if restart_strategy == "bipop":
+        restart_strategy = "none"
+        max_restarts = 0
+        logger.debug(
+            "[CMA-ES] Warm-start active: overriding restart_strategy='bipop' -> 'none' "
+            "(BIPOP large-population restarts are incoherent with small sigma_warmstart)"
+        )
     cmaes_result = fit_with_cmaes(
         objective_fn=objective_fn,
         initial_params=initial_params,
@@ -743,6 +754,8 @@ def _fit_joint_cmaes_multi_phi(
             tolx=config.cmaes_tolx,
             tolfun=config.cmaes_tolfun,
             diagonal_filtering=getattr(config, "cmaes_diagonal_filtering", "none"),
+            restart_strategy=restart_strategy,
+            max_restarts=max_restarts,
         ),
         residual_fn=residual_fn,
         n_data=n_off_diagonal_data,

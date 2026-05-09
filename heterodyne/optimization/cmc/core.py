@@ -1108,7 +1108,7 @@ def _combine_shard_posteriors(
                 len(successful),
             )
         _pool = [
-            sr for sr, keep in zip(successful, _inlier.tolist()) if keep
+            sr for sr, keep in zip(successful, _inlier.tolist(), strict=False) if keep
         ] or successful
         weight_sum = np.zeros(n_params)
         weighted_mean_sum = np.zeros(n_params)

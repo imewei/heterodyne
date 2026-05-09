@@ -369,6 +369,8 @@ class NLSQConfig:
     cmaes_anti_degeneracy: bool = False
     cmaes_warmstart_auto_skip: bool = True
     cmaes_warmstart_skip_threshold: float = 5.0
+    cmaes_restart_strategy: str = "bipop"
+    cmaes_max_restarts: int = 9
 
     # ------------------------------------------------------------------
     # Hybrid streaming optimizer
@@ -454,6 +456,13 @@ class NLSQConfig:
             )
         if self.cmaes_warmstart_skip_threshold <= 0:
             raise ValueError("cmaes_warmstart_skip_threshold must be > 0")
+        if self.cmaes_restart_strategy not in ("bipop", "none"):
+            raise ValueError(
+                f"cmaes_restart_strategy must be 'bipop' or 'none', "
+                f"got {self.cmaes_restart_strategy!r}"
+            )
+        if self.cmaes_max_restarts < 0:
+            raise ValueError("cmaes_max_restarts must be >= 0")
         if not (0 < self.hybrid_warmup_fraction < 1):
             raise ValueError("hybrid_warmup_fraction must be in (0, 1)")
         if not (0 < self.screen_keep_fraction <= 1):
@@ -653,6 +662,8 @@ class NLSQConfig:
             "cmaes_anti_degeneracy": "bool",
             "cmaes_warmstart_auto_skip": "bool",
             "cmaes_warmstart_skip_threshold": "float",
+            "cmaes_restart_strategy": "str",
+            "cmaes_max_restarts": "int",
             # Hybrid streaming optimizer
             "hybrid_enable": "bool",
             "hybrid_warmup_fraction": "float",
@@ -1017,6 +1028,8 @@ class NLSQConfig:
             "cmaes_anti_degeneracy": self.cmaes_anti_degeneracy,
             "cmaes_warmstart_auto_skip": self.cmaes_warmstart_auto_skip,
             "cmaes_warmstart_skip_threshold": self.cmaes_warmstart_skip_threshold,
+            "cmaes_restart_strategy": self.cmaes_restart_strategy,
+            "cmaes_max_restarts": self.cmaes_max_restarts,
             # Hybrid streaming optimizer
             "hybrid_enable": self.hybrid_enable,
             "hybrid_warmup_fraction": self.hybrid_warmup_fraction,
