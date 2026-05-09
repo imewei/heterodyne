@@ -273,7 +273,7 @@ def dispatch_command(args: argparse.Namespace) -> int:
         else:
             log_level = "INFO"  # File logging always at INFO minimum
 
-        configure_logging(level=log_level, log_file=log_file)
+        configure_logging(level=log_level, log_file=log_file)  # type: ignore[arg-type]
         logger.info("[CLI] Log file created: %s", log_file)
         summary.add_output_file(log_file)
 

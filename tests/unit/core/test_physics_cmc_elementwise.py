@@ -11,6 +11,7 @@ import unittest
 
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 
 class TestShardGridCreation(unittest.TestCase):
@@ -212,63 +213,6 @@ class TestElementwiseMeshgridParity(unittest.TestCase):
         np.testing.assert_allclose(ll_meshgrid, 0.0, atol=1e-6)
         np.testing.assert_allclose(ll_elemwise, 0.0, atol=1e-6)
 
-    def test_different_parameters(self):
-        """Parity holds across diverse parameter regimes."""
-        from heterodyne.core.jax_backend import compute_c2_heterodyne
-        from heterodyne.core.physics_cmc import (
-            compute_c2_elementwise,
-            precompute_shard_grid_from_matrix,
-        )
-
-        t = jnp.linspace(0.0, 0.5, 15)
-        q, dt, phi_angle = 0.05, 0.005, 90.0
-        n = len(t)
-        sg = precompute_shard_grid_from_matrix(t, 0, n)
-        triu_i, triu_j = np.triu_indices(n, k=0)
-
-        param_sets = [
-            # Pure diffusion (no velocity, equal fractions)
-            jnp.array(
-                [1e3, 1.0, 0.0, 1e3, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]
-            ),
-            # Strong velocity, asymmetric fractions
-            jnp.array(
-                [
-                    500,
-                    0.5,
-                    10.0,
-                    200,
-                    1.5,
-                    5.0,
-                    500.0,
-                    1.0,
-                    50.0,
-                    0.8,
-                    -0.05,
-                    25.0,
-                    0.1,
-                    15.0,
-                ]
-            ),
-            # Near-zero transport (static limit)
-            jnp.array(
-                [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]
-            ),
-        ]
-
-        for i, params in enumerate(param_sets):
-            with self.subTest(param_set=i):
-                c2_mesh = compute_c2_heterodyne(params, t, q, dt, phi_angle)
-                c2_elem = compute_c2_elementwise(params, sg, q, dt, phi_angle)
-
-                np.testing.assert_allclose(
-                    np.asarray(c2_elem),
-                    np.asarray(c2_mesh[triu_i, triu_j]),
-                    rtol=1e-10,
-                    atol=1e-12,
-                    err_msg=f"Parity failed for param_set={i}",
-                )
-
 
 class TestSharedPrimitives(unittest.TestCase):
     """Test shared primitives from physics_utils."""
@@ -433,6 +377,69 @@ class TestPrepareShards(unittest.TestCase):
 
         # Perfect model → residuals ~0 → ll ~0
         np.testing.assert_allclose(float(ll), 0.0, atol=1e-4)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param(
+            jnp.array(
+                [1e3, 1.0, 0.0, 1e3, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]
+            ),
+            id="pure_diffusion",
+        ),
+        pytest.param(
+            jnp.array(
+                [
+                    500,
+                    0.5,
+                    10.0,
+                    200,
+                    1.5,
+                    5.0,
+                    500.0,
+                    1.0,
+                    50.0,
+                    0.8,
+                    -0.05,
+                    25.0,
+                    0.1,
+                    15.0,
+                ]
+            ),
+            id="strong_velocity",
+        ),
+        pytest.param(
+            jnp.array(
+                [1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0]
+            ),
+            id="near_zero_transport",
+        ),
+    ],
+)
+def test_elementwise_meshgrid_parity_param_regimes(params: jnp.ndarray) -> None:
+    """Parity holds across diverse parameter regimes (meshgrid vs element-wise path)."""
+    from heterodyne.core.jax_backend import compute_c2_heterodyne
+    from heterodyne.core.physics_cmc import (
+        compute_c2_elementwise,
+        precompute_shard_grid_from_matrix,
+    )
+
+    t = jnp.linspace(0.0, 0.5, 15)
+    q, dt, phi_angle = 0.05, 0.005, 90.0
+    n = len(t)
+    sg = precompute_shard_grid_from_matrix(t, 0, n)
+    triu_i, triu_j = np.triu_indices(n, k=0)
+
+    c2_mesh = compute_c2_heterodyne(params, t, q, dt, phi_angle)
+    c2_elem = compute_c2_elementwise(params, sg, q, dt, phi_angle)
+
+    np.testing.assert_allclose(
+        np.asarray(c2_elem),
+        np.asarray(c2_mesh[triu_i, triu_j]),
+        rtol=1e-10,
+        atol=1e-12,
+    )
 
 
 if __name__ == "__main__":

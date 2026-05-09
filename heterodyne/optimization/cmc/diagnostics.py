@@ -925,6 +925,23 @@ def detect_bimodal(
     arr = np.asarray(samples, dtype=float).ravel()
     x = arr.reshape(-1, 1)
 
+    # Degenerate data: constant samples cannot be bimodal; skip GMM to avoid
+    # sklearn ConvergenceWarning from k-means init finding only 1 cluster.
+    if float(np.std(arr)) < 1e-10 * (abs(float(np.mean(arr))) + 1.0):
+        logger.debug(
+            "detect_bimodal: degenerate (constant) samples for %s — returning unimodal.",
+            param_name,
+        )
+        return BimodalResult(
+            param_name=param_name,
+            is_bimodal=False,
+            bic_unimodal=0.0,
+            bic_bimodal=0.0,
+            delta_bic=0.0,
+            means=None,
+            weights=None,
+        )
+
     # Fit 1-component model
     gm1 = GaussianMixture(n_components=1, random_state=0).fit(x)
     bic1 = float(gm1.bic(x))

@@ -393,11 +393,11 @@ verify:
 	fi
 	@echo ""
 	@echo "$(BOLD)Step 3/4: Type checking (advisory)$(RESET)"
-	@$(RUN_CMD) mypy $(SRC_DIR) --no-error-summary 2>&1 | tail -1 || true
+	@$(RUN_CMD) mypy $(SRC_DIR) --no-error-summary --no-warn-unused-configs 2>&1 | tail -1 || true
 	@echo "$(YELLOW)Note: Type checking is advisory. See 'make type-check' for full report.$(RESET)"
 	@echo ""
-	@echo "$(BOLD)Step 4/4: Smoke tests$(RESET)"
-	@$(RUN_CMD) $(PYTEST) $(TEST_DIR) -v --tb=short -x -q -m "not slow" || (echo "$(RED)Smoke tests failed!$(RESET)" && exit 1)
+	@echo "$(BOLD)Step 4/4: All tests$(RESET)"
+	@$(RUN_CMD) $(PYTEST) $(TEST_DIR) -v --tb=short -x -q || (echo "$(RED)Tests failed!$(RESET)" && exit 1)
 	@echo ""
 	@echo "$(BOLD)$(GREEN)======================================$(RESET)"
 	@echo "$(BOLD)$(GREEN)  ALL CHECKS PASSED - SAFE TO PUSH$(RESET)"
@@ -412,7 +412,7 @@ verify-fast:
 	@$(RUN_CMD) $(RUFF) check $(SRC_DIR) $(TEST_DIR) || (echo "$(RED)Lint check failed!$(RESET)" && exit 1)
 	@echo ""
 	@echo "$(BOLD)Step 2/2: Type checking (advisory)$(RESET)"
-	@$(RUN_CMD) mypy $(SRC_DIR) --no-error-summary 2>&1 | tail -1 || true
+	@$(RUN_CMD) mypy $(SRC_DIR) --no-error-summary --no-warn-unused-configs 2>&1 | tail -1 || true
 	@echo "$(YELLOW)Note: Type checking is advisory. See 'make type-check' for full report.$(RESET)"
 	@echo ""
 	@echo "$(BOLD)$(GREEN)======================================$(RESET)"

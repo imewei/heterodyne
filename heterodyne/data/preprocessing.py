@@ -145,7 +145,7 @@ class PreprocessingPipeline:
         """
 
         def _clip(c2: np.ndarray) -> np.ndarray:
-            return np.clip(c2, min_val, max_val)
+            return np.clip(c2, min_val, max_val)  # type: ignore[no-any-return]
 
         return self.add_step(f"clip({min_val}, {max_val})", _clip)
 

@@ -148,7 +148,7 @@ def normalize_angle_to_symmetric_range(
     normalized = np.where(normalized > 180, normalized - 360, normalized)
     if np.isscalar(angle):
         return float(normalized)
-    return normalized  # type: ignore[return-value]
+    return normalized
 
 
 def apply_angle_filtering_for_plot(
@@ -185,7 +185,9 @@ def apply_angle_filtering_for_plot(
         phi_cfg = getattr(config, "phi_filtering", {}) or {}
 
     if not phi_cfg or not phi_cfg.get("enabled", False):
-        logger.debug("Phi filtering not enabled for plot, using all %d angles", len(phi_angles))
+        logger.debug(
+            "Phi filtering not enabled for plot, using all %d angles", len(phi_angles)
+        )
         return all_indices, phi_angles, c2_exp
 
     target_ranges = phi_cfg.get("target_ranges", [])
@@ -199,7 +201,7 @@ def apply_angle_filtering_for_plot(
     tol = float(phi_cfg.get("tolerance", 5.0))
 
     # Apply OR logic: angle selected if it falls within ANY target range
-    selected_mask = np.zeros(len(normalized), dtype=bool)
+    selected_mask = np.zeros(len(normalized), dtype=bool)  # type: ignore[type-var, arg-type]
     for rng in target_ranges:
         if isinstance(rng, (list, tuple)) and len(rng) == 2:
             lo = float(normalize_angle_to_symmetric_range(rng[0]))
@@ -215,10 +217,10 @@ def apply_angle_filtering_for_plot(
         else:
             continue
         if lo <= hi:
-            selected_mask |= (normalized >= lo) & (normalized <= hi)
+            selected_mask |= (normalized >= lo) & (normalized <= hi)  # type: ignore[misc]
         else:
             # Wrap-around range (e.g. [170, -170])
-            selected_mask |= (normalized >= lo) | (normalized <= hi)
+            selected_mask |= (normalized >= lo) | (normalized <= hi)  # type: ignore[misc]
 
     if not np.any(selected_mask):
         logger.warning(

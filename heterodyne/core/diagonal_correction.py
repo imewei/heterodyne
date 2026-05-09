@@ -678,7 +678,7 @@ def _get_batch_standard_fn(width: int, method: str) -> Any:
     """Return a cached jit(vmap) function for batch standard correction."""
 
     def _correct_one(c2: jnp.ndarray) -> jnp.ndarray:
-        return apply_diagonal_correction(c2, width, method)
+        return apply_diagonal_correction(c2, width, method)  # type: ignore[no-any-return]
 
     return jax.jit(jax.vmap(_correct_one))
 

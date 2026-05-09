@@ -182,7 +182,7 @@ def resolve_phi_angles(
         if phi_angles is not None:
             logger.debug("Phi angles from config scattering.phi_angles: %s", phi_angles)
         elif data_phi_angles is not None:
-            phi_cfg: dict[str, Any] = config_manager._config.get("phi_filtering", {})  # type: ignore[attr-defined]
+            phi_cfg: dict[str, Any] = config_manager._config.get("phi_filtering", {})
             if phi_cfg.get("enabled", False):
                 filtered = _apply_phi_filtering(
                     np.asarray(data_phi_angles, dtype=float), phi_cfg
