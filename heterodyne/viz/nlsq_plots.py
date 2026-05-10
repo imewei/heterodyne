@@ -101,7 +101,9 @@ def plot_nlsq_fit(
     # [max(1.0, data_min), min(1.5, data_max)] over union of both arrays).
     # This makes a poor fit visually obvious — both panels use the same scale.
     if result.fitted_correlation is not None:
-        combined_vals = np.concatenate([c2_data.ravel(), result.fitted_correlation.ravel()])
+        combined_vals = np.concatenate(
+            [c2_data.ravel(), result.fitted_correlation.ravel()]
+        )
     else:
         combined_vals = c2_data.ravel()
     _finite = combined_vals[np.isfinite(combined_vals)]
@@ -151,8 +153,14 @@ def plot_nlsq_fit(
         if result.residuals is not None:
             residual_2d = result.residuals
             if residual_2d.ndim == 1:
-                n = c2_data.shape[0]
-                residual_2d = residual_2d.reshape(n, n)
+                # Infer grid side from residual length (not c2_data.shape[0]):
+                # after diagonal masking the flat array is not n²-sized.
+                n_sq = len(residual_2d)
+                n_side = int(n_sq**0.5 + 0.5)
+                if n_side * n_side == n_sq:
+                    residual_2d = residual_2d.reshape(n_side, n_side)
+                else:
+                    residual_2d = np.full(c2_data.shape, np.nan)
         else:
             residual_2d = c2_data - result.fitted_correlation
         vmax = np.nanpercentile(np.abs(residual_2d), 99)
@@ -213,8 +221,12 @@ def plot_residual_map(
     if result.residuals is not None:
         residuals = result.residuals
         if residuals.ndim == 1:
-            n = c2_data.shape[0]
-            residuals = residuals.reshape(n, n)
+            n_sq = len(residuals)
+            n_side = int(n_sq**0.5 + 0.5)
+            if n_side * n_side == n_sq:
+                residuals = residuals.reshape(n_side, n_side)
+            else:
+                residuals = np.full(c2_data.shape, np.nan)
     else:
         residuals = c2_data - result.fitted_correlation
 
@@ -1048,7 +1060,9 @@ def plot_simulated_data(
     for phi_deg in phi_list:
         try:
             c2_scaled = np.asarray(
-                model.compute_correlation(phi_angle=phi_deg, contrast=contrast, offset=offset)
+                model.compute_correlation(
+                    phi_angle=phi_deg, contrast=contrast, offset=offset
+                )
             )
         except Exception:
             logger.warning("Forward model failed for phi=%.1f; using zeros", phi_deg)
@@ -1065,7 +1079,10 @@ def plot_simulated_data(
     vmax = min(1.6, c2_max)
     logger.debug(
         "Simulated C2 range [%.4f, %.4f] -> color scale [%.4f, %.4f]",
-        c2_min, c2_max, vmin, vmax,
+        c2_min,
+        c2_max,
+        vmin,
+        vmax,
     )
 
     # Per-angle heatmaps
@@ -1096,14 +1113,22 @@ def plot_simulated_data(
         min_val = np.nanmin(c2_mat)
         stats_text = f"Mean: {mean_val:.4f}\nRange: [{min_val:.4f}, {max_val:.4f}]"
         ax.text(
-            0.02, 0.98, stats_text,
-            transform=ax.transAxes, fontsize=9, verticalalignment="top",
+            0.02,
+            0.98,
+            stats_text,
+            transform=ax.transAxes,
+            fontsize=9,
+            verticalalignment="top",
             bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
         )
         mode_text = f"Contrast: {contrast:.3f}\nOffset: {offset:.3f}"
         ax.text(
-            0.02, 0.02, mode_text,
-            transform=ax.transAxes, fontsize=8, verticalalignment="bottom",
+            0.02,
+            0.02,
+            mode_text,
+            transform=ax.transAxes,
+            fontsize=8,
+            verticalalignment="bottom",
             bbox={"boxstyle": "round", "facecolor": "lightblue", "alpha": 0.7},
         )
 
@@ -1121,7 +1146,11 @@ def plot_simulated_data(
         if idx >= 10:
             break
         diag = np.diag(c2_mat)
-        t_diag = t_extent[: len(diag)] if len(t_extent) >= len(diag) else t_model[: len(diag)]
+        t_diag = (
+            t_extent[: len(diag)]
+            if len(t_extent) >= len(diag)
+            else t_model[: len(diag)]
+        )
         ax.plot(t_diag, diag, label=f"φ={phi_deg:.1f}°", alpha=0.7, linewidth=2)
 
     ax.set_xlabel("Time t (s)", fontsize=12)
@@ -1195,8 +1224,16 @@ def generate_nlsq_plots(
         # Shared color scale for experimental and fitted panels (hexp convention:
         # clamp to [1.0, 1.5] using the union of both data ranges for direct comparison)
         combined = np.concatenate([exp_i.ravel(), fit_i.ravel()])
-        _data_min = float(np.nanmin(combined[np.isfinite(combined)])) if np.isfinite(combined).any() else 1.0
-        _data_max = float(np.nanmax(combined[np.isfinite(combined)])) if np.isfinite(combined).any() else 1.5
+        _data_min = (
+            float(np.nanmin(combined[np.isfinite(combined)]))
+            if np.isfinite(combined).any()
+            else 1.0
+        )
+        _data_max = (
+            float(np.nanmax(combined[np.isfinite(combined)]))
+            if np.isfinite(combined).any()
+            else 1.5
+        )
         vmin_shared = max(1.0, _data_min)
         vmax_shared = min(1.5, _data_max)
         if vmin_shared >= vmax_shared:
@@ -1204,8 +1241,13 @@ def generate_nlsq_plots(
 
         # Panel 1: Experimental
         im0 = axes[0].imshow(
-            exp_i.T, extent=extent, aspect="equal", cmap="jet",
-            vmin=vmin_shared, vmax=vmax_shared, origin="lower",
+            exp_i.T,
+            extent=extent,
+            aspect="equal",
+            cmap="jet",
+            vmin=vmin_shared,
+            vmax=vmax_shared,
+            origin="lower",
         )
         axes[0].set_title(f"Experimental C₂ (φ={float(phi_deg):.1f}°)", fontsize=12)
         axes[0].set_xlabel("t₁ (s)", fontsize=10)
@@ -1215,8 +1257,13 @@ def generate_nlsq_plots(
 
         # Panel 2: Fit — same scale as experimental for direct comparison
         im1 = axes[1].imshow(
-            fit_i.T, extent=extent, aspect="equal", cmap="jet",
-            vmin=vmin_shared, vmax=vmax_shared, origin="lower",
+            fit_i.T,
+            extent=extent,
+            aspect="equal",
+            cmap="jet",
+            vmin=vmin_shared,
+            vmax=vmax_shared,
+            origin="lower",
         )
         axes[1].set_title(f"Fitted C₂ (φ={float(phi_deg):.1f}°)", fontsize=12)
         axes[1].set_xlabel("t₁ (s)", fontsize=10)
@@ -1229,8 +1276,13 @@ def generate_nlsq_plots(
         if not np.isfinite(vmax_res) or vmax_res == 0:
             vmax_res = 0.01
         im2 = axes[2].imshow(
-            res_i.T, extent=extent, aspect="equal", cmap="RdBu_r",
-            vmin=-vmax_res, vmax=vmax_res, origin="lower",
+            res_i.T,
+            extent=extent,
+            aspect="equal",
+            cmap="RdBu_r",
+            vmin=-vmax_res,
+            vmax=vmax_res,
+            origin="lower",
         )
         axes[2].set_title(f"Residuals (φ={float(phi_deg):.1f}°)", fontsize=12)
         axes[2].set_xlabel("t₁ (s)", fontsize=10)
@@ -1246,9 +1298,7 @@ def generate_nlsq_plots(
         )
         plt.close(fig)
 
-    logger.info(
-        "Saved %d 3-panel heatmap(s) to %s", len(phi_angles), output_dir
-    )
+    logger.info("Saved %d 3-panel heatmap(s) to %s", len(phi_angles), output_dir)
 
 
 def generate_and_plot_fitted_simulations(
@@ -1334,7 +1384,11 @@ def generate_and_plot_fitted_simulations(
     offset_val = float(_o_raw if _o_raw is not None else metadata.get("offset", 1.0))
 
     # Physics params: all fitted params except scaling
-    physics_names = [n for n in getattr(result, "parameter_names", []) if n not in ("contrast", "offset")]
+    physics_names = [
+        n
+        for n in getattr(result, "parameter_names", [])
+        if n not in ("contrast", "offset")
+    ]
     physics_params = (
         np.array([float(params_d[n]) for n in physics_names])
         if physics_names
@@ -1353,7 +1407,7 @@ def generate_and_plot_fitted_simulations(
     _beta = float(params_d.get("beta") or metadata.get("beta") or 0.0)
     if _q_val > 0 and _v0 != 0 and len(phi_angles) > 0:
         _t0 = float(t[0])
-        _v_t0 = abs(_v0) * (_t0 ** _beta) if _beta < 0 and _t0 > 0 else abs(_v0)
+        _v_t0 = abs(_v0) * (_t0**_beta) if _beta < 0 and _t0 > 0 else abs(_v0)
         _max_phi_cos = float(np.max(np.abs(np.cos(np.deg2rad(phi_angles)))))
         _phase_per_dt = _q_val * _max_phi_cos * _v_t0 * _dt_val
         if _phase_per_dt > np.pi:
@@ -1362,7 +1416,10 @@ def generate_and_plot_fitted_simulations(
                 "(> π). With v(t₀)≈%.0f Å/s, q=%.4f Å⁻¹, dt=%.4f s, strips are "
                 "sub-pixel at the first time point and may be invisible in the plot. "
                 "Consider using a finer time grid (smaller dt) to resolve the strips.",
-                _phase_per_dt, _v_t0, _q_val, _dt_val,
+                _phase_per_dt,
+                _v_t0,
+                _q_val,
+                _dt_val,
             )
 
     # Phase 1: compute all fitted C2 matrices
@@ -1389,15 +1446,22 @@ def generate_and_plot_fitted_simulations(
     _all_vals = np.concatenate([c.ravel() for c in c2_fitted_all])
     vmin, vmax = _resolve_color_limits(_all_vals)
     logger.debug(
-        "Fitted C2 percentile color scale [%.4f, %.4f]", vmin, vmax,
+        "Fitted C2 percentile color scale [%.4f, %.4f]",
+        vmin,
+        vmax,
     )
 
     # Phase 2: plot with the global color scale
     for phi_deg, c2_scaled in zip(phi_angles, c2_fitted_all, strict=True):
         fig, ax = plt.subplots(figsize=(8, 7))
         im = ax.imshow(
-            c2_scaled.T, extent=extent, aspect="equal", cmap="jet",
-            vmin=vmin, vmax=vmax, origin="lower",
+            c2_scaled.T,
+            extent=extent,
+            aspect="equal",
+            cmap="jet",
+            vmin=vmin,
+            vmax=vmax,
+            origin="lower",
         )
         ax.set_xlabel("t₁ (s)", fontsize=11)
         ax.set_ylabel("t₂ (s)", fontsize=11)
@@ -1415,14 +1479,24 @@ def generate_and_plot_fitted_simulations(
         min_val = float(np.nanmin(c2_scaled))
         stats_text = f"Mean: {mean_val:.4f}\nRange: [{min_val:.4f}, {max_val:.4f}]"
         ax.text(
-            0.02, 0.98, stats_text,
-            transform=ax.transAxes, fontsize=9, verticalalignment="top",
+            0.02,
+            0.98,
+            stats_text,
+            transform=ax.transAxes,
+            fontsize=9,
+            verticalalignment="top",
             bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8},
         )
-        fit_text = f"Fitted Parameters\nContrast: {contrast:.3f}\nOffset: {offset_val:.3f}"
+        fit_text = (
+            f"Fitted Parameters\nContrast: {contrast:.3f}\nOffset: {offset_val:.3f}"
+        )
         ax.text(
-            0.02, 0.02, fit_text,
-            transform=ax.transAxes, fontsize=8, verticalalignment="bottom",
+            0.02,
+            0.02,
+            fit_text,
+            transform=ax.transAxes,
+            fontsize=8,
+            verticalalignment="bottom",
             bbox={"boxstyle": "round", "facecolor": "lightgreen", "alpha": 0.7},
         )
 
@@ -1442,8 +1516,6 @@ def generate_and_plot_fitted_simulations(
             phi_angles=phi_angles,
             t=t,
         )
-        logger.info(
-            "Saved %d fitted simulation(s) to %s", len(phi_angles), sim_dir
-        )
+        logger.info("Saved %d fitted simulation(s) to %s", len(phi_angles), sim_dir)
     except Exception:
         logger.exception("Failed to save fitted simulation NPZ")

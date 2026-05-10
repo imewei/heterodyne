@@ -27,6 +27,8 @@ except ImportError:
     AdaptiveHybridStreamingOptimizer = None  # type: ignore[assignment,misc]
     HybridStreamingConfig = None  # type: ignore[assignment,misc]
 
+import jax.numpy as jnp  # noqa: E402 — must follow nlsq to preserve x64 init order
+
 from heterodyne.optimization.nlsq.adapter_base import NLSQAdapterBase
 from heterodyne.optimization.nlsq.config import NLSQConfig
 from heterodyne.optimization.nlsq.memory import NLSQStrategy, select_nlsq_strategy
@@ -269,9 +271,12 @@ class NLSQAdapter(NLSQAdapterBase):
             xdata = np.arange(n_data, dtype=np.float64)
             ydata = np.zeros(n_data, dtype=np.float64)
 
-            # Wrap residual_fn into (xdata, *params) signature
-            def _wrapped(x: np.ndarray, *params: float) -> np.ndarray:
-                return residual_fn(np.array(params, dtype=np.float64))
+            # Wrap residual_fn into (xdata, *params) signature.
+            # jnp.array is required: nlsq 0.6.12 calls func(xdata, *args) inside
+            # @jit, so *params are traced JAX scalars — np.array would raise
+            # TracerArrayConversionError.
+            def _wrapped(x: np.ndarray, *params: Any) -> Any:
+                return residual_fn(jnp.array(params, dtype=jnp.float64))
 
             fitter, cache_hit = get_or_create_fitter(
                 n_data=n_data,
@@ -381,7 +386,6 @@ class NLSQAdapter(NLSQAdapterBase):
         Returns:
             NLSQResult with fit results.
         """
-        import jax.numpy as jnp
 
         start_time = time.perf_counter()
 
@@ -600,8 +604,9 @@ class NLSQWrapper(NLSQAdapterBase):
         xdata = np.arange(n_data, dtype=np.float64)
         ydata = np.zeros(n_data, dtype=np.float64)
 
-        def _wrapped(x: np.ndarray, *params: float) -> np.ndarray:
-            return residual_fn(np.array(params, dtype=np.float64))
+        # jnp.array required: nlsq 0.6.12 calls func(xdata, *args) inside @jit.
+        def _wrapped(x: np.ndarray, *params: Any) -> Any:
+            return residual_fn(jnp.array(params, dtype=jnp.float64))
 
         method = config.method
         if method == "dogbox":
