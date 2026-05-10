@@ -136,7 +136,31 @@ def save_nlsq_npz_file(
         arrays["residuals"] = residuals
         if c2_exp is not None:
             denom = np.where(c2_exp != 0, c2_exp, 1.0)
-            arrays["residuals_normalized"] = residuals / (0.05 * denom)
+            if residuals.shape == denom.shape:
+                arrays["residuals_normalized"] = residuals / (0.05 * denom)
+            elif residuals.ndim == 1 and residuals.size == denom.size:
+                arrays["residuals_normalized"] = residuals / (0.05 * denom.ravel())
+            elif (
+                residuals.ndim == 1
+                and denom.ndim == 2
+                and denom.shape[0] == denom.shape[1]
+                and residuals.size == denom.shape[0] * (denom.shape[0] - 1)
+            ):
+                # Single-angle off-diagonal: jax_backend excludes t1==t2 diagonal.
+                n_time = denom.shape[0]
+                offdiag = ~np.eye(n_time, dtype=bool)
+                arrays["residuals_normalized"] = residuals / (0.05 * denom[offdiag])
+            elif (
+                residuals.ndim == 1
+                and denom.ndim == 3
+                and residuals.size
+                == denom.shape[0] * denom.shape[-1] * (denom.shape[-1] - 1)
+            ):
+                # Multi-angle off-diagonal: jax_backend excludes t1==t2 diagonal.
+                n_phi, n_time = denom.shape[0], denom.shape[-1]
+                offdiag = ~np.eye(n_time, dtype=bool)
+                denom_flat = np.concatenate([denom[i][offdiag] for i in range(n_phi)])
+                arrays["residuals_normalized"] = residuals / (0.05 * denom_flat)
 
     if include_jacobian and result.jacobian is not None:
         arrays["jacobian"] = np.asarray(result.jacobian)

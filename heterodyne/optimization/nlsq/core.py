@@ -373,7 +373,9 @@ def _fit_joint_constant_multi_phi(
     fixed_values_jax = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
     varying_indices_jax = jnp.array(param_manager.varying_indices, dtype=jnp.int32)
 
-    def joint_residual_fn(x: np.ndarray) -> np.ndarray:
+    # NOTE: must return a JAX array. NLSQ's masked_residual_func JIT-traces this
+    # closure; np.asarray() on a traced result raises TracerArrayConversionError.
+    def joint_residual_fn(x: np.ndarray) -> Any:  # type: ignore[return-value]
         physics_varying = x[:n_physics_varying]
         contrast = x[n_physics_varying]
         offset = x[n_physics_varying + 1]
@@ -383,18 +385,16 @@ def _fit_joint_constant_multi_phi(
         )
         contrasts_jax = jnp.full((n_phi,), contrast, dtype=jnp.float64)
         offsets_jax = jnp.full((n_phi,), offset, dtype=jnp.float64)
-        return np.asarray(
-            compute_multi_angle_residuals(
-                full_jax,
-                t,
-                q,
-                dt,
-                phi_angles_jax,
-                c2_data_batch,
-                weights_batch,
-                contrasts_jax,
-                offsets_jax,
-            )
+        return compute_multi_angle_residuals(
+            full_jax,
+            t,
+            q,
+            dt,
+            phi_angles_jax,
+            c2_data_batch,
+            weights_batch,
+            contrasts_jax,
+            offsets_jax,
         )
 
     joint_config = NLSQConfig(
@@ -694,7 +694,9 @@ def _fit_joint_cmaes_multi_phi(
     fixed_values_jax = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
     varying_indices_jax = jnp.array(param_manager.varying_indices, dtype=jnp.int32)
 
-    def residual_fn(x: np.ndarray) -> np.ndarray:
+    # NOTE: must return a JAX array. NLSQ's masked_residual_func JIT-traces this
+    # closure; np.asarray() on a traced result raises TracerArrayConversionError.
+    def residual_fn(x: np.ndarray) -> Any:  # type: ignore[return-value]
         physics_varying = x[:n_physics_varying]
         full_jax = fixed_values_jax.at[varying_indices_jax].set(
             jnp.asarray(physics_varying, dtype=jnp.float64)
@@ -710,18 +712,16 @@ def _fit_joint_cmaes_multi_phi(
             contrast_arr, offset_arr = fourier.fourier_to_per_angle(scaling_params)
             contrasts_jax = jnp.asarray(contrast_arr, dtype=jnp.float64)
             offsets_jax = jnp.asarray(offset_arr, dtype=jnp.float64)
-        return np.asarray(
-            compute_multi_angle_residuals(
-                full_jax,
-                t,
-                q,
-                dt,
-                phi_angles_jax,
-                c2_data_batch,
-                weights_batch,
-                contrasts_jax,
-                offsets_jax,
-            )
+        return compute_multi_angle_residuals(
+            full_jax,
+            t,
+            q,
+            dt,
+            phi_angles_jax,
+            c2_data_batch,
+            weights_batch,
+            contrasts_jax,
+            offsets_jax,
         )
 
     def objective_fn(x: np.ndarray) -> float:

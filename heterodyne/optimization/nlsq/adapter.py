@@ -292,8 +292,11 @@ class NLSQAdapter(NLSQAdapterBase):
             logger.info(
                 "NLSQAdapter settings: method=%s loss=%s gtol=%.2e "
                 "max_nfev=%s x_scale=%s",
-                method, config.loss, config.gtol,
-                config.max_nfev if config.max_nfev is not None
+                method,
+                config.loss,
+                config.gtol,
+                config.max_nfev
+                if config.max_nfev is not None
                 else f"auto({100 * n_params})",
                 config.x_scale,
             )
@@ -412,8 +415,11 @@ class NLSQAdapter(NLSQAdapterBase):
             logger.info(
                 "NLSQAdapter.fit_jax settings: method=%s loss=%s gtol=%.2e "
                 "max_nfev=%s x_scale=%s",
-                method, config.loss, config.gtol,
-                config.max_nfev if config.max_nfev is not None
+                method,
+                config.loss,
+                config.gtol,
+                config.max_nfev
+                if config.max_nfev is not None
                 else f"auto({100 * n_params})",
                 config.x_scale,
             )
@@ -603,11 +609,17 @@ class NLSQWrapper(NLSQAdapterBase):
             method = "trf"
         loss = config.loss
         logger.info(
-            "NLSQWrapper settings: method=%s gtol=%.2e max_nfev=%s "
-            "loss=%r not applied (numpy fallback path)",
-            method, config.gtol,
-            config.max_nfev if config.max_nfev is not None
+            "NLSQWrapper settings: method=%s ftol=%.2e xtol=%.2e gtol=%.2e "
+            "max_nfev=%s x_scale=%r (loss=%r not applied; "
+            "STREAMING tier ignores tolerances)",
+            method,
+            config.ftol,
+            config.xtol,
+            config.gtol,
+            config.max_nfev
+            if config.max_nfev is not None
             else f"auto({100 * n_params})",
+            config.x_scale,
             loss,
         )
 
@@ -703,6 +715,7 @@ class NLSQWrapper(NLSQAdapterBase):
                     n_params=n_params,
                     method=method,
                     loss=loss,
+                    config=config,
                 )
                 wall_time = time.perf_counter() - start_time
                 result = build_result_from_nlsq(
@@ -775,15 +788,29 @@ class NLSQWrapper(NLSQAdapterBase):
         n_params: int,
         method: str,
         loss: str,
+        config: NLSQConfig | None = None,
     ) -> Any:
         """Dispatch a single call to the appropriate nlsq function/class.
 
-        Note: ``nlsq.curve_fit`` (STANDARD/LARGE/STREAMING) has a different API
-        from ``CurveFit.curve_fit`` and does not accept ``ftol``/``xtol``/
-        ``gtol``/``x_scale``/``max_nfev``/``loss``.  Those config parameters are
-        fully applied on the NLSQAdapter path (``CurveFit.curve_fit``); the
-        NLSQWrapper is a last-resort fallback.
+        ``ftol``/``xtol``/``gtol``/``x_scale``/``max_nfev`` are propagated to
+        STANDARD and LARGE tiers via ``**kwargs`` (both ``nlsq.curve_fit`` and
+        ``curve_fit_large`` forward unknown kwargs to scipy ``least_squares``).
+        ``loss`` is intentionally omitted on all tiers: the NLSQWrapper path
+        wraps residuals as a plain numpy function, so robust-loss kernels would
+        re-enter JAX tracing and raise ``TracerArrayConversionError``.
+        STREAMING tier ignores tolerances (fixed ``AdaptiveHybridStreamingOptimizer``
+        signature).
         """
+        # Solver kwargs propagated to STANDARD and LARGE tiers.
+        solver_kwargs: dict[str, Any] = {}
+        if config is not None:
+            solver_kwargs["ftol"] = config.ftol
+            solver_kwargs["xtol"] = config.xtol
+            solver_kwargs["gtol"] = config.gtol
+            solver_kwargs["x_scale"] = config.x_scale
+            if config.max_nfev is not None:
+                solver_kwargs["max_nfev"] = config.max_nfev
+
         if tier == NLSQStrategy.STREAMING:
             if not STREAMING_AVAILABLE or AdaptiveHybridStreamingOptimizer is None:
                 raise RuntimeError(
@@ -791,9 +818,8 @@ class NLSQWrapper(NLSQAdapterBase):
                 )
             optimizer = AdaptiveHybridStreamingOptimizer()
             return optimizer.fit(
-                f=wrapped_fn,
-                xdata=xdata,
-                ydata=ydata,
+                data_source=(xdata, ydata),
+                func=wrapped_fn,
                 p0=p0,
                 bounds=(lower_bounds, upper_bounds),
             )
@@ -805,11 +831,10 @@ class NLSQWrapper(NLSQAdapterBase):
                 ydata=ydata,
                 p0=p0,
                 bounds=(lower_bounds, upper_bounds),
+                **solver_kwargs,
             )
 
-        # STANDARD tier.  loss intentionally omitted: nlsq.curve_fit applies
-        # robust loss via JAX JIT over the residual function; _wrapped(x, *params)
-        # calls np.array(params) inside the trace → TracerArrayConversionError.
+        # STANDARD tier.  loss intentionally omitted — see docstring.
         _ = loss
         return curve_fit(  # type: ignore[call-arg]
             f=wrapped_fn,
@@ -818,6 +843,7 @@ class NLSQWrapper(NLSQAdapterBase):
             p0=p0,
             bounds=(lower_bounds, upper_bounds),
             method=method,
+            **solver_kwargs,
         )
 
 
