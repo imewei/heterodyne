@@ -162,33 +162,67 @@ class CMCBackend(ABC):
 
 
 def select_backend(config: CMCConfig) -> MCMCBackend:
-    """Select the appropriate MCMC backend based on available CPU devices.
+    """Select the appropriate MCMC backend.
 
-    Heterodyne is CPU-only.  Selection logic:
-    - Multiple CPU devices -> PjitBackend (multi-device parallel)
-    - Single CPU device   -> CPUBackend (sequential chains)
+    Selection order:
+    1. Explicit ``config.backend_name == "multiprocessing"`` → MultiprocessingBackend
+    2. Auto with n_chains >= 3 and >= 2 physical workers → MultiprocessingBackend
+    3. Multiple JAX CPU devices → PjitBackend
+    4. Fallback → CPUBackend (sequential chains)
 
     Args:
-        config: CMC configuration (reserved for future backend-selection
-            heuristics such as ``config.num_chains``).
+        config: CMC configuration.
 
     Returns:
         An instantiated backend ready for ``run()``.
     """
+    import multiprocessing as _mp
+
     from heterodyne.optimization.cmc.backends.cpu_backend import CPUBackend
     from heterodyne.optimization.cmc.backends.pjit_backend import PjitBackend
 
+    backend_name: str = getattr(config, "backend_name", "auto")
+
+    if backend_name == "multiprocessing":
+        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+            MultiprocessingBackend,
+        )
+
+        logger.info("Selecting MultiprocessingBackend (explicit config)")
+        return MultiprocessingBackend()
+
     devices = jax.devices()
+
+    if backend_name == "auto":
+        n_chains: int = getattr(config, "num_chains", 1)
+        try:
+            logical = _mp.cpu_count() or 1
+        except NotImplementedError:
+            logical = 1
+        n_workers_est = max(1, logical // 2 - 1)
+        if n_chains >= 3 and n_workers_est >= 2:
+            from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+                MultiprocessingBackend,
+            )
+
+            logger.info(
+                "Auto: selecting MultiprocessingBackend (n_chains=%d, est_workers=%d)",
+                n_chains,
+                n_workers_est,
+            )
+            return MultiprocessingBackend()
 
     if len(devices) > 1:
         logger.info(
-            "Multiple CPU devices detected (%d), selecting PjitBackend for "
-            "multi-device parallel execution",
+            "Multiple CPU devices (%d), selecting PjitBackend",
             len(devices),
         )
         return PjitBackend()
 
-    logger.info("Single CPU device, selecting CPUBackend for sequential chain execution")
+    logger.info(
+        "Selecting CPUBackend (single device, n_chains=%d)",
+        getattr(config, "num_chains", 1),
+    )
     return CPUBackend()
 
 

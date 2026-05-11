@@ -768,13 +768,35 @@ def _run_shard_worker(
                 if k in varying_names
             }
 
+        # CMC prior tempering: widen prior std by prior_width_mult = sqrt(num_shards).
+        # Received via shared_kwargs from run_shards() when doing sharded CMC.
+        prior_width_mult: float = float(shard_data.get("prior_width_multiplier", 1.0))
+        tempered_priors_dict: dict[str, Any] = {}
+        if prior_width_mult != 1.0:
+            from heterodyne.optimization.cmc.priors import (
+                build_default_priors as _build_default_priors,
+            )
+            from heterodyne.optimization.cmc.priors import (
+                temper_priors as _temper_priors,
+            )
+
+            # Derive num_shards from multiplier (prior_width_mult = sqrt(num_shards))
+            num_shards_est = max(2, round(prior_width_mult**2))
+            tempered_priors_dict = _temper_priors(
+                _build_default_priors(parameter_space), num_shards_est
+            )
+
         def _shard_model() -> None:
             """NumPyro model for one CMC shard (14-parameter heterodyne)."""
             params = jnp.asarray(fixed_values)
             for i, name in enumerate(ALL_PARAM_NAMES):
                 if name in varying_names:
-                    prior = parameter_space.priors[name]
-                    param = numpyro.sample(name, prior.to_numpyro(name))
+                    if name in tempered_priors_dict:
+                        numpyro_dist = tempered_priors_dict[name]
+                    else:
+                        prior = parameter_space.priors[name]
+                        numpyro_dist = prior.to_numpyro(name)
+                    param = numpyro.sample(name, numpyro_dist)
                     params = params.at[i].set(param)
 
             # Compute 14-parameter heterodyne c2 prediction.
@@ -1314,6 +1336,7 @@ class MultiprocessingBackend(CMCBackend):
         config: CMCConfig,
         initial_values: dict[str, Any] | None = None,
         parameter_space: Any | None = None,
+        prior_width_multiplier: float = 1.0,
         progress_bar: bool = True,
     ) -> list[dict[str, Any]]:
         """Run NUTS in parallel across all CMC shards.
@@ -1403,6 +1426,7 @@ class MultiprocessingBackend(CMCBackend):
             "offset": _first.get("offset", 1.0),
             "n_phi": _first.get("n_phi", 1),
             "reparam_config_dict": _first.get("reparam_config_dict"),
+            "prior_width_multiplier": float(prior_width_multiplier),
         }
 
         # Build per-shard numpy dicts for shared memory packing
