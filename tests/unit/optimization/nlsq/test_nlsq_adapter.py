@@ -438,3 +438,80 @@ class TestBugPrevention_LossKwarg:
             f"'loss' must NOT be in nlsq.curve_fit kwargs (TracerArrayConversionError). "
             f"Got: {call_kwargs}"
         )
+
+
+class TestBugPrevention_JITSafeWrapper:
+    """Regression: nlsq 0.6.12 calls func(xdata, *args) inside @jit.
+
+    masked_residual_func unpacks the traced parameter array into *params before
+    calling the user function.  _wrapped must use jnp.array (not np.array) so it
+    survives JAX tracing.  If a future nlsq upgrade changes this contract these
+    tests will catch it immediately.
+    """
+
+    @pytest.mark.unit
+    @pytest.mark.regression
+    def test_wrapped_is_jit_traceable(self) -> None:
+        """_wrapped closure must be callable inside jax.jit without TracerArrayConversionError."""
+        import jax
+        import jax.numpy as jnp
+
+        # Mirrors exactly what NLSQAdapter/NLSQWrapper build.
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return params * 2.0
+
+        def _wrapped(x: np.ndarray, *params: object) -> object:
+            return residual_fn(jnp.array(params, dtype=jnp.float64))
+
+        # nlsq 0.6.12 equivalent: func(xdata, *args) inside @jit
+        @jax.jit
+        def nlsq_inner(args: jnp.ndarray) -> jnp.ndarray:
+            xdata = jnp.zeros(1)
+            return _wrapped(xdata, *args)  # type: ignore[return-value]
+
+        result = nlsq_inner(jnp.array([1.0, 2.0, 3.0]))
+        np.testing.assert_allclose(np.asarray(result), [2.0, 4.0, 6.0])
+
+    @pytest.mark.unit
+    @pytest.mark.regression
+    def test_nlsq_adapter_fit_does_not_raise_tracer_error(self) -> None:
+        """NLSQAdapter.fit must not raise TracerArrayConversionError (nlsq 0.6.12 regression)."""
+        import jax.numpy as jnp
+
+        from heterodyne.optimization.nlsq.adapter import NLSQAdapter
+        from heterodyne.optimization.nlsq.config import NLSQConfig
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return params - jnp.array([1.0, 2.0, 3.0])
+
+        adapter = NLSQAdapter(parameter_names=["a", "b", "c"])
+        result = adapter.fit(
+            residual_fn=residual_fn,
+            initial_params=np.array([0.5, 0.5, 0.5]),
+            bounds=(np.zeros(3), np.full(3, 10.0)),
+            config=NLSQConfig(),
+        )
+        assert result is not None
+        assert "TracerArray" not in (result.message or "")
+
+    @pytest.mark.unit
+    @pytest.mark.regression
+    def test_nlsq_wrapper_fit_does_not_raise_tracer_error(self) -> None:
+        """NLSQWrapper.fit must not raise TracerArrayConversionError (nlsq 0.6.12 regression)."""
+        import jax.numpy as jnp
+
+        from heterodyne.optimization.nlsq.adapter import NLSQWrapper
+        from heterodyne.optimization.nlsq.config import NLSQConfig
+
+        def residual_fn(params: jnp.ndarray) -> jnp.ndarray:
+            return params - jnp.array([1.0, 2.0, 3.0])
+
+        wrapper = NLSQWrapper(parameter_names=["a", "b", "c"])
+        result = wrapper.fit(
+            residual_fn=residual_fn,
+            initial_params=np.array([0.5, 0.5, 0.5]),
+            bounds=(np.zeros(3), np.full(3, 10.0)),
+            config=NLSQConfig(),
+        )
+        assert result is not None
+        assert "TracerArray" not in (result.message or "")

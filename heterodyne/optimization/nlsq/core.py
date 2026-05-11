@@ -280,6 +280,50 @@ def fit_nlsq_multi_phi(
     return results
 
 
+def _compute_per_angle_chi2(
+    residuals: np.ndarray,
+    c2_matrix: np.ndarray,
+    n_params: int,
+) -> tuple[float, float]:
+    """Compute per-angle cost and noise-normalised reduced chi-squared.
+
+    Joint fits produce one aggregated cost and chi2 for all angles. This
+    helper reconstructs the per-angle statistics so each NLSQResult carries
+    its own diagnostics rather than a copy of the joint value.
+
+    Args:
+        residuals: Flat off-diagonal residual vector from compute_residuals,
+            length n*(n-1).
+        c2_matrix: Per-angle experimental C2 matrix, shape (n, n).
+        n_params: Number of varying physics parameters.
+
+    Returns:
+        ``(per_angle_cost, reduced_chi_squared)`` where ``per_angle_cost``
+        is ``0.5*SSR`` and ``reduced_chi_squared`` is noise-normalised
+        (target ≈ 1.0 for a good fit; MSE fallback when noise is degenerate).
+    """
+    ssr = float(np.sum(residuals**2))
+    per_angle_cost = 0.5 * ssr
+
+    n_matrix = c2_matrix.shape[0]
+    n_valid = c2_matrix.size - n_matrix  # off-diagonal count (matches residuals length)
+    n_dof = max(n_valid - n_params, 1)
+
+    # Far-lag photon-noise estimate — same formula as _fit_local
+    c2_np = np.asarray(c2_matrix)
+    row_idx = np.arange(n_matrix)
+    lag_mat = np.abs(row_idx[:, None] - row_idx[None, :])
+    far_vals = c2_np[lag_mat >= n_matrix // 2]
+    sigma2_noise = float(np.var(far_vals)) if far_vals.size > 1 else 0.0
+
+    if sigma2_noise > 1e-12:
+        reduced_chi2 = ssr / (sigma2_noise * n_dof)
+    else:
+        reduced_chi2 = ssr / n_dof  # MSE fallback
+
+    return per_angle_cost, reduced_chi2
+
+
 def _fit_joint_constant_multi_phi(
     model: HeterodyneModel,
     c2_data: np.ndarray,
@@ -480,6 +524,9 @@ def _fit_joint_constant_multi_phi(
                 offset=fitted_offset,
             )
         )
+        per_angle_cost, per_angle_chi2 = _compute_per_angle_chi2(
+            residuals, np.asarray(c2_data_batch[i]), n_physics_varying
+        )
 
         result = NLSQResult(
             parameters=fitted_physics.copy(),
@@ -495,8 +542,8 @@ def _fit_joint_constant_multi_phi(
                 else None
             ),
             residuals=residuals,
-            final_cost=joint_result.final_cost,
-            reduced_chi_squared=joint_result.reduced_chi_squared,
+            final_cost=per_angle_cost,
+            reduced_chi_squared=per_angle_chi2,
             success=bool(joint_result.success),
             message=str(joint_result.message),
             n_iterations=joint_result.n_iterations,
@@ -1103,23 +1150,28 @@ def _fit_joint_multi_phi(
             offset=float(fitted_offset[i]),
         )
 
+        _residuals_i = np.asarray(
+            compute_residuals(
+                jnp.asarray(full_fitted),
+                t,
+                q,
+                dt,
+                float(phi_angles[i]),
+                c2_data_list[i],
+                weights_list[i],
+                contrast=float(fitted_contrast[i]),
+                offset=float(fitted_offset[i]),
+            )
+        )
+        _per_cost_i, _per_chi2_i = _compute_per_angle_chi2(
+            _residuals_i, np.asarray(c2_data_list[i]), n_physics_varying
+        )
         result = NLSQResult(
             parameters=fitted_physics.copy(),
             parameter_names=list(varying_names),
-            residuals=np.asarray(
-                compute_residuals(
-                    jnp.asarray(full_fitted),
-                    t,
-                    q,
-                    dt,
-                    float(phi_angles[i]),
-                    c2_data_list[i],
-                    weights_list[i],
-                    contrast=float(fitted_contrast[i]),
-                    offset=float(fitted_offset[i]),
-                )
-            ),
-            final_cost=joint_result.final_cost,
+            residuals=_residuals_i,
+            final_cost=_per_cost_i,
+            reduced_chi_squared=_per_chi2_i,
             success=bool(joint_result.success),
             message=str(joint_result.message),
             n_function_evals=int(joint_result.n_function_evals or 0),

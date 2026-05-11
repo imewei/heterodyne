@@ -90,10 +90,9 @@ def plot_nlsq_fit(
         fig.suptitle("No data available")
         return fig
 
-    if t is None:
-        t = np.arange(c2_data.shape[0])
+    t_arr: np.ndarray = t if t is not None else np.arange(c2_data.shape[0])
 
-    if t.size == 0:
+    if t_arr.size == 0:
         fig.suptitle("No data available")
         return fig
 
@@ -114,11 +113,13 @@ def plot_nlsq_fit(
     if vmin_shared >= vmax_shared:
         vmax_shared = vmin_shared + 0.5
 
+    t_extent = (float(t_arr[0]), float(t_arr[-1]), float(t_arr[0]), float(t_arr[-1]))
+
     # Data plot — origin='lower' places t=0 at bottom-left; extent=[left,right,bottom,top]
     im0 = axes[0].imshow(
         c2_data,
         origin="lower",
-        extent=[t[0], t[-1], t[0], t[-1]],
+        extent=t_extent,
         aspect="auto",
         cmap="jet",
         vmin=vmin_shared,
@@ -134,7 +135,7 @@ def plot_nlsq_fit(
         im1 = axes[1].imshow(
             result.fitted_correlation,
             origin="lower",
-            extent=[t[0], t[-1], t[0], t[-1]],
+            extent=t_extent,
             aspect="auto",
             cmap="jet",
             vmin=vmin_shared,
@@ -150,24 +151,26 @@ def plot_nlsq_fit(
 
     # Residual plot
     if result.fitted_correlation is not None:
-        if result.residuals is not None:
-            residual_2d = result.residuals
-            if residual_2d.ndim == 1:
-                # Infer grid side from residual length (not c2_data.shape[0]):
-                # after diagonal masking the flat array is not n²-sized.
-                n_sq = len(residual_2d)
-                n_side = int(n_sq**0.5 + 0.5)
-                if n_side * n_side == n_sq:
-                    residual_2d = residual_2d.reshape(n_side, n_side)
-                else:
-                    residual_2d = np.full(c2_data.shape, np.nan)
-        else:
-            residual_2d = c2_data - result.fitted_correlation
-        vmax = np.nanpercentile(np.abs(residual_2d), 99)
+        # Optimizer residuals are off-diagonal only (length n*(n-1)), never a
+        # perfect square — the reshape guard always fails → NaN panel.
+        # Compute from (exp − fit) directly. Align shapes first: NLSQ may
+        # drop the first time point, making fitted_correlation one row/col
+        # smaller than c2_data.
+        fc = np.asarray(result.fitted_correlation)
+        exp = c2_data
+        if exp.shape != fc.shape:
+            dr, dc = exp.shape[0] - fc.shape[0], exp.shape[1] - fc.shape[1]
+            if dr >= 0 and dc >= 0:
+                exp = exp[dr:, dc:]
+        residual_2d = exp - fc if exp.shape == fc.shape else np.full(fc.shape, np.nan)
+        _finite = residual_2d[np.isfinite(residual_2d)]
+        vmax = float(np.percentile(np.abs(_finite), 99)) if _finite.size > 0 else 1.0
+        if vmax == 0.0:
+            vmax = 1.0
         im2 = axes[2].imshow(
             residual_2d,
             origin="lower",
-            extent=[t[0], t[-1], t[0], t[-1]],
+            extent=t_extent,
             aspect="auto",
             cmap="RdBu_r",
             vmin=-vmax,
@@ -218,27 +221,33 @@ def plot_residual_map(
         fig.suptitle("No fitted correlation available")
         return fig
 
-    if result.residuals is not None:
-        residuals = result.residuals
-        if residuals.ndim == 1:
-            n_sq = len(residuals)
-            n_side = int(n_sq**0.5 + 0.5)
-            if n_side * n_side == n_sq:
-                residuals = residuals.reshape(n_side, n_side)
-            else:
-                residuals = np.full(c2_data.shape, np.nan)
-    else:
-        residuals = c2_data - result.fitted_correlation
+    # Same reason as plot_nlsq_fit: optimizer residuals are off-diagonal flat
+    # and can't be cleanly reshaped. Use (exp − fit) from the fitted matrix,
+    # with shape alignment in case NLSQ dropped the first time point.
+    fc: np.ndarray = np.asarray(result.fitted_correlation)
+    exp = c2_data
+    if exp.shape != fc.shape:
+        dr = exp.shape[0] - fc.shape[0]
+        dc = exp.shape[1] - fc.shape[1]
+        if dr >= 0 and dc >= 0:
+            exp = exp[dr:, dc:]
+    residuals: np.ndarray = (
+        exp - fc if exp.shape == fc.shape else np.full(fc.shape, np.nan)
+    )
 
-    if t is None:
-        t = np.arange(c2_data.shape[0])
+    n_t: int = int(residuals.shape[0])
+    t_arr: np.ndarray = t if (t is not None and len(t) == n_t) else np.arange(n_t)
 
     # 2D residual map
-    vmax = np.nanpercentile(np.abs(residuals), 99)
+    _finite_r = residuals[np.isfinite(residuals)]
+    vmax = float(np.percentile(np.abs(_finite_r), 99)) if _finite_r.size > 0 else 1.0
+    if vmax == 0.0:
+        vmax = 1.0
+    t_extent_r = (float(t_arr[0]), float(t_arr[-1]), float(t_arr[0]), float(t_arr[-1]))
     im = axes[0, 0].imshow(
         residuals,
         origin="lower",
-        extent=[t[0], t[-1], t[0], t[-1]],
+        extent=t_extent_r,
         aspect="auto",
         cmap="RdBu_r",
         vmin=-vmax,
@@ -249,15 +258,26 @@ def plot_residual_map(
     axes[0, 0].set_ylabel("t₁")
     plt.colorbar(im, ax=axes[0, 0])
 
-    # Histogram of residuals
-    axes[0, 1].hist(residuals.ravel(), bins=50, density=True, alpha=0.7)
+    # Histogram of residuals (skip if no finite values, e.g. diagonal-masked fallback)
+    _flat_finite = residuals.ravel()[np.isfinite(residuals.ravel())]
+    if _flat_finite.size > 0:
+        axes[0, 1].hist(_flat_finite, bins=50, density=True, alpha=0.7)
+    else:
+        axes[0, 1].text(
+            0.5,
+            0.5,
+            "No finite residuals",
+            ha="center",
+            va="center",
+            transform=axes[0, 1].transAxes,
+        )
     axes[0, 1].set_xlabel("Residual Value")
     axes[0, 1].set_ylabel("Density")
     axes[0, 1].set_title("Residual Distribution")
 
     # Add normal distribution overlay
     mu, sigma = np.nanmean(residuals), np.nanstd(residuals)
-    if sigma > 0:
+    if sigma > 0 and np.isfinite(sigma):
         x = np.linspace(mu - 4 * sigma, mu + 4 * sigma, 100)
         axes[0, 1].plot(
             x,
@@ -270,7 +290,7 @@ def plot_residual_map(
 
     # Residual along diagonal
     diag_residuals = np.diag(residuals)
-    axes[1, 0].plot(t, diag_residuals, "b-", lw=1)
+    axes[1, 0].plot(t_arr, diag_residuals, "b-", lw=1)
     axes[1, 0].axhline(0, color="k", linestyle="--", alpha=0.5)
     axes[1, 0].set_xlabel("Time")
     axes[1, 0].set_ylabel("Residual")
@@ -513,7 +533,7 @@ def plot_per_angle_residuals(
     global_vmax = float(np.nanpercentile(np.abs(residuals), 99))
     if not np.isfinite(global_vmax) or global_vmax == 0:
         global_vmax = 0.01
-    t_extent = [times[0], times[-1], times[-1], times[0]]
+    t_extent = (times[0], times[-1], times[-1], times[0])
 
     for angle_idx in range(n_angles):
         ax: Axes = axes_flat[angle_idx]
@@ -1048,12 +1068,12 @@ def plot_simulated_data(
     n_t = len(t_model)
     # extent: [left=t1_min, right=t1_max, bottom=t2_min, top=t2_max]
     # Used with .T so x-axis=t1, y-axis=t2 (parity with homodyne)
-    extent = [
+    extent = (
         float(t_extent[0]),
         float(t_extent[-1]),
         float(t_extent[0]),
         float(t_extent[-1]),
-    ]
+    )
 
     # Collect simulated C2 for each angle
     c2_all: list[np.ndarray] = []
@@ -1359,7 +1379,7 @@ def generate_and_plot_fitted_simulations(
 
     n_t = len(t)
     # extent with .T: [left=t1_min, right=t1_max, bottom=t2_min, top=t2_max]
-    extent = [float(t[0]), float(t[-1]), float(t[0]), float(t[-1])]
+    extent = (float(t[0]), float(t[-1]), float(t[0]), float(t[-1]))
 
     # Extract fitted parameters from NLSQResult (no dedicated contrast/offset attrs)
     params = getattr(result, "parameters", None)

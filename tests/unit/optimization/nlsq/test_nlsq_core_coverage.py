@@ -218,6 +218,57 @@ class TestFitNLSQMultiPhi:
 
     @pytest.mark.integration
     @pytest.mark.requires_jax
+    def test_per_angle_chi2_not_duplicated_from_joint(
+        self,
+        small_heterodyne_model: HeterodyneModel,
+        small_c2_data: np.ndarray,
+        fast_nlsq_config: NLSQConfig,
+    ) -> None:
+        """Joint fit must not duplicate the aggregate chi2 to every per-angle result.
+
+        Regression for the bug where _fit_joint_constant_multi_phi copied
+        joint_result.reduced_chi_squared to all per-angle NLSQResult objects,
+        making all three values identical.
+        """
+        from heterodyne.optimization.nlsq.core import fit_nlsq_multi_phi
+
+        # Three angles with intentionally different scales → different residuals
+        c2_3d = np.stack(
+            [
+                small_c2_data,
+                small_c2_data * 0.85,
+                small_c2_data * 0.70,
+            ]
+        )
+        phi_angles = [0.0, 45.0, 90.0]
+
+        results = fit_nlsq_multi_phi(
+            model=small_heterodyne_model,
+            c2_data=c2_3d,
+            phi_angles=phi_angles,
+            config=fast_nlsq_config,
+        )
+
+        assert len(results) == 3
+        chi2_vals = [r.reduced_chi_squared for r in results]
+
+        # All chi2 values must be set (not None) and finite
+        assert all(v is not None for v in chi2_vals), f"Some chi2 are None: {chi2_vals}"
+        assert all(
+            np.isfinite(v)
+            for v in chi2_vals  # type: ignore[arg-type]
+        ), f"Some chi2 are non-finite: {chi2_vals}"
+
+        # Per-angle values must differ — identical values mean the joint chi2
+        # was duplicated rather than computed per angle
+        assert len(set(chi2_vals)) > 1, (
+            f"All per-angle chi2 are identical ({chi2_vals[0]:.6f}), "
+            "which indicates the joint result was duplicated instead of "
+            "computing per-angle statistics."
+        )
+
+    @pytest.mark.integration
+    @pytest.mark.requires_jax
     def test_fit_nlsq_multi_phi_2d_data_expansion(
         self,
         small_heterodyne_model: HeterodyneModel,
@@ -343,7 +394,6 @@ class TestFitNLSQMultiPhi:
         self,
         small_heterodyne_model: HeterodyneModel,
         small_c2_data: np.ndarray,
-        fast_nlsq_config: NLSQConfig,
     ) -> None:
         """Test fit_nlsq_multi_phi with Fourier joint fit (per_angle_mode='fourier')."""
         from heterodyne.optimization.nlsq.config import NLSQConfig as _NLSQConfig
@@ -656,3 +706,86 @@ class TestFourierReparameterizer:
         assert config.mode == "fourier"
         assert config.fourier_order == 3
         assert config.auto_threshold == 10
+
+
+class TestComputePerAngleChi2:
+    """Unit tests for the _compute_per_angle_chi2 helper.
+
+    Prevention: locks down the per-angle cost/chi2 computation so that
+    future changes to joint-fit result-splitting cannot silently reintroduce
+    the bug where all angles received the same aggregate chi2.
+    """
+
+    def _make_c2(self, n: int, noise_std: float = 0.01) -> np.ndarray:
+        rng = np.random.default_rng(42)
+        base = np.ones((n, n), dtype=np.float64)
+        return base + rng.normal(0, noise_std, (n, n))
+
+    def test_returns_positive_cost_and_chi2(self) -> None:
+        """Cost and chi2 are strictly positive for non-zero residuals."""
+        from heterodyne.optimization.nlsq.core import _compute_per_angle_chi2
+
+        n = 20
+        c2 = self._make_c2(n, noise_std=0.02)
+        residuals = np.random.default_rng(0).normal(0, 0.05, n * (n - 1))
+        cost, chi2 = _compute_per_angle_chi2(residuals, c2, n_params=5)
+        assert cost > 0.0
+        assert chi2 > 0.0
+
+    def test_cost_equals_half_ssr(self) -> None:
+        """cost == 0.5 * sum(residuals²) by definition."""
+        from heterodyne.optimization.nlsq.core import _compute_per_angle_chi2
+
+        n = 15
+        c2 = self._make_c2(n)
+        residuals = np.ones(n * (n - 1)) * 0.1
+        cost, _ = _compute_per_angle_chi2(residuals, c2, n_params=3)
+        expected = 0.5 * float(np.sum(residuals**2))
+        assert abs(cost - expected) < 1e-12
+
+    def test_chi2_normalized_by_noise(self) -> None:
+        """chi2 is SSR/(σ²_noise * DOF), not raw MSE, when noise is detectable."""
+        from heterodyne.optimization.nlsq.core import _compute_per_angle_chi2
+
+        n = 30
+        noise_std = 0.05
+        rng = np.random.default_rng(7)
+        c2 = np.ones((n, n)) + rng.normal(0, noise_std, (n, n))
+        residuals = rng.normal(0, noise_std, n * (n - 1))
+
+        _, chi2 = _compute_per_angle_chi2(residuals, c2, n_params=5)
+        raw_mse = float(np.sum(residuals**2)) / (n * (n - 1) - 5)
+
+        # Normalized chi2 should differ from raw MSE when sigma2_noise ≠ 1
+        assert not np.isclose(chi2, raw_mse, rtol=0.01), (
+            "chi2 == raw MSE suggests the noise normalization did not apply"
+        )
+
+    def test_fallback_to_mse_when_noise_near_zero(self) -> None:
+        """Falls back to MSE (no σ²_noise division) for constant c2 data."""
+        from heterodyne.optimization.nlsq.core import _compute_per_angle_chi2
+
+        n = 20
+        c2 = np.ones((n, n))  # zero variance → sigma2_noise ≈ 0
+        residuals = np.full(n * (n - 1), 0.1)
+        _, chi2 = _compute_per_angle_chi2(residuals, c2, n_params=3)
+        n_dof = max(n * (n - 1) - 3, 1)
+        expected_mse = float(np.sum(residuals**2)) / n_dof
+        assert abs(chi2 - expected_mse) < 1e-10
+
+    def test_per_angle_values_differ_for_different_data(self) -> None:
+        """Different c2 matrices must produce different chi2 — not identical."""
+        from heterodyne.optimization.nlsq.core import _compute_per_angle_chi2
+
+        n = 25
+        rng = np.random.default_rng(99)
+        residuals = rng.normal(0, 0.05, n * (n - 1))
+
+        c2_a = np.ones((n, n)) + rng.normal(0, 0.02, (n, n))
+        c2_b = np.ones((n, n)) + rng.normal(0, 0.08, (n, n))  # higher noise
+
+        _, chi2_a = _compute_per_angle_chi2(residuals, c2_a, n_params=5)
+        _, chi2_b = _compute_per_angle_chi2(residuals, c2_b, n_params=5)
+        assert not np.isclose(chi2_a, chi2_b, rtol=1e-6), (
+            "Different noise levels must produce different chi2 values"
+        )

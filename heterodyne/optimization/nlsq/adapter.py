@@ -276,7 +276,8 @@ class NLSQAdapter(NLSQAdapterBase):
             # @jit, so *params are traced JAX scalars — np.array would raise
             # TracerArrayConversionError.
             def _wrapped(x: np.ndarray, *params: Any) -> Any:
-                return residual_fn(jnp.array(params, dtype=jnp.float64))
+                # jnp.Array satisfies the ndarray protocol at runtime; ignore static mismatch.
+                return residual_fn(jnp.array(params, dtype=jnp.float64))  # type: ignore[arg-type]
 
             fitter, cache_hit = get_or_create_fitter(
                 n_data=n_data,
@@ -606,7 +607,7 @@ class NLSQWrapper(NLSQAdapterBase):
 
         # jnp.array required: nlsq 0.6.12 calls func(xdata, *args) inside @jit.
         def _wrapped(x: np.ndarray, *params: Any) -> Any:
-            return residual_fn(jnp.array(params, dtype=jnp.float64))
+            return residual_fn(jnp.array(params, dtype=jnp.float64))  # type: ignore[arg-type]
 
         method = config.method
         if method == "dogbox":
@@ -841,13 +842,13 @@ class NLSQWrapper(NLSQAdapterBase):
 
         # STANDARD tier.  loss intentionally omitted — see docstring.
         _ = loss
-        return curve_fit(  # type: ignore[call-arg]
+        return curve_fit(  # type: ignore[call-arg, arg-type]
             f=wrapped_fn,
             xdata=xdata,
             ydata=ydata,
             p0=p0,
             bounds=(lower_bounds, upper_bounds),
-            method=method,
+            method=method,  # type: ignore[arg-type]
             **solver_kwargs,
         )
 
