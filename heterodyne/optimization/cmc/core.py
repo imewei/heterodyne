@@ -602,52 +602,103 @@ def fit_cmc_sharded(
     shard_priors = temper_priors(base_priors, num_shards)
     prior_width_mult = math.sqrt(num_shards)
 
-    # --- Phase 3: per-shard sampling ---
-    logger.info("[CMC-sharded] Phase 3/5: sampling %d shards sequentially", num_shards)
-
-    shard_results: list[CMCResult] = []
+    # --- Phase 3: per-shard sampling (parallel) ---
     base_seed = config.seed if config.seed is not None else secrets.randbelow(2**31)
     t_np = np.asarray(model.t)
+    contrast, offset = model.scaling.get_for_angle(0)
+    q_val = float(model.q)
+    dt_val = float(model.dt)
 
-    for shard_idx, shard in enumerate(shards):
-        logger.info(
-            "[CMC-sharded] Shard %d/%d: %d data points",
-            shard_idx + 1,
+    # Translate _create_shards output format to the dict format run_shards() expects:
+    # "c2_shard" → "c2_data", "sigma_shard" → "sigma", t_indices → "t" array,
+    # plus physics scalars shared across all shards (q, dt, phi_angle, contrast, offset).
+    parallel_shards: list[dict[str, Any]] = [
+        {
+            "c2_data": np.asarray(shard["c2_shard"]),
+            "sigma": (
+                np.asarray(shard["sigma_shard"])
+                if not isinstance(shard["sigma_shard"], float)
+                else shard["sigma_shard"]
+            ),
+            "t": t_np[shard["t_indices"]],
+            "noise_scale": float(
+                np.mean(np.asarray(shard["sigma_shard"]))
+                if not isinstance(shard["sigma_shard"], float)
+                else shard["sigma_shard"]
+            ),
+            "q": q_val,
+            "dt": dt_val,
+            "phi_angle": phi_angle,
+            "contrast": float(contrast),
+            "offset": float(offset),
+            "n_phi": 1,
+            "reparam_config_dict": None,
+        }
+        for shard in shards
+    ]
+
+    # NLSQ warm-start values passed to workers for chain initialisation.
+    initial_values: dict[str, Any] | None = None
+    if nlsq_result is not None and nlsq_result.success:
+        initial_values = {
+            name: float(nlsq_result.get_param(name))
+            for name in nlsq_result.parameter_names
+        }
+
+    # Log rough runtime estimate before blocking.
+    avg_pts = sum(int(np.asarray(s["c2_data"]).size) for s in parallel_shards) // max(
+        num_shards, 1
+    )
+    _log_runtime_estimate(
+        logger,
+        n_shards=num_shards,
+        n_chains=config.num_chains,
+        n_warmup=config.num_warmup,
+        n_samples=config.num_samples,
+        avg_points_per_shard=avg_pts,
+    )
+
+    logger.info(
+        "[CMC-sharded] Phase 3/5: dispatching %d shards to MultiprocessingBackend",
+        num_shards,
+    )
+
+    from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+        MultiprocessingBackend,
+    )
+
+    _backend = MultiprocessingBackend()
+    raw_results = _backend.run_shards(
+        shards=parallel_shards,
+        config=config,
+        initial_values=initial_values,
+        parameter_space=_space,
+        prior_width_multiplier=prior_width_mult,
+        progress_bar=True,
+    )
+
+    # Convert worker result dicts → CMCResult objects for _combine_shard_posteriors().
+    shard_results: list[CMCResult] = [
+        _result_dict_to_cmc_result(r, config) for r in raw_results
+    ]
+
+    # Pad with failed placeholders for any shards dropped by run_shards() (timeout/crash).
+    if len(shard_results) < num_shards:
+        n_missing = num_shards - len(shard_results)
+        logger.warning(
+            "[CMC-sharded] %d/%d shards failed or timed out",
+            n_missing,
             num_shards,
-            len(shard["indices"]),
         )
-
-        # sigma passed unscaled — tempering is handled via widened priors
-        shard_sigma = shard["sigma_shard"]
-
-        # Build shard time array from stored t_indices
-        t_shard = t_np[shard["t_indices"]]
-
-        # Per-shard config: unique seed, same NUTS hyper-parameters
-        shard_config = _make_shard_config(config, seed=base_seed + shard_idx)
-
-        shard_result = fit_cmc_jax(
-            model=model,
-            c2_data=shard["c2_shard"],
-            phi_angle=phi_angle,
-            config=shard_config,
-            sigma=shard_sigma,
-            nlsq_result=nlsq_result,
-            t_override=t_shard,
-            priors_override=shard_priors,
-            prior_width_multiplier=prior_width_mult,
+        _fallback_names: list[str] = (
+            list(raw_results[0]["param_names"])
+            if raw_results
+            else list(_space.varying_names)
         )
-        shard_results.append(shard_result)
-
-        logger.info(
-            "[CMC-sharded] Shard %d/%d complete: convergence=%s, max_rhat=%.3f",
-            shard_idx + 1,
-            num_shards,
-            "PASSED" if shard_result.convergence_passed else "FAILED",
-            float(np.nanmax(shard_result.r_hat))
-            if shard_result.r_hat is not None
-            else float("nan"),
-        )
+        for _ in range(n_missing):
+            shard_results.append(
+                _create_failed_result(_fallback_names, "shard failed or timed out")
+            )
 
     # --- Phase 4: consensus combination ---
     logger.info("[CMC-sharded] Phase 4/5: combining shard posteriors (consensus)")
@@ -1345,6 +1396,157 @@ def _make_shard_config(config: CMCConfig, seed: int) -> CMCConfig:
     import dataclasses
 
     return dataclasses.replace(config, seed=seed)
+
+
+def _estimate_n_workers() -> int:
+    """Estimate the number of parallel workers the MultiprocessingBackend will use."""
+    import multiprocessing as _mp
+
+    try:
+        logical = _mp.cpu_count() or 1
+    except NotImplementedError:
+        logical = 4
+    return max(1, logical // 2 - 1)
+
+
+def _fmt_time(secs: float) -> str:
+    if secs < 60:
+        return f"{secs:.0f}s"
+    elif secs < 3600:
+        return f"{secs / 60:.1f}min"
+    else:
+        return f"{secs / 3600:.1f}h"
+
+
+def _log_runtime_estimate(
+    log,
+    n_shards: int,
+    n_chains: int,
+    n_warmup: int,
+    n_samples: int,
+    avg_points_per_shard: int,
+    n_workers: int | None = None,
+) -> float:
+    """Log a rough CMC runtime estimate and return it in seconds."""
+    if n_workers is None:
+        n_workers = _estimate_n_workers()
+
+    jit_overhead = 45 + (avg_points_per_shard / 10_000) * 20
+    iters = n_chains * (n_warmup + n_samples)
+    secs_per_iter = 0.2 + (avg_points_per_shard / 100_000) * 0.3
+    total_per_shard = jit_overhead + iters * secs_per_iter
+
+    batches = (n_shards + n_workers - 1) // n_workers
+    total = batches * total_per_shard
+
+    log.info(
+        "Runtime estimate: %s total (%d shards / %d workers, ~%s/shard)",
+        _fmt_time(total),
+        n_shards,
+        n_workers,
+        _fmt_time(total_per_shard),
+    )
+    return total
+
+
+def _result_dict_to_cmc_result(
+    result_dict: dict[str, Any],
+    config: CMCConfig,
+) -> CMCResult:
+    """Convert a _run_shard_worker result dict to a CMCResult.
+
+    Workers return raw sample dicts; this helper computes ArviZ diagnostics
+    (R-hat, ESS, BFMI) and constructs the full CMCResult expected by
+    _combine_shard_posteriors().
+    """
+    if not result_dict.get("success", False):
+        param_names: list[str] = result_dict.get("param_names", [])
+        return _create_failed_result(
+            param_names, result_dict.get("error", "shard failed")
+        )
+
+    samples_np: dict[str, np.ndarray] = result_dict["samples"]
+    param_names = result_dict["param_names"]
+    n_chains: int = result_dict["n_chains"]
+    n_samples: int = result_dict["n_samples"]
+    extra_fields: dict[str, np.ndarray] = result_dict.get("extra_fields", {})
+    duration: float = result_dict.get("duration", 0.0)
+    stats: dict[str, Any] = result_dict.get("stats", {})
+    num_divergent: int = stats.get("num_divergent", 0)
+    n_warmup: int = stats.get("n_warmup", config.num_warmup)
+
+    # Reshape (n_chains * n_samples,) → (n_chains, n_samples) for ArviZ
+    idata: az.InferenceData | None = None
+    summary: Any = None
+    try:
+        posterior_dict = {
+            k: v.reshape(n_chains, n_samples) for k, v in samples_np.items()
+        }
+        idata_kwargs: dict[str, Any] = {"posterior": posterior_dict}
+        if "energy" in extra_fields:
+            try:
+                idata_kwargs["sample_stats"] = {
+                    "energy": extra_fields["energy"].reshape(n_chains, n_samples)
+                }
+            except (ValueError, AttributeError):
+                pass
+        idata = az.from_dict(**idata_kwargs)
+        if param_names:
+            summary = az.summary(idata, var_names=param_names, ci_prob=0.95)
+    except Exception as _exc:  # noqa: BLE001
+        logger.warning("ArviZ summary failed for shard result: %s", _exc)
+
+    physics_samples = {k: np.asarray(v) for k, v in samples_np.items()}
+
+    posterior_mean, posterior_std, r_hat, ess_bulk, ess_tail = _extract_posterior_stats(
+        param_names, physics_samples, summary
+    )
+    credible_intervals = _extract_credible_intervals(
+        param_names, physics_samples, summary
+    )
+
+    bfmi: list[float] | None = None
+    bfmi_compute_failed = False
+    if idata is not None:
+        bfmi, bfmi_compute_failed = _compute_bfmi(idata)
+
+    r_hat_finite = r_hat[~np.isnan(r_hat)]
+    ess_finite = ess_bulk[~np.isnan(ess_bulk)]
+    convergence_passed = bool(
+        len(r_hat_finite) > 0
+        and np.all(r_hat_finite < config.max_r_hat)
+        and len(ess_finite) > 0
+        and np.all(ess_finite > config.min_ess)
+    )
+    if bfmi is not None and not bfmi_compute_failed:
+        convergence_passed = convergence_passed and min(bfmi) > config.min_bfmi
+    if bfmi_compute_failed:
+        convergence_passed = False
+
+    total_iters = n_chains * n_samples
+    divergence_rate = num_divergent / total_iters if total_iters > 0 else 0.0
+
+    return CMCResult(
+        parameter_names=param_names,
+        posterior_mean=posterior_mean,
+        posterior_std=posterior_std,
+        credible_intervals=credible_intervals,
+        convergence_passed=convergence_passed,
+        r_hat=r_hat,
+        ess_bulk=ess_bulk,
+        ess_tail=ess_tail,
+        bfmi=bfmi,
+        samples=physics_samples,
+        map_estimate=posterior_mean.copy(),
+        num_warmup=n_warmup,
+        num_samples=n_samples,
+        num_chains=n_chains,
+        wall_time_seconds=duration,
+        metadata={
+            "num_divergent": num_divergent,
+            "divergence_rate": divergence_rate,
+        },
+    )
 
 
 def _extract_posterior_stats(
