@@ -42,7 +42,9 @@ _VALID_SHARDING_STRATEGY: frozenset[str] = frozenset(
     {"stratified", "random", "contiguous"}
 )
 _VALID_BACKEND_NAME: frozenset[str] = frozenset(
-    {"auto", "multiprocessing", "pjit", "cpu"}
+    # "jax" is a legacy alias for "multiprocessing"; routed in select_backend.
+    # "slurm" has no native backend — select_backend falls back to MP.
+    {"auto", "multiprocessing", "pjit", "cpu", "pbs", "slurm", "jax"}
 )
 _VALID_CHAIN_METHOD: frozenset[str] = frozenset(
     {"parallel", "sequential", "vectorized"}
@@ -51,7 +53,14 @@ _VALID_INIT_STRATEGY: frozenset[str] = frozenset(
     {"init_to_median", "init_to_sample", "init_to_value"}
 )
 _VALID_COMBINATION_METHOD: frozenset[str] = frozenset(
-    {"consensus_mc", "robust_consensus_mc", "weighted_gaussian", "simple_average"}
+    # "auto" → resolved to robust_consensus_mc in _combine_shard_posteriors.
+    {
+        "auto",
+        "consensus_mc",
+        "robust_consensus_mc",
+        "weighted_gaussian",
+        "simple_average",
+    }
 )
 
 
@@ -601,19 +610,28 @@ class CMCConfig:
     # Runtime queries
     # ==================================================================
 
-    def should_enable_cmc(self, n_points: int) -> bool:
+    def should_enable_cmc(
+        self,
+        n_points: int,
+        analysis_mode: str | None = None,
+    ) -> bool:
         """Decide whether to run CMC given the dataset size.
 
         Parameters
         ----------
         n_points:
             Total number of data points in the dataset.
+        analysis_mode:
+            Optional homodyne-parity kwarg.  Accepted and ignored —
+            heterodyne does not gate CMC on the analyzer mode.  Present
+            so that callers ported from homodyne continue to work.
 
         Returns
         -------
         bool
             ``True`` if CMC should run for this dataset.
         """
+        del analysis_mode  # homodyne-parity kwarg, intentionally unused
         enable_str = str(self.enable).lower()
 
         if enable_str in {"always", "true"}:

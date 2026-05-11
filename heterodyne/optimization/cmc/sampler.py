@@ -702,16 +702,21 @@ def run_nuts_with_retry(
     model_fn: Any,
     model_kwargs: dict[str, Any],
     max_retries: int = 3,
-    step_size_factor: float = 0.5,
+    target_accept_increment: float = 0.05,
+    *,
+    step_size_factor: float | None = None,
 ) -> tuple[dict[str, Any], SamplingStats]:
     """Run NUTS sampling with automatic step-size reduction on high divergence.
 
     Executes :meth:`~NUTSSampler.run` and checks the divergence rate
     after each attempt.  When the rate exceeds
     :data:`DIVERGENCE_RATE_HIGH`, a new :class:`NUTSSampler` is built
-    with a step size reduced by ``step_size_factor`` and the run is
-    retried.  After ``max_retries`` attempts the result with the lowest
-    divergence rate is returned regardless of health.
+    with ``target_accept`` RAISED by ``target_accept_increment`` (which
+    drives dual averaging toward a SMALLER step size — the
+    mathematically correct response to high divergence rate) and the
+    run is retried.  After ``max_retries`` attempts the result with the
+    lowest divergence rate is returned regardless of health.  Mirrors
+    homodyne ``run_nuts_with_retry`` (sampler.py:1311-1314).
 
     The ``model_fn`` is re-used across retries so it must be stateless
     (i.e. a pure NumPyro model function with no side effects).
@@ -726,33 +731,47 @@ def run_nuts_with_retry(
             ``init_params``); included for forward compatibility.
         max_retries: Maximum number of additional attempts after the
             first run.  Total runs = ``max_retries + 1``.
-        step_size_factor: Multiplicative reduction applied to
-            ``target_accept`` (lower target accept ≈ larger step size
-            is avoided; instead we rebuild with a smaller target_accept
-            proxy) each retry.  Must be in ``(0, 1)``.
+        target_accept_increment: Additive increase applied to
+            ``target_accept`` each retry (e.g. 0.80 → 0.85 → 0.90 →
+            0.95).  Raising the target acceptance LOWERS the
+            dual-averaging step size, which is the mathematically
+            correct response to high divergence rates.  Must be in
+            ``(0, 0.5)``.  The target is clamped at ``0.99`` to avoid
+            pathological tiny step sizes.
+        step_size_factor: DEPRECATED keyword-only alias.  Earlier
+            versions multiplied ``target_accept`` by this factor
+            (with factor ``< 1``) on retry, which drove dual averaging
+            toward a LARGER step size — the OPPOSITE of what high
+            divergence rate calls for.  When supplied,
+            ``target_accept_increment`` is derived as
+            ``(1 - step_size_factor) * 0.1`` so legacy callers see a
+            corrected mathematical direction.
 
     Returns:
         Tuple of ``(samples_dict, SamplingStats)`` for the best attempt
         (lowest divergence rate).
-
-    Note:
-        Step-size control in NumPyro NUTS is indirect — the target
-        acceptance probability drives dual-averaging adaptation.  This
-        function reduces ``target_accept`` by ``step_size_factor``
-        each retry (e.g. 0.8 → 0.4), which causes dual-averaging to
-        converge to a *larger* step size.  A larger step size can help
-        when divergences are caused by overly-conservative trajectories
-        in well-conditioned regions, but may worsen divergences in
-        funnel geometries.  If funnel geometry is suspected,
-        reparameterisation is the correct remedy and retrying will
-        not help.
     """
     import time
 
     import numpy as np
 
-    if not (0.0 < step_size_factor < 1.0):
-        raise ValueError(f"step_size_factor must be in (0, 1), got {step_size_factor}")
+    if step_size_factor is not None:
+        # Legacy alias: map a multiplicative factor < 1 to a positive
+        # increment so the direction is correct.  E.g. legacy
+        # step_size_factor=0.5 ⇒ increment 0.05.
+        target_accept_increment = max(0.01, (1.0 - step_size_factor) * 0.1)
+        logger.warning(
+            "run_nuts_with_retry: 'step_size_factor' is deprecated and its "
+            "original direction was inverted; mapped to "
+            "target_accept_increment=%.4f",
+            target_accept_increment,
+        )
+
+    if not (0.0 < target_accept_increment < 0.5):
+        raise ValueError(
+            f"target_accept_increment must be in (0, 0.5), got "
+            f"{target_accept_increment}"
+        )
 
     best_samples: dict[str, Any] | None = None
     best_stats: SamplingStats | None = None
@@ -811,9 +830,13 @@ def run_nuts_with_retry(
             break
 
         if attempt < max_retries:
-            current_target_accept = current_target_accept * step_size_factor
-            # Clamp to a sensible minimum to avoid pathological kernels
-            current_target_accept = max(0.1, current_target_accept)
+            # Raising target_accept drives dual averaging toward a SMALLER
+            # step size, which is the mathematically correct response to
+            # high divergence rate.  The previous implementation reduced
+            # target_accept (silently making divergence WORSE).
+            current_target_accept = min(
+                0.99, current_target_accept + target_accept_increment
+            )
             logger.warning(
                 "run_nuts_with_retry: divergence_rate=%.4f > %.2f; "
                 "retrying with target_accept=%.4f (attempt %d/%d)",
@@ -823,7 +846,7 @@ def run_nuts_with_retry(
                 attempt + 2,
                 max_retries + 1,
             )
-            # Build a new sampler with reduced target acceptance
+            # Build a new sampler with raised target acceptance
             new_plan = SamplingPlan(
                 num_warmup=plan.num_warmup,
                 num_samples=plan.num_samples,
