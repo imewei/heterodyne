@@ -17,7 +17,11 @@ from heterodyne.io.nlsq_writers import (
     save_nlsq_json_files,
     save_nlsq_npz_file,
 )
-from heterodyne.optimization.cmc import CMCConfig, fit_cmc_jax
+from heterodyne.optimization.cmc import (  # noqa: F401 — fit_cmc_sharded used in run_cmc dispatch
+    CMCConfig,
+    fit_cmc_jax,
+    fit_cmc_sharded,
+)
 from heterodyne.optimization.nlsq import NLSQConfig, fit_nlsq_multi_phi
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_phase
@@ -317,14 +321,47 @@ def run_cmc(
                     "Warm-start quality below threshold for phi=%s°; using anyway", phi
                 )
 
+        # Dispatch to sharded CMC for large per-angle datasets, single-run CMC
+        # otherwise.  ``cmc_config.should_enable_cmc`` returns True only when the
+        # per-angle dataset has at least ``min_points_for_cmc`` elements
+        # (default 100K) and ``enable`` is "auto"/"always".
+        n_points_phi = int(np.asarray(c2_phi).size)
+        use_sharded = (
+            cmc_config.should_enable_cmc(n_points_phi)
+            and cmc_config.get_num_shards(n_points_phi, n_phi=1) >= 2
+        )
         with log_phase(f"cmc_phi_{i}", logger=logger, track_memory=True) as phase:
-            result = fit_cmc_jax(
-                model=model,
-                c2_data=c2_phi,
-                phi_angle=phi,
-                config=cmc_config,
-                nlsq_result=nlsq_result_i,
-            )
+            if use_sharded:
+                num_shards = cmc_config.get_num_shards(n_points_phi, n_phi=1)
+                logger.info(
+                    "CMC phi=%s°: using sharded Consensus Monte Carlo "
+                    "(num_shards=%d, n_points=%d, strategy=%s)",
+                    phi,
+                    num_shards,
+                    n_points_phi,
+                    cmc_config.sharding_strategy,
+                )
+                result = fit_cmc_sharded(
+                    model=model,
+                    c2_data=c2_phi,
+                    phi_angle=phi,
+                    config=cmc_config,
+                    nlsq_result=nlsq_result_i,
+                    num_shards=num_shards,
+                    sharding_strategy=(
+                        cmc_config.sharding_strategy
+                        if cmc_config.sharding_strategy in ("random", "contiguous")
+                        else "random"
+                    ),
+                )
+            else:
+                result = fit_cmc_jax(
+                    model=model,
+                    c2_data=c2_phi,
+                    phi_angle=phi,
+                    config=cmc_config,
+                    nlsq_result=nlsq_result_i,
+                )
 
         result.metadata["phi_angle"] = phi
         results.append(result)

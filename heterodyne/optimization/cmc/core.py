@@ -141,6 +141,15 @@ def fit_cmc_jax(
 
     # Validate NLSQ warm-start
     use_reparam = config.use_reparam and nlsq_result is not None and nlsq_result.success
+    # priors_override is a hard contract: caller wants these exact distributions.
+    # The reparam path samples in z-space and ignores override → silent data loss.
+    # Force the non-reparam path so the override is actually used.
+    if priors_override is not None and use_reparam:
+        logger.info(
+            "[CMC] priors_override provided; disabling reparameterization so the "
+            "caller-supplied distributions are sampled directly."
+        )
+        use_reparam = False
     if config.use_nlsq_warmstart and nlsq_result is None:
         logger.warning(
             "[CMC] NLSQ warm-start is enabled (use_nlsq_warmstart=True) but no "
@@ -258,12 +267,8 @@ def fit_cmc_jax(
                 if sname in scalings:
                     prior_std_dict[name] = scalings[sname].scale
 
-        if priors_override is not None:
-            logger.debug(
-                "[CMC] priors_override provided but use_reparam=True: "
-                "tempering applied via prior_width_multiplier=%.3f instead",
-                prior_width_multiplier,
-            )
+        # priors_override is now handled by forcing use_reparam=False above,
+        # so this branch only runs when no override is present.
         numpyro_model = get_heterodyne_model_reparam(
             t=t_for_model,
             q=model.q,
@@ -639,11 +644,22 @@ def fit_cmc_sharded(
 
     # NLSQ warm-start values passed to workers for chain initialisation.
     initial_values: dict[str, Any] | None = None
+    nlsq_uncertainties_dict: dict[str, float] | None = None
     if nlsq_result is not None and nlsq_result.success:
         initial_values = {
             name: float(nlsq_result.get_param(name))
             for name in nlsq_result.parameter_names
         }
+        # Also pass uncertainties so each worker can build NLSQ-informed
+        # (TruncatedNormal centered on NLSQ value) priors locally and apply
+        # CMC tempering on TOP of them. Without this, workers fall back to
+        # registry defaults and the NLSQ posterior contraction is lost.
+        unc_dict: dict[str, float] = {}
+        for name in nlsq_result.parameter_names:
+            unc = nlsq_result.get_uncertainty(name)
+            if unc is not None and float(unc) > 0:
+                unc_dict[name] = float(unc)
+        nlsq_uncertainties_dict = unc_dict if unc_dict else None
 
     # Log rough runtime estimate before blocking.
     avg_pts = sum(int(np.asarray(s["c2_data"]).size) for s in parallel_shards) // max(
@@ -674,6 +690,10 @@ def fit_cmc_sharded(
         initial_values=initial_values,
         parameter_space=_space,
         prior_width_multiplier=prior_width_mult,
+        nlsq_uncertainties=nlsq_uncertainties_dict
+        if config.use_nlsq_informed_priors
+        else None,
+        nlsq_prior_width_factor=float(config.nlsq_prior_width_factor),
         progress_bar=True,
     )
 

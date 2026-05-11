@@ -164,17 +164,27 @@ class CMCBackend(ABC):
 def select_backend(config: CMCConfig) -> MCMCBackend:
     """Select the appropriate MCMC backend.
 
-    Selection order:
-    1. Explicit ``config.backend_name == "multiprocessing"`` → MultiprocessingBackend
-    2. Auto with n_chains >= 3 and >= 2 physical workers → MultiprocessingBackend
-    3. Multiple JAX CPU devices → PjitBackend
-    4. Fallback → CPUBackend (sequential chains)
+    Selection order (mirrors homodyne ``select_backend`` semantics):
+
+    1. ``backend_name == "pbs"`` → :class:`PBSBackend` (raises if ``qsub``
+       is not on PATH).
+    2. ``backend_name == "multiprocessing"`` or legacy alias ``"jax"`` →
+       :class:`MultiprocessingBackend`.
+    3. ``backend_name == "pjit"`` → :class:`PjitBackend`.
+    4. ``backend_name == "cpu"`` → :class:`CPUBackend`.
+    5. ``backend_name == "auto"`` (default): heuristic
+       (``MultiprocessingBackend`` if ``n_chains >= 3`` and at least 2
+       physical workers, then ``PjitBackend`` when ``len(jax.devices()) > 1``,
+       else ``CPUBackend``).
 
     Args:
         config: CMC configuration.
 
     Returns:
         An instantiated backend ready for ``run()``.
+
+    Raises:
+        ValueError: ``backend_name`` not in the supported set.
     """
     import multiprocessing as _mp
 
@@ -182,6 +192,29 @@ def select_backend(config: CMCConfig) -> MCMCBackend:
     from heterodyne.optimization.cmc.backends.pjit_backend import PjitBackend
 
     backend_name: str = getattr(config, "backend_name", "auto")
+    # Legacy alias from older homodyne configs.
+    if backend_name == "jax":
+        backend_name = "multiprocessing"
+
+    if backend_name == "pbs":
+        from heterodyne.optimization.cmc.backends.pbs import PBSBackend
+
+        logger.info("Selecting PBSBackend (explicit config)")
+        return PBSBackend()
+
+    if backend_name == "slurm":
+        # No native SLURM backend; users typically submit a multiprocessing
+        # job from inside a SLURM allocation.  Fall back to MP with a warning
+        # rather than crashing.
+        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+            MultiprocessingBackend,
+        )
+
+        logger.warning(
+            "backend_name='slurm' has no native backend; falling back to "
+            "MultiprocessingBackend (run from inside the SLURM allocation)"
+        )
+        return MultiprocessingBackend()
 
     if backend_name == "multiprocessing":
         from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
@@ -190,6 +223,14 @@ def select_backend(config: CMCConfig) -> MCMCBackend:
 
         logger.info("Selecting MultiprocessingBackend (explicit config)")
         return MultiprocessingBackend()
+
+    if backend_name == "pjit":
+        logger.info("Selecting PjitBackend (explicit config)")
+        return PjitBackend()
+
+    if backend_name == "cpu":
+        logger.info("Selecting CPUBackend (explicit config)")
+        return CPUBackend()
 
     devices = jax.devices()
 
@@ -212,18 +253,24 @@ def select_backend(config: CMCConfig) -> MCMCBackend:
             )
             return MultiprocessingBackend()
 
-    if len(devices) > 1:
-        logger.info(
-            "Multiple CPU devices (%d), selecting PjitBackend",
-            len(devices),
-        )
-        return PjitBackend()
+        if len(devices) > 1:
+            logger.info(
+                "Auto: multiple CPU devices (%d), selecting PjitBackend",
+                len(devices),
+            )
+            return PjitBackend()
 
-    logger.info(
-        "Selecting CPUBackend (single device, n_chains=%d)",
-        getattr(config, "num_chains", 1),
+        logger.info(
+            "Auto: selecting CPUBackend (single device, n_chains=%d)",
+            n_chains,
+        )
+        return CPUBackend()
+
+    # Unknown backend_name beyond the validated set — raise for early failure.
+    raise ValueError(
+        f"Unsupported backend_name={backend_name!r}; expected one of "
+        "{'auto','cpu','multiprocessing','pjit','pbs','slurm','jax'}"
     )
-    return CPUBackend()
 
 
 # ---------------------------------------------------------------------------

@@ -13,12 +13,15 @@ from heterodyne.optimization.cmc.backends.cpu_backend import CPUBackend
 from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
     MultiprocessingBackend,
 )
+from heterodyne.optimization.cmc.backends.pbs import PBSBackend, PBSConfig
 from heterodyne.optimization.cmc.backends.pjit_backend import PjitBackend
 
 __all__ = [
     "CPUBackend",
     "MCMCBackend",
     "MultiprocessingBackend",
+    "PBSBackend",
+    "PBSConfig",
     "PjitBackend",
     "select_backend",
 ]

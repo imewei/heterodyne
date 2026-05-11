@@ -273,6 +273,8 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
         initial_values=None,
         parameter_space=None,
         prior_width_multiplier=1.0,
+        nlsq_uncertainties=None,
+        nlsq_prior_width_factor=2.0,
         progress_bar=True,
     ):
         captured_shards.extend(shards)
@@ -396,3 +398,218 @@ class TestEstimateContrastOffsetFromData:
         contrast, offset = estimate_contrast_offset_from_data(c2, t1, t2)
         assert abs(contrast - 0.3) < 0.15
         assert abs(offset - 0.95) < 0.15
+
+
+# ===========================================================================
+# fit_cmc_sharded NLSQ-informed-prior plumbing regression
+# ===========================================================================
+
+
+def test_fit_cmc_sharded_forwards_nlsq_uncertainties_to_workers():
+    """fit_cmc_sharded must pass NLSQ point estimates AND uncertainties to workers.
+
+    Without this, the sharded path silently falls back to default registry priors
+    and the NLSQ posterior contraction is lost — defeating the purpose of warm-start.
+    """
+    from unittest.mock import MagicMock, patch
+
+    from heterodyne.optimization.cmc import CMCConfig
+    from heterodyne.optimization.cmc.core import fit_cmc_sharded
+
+    n = 40
+    c2 = np.ones((n, n), dtype=np.float64) * 0.5
+    sigma_val = 0.1
+    num_shards = 4
+
+    captured: dict[str, object] = {}
+
+    def capture_run_shards(
+        shards,
+        config,
+        initial_values=None,
+        parameter_space=None,
+        prior_width_multiplier=1.0,
+        nlsq_uncertainties=None,
+        nlsq_prior_width_factor=2.0,
+        progress_bar=True,
+    ):
+        captured["initial_values"] = initial_values
+        captured["nlsq_uncertainties"] = nlsq_uncertainties
+        captured["nlsq_prior_width_factor"] = nlsq_prior_width_factor
+        # Return one minimal success dict per shard.
+        return [
+            {
+                "success": True,
+                "shard_idx": i,
+                "samples": {"D0_ref": np.ones(10)},
+                "param_names": ["D0_ref"],
+                "n_chains": 1,
+                "n_samples": 10,
+                "extra_fields": {},
+                "duration": 0.1,
+                "stats": {"num_divergent": 0, "n_warmup": 10, "n_samples": 10},
+            }
+            for i in range(len(shards))
+        ]
+
+    mock_model = MagicMock()
+    mock_model.t = np.linspace(0.001, 0.04, n)
+    mock_model.q = 0.005
+    mock_model.dt = 0.001
+    mock_model.param_manager.space.varying_names = ["D0_ref"]
+    mock_model.param_manager.varying_names = ["D0_ref"]
+    mock_model.param_manager.space.priors = {}
+    mock_model.scaling.get_for_angle.return_value = (1.0, 0.0)
+
+    # Fake NLSQ result with uncertainties available
+    mock_nlsq = MagicMock()
+    mock_nlsq.success = True
+    mock_nlsq.parameter_names = ["D0_ref"]
+    mock_nlsq.get_param.return_value = 5e4
+    mock_nlsq.get_uncertainty.return_value = 1.2e3
+
+    fake_priors = {"D0_ref": MagicMock()}
+
+    with (
+        patch(
+            "heterodyne.optimization.cmc.backends.multiprocessing_backend."
+            "MultiprocessingBackend.run_shards",
+            side_effect=capture_run_shards,
+        ),
+        patch(
+            "heterodyne.optimization.cmc.core.build_nlsq_informed_priors",
+            return_value=fake_priors,
+        ),
+        patch(
+            "heterodyne.optimization.cmc.core.build_default_priors",
+            return_value=fake_priors,
+        ),
+        patch(
+            "heterodyne.optimization.cmc.core.temper_priors",
+            return_value=fake_priors,
+        ),
+    ):
+        try:
+            fit_cmc_sharded(
+                model=mock_model,
+                c2_data=c2,
+                sigma=sigma_val,
+                nlsq_result=mock_nlsq,
+                num_shards=num_shards,
+                sharding_strategy="contiguous",
+                config=CMCConfig(
+                    num_warmup=10,
+                    num_samples=10,
+                    use_nlsq_informed_priors=True,
+                    nlsq_prior_width_factor=2.5,
+                ),
+            )
+        except Exception:
+            pass
+
+    assert captured.get("initial_values") is not None, (
+        "NLSQ point estimates not forwarded to workers"
+    )
+    assert captured.get("nlsq_uncertainties") is not None, (
+        "NLSQ uncertainties not forwarded to workers — sharded path falls back to "
+        "default priors and loses NLSQ contraction"
+    )
+    assert "D0_ref" in captured["nlsq_uncertainties"]  # type: ignore[operator]
+    assert captured["nlsq_prior_width_factor"] == pytest.approx(2.5)
+
+
+def test_fit_cmc_sharded_omits_nlsq_priors_when_config_disables_them():
+    """When use_nlsq_informed_priors=False, NLSQ priors must NOT be forwarded
+    even if an NLSQ result is available. Workers should fall back to defaults."""
+    from unittest.mock import MagicMock, patch
+
+    from heterodyne.optimization.cmc import CMCConfig
+    from heterodyne.optimization.cmc.core import fit_cmc_sharded
+
+    n = 40
+    c2 = np.ones((n, n), dtype=np.float64) * 0.5
+
+    captured: dict[str, object] = {}
+
+    def capture_run_shards(
+        shards,
+        config,
+        initial_values=None,
+        parameter_space=None,
+        prior_width_multiplier=1.0,
+        nlsq_uncertainties=None,
+        nlsq_prior_width_factor=2.0,
+        progress_bar=True,
+    ):
+        captured["nlsq_uncertainties"] = nlsq_uncertainties
+        return [
+            {
+                "success": True,
+                "shard_idx": i,
+                "samples": {"D0_ref": np.ones(10)},
+                "param_names": ["D0_ref"],
+                "n_chains": 1,
+                "n_samples": 10,
+                "extra_fields": {},
+                "duration": 0.1,
+                "stats": {"num_divergent": 0, "n_warmup": 10, "n_samples": 10},
+            }
+            for i in range(len(shards))
+        ]
+
+    mock_model = MagicMock()
+    mock_model.t = np.linspace(0.001, 0.04, n)
+    mock_model.q = 0.005
+    mock_model.dt = 0.001
+    mock_model.param_manager.space.varying_names = ["D0_ref"]
+    mock_model.param_manager.varying_names = ["D0_ref"]
+    mock_model.param_manager.space.priors = {}
+    mock_model.scaling.get_for_angle.return_value = (1.0, 0.0)
+
+    mock_nlsq = MagicMock()
+    mock_nlsq.success = True
+    mock_nlsq.parameter_names = ["D0_ref"]
+    mock_nlsq.get_param.return_value = 5e4
+    mock_nlsq.get_uncertainty.return_value = 1.2e3
+
+    fake_priors = {"D0_ref": MagicMock()}
+
+    with (
+        patch(
+            "heterodyne.optimization.cmc.backends.multiprocessing_backend."
+            "MultiprocessingBackend.run_shards",
+            side_effect=capture_run_shards,
+        ),
+        patch(
+            "heterodyne.optimization.cmc.core.build_nlsq_informed_priors",
+            return_value=fake_priors,
+        ),
+        patch(
+            "heterodyne.optimization.cmc.core.build_default_priors",
+            return_value=fake_priors,
+        ),
+        patch(
+            "heterodyne.optimization.cmc.core.temper_priors",
+            return_value=fake_priors,
+        ),
+    ):
+        try:
+            fit_cmc_sharded(
+                model=mock_model,
+                c2_data=c2,
+                sigma=0.1,
+                nlsq_result=mock_nlsq,
+                num_shards=4,
+                sharding_strategy="contiguous",
+                config=CMCConfig(
+                    num_warmup=10,
+                    num_samples=10,
+                    use_nlsq_informed_priors=False,
+                ),
+            )
+        except Exception:
+            pass
+
+    assert not captured.get("nlsq_uncertainties"), (
+        "NLSQ uncertainties forwarded despite use_nlsq_informed_priors=False"
+    )

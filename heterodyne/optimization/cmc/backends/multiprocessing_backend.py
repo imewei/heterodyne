@@ -771,6 +771,12 @@ def _run_shard_worker(
         # CMC prior tempering: widen prior std by prior_width_mult = sqrt(num_shards).
         # Received via shared_kwargs from run_shards() when doing sharded CMC.
         prior_width_mult: float = float(shard_data.get("prior_width_multiplier", 1.0))
+        nlsq_uncertainties_dict: dict[str, Any] = (
+            shard_data.get("nlsq_uncertainties") or {}
+        )
+        nlsq_prior_width_factor: float = float(
+            shard_data.get("nlsq_prior_width_factor", 2.0)
+        )
         tempered_priors_dict: dict[str, Any] = {}
         if prior_width_mult != 1.0:
             from heterodyne.optimization.cmc.priors import (
@@ -782,8 +788,46 @@ def _run_shard_worker(
 
             # Derive num_shards from multiplier (prior_width_mult = sqrt(num_shards))
             num_shards_est = max(2, round(prior_width_mult**2))
+
+            # If NLSQ point estimates + uncertainties are available, build
+            # NLSQ-informed priors (TruncatedNormal centered on initial value,
+            # scale = unc * width_factor) BEFORE tempering. This preserves the
+            # NLSQ posterior contraction across shards and matches fit_cmc_jax
+            # (non-sharded) prior behavior.
+            base_priors_for_temper: dict[str, Any] = {}
+            if nlsq_uncertainties_dict and initial_values:
+                import numpyro.distributions as _dist
+
+                for _name in varying_names:
+                    _low, _high = parameter_space.bounds[_name]
+                    _center = (
+                        float(initial_values[_name])
+                        if _name in initial_values
+                        else float(parameter_space.values[_name])
+                    )
+                    if _name in nlsq_uncertainties_dict:
+                        _scale = (
+                            float(nlsq_uncertainties_dict[_name])
+                            * nlsq_prior_width_factor
+                        )
+                        _scale = max(_scale, 1e-10)
+                    else:
+                        # Fall back to the registry prior for this parameter
+                        base_priors_for_temper[_name] = parameter_space.priors[
+                            _name
+                        ].to_numpyro(_name)
+                        continue
+                    base_priors_for_temper[_name] = _dist.TruncatedNormal(
+                        loc=_center,
+                        scale=_scale,
+                        low=float(_low),
+                        high=float(_high),
+                    )
+            else:
+                base_priors_for_temper = _build_default_priors(parameter_space)
+
             tempered_priors_dict = _temper_priors(
-                _build_default_priors(parameter_space), num_shards_est
+                base_priors_for_temper, num_shards_est
             )
 
         def _shard_model() -> None:
@@ -1337,6 +1381,8 @@ class MultiprocessingBackend(CMCBackend):
         initial_values: dict[str, Any] | None = None,
         parameter_space: Any | None = None,
         prior_width_multiplier: float = 1.0,
+        nlsq_uncertainties: dict[str, float] | None = None,
+        nlsq_prior_width_factor: float = 2.0,
         progress_bar: bool = True,
     ) -> list[dict[str, Any]]:
         """Run NUTS in parallel across all CMC shards.
@@ -1427,6 +1473,13 @@ class MultiprocessingBackend(CMCBackend):
             "n_phi": _first.get("n_phi", 1),
             "reparam_config_dict": _first.get("reparam_config_dict"),
             "prior_width_multiplier": float(prior_width_multiplier),
+            # NLSQ-informed prior payload (plain dict[str, float], cross-process safe).
+            # When non-empty, workers center their tempered TruncatedNormal priors on
+            # initial_values[name] with scale = nlsq_uncertainties[name] * nlsq_prior_width_factor.
+            "nlsq_uncertainties": dict(nlsq_uncertainties)
+            if nlsq_uncertainties
+            else {},
+            "nlsq_prior_width_factor": float(nlsq_prior_width_factor),
         }
 
         # Build per-shard numpy dicts for shared memory packing

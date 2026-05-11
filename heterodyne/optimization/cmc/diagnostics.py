@@ -735,6 +735,56 @@ def create_diagnostics_dict(
     }
 
 
+def summarize_diagnostics(
+    r_hat: dict[str, float],
+    ess_bulk: dict[str, float],
+    divergences: int,
+    n_samples: int,
+    n_chains: int,
+    num_shards: int = 1,
+) -> str:
+    """Create human-readable diagnostics summary (homodyne-parity).
+
+    Mirrors homodyne ``diagnostics.summarize_diagnostics``.  Used by CLI
+    summary writers that emit a one-liner like
+    ``Diagnostics: R-hat(max)=1.02, ESS(min)=420, divergences=3 (0.3%)``.
+
+    Parameters
+    ----------
+    r_hat:
+        Per-parameter R-hat values.  NaN values are skipped.
+    ess_bulk:
+        Per-parameter bulk ESS values.  NaN values are skipped.
+    divergences:
+        Total divergence count across all chains and shards.
+    n_samples:
+        Posterior samples per chain.
+    n_chains:
+        Number of chains per shard.
+    num_shards:
+        Number of CMC shards (default 1 for non-sharded).
+
+    Returns
+    -------
+    str
+        Single-line diagnostics summary suitable for log emission.
+    """
+    r_hat_values = [v for v in r_hat.values() if not np.isnan(v)]
+    ess_values = [v for v in ess_bulk.values() if not np.isnan(v)]
+
+    max_rhat = max(r_hat_values) if r_hat_values else float("nan")
+    min_ess = min(ess_values) if ess_values else float("nan")
+
+    total = num_shards * n_samples * n_chains
+    div_rate = divergences / total if total > 0 else 0.0
+
+    return (
+        f"Diagnostics: R-hat(max)={max_rhat:.3f}, "
+        f"ESS(min)={min_ess:.0f}, "
+        f"divergences={divergences} ({div_rate:.1%})"
+    )
+
+
 def get_convergence_recommendations(
     max_rhat: float,
     min_ess: float,

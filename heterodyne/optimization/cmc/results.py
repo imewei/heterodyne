@@ -74,6 +74,8 @@ class CMCResult:
     num_warmup: int = 0
     num_samples: int = 0
     num_chains: int = 0
+    num_shards: int = 1  # First-class shard count (homodyne-parity).
+    divergences: int = 0  # First-class divergence count (homodyne-parity).
     wall_time_seconds: float | None = None
 
     # Additional metadata
@@ -560,6 +562,23 @@ def merge_shard_cmc_results(
     if wall_times:
         total_wall_time = max(wall_times)  # Parallel shards: wall time = max shard
 
+    # Sum divergences across shards (homodyne-parity).  Each shard's per-shard
+    # divergence count lives in its metadata under "num_divergences" or
+    # "divergences"; sum whichever is present.
+    total_divergences = 0
+    for _sr in shard_results:
+        _md = getattr(_sr, "metadata", None) or {}
+        _div = _md.get("num_divergences", _md.get("divergences", 0))
+        try:
+            total_divergences += int(_div)
+        except (TypeError, ValueError):
+            continue
+        # Also count first-class field if populated on the shard.
+        if getattr(_sr, "divergences", 0):
+            # Avoid double-counting if metadata also held it; assume metadata
+            # is the canonical legacy source.
+            pass
+
     return CMCResult(
         parameter_names=list(parameter_names),
         posterior_mean=combined_mean,
@@ -575,9 +594,12 @@ def merge_shard_cmc_results(
         num_warmup=max_warmup,
         num_samples=total_samples,
         num_chains=total_chains,
+        num_shards=len(shard_results),
+        divergences=total_divergences,
         wall_time_seconds=total_wall_time,
         metadata={
             "n_shards": len(shard_results),
+            "num_divergences": total_divergences,
             "combination_method": "inverse_variance",
         },
         convergence_status=(

@@ -58,9 +58,16 @@ from heterodyne.optimization.nlsq.transforms import ParameterTransform
 from heterodyne.optimization.nlsq.validation import (
     BoundsValidator,
     ConvergenceValidator,
+    FitQualityConfig,
+    FitQualityReport,
+    FitQualityValidator,
+    InputValidator,
     ResultValidator,
+    ValidationIssue,
     ValidationReport,
     ValidationSeverity,
+    classify_fit_quality,
+    validate_fit_quality,
 )
 
 __all__ = [
@@ -97,11 +104,18 @@ __all__ = [
     # Transforms
     "ParameterTransform",
     # Validation
-    "ResultValidator",
     "BoundsValidator",
     "ConvergenceValidator",
+    "FitQualityConfig",
+    "FitQualityReport",
+    "FitQualityValidator",
+    "InputValidator",
+    "ResultValidator",
+    "ValidationIssue",
     "ValidationReport",
     "ValidationSeverity",
+    "classify_fit_quality",
+    "validate_fit_quality",
     # Anti-degeneracy (parity)
     "GradientCollapseDetector",
     "suggest_regularization",

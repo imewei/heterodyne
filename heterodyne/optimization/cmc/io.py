@@ -234,7 +234,15 @@ def save_samples_npz(result: CMCResult, output_path: Path) -> None:
         r_hat=r_hat_arr,
         ess_bulk=ess_bulk_arr,
         ess_tail=ess_tail_arr,
-        divergences=np.array([int(result.metadata.get("num_divergences", 0))]),
+        # Prefer first-class field; fall back to metadata for legacy results.
+        divergences=np.array(
+            [
+                int(
+                    getattr(result, "divergences", 0)
+                    or result.metadata.get("num_divergences", 0)
+                )
+            ]
+        ),
         analysis_mode=np.array([str(result.metadata.get("analysis_mode", "unknown"))]),
         n_phi=np.array([n_phi]),
         n_chains=np.array([result.num_chains]),
@@ -262,8 +270,10 @@ def load_samples_npz(input_path: Path) -> dict[str, Any]:
         raise ValueError(f"Path is not a regular file: {input_path}")
 
     # NPZ archives store raw numpy binary arrays; no object serialization is used.
+    # Pin allow_pickle=False so a tampered archive cannot execute arbitrary code
+    # via object arrays (homodyne-parity, io.load_samples_npz:155).
     # Use context manager to ensure the underlying zip file is closed after reading.
-    with np.load(input_path) as data:
+    with np.load(input_path, allow_pickle=False) as data:  # noqa: NPY002
         result = {
             "schema_version": tuple(data["schema_version"]),
             "posterior_samples": np.array(data["posterior_samples"]),
@@ -360,8 +370,13 @@ def save_diagnostics_json(
     from heterodyne.optimization.cmc.diagnostics import create_diagnostics_dict
 
     convergence_status = "converged" if result.convergence_passed else "not_converged"
-    num_shards = int(result.metadata.get("n_shards", 1))
-    divergences = int(result.metadata.get("num_divergences", 0))
+    # Prefer first-class fields on CMCResult; fall back to legacy metadata keys.
+    num_shards = int(
+        getattr(result, "num_shards", 0) or result.metadata.get("n_shards", 1)
+    )
+    divergences = int(
+        getattr(result, "divergences", 0) or result.metadata.get("num_divergences", 0)
+    )
     exec_time = result.wall_time_seconds or 0.0
 
     diag = create_diagnostics_dict(

@@ -1,7 +1,7 @@
 """Consensus Monte Carlo (CMC) Bayesian analysis for heterodyne fitting."""
 
 from heterodyne.optimization.cmc.config import CMCConfig
-from heterodyne.optimization.cmc.core import fit_cmc_jax
+from heterodyne.optimization.cmc.core import fit_cmc_jax, fit_cmc_sharded
 from heterodyne.optimization.cmc.diagnostics import (
     BimodalConsensusResult,
     BimodalResult,
@@ -39,6 +39,7 @@ from heterodyne.optimization.cmc.scaling import ParameterScaling
 
 __all__ = [
     "fit_cmc_jax",
+    "fit_cmc_sharded",
     "CMCConfig",
     "CMCResult",
     "ParameterStats",

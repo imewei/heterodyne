@@ -14,10 +14,13 @@ from heterodyne.optimization.exceptions import (
     ValidationError,
 )
 from heterodyne.optimization.nlsq import (
+    FitQualityConfig,
+    FitQualityReport,
     NLSQAdapter,
     NLSQConfig,
     NLSQResult,
     fit_nlsq_jax,
+    validate_fit_quality,
 )
 
 __all__ = [
@@ -33,6 +36,10 @@ __all__ = [
     "NLSQConfig",
     "NLSQResult",
     "NLSQAdapter",
+    # NLSQ — fit-quality validation
+    "FitQualityConfig",
+    "FitQualityReport",
+    "validate_fit_quality",
     # CMC
     "fit_cmc_jax",
     "CMCConfig",
