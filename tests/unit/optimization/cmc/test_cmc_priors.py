@@ -249,7 +249,11 @@ class TestBuildLogSpacePriors:
 
 
 def test_fit_cmc_sharded_does_not_scale_sigma():
-    """fit_cmc_sharded must NOT divide sigma by sqrt(K) — prior tempering is used instead."""
+    """fit_cmc_sharded must NOT divide sigma by sqrt(K) — prior tempering is used instead.
+
+    The new parallel path passes shards to MultiprocessingBackend.run_shards(); this
+    test verifies the shard dicts carry the original unscaled sigma.
+    """
     from unittest.mock import MagicMock, patch
 
     from heterodyne.optimization.cmc import CMCConfig
@@ -261,42 +265,39 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
     num_shards = 4
     wrong_sigma = sigma_val / math.sqrt(num_shards)
 
-    sigma_values_passed = []
+    captured_shards: list[dict] = []
 
-    def capture_fit(
-        model,
-        c2_data,
-        phi_angle=0.0,
-        config=None,
-        sigma=None,
-        nlsq_result=None,
-        t_override=None,
-        priors_override=None,
+    def capture_run_shards(
+        shards,
+        config,
+        initial_values=None,
+        parameter_space=None,
         prior_width_multiplier=1.0,
+        progress_bar=True,
     ):
-        s = sigma
-        if s is not None:
-            val = float(np.mean(np.asarray(s))) if hasattr(s, "__len__") else float(s)
-            sigma_values_passed.append(val)
-        # Return a minimal successful-looking CMCResult mock
-        r = MagicMock()
-        r.convergence_passed = True
-        r.parameter_names = ["D0_ref"]
-        r.posterior_mean = np.array([1.0])
-        r.posterior_std = np.array([0.1])
-        r.r_hat = np.array([1.0])
-        r.ess_bulk = np.array([100.0])
-        r.ess_tail = np.array([80.0])
-        r.bfmi = [0.3]
-        r.samples = {"D0_ref": np.ones(10)}
-        r.num_warmup = 10
-        r.num_samples = 10
-        r.num_chains = 1
-        r.metadata = {}
-        return r
+        captured_shards.extend(shards)
+        # Return one minimal success dict per shard so the combination doesn't crash.
+        results = []
+        for i, _ in enumerate(shards):
+            results.append(
+                {
+                    "success": True,
+                    "shard_idx": i,
+                    "samples": {"D0_ref": np.ones(10)},
+                    "param_names": ["D0_ref"],
+                    "n_chains": 1,
+                    "n_samples": 10,
+                    "extra_fields": {},
+                    "duration": 0.1,
+                    "stats": {"num_divergent": 0, "n_warmup": 10, "n_samples": 10},
+                }
+            )
+        return results
 
     mock_model = MagicMock()
     mock_model.t = np.linspace(0.001, 0.04, n)
+    mock_model.q = 0.005
+    mock_model.dt = 0.001
     mock_model.param_manager.space.varying_names = ["D0_ref"]
     mock_model.param_manager.varying_names = ["D0_ref"]
     mock_model.param_manager.space.priors = {}
@@ -305,7 +306,11 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
     fake_priors = {"D0_ref": MagicMock()}
 
     with (
-        patch("heterodyne.optimization.cmc.core.fit_cmc_jax", side_effect=capture_fit),
+        patch(
+            "heterodyne.optimization.cmc.backends.multiprocessing_backend."
+            "MultiprocessingBackend.run_shards",
+            side_effect=capture_run_shards,
+        ),
         patch(
             "heterodyne.optimization.cmc.core.build_nlsq_informed_priors",
             return_value=fake_priors,
@@ -331,10 +336,16 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
         except Exception:
             pass
 
-    assert len(sigma_values_passed) > 0, "fit_cmc_jax was never called"
-    for s_val in sigma_values_passed:
-        assert abs(s_val - wrong_sigma) > 1e-6, (
-            f"sigma was scaled by sqrt(K): got {s_val:.6f}, "
+    assert len(captured_shards) > 0, (
+        "MultiprocessingBackend.run_shards was never called"
+    )
+    for shard in captured_shards:
+        s = shard.get("sigma")
+        if s is None:
+            continue
+        val = float(np.mean(np.asarray(s))) if hasattr(s, "__len__") else float(s)
+        assert abs(val - wrong_sigma) > 1e-6, (
+            f"sigma was scaled by sqrt(K): got {val:.6f}, "
             f"wrong value would be {wrong_sigma:.6f} (sigma/sqrt({num_shards}))"
         )
 
