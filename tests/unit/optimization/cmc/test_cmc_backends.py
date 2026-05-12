@@ -219,28 +219,44 @@ def test_mp_worker_init_params_restricted_to_physics_names() -> None:
     )
 
 
-def test_mp_worker_varying_names_filters_scaling_params() -> None:
-    """Worker filters scaling params (contrast, offset) from varying_names.
+def test_mp_worker_uses_varying_physics_names() -> None:
+    """Worker must call varying_physics_names, not varying_names.
 
-    ParameterSpace.varying_names legitimately returns scaling params when the
-    space was built from an NLSQ result.  The worker must silently filter them
-    to physics-only (ALL_PARAM_NAMES) rather than raising, because _shard_model
-    only samples physics parameters and scaling params are fixed scalar args.
+    varying_physics_names is the physics-only ParameterSpace property that
+    structurally excludes contrast/offset.  Using it prevents the opaque
+    'tuple index out of range' NUTS pytree crash when the caller's ParameterSpace
+    has scaling params active (e.g. built from an NLSQ result).
     """
     import inspect
 
     import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
 
     source = inspect.getsource(mb._run_shard_worker)
-    # Must restrict varying_names to _model_sites before building _shard_model
-    assert "_model_sites" in source, (
-        "_run_shard_worker must define _model_sites (frozenset of ALL_PARAM_NAMES) "
-        "and filter varying_names to physics-only before NUTS sampling."
+    assert "varying_physics_names" in source, (
+        "_run_shard_worker must call parameter_space.varying_physics_names "
+        "(not varying_names) so scaling params are structurally excluded from "
+        "NUTS latent sites without a manual filter."
     )
-    assert "varying_names" in source and "_model_sites" in source, (
-        "_run_shard_worker must filter varying_names against _model_sites so scaling "
-        "params (contrast, offset) are excluded from NUTS latent sites."
-    )
+
+
+def test_parameter_space_varying_physics_names_excludes_scaling() -> None:
+    """ParameterSpace.varying_physics_names never returns scaling params.
+
+    This is the behavioral guarantee that makes the worker safe: even when
+    contrast/offset are set vary=True (as NLSQ does), varying_physics_names
+    returns only the 14 physics parameters.
+    """
+    from heterodyne.config.parameter_names import ALL_PARAM_NAMES
+    from heterodyne.config.parameter_space import ParameterSpace
+
+    space = ParameterSpace()
+    space.vary["contrast"] = True
+    space.vary["offset"] = True
+
+    assert "contrast" not in space.varying_physics_names
+    assert "offset" not in space.varying_physics_names
+    for name in space.varying_physics_names:
+        assert name in ALL_PARAM_NAMES, f"{name!r} is not a physics parameter"
 
 
 def test_failure_categories_includes_config_error() -> None:
@@ -275,4 +291,74 @@ def test_run_shards_uses_to_config_fallback() -> None:
         "run_shards must call parameter_space.to_config() as fallback when "
         "_config_dict is absent; otherwise workers get ps_dict={} and "
         "reconstruct an all-vary ParameterSpace that crashes NUTS."
+    )
+
+
+def test_mp_worker_init_params_broadcast_to_num_chains() -> None:
+    """Worker init_params must be broadcast to shape (num_chains,), not 0-d.
+
+    NumPyro ≥0.21 (mcmc.py:683) does `jnp.shape(init_val)[0]` to check
+    whether values are pre-batched across chains.  0-d scalars (shape=())
+    cause IndexError: tuple index out of range when num_chains > 1.
+    The source must call broadcast_to(..., (_num_chains,)) or equivalent.
+
+    Regression guard for: het_0403617d — all 2 shards failed [config_error]:
+    tuple index out of range.
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb._run_shard_worker)
+    assert "_num_chains" in source, (
+        "_run_shard_worker must derive _num_chains from config.num_chains "
+        "to broadcast init_params to shape (_num_chains,) for NumPyro ≥0.21."
+    )
+    assert "broadcast_to" in source, (
+        "_run_shard_worker must broadcast init_params values to shape "
+        "(_num_chains,); 0-d scalars trigger IndexError in NumPyro ≥0.21 "
+        "when num_chains > 1."
+    )
+
+
+def test_mp_worker_seeds_sigma_in_init_params() -> None:
+    """Worker must include sigma in init_params to avoid HalfNormal assertion.
+
+    NumPyro ≥0.21 asserts is_prng_key(key) in HalfNormal.sample.  When sigma
+    is not in init_params, init_to_median tries to sample from HalfNormal
+    using a non-key trace argument — AssertionError.  Seeding sigma with
+    noise_scale avoids the init_to_median path for that site.
+
+    Regression guard for: het_0403617d secondary failure path.
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb._run_shard_worker)
+    assert 'init_params["sigma"]' in source or "init_params['sigma']" in source, (
+        "_run_shard_worker must seed init_params['sigma'] with noise_scale "
+        "so init_to_median never attempts to sample HalfNormal with a "
+        "non-key argument (NumPyro ≥0.21 asserts is_prng_key(key))."
+    )
+
+
+def test_mp_worker_clips_init_params_to_bounds() -> None:
+    """Worker must clip init_params values to strictly inside parameter bounds.
+
+    Values at the boundary edge (e.g. alpha_sample=-2.0, low=-2.0) transform
+    to -inf in the unconstrained bijector, making the initial log-prob
+    undefined and triggering RuntimeError: Cannot find valid initial parameters.
+    Clipping by _INIT_BOUND_EPS keeps values strictly inside support.
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb._run_shard_worker)
+    assert "_INIT_BOUND_EPS" in source, (
+        "_run_shard_worker must define _INIT_BOUND_EPS and clip init_params "
+        "values to [low + eps, high - eps] so boundary NLSQ values (e.g. "
+        "alpha_sample=-2.0 with low=-2.0) do not produce -inf in the "
+        "unconstrained transform."
     )

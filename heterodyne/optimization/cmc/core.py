@@ -611,6 +611,15 @@ def fit_cmc_sharded(
     # Actual tempering flows via prior_width_multiplier passed to run_shards().
 
     _space = model.param_manager.space
+    _scaling_active = [
+        n for n in _space.varying_names if n not in _space.varying_physics_names
+    ]
+    if _scaling_active:
+        logger.debug(
+            "[CMC-sharded] ParameterSpace has scaling params active (%s); "
+            "workers will use varying_physics_names (physics-only) for NUTS.",
+            _scaling_active,
+        )
     if nlsq_result is not None and nlsq_result.success:
         base_priors = build_nlsq_informed_priors(
             nlsq_result, _space, width_factor=config.nlsq_prior_width_factor

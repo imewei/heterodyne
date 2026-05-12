@@ -763,21 +763,21 @@ def _run_shard_worker(
         import numpyro
         import numpyro.distributions as dist
 
-        varying_names = parameter_space.varying_names
+        # varying_physics_names excludes scaling params (contrast, offset) by
+        # design — they are fixed scalar args to compute_c2_heterodyne, not NUTS
+        # latent sites.  Using this property instead of varying_names prevents the
+        # opaque "tuple index out of range" pytree crash when the caller's
+        # ParameterSpace was built from an NLSQ result that varies all 16 params.
+        varying_names = parameter_space.varying_physics_names
         fixed_values = parameter_space.get_initial_array()
 
-        # _shard_model samples only ALL_PARAM_NAMES (14 physics); scaling params
-        # (contrast, offset) are fixed scalar args to compute_c2_heterodyne.
-        # Filter them out here — they arrive in varying_names when the caller's
-        # ParameterSpace was built from an NLSQ result that varies all 16 params.
-        _model_sites: frozenset[str] = frozenset(ALL_PARAM_NAMES)
-        varying_names = [n for n in varying_names if n in _model_sites]
         if not varying_names:
             raise ValueError(
-                f"Shard {shard_idx}: no physics parameters remain in "
-                "ParameterSpace.varying_names after filtering scaling params. "
-                "Ensure parameter_space has at least one physics parameter active."
+                f"Shard {shard_idx}: ParameterSpace has no active physics "
+                "parameters. Ensure at least one of the 14 physics params is "
+                "set to vary."
             )
+        _model_sites: frozenset[str] = frozenset(ALL_PARAM_NAMES)
         worker_logger.debug(
             "Shard %d: %d physics params vary: %s",
             shard_idx,
@@ -787,15 +787,37 @@ def _run_shard_worker(
 
         # Warm-start init params for NumPyro.
         # Restrict to _model_sites so scaling params from the NLSQ warm-start
-        # dict never leak into NUTS init_params (which would cause a pytree
-        # index error even if varying_names is correct).
-        init_params: dict[str, jnp.ndarray] | None = None
+        # dict never leak into NUTS init_params.
+        #
+        # NumPyro ≥0.21 (mcmc.py:683) checks jnp.shape(v)[0] == num_chains to
+        # decide whether values are pre-batched.  0-d scalars (shape=()) cause
+        # IndexError: tuple index out of range.  Broadcasting each value to
+        # (num_chains,) satisfies the check and replicates the same start point
+        # across all chains.
+        #
+        # Values at the exact bound edge (e.g. alpha_sample=-2.0 with
+        # low=-2.0) map to -inf in the unconstrained transform, making the
+        # initial log-prob undefined.  Clipping by _INIT_BOUND_EPS keeps them
+        # strictly inside the support.
+        _INIT_BOUND_EPS: float = 1e-6
+        _num_chains: int = config.num_chains
+
+        def _safe_init_val(name: str, raw: float) -> jnp.ndarray:
+            if name in parameter_space.bounds:
+                lo, hi = parameter_space.bounds[name]
+                raw = float(np.clip(raw, lo + _INIT_BOUND_EPS, hi - _INIT_BOUND_EPS))
+            return jnp.broadcast_to(jnp.asarray(raw), (_num_chains,))
+
+        init_params: dict[str, jnp.ndarray] = {}
         if initial_values is not None:
-            init_params = {
-                k: jnp.asarray(v)
-                for k, v in initial_values.items()
-                if k in varying_names and k in _model_sites
-            }
+            for k, v in initial_values.items():
+                if k in varying_names and k in _model_sites:
+                    init_params[k] = _safe_init_val(k, float(v))
+        # Seed sigma so init_to_median never samples HalfNormal with a
+        # non-key argument (NumPyro ≥0.21 asserts is_prng_key(key)).
+        init_params["sigma"] = jnp.broadcast_to(
+            jnp.asarray(noise_scale), (_num_chains,)
+        )
 
         # CMC prior tempering: widen prior std by prior_width_mult = sqrt(num_shards).
         # Received via shared_kwargs from run_shards() when doing sharded CMC.
@@ -2188,7 +2210,12 @@ class MultiprocessingBackend(CMCBackend):
                     res.get("error", "unknown"),
                 )
                 if res.get("traceback"):
-                    logger.debug(
+                    _tb_log = (
+                        logger.error
+                        if _err_cat in {"config_error", "init_crash", "unknown"}
+                        else logger.debug
+                    )
+                    _tb_log(
                         "Shard %s traceback:\n%s",
                         res.get("shard_idx", "?"),
                         res["traceback"],
