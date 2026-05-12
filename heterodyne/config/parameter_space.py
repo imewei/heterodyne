@@ -221,6 +221,28 @@ class ParameterSpace:
         """
         return np.array([self.values[name] for name in ALL_PARAM_NAMES])
 
+    def to_config(self) -> dict[str, Any]:
+        """Serialize this space to a dict compatible with :meth:`from_config`.
+
+        Produces the ``initial_parameters`` flat-format understood by
+        :func:`_apply_initial_parameters`.  Bounds and priors are not
+        serialized — workers rebuild them from the registry defaults.
+        Only values and ``active_parameters`` (vary flags) are round-tripped.
+
+        Returns:
+            Config dict that ``from_config()`` can reconstruct into an
+            equivalent ParameterSpace (same values and varying_names).
+        """
+        return {
+            "initial_parameters": {
+                "parameter_names": list(ALL_PARAM_NAMES_WITH_SCALING),
+                "values": [
+                    float(self.values[name]) for name in ALL_PARAM_NAMES_WITH_SCALING
+                ],
+                "active_parameters": list(self.varying_names),
+            }
+        }
+
     def get_bounds_arrays(self) -> tuple[np.ndarray, np.ndarray]:
         """Get bounds as numpy arrays.
 

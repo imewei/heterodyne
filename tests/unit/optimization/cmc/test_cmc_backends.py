@@ -143,3 +143,130 @@ def test_mp_worker_model_does_not_contain_wrong_reparam_call() -> None:
         "Found broken reparam_to_physics_jax(params, reparam_config) call in "
         "multiprocessing_backend. This crashes at runtime — remove the block."
     )
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: ParameterSpace → worker config serialization round-trip
+# (guards against "tuple index out of range" NUTS pytree crash — het_ed14fd83)
+# ---------------------------------------------------------------------------
+
+
+def test_parameter_space_to_config_produces_dict() -> None:
+    """to_config() returns a non-empty dict with the expected top-level key."""
+    from heterodyne.config.parameter_space import ParameterSpace
+
+    space = ParameterSpace()
+    cfg = space.to_config()
+    assert isinstance(cfg, dict)
+    assert "initial_parameters" in cfg
+    ip = cfg["initial_parameters"]
+    assert "parameter_names" in ip
+    assert "values" in ip
+    assert "active_parameters" in ip
+
+
+def test_parameter_space_to_config_round_trips_via_from_config() -> None:
+    """to_config() → from_config() reconstructs the same varying_names set.
+
+    This is the critical invariant: the worker must recover the same
+    varying_names as the parent so init_params and _shard_model agree.
+    """
+    from heterodyne.config.parameter_space import ParameterSpace
+
+    space = ParameterSpace()
+    cfg = space.to_config()
+    space2 = ParameterSpace.from_config(cfg)
+    assert set(space2.varying_names) == set(space.varying_names), (
+        f"Round-trip mismatch: {set(space.varying_names)} → {set(space2.varying_names)}"
+    )
+
+
+def test_parameter_space_from_config_stamps_config_dict() -> None:
+    """from_config() sets _config_dict on the returned space.
+
+    run_shards() reads _config_dict to pass PS config to workers; the
+    attribute must be present after any from_config() call.
+    """
+    from heterodyne.config.parameter_space import ParameterSpace
+
+    space = ParameterSpace.from_config({})
+    assert hasattr(space, "_config_dict"), (
+        "ParameterSpace.from_config() must stamp _config_dict so run_shards() "
+        "can pass parameter-space config to workers without a fallback warning."
+    )
+
+
+def test_mp_worker_init_params_restricted_to_physics_names() -> None:
+    """Worker filters init_params to ALL_PARAM_NAMES before passing to NUTS.
+
+    Scaling params (contrast, offset) appear in varying_names but are not
+    latent sites in _shard_model; leaking them into init_params causes NUTS
+    to crash with 'tuple index out of range' during pytree initialization.
+    Verifies the guard is present in the source.
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb._run_shard_worker)
+    assert "_model_sites" in source, (
+        "_run_shard_worker must define _model_sites = frozenset(ALL_PARAM_NAMES) "
+        "to guard init_params from non-physics parameter keys."
+    )
+    assert "k in _model_sites" in source, (
+        "init_params comprehension must filter 'k in _model_sites' so scaling "
+        "params never reach NUTS."
+    )
+
+
+def test_mp_worker_varying_names_validation_present() -> None:
+    """Worker raises ValueError early when varying_names contains non-physics params.
+
+    Ensures the diagnostic guard (_extra_sites check) is in the source so
+    any future ParameterSpace regression produces a clear error message
+    instead of an opaque NUTS pytree crash.
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb._run_shard_worker)
+    assert "_extra_sites" in source, (
+        "_run_shard_worker must check for extra (non-physics) sites in "
+        "varying_names and raise ValueError with a diagnostic message."
+    )
+
+
+def test_failure_categories_includes_config_error() -> None:
+    """run_shards failure_categories dict must track config_error.
+
+    'tuple index out of range' from NUTS pytree mismatches was previously
+    mis-classified as 'sampling', obscuring the root cause.
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb.MultiprocessingBackend.run_shards)
+    assert '"config_error"' in source or "'config_error'" in source, (
+        "failure_categories in run_shards must include 'config_error' key so "
+        "ParameterSpace misconfiguration failures are reported distinctly."
+    )
+
+
+def test_run_shards_uses_to_config_fallback() -> None:
+    """run_shards falls back to to_config() when _config_dict is absent.
+
+    Prevents workers from receiving empty ps_dict when parameter_space was
+    created via the model constructor (not from_config).
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb.MultiprocessingBackend.run_shards)
+    assert "to_config()" in source, (
+        "run_shards must call parameter_space.to_config() as fallback when "
+        "_config_dict is absent; otherwise workers get ps_dict={} and "
+        "reconstruct an all-vary ParameterSpace that crashes NUTS."
+    )

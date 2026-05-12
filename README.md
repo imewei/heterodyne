@@ -173,16 +173,27 @@ YAML config --> XPCSDataLoader(HDF5) --> HeterodyneModel --> NLSQ or CMC --> Res
 
 **NLSQ** (primary) -- JAX-native trust-region Levenberg-Marquardt with automatic
 anti-degeneracy defense, CMA-ES global search (including BIPOP bi-population restarts)
-for multi-scale problems, and memory-aware routing for large datasets.
+for multi-scale problems, and memory-aware routing for large datasets.  Post-fit quality
+assessment is available via `validate_fit_quality` in
+`heterodyne.optimization.nlsq.validation` (configurable chi-squared, residual, and
+parameter thresholds via `FitQualityConfig`).
 
 **CMC** (secondary) -- Consensus Monte Carlo using NumPyro NUTS sampling with automatic
-sharding, NLSQ warm-start priors, and multiprocessing across CPU cores.  Produces
-publication-quality posterior distributions with ArviZ diagnostics.  Configurable
-``chain_method`` (``sequential``, ``vectorized``, ``parallel``) and
-``combination_method`` (``consensus``, ``mixture``) control sampling and aggregation
-strategy.  Built-in convergence checking (R-hat, ESS, BFMI) with actionable
-recommendations is available via ``check_convergence`` in
-``heterodyne.optimization.cmc.diagnostics``.
+sharding, NLSQ warm-start priors, and pluggable execution backends.  Backends:
+
+| Backend | Use case |
+|---------|----------|
+| `CPUBackend` | Single-node sequential or vectorized chains |
+| `MultiprocessingBackend` | Parallel shards across CPU cores (default for `chain_method="parallel"`) |
+| `WorkerPoolBackend` / `PersistentWorkerPool` | Long analyses — amortises JIT cost across shards |
+| `PBSBackend` | HPC cluster job-array submission (ALCF, NERSC) |
+| `PjitBackend` | Experimental multi-device via `pjit` |
+
+Produces publication-quality posterior distributions with ArviZ diagnostics.
+Configurable `chain_method` (`sequential`, `vectorized`, `parallel`) and
+`combination_method` (`consensus`, `mixture`) control sampling and aggregation.
+Built-in convergence checking (R-hat, ESS, BFMI) with actionable recommendations
+is available via `check_convergence` in `heterodyne.optimization.cmc.diagnostics`.
 
 ## Configuration
 

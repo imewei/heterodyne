@@ -766,13 +766,36 @@ def _run_shard_worker(
         varying_names = parameter_space.varying_names
         fixed_values = parameter_space.get_initial_array()
 
-        # Warm-start init params for NumPyro
+        # Guard: _shard_model calls numpyro.sample only for ALL_PARAM_NAMES (14
+        # physics).  Scaling params (contrast, offset) are fixed scalar args to
+        # compute_c2_heterodyne and must never appear as NUTS latent sites —
+        # doing so causes an opaque "tuple index out of range" pytree crash.
+        _model_sites: frozenset[str] = frozenset(ALL_PARAM_NAMES)
+        _extra_sites = sorted(set(varying_names) - _model_sites)
+        if _extra_sites:
+            raise ValueError(
+                f"Shard {shard_idx}: ParameterSpace.varying_names contains "
+                f"{_extra_sites}, which are not latent sites in _shard_model. "
+                "Ensure parameter_space is passed to run_shards() so to_config() "
+                "can populate parameter_space_dict for workers."
+            )
+        worker_logger.debug(
+            "Shard %d: %d physics params vary: %s",
+            shard_idx,
+            len(varying_names),
+            ", ".join(varying_names),
+        )
+
+        # Warm-start init params for NumPyro.
+        # Restrict to _model_sites so scaling params from the NLSQ warm-start
+        # dict never leak into NUTS init_params (which would cause a pytree
+        # index error even if varying_names is correct).
         init_params: dict[str, jnp.ndarray] | None = None
         if initial_values is not None:
             init_params = {
                 k: jnp.asarray(v)
                 for k, v in initial_values.items()
-                if k in varying_names
+                if k in varying_names and k in _model_sites
             }
 
         # CMC prior tempering: widen prior std by prior_width_mult = sqrt(num_shards).
@@ -981,6 +1004,12 @@ def _run_shard_worker(
             error_category = "convergence"
         elif "memory" in error_str:
             error_category = "memory_error"
+        elif (
+            "tuple index" in error_str
+            or "index out of range" in error_str
+            or ("not a latent site" in error_str or "parameter_space" in error_str)
+        ):
+            error_category = "config_error"
         else:
             error_category = "sampling"
 
@@ -1499,11 +1528,18 @@ class MultiprocessingBackend(CMCBackend):
 
         if parameter_space is not None and hasattr(parameter_space, "_config_dict"):
             ps_dict: dict[str, Any] = parameter_space._config_dict
+        elif parameter_space is not None:
+            ps_dict = parameter_space.to_config()
+            run_logger.debug(
+                "ParameterSpace._config_dict absent; serialized via to_config() "
+                "(%d varying params)",
+                len(parameter_space.varying_names),
+            )
         else:
             ps_dict = {}
             run_logger.warning(
-                "ParameterSpace._config_dict not available; workers will use "
-                "default parameter bounds (may produce unconstrained proposals)"
+                "ParameterSpace not provided; workers will use default parameter "
+                "bounds (may produce unconstrained proposals)"
             )
 
         # Shared scalars extracted from the first shard (same for all shards
@@ -1638,6 +1674,7 @@ class MultiprocessingBackend(CMCBackend):
                 "numerical": 0,
                 "convergence": 0,
                 "memory_error": 0,
+                "config_error": 0,
                 "sampling": 0,
                 "init_crash": 0,
                 "unknown": 0,

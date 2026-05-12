@@ -75,11 +75,24 @@ Multi-Start Optimizer
    :undoc-members:
    :show-inheritance:
 
-Input Validation
-================
+Input Validation & Fit Quality
+===============================
 
-Pre-fit validation: shape/dtype checks, finite-value guards, parameter
-bound enforcement, and convergence quality assessors.
+Pre-fit and post-fit validation pipeline:
+
+- :class:`~heterodyne.optimization.nlsq.validation.InputValidator` —
+  shape/dtype checks, finite-value guards, and initial-parameter bounds.
+- :class:`~heterodyne.optimization.nlsq.validation.BoundsValidator` —
+  physical parameter bound enforcement.
+- :class:`~heterodyne.optimization.nlsq.validation.ConvergenceValidator` —
+  convergence quality assessment.
+- :class:`~heterodyne.optimization.nlsq.validation.FitQualityConfig` /
+  :class:`~heterodyne.optimization.nlsq.validation.FitQualityReport` /
+  :func:`~heterodyne.optimization.nlsq.validation.validate_fit_quality` —
+  homodyne-parity post-fit quality validator with configurable thresholds
+  for chi-squared, residuals, and parameter bounds.
+- :class:`~heterodyne.optimization.nlsq.validation.ResultValidator` —
+  structural ``NLSQResult`` quality checks.
 
 .. automodule:: heterodyne.optimization.nlsq.validation
    :members:

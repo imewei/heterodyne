@@ -121,3 +121,78 @@ ArviZ-backed diagnostic plots for CMC posterior samples.
              plot_posterior_predictive, plot_diagnostics_summary
    :undoc-members:
    :show-inheritance:
+
+Backends
+========
+
+Execution backends for running NUTS chains across CPU cores, HPC
+cluster nodes, and multi-device pjit configurations.  All backends
+share the :class:`~heterodyne.optimization.cmc.backends.base.MCMCBackend`
+protocol and are selected automatically via
+:func:`~heterodyne.optimization.cmc.backends.base.select_backend` based on
+the :attr:`~heterodyne.optimization.cmc.config.CMCConfig.chain_method` setting.
+
+Backend Selection
+-----------------
+
+.. automodule:: heterodyne.optimization.cmc.backends.base
+   :members: MCMCBackend, ShardPosterior, select_backend,
+             combine_shard_samples, combine_shard_samples_bimodal,
+             consensus_mc, robust_consensus_mc
+   :undoc-members:
+   :show-inheritance:
+
+CPU Backend (Sequential / Vectorized)
+--------------------------------------
+
+.. automodule:: heterodyne.optimization.cmc.backends.cpu_backend
+   :members: CPUBackend
+   :undoc-members:
+   :show-inheritance:
+
+Multiprocessing Backend
+-----------------------
+
+Parallel shard evaluation across CPU cores using Python
+``multiprocessing``.  Each worker process runs an independent NUTS
+chain on its own shard, with full JAX persistent compilation cache
+support.
+
+.. automodule:: heterodyne.optimization.cmc.backends.multiprocessing_backend
+   :members: MultiprocessingBackend
+   :undoc-members:
+   :show-inheritance:
+
+PBS/HPC Backend
+---------------
+
+Submits per-shard NUTS chains as PBS job-array tasks for use on HPC
+cluster nodes (e.g. ALCF Polaris, NERSC Perlmutter).
+
+.. automodule:: heterodyne.optimization.cmc.backends.pbs
+   :members: PBSBackend, PBSConfig
+   :undoc-members:
+   :show-inheritance:
+
+Pjit Backend (Multi-Device)
+----------------------------
+
+Experimental backend that shards chains across ``jax.devices()`` via
+``pjit``.  Currently CPU-only because heterodyne ships no GPU support,
+but the interface is device-agnostic.
+
+.. automodule:: heterodyne.optimization.cmc.backends.pjit_backend
+   :members: PjitBackend
+   :undoc-members:
+   :show-inheritance:
+
+Persistent Worker Pool
+-----------------------
+
+Long-lived worker pool that amortises per-shard JAX JIT compilation
+overhead.  Recommended for large analyses with many shards.
+
+.. automodule:: heterodyne.optimization.cmc.backends.worker_pool
+   :members: PersistentWorkerPool, WorkerPoolBackend, should_use_persistent_pool
+   :undoc-members:
+   :show-inheritance:
