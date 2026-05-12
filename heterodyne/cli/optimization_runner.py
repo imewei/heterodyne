@@ -17,11 +17,8 @@ from heterodyne.io.nlsq_writers import (
     save_nlsq_json_files,
     save_nlsq_npz_file,
 )
-from heterodyne.optimization.cmc import (  # noqa: F401 — fit_cmc_sharded used in run_cmc dispatch
-    CMCConfig,
-    fit_cmc_jax,
-    fit_cmc_sharded,
-)
+from heterodyne.optimization.cmc import CMCConfig, fit_cmc_jax
+from heterodyne.optimization.cmc.core import fit_cmc_sharded
 from heterodyne.optimization.nlsq import NLSQConfig, fit_nlsq_multi_phi
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_phase
