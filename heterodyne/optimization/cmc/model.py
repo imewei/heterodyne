@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import jax.numpy as jnp
@@ -34,14 +35,19 @@ def get_heterodyne_model(
     dt: float,
     phi_angle: float,
     c2_data: jnp.ndarray,
-    sigma: jnp.ndarray | float,
+    noise_scale: float,
     space: ParameterSpace,
     contrast: float = 1.0,
     offset: float = 1.0,
     shard_grid: ShardGrid | None = None,
     priors_override: dict | None = None,
+    num_shards: int = 1,
 ):
     """Create NumPyro model for heterodyne correlation fitting.
+
+    Sigma is sampled as a posterior variable via ``HalfNormal(noise_scale *
+    1.5 * sqrt(num_shards))``, matching the homodyne parity convention so the
+    posterior captures noise uncertainty.
 
     Args:
         t: Time array
@@ -50,18 +56,24 @@ def get_heterodyne_model(
         phi_angle: Detector phi angle
         c2_data: Observed correlation data — shape ``(N, N)`` for meshgrid
             path, or ``(n_pairs,)`` for element-wise path.
-        sigma: Measurement uncertainty (scalar or array matching c2_data)
+        noise_scale: Data-driven prior center for the measurement-uncertainty
+            ``sigma`` posterior.  Typically the mean / RMS of an external
+            estimate from :func:`estimate_sigma`.
         space: Parameter space with priors
         contrast: Speckle contrast (beta), default 1.0
         offset: Baseline offset, default 1.0
         shard_grid: Optional pre-computed ShardGrid.  When provided, uses
             the memory-efficient element-wise path (no N×N allocation).
-            ``c2_data`` and ``sigma`` must then be flattened to match
-            the shard grid's paired indices.
+            ``c2_data`` must then be flattened to match the shard grid's
+            paired indices.
         priors_override: Optional dictionary mapping parameter names to
             NumPyro distributions.  When provided, overrides the default
             ``space.priors[name]`` for any matching parameter name.  Used
             by ``fit_cmc_sharded`` to inject tempered priors.
+        num_shards: Number of CMC shards for sigma prior tempering.  Widens
+            the ``HalfNormal`` scale by ``sqrt(num_shards)`` so that the
+            product across shards stays equivalent to the unsharded prior.
+            Defaults to ``1`` (no tempering).
 
     Returns:
         NumPyro model function
@@ -69,6 +81,8 @@ def get_heterodyne_model(
     # Pre-compute indices and masks
     varying_names = space.varying_names
     fixed_values = space.get_initial_array()
+    prior_scale = math.sqrt(num_shards)
+    sigma_scale = float(noise_scale) * 1.5 * prior_scale
 
     def model():
         """NumPyro model for heterodyne correlation."""
@@ -108,6 +122,13 @@ def get_heterodyne_model(
                 offset,
             )
 
+        # Track NaN/inf so callers can flag pathological shards.
+        n_nan = jnp.sum(~jnp.isfinite(c2_model))
+        numpyro.deterministic("n_numerical_issues", n_nan)
+
+        # Sample sigma with prior tempered for CMC sharding (parity with homodyne).
+        sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
+
         # Likelihood
         numpyro.sample(
             "obs",
@@ -124,7 +145,7 @@ def get_heterodyne_model_reparam(
     dt: float,
     phi_angle: float,
     c2_data: jnp.ndarray,
-    sigma: jnp.ndarray | float,
+    noise_scale: float,
     space: ParameterSpace,
     nlsq_params: jnp.ndarray | None = None,
     reparam_config: ReparamConfig | None = None,
@@ -132,6 +153,7 @@ def get_heterodyne_model_reparam(
     contrast: float = 1.0,
     offset: float = 1.0,
     shard_grid: ShardGrid | None = None,
+    num_shards: int = 1,
 ):
     """Create NumPyro model with reparameterization for better sampling.
 
@@ -143,23 +165,29 @@ def get_heterodyne_model_reparam(
     Falls back to the original clip-based behavior when the new
     infrastructure is not provided (backward compatibility).
 
+    Sigma is sampled internally via ``HalfNormal(noise_scale * 1.5 *
+    sqrt(num_shards))`` to match homodyne CMC parity.
+
     Args:
         t: Time array
         q: Wavevector
         dt: Time step
         phi_angle: Detector phi angle
         c2_data: Observed correlation data
-        sigma: Measurement uncertainty
+        noise_scale: Data-driven prior center for sampled ``sigma``.
         space: Parameter space
         nlsq_params: Optional NLSQ fitted values for centering (legacy path)
         reparam_config: Reparameterization config (enables new path)
         scalings: Pre-computed ParameterScaling per reparam-space param
+        num_shards: CMC shard count for sigma prior tempering. Default ``1``.
 
     Returns:
         NumPyro model function
     """
     varying_names = space.varying_names
     fixed_values = space.get_initial_array()
+    prior_scale = math.sqrt(num_shards)
+    sigma_scale = float(noise_scale) * 1.5 * prior_scale
 
     # --- New reparameterized path ---
     if reparam_config is not None and scalings is not None:
@@ -169,9 +197,9 @@ def get_heterodyne_model_reparam(
             dt=dt,
             phi_angle=phi_angle,
             c2_data=c2_data,
-            sigma=sigma,
+            sigma_scale=sigma_scale,
             space=space,
-            fixed_values=fixed_values,
+            fixed_values=jnp.asarray(fixed_values),
             varying_names=varying_names,
             reparam_config=reparam_config,
             scalings=scalings,
@@ -227,6 +255,9 @@ def get_heterodyne_model_reparam(
                 contrast,
                 offset,
             )
+        n_nan = jnp.sum(~jnp.isfinite(c2_model))
+        numpyro.deterministic("n_numerical_issues", n_nan)
+        sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model
@@ -239,7 +270,7 @@ def _build_reparam_model(
     dt: float,
     phi_angle: float,
     c2_data: jnp.ndarray,
-    sigma: jnp.ndarray | float,
+    sigma_scale: float,
     space: ParameterSpace,
     fixed_values: jnp.ndarray,
     varying_names: list[str],
@@ -336,6 +367,9 @@ def _build_reparam_model(
                 contrast,
                 offset,
             )
+        n_nan = jnp.sum(~jnp.isfinite(c2_model))
+        numpyro.deterministic("n_numerical_issues", n_nan)
+        sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model
@@ -352,11 +386,12 @@ def get_heterodyne_model_constant(
     dt: float,
     phi_angle: float,
     c2_data: jnp.ndarray,
-    sigma: jnp.ndarray | float,
+    noise_scale: float,
     space: ParameterSpace,
     fixed_contrast: jnp.ndarray,
     fixed_offset: jnp.ndarray,
     shard_grid: ShardGrid | None = None,
+    num_shards: int = 1,
 ):
     """Create NumPyro model with FIXED (pre-computed) per-angle scaling.
 
@@ -365,22 +400,28 @@ def get_heterodyne_model_constant(
     ``per_angle_mode="constant"``, where each angle has its own fixed scaling
     but the physical parameters are shared.
 
+    Sigma is sampled internally via ``HalfNormal(noise_scale * 1.5 *
+    sqrt(num_shards))`` for homodyne CMC parity.
+
     Args:
         t: Time array, shape ``(n_t,)``.
         q: Wavevector magnitude (Å⁻¹).
         dt: Lag-time step (s).
         phi_angle: Detector phi angle for this shard (degrees).
         c2_data: Observed correlation data, shape ``(n_t,)`` or ``(n_phi, n_t)``.
-        sigma: Measurement uncertainty — scalar or matching shape of ``c2_data``.
+        noise_scale: Data-driven prior center for sampled ``sigma``.
         space: Parameter space carrying priors and fixed values.
         fixed_contrast: Speckle contrast per angle, shape ``(n_phi,)`` or scalar.
         fixed_offset: Baseline offset per angle, shape ``(n_phi,)`` or scalar.
+        num_shards: CMC shard count for sigma prior tempering. Default ``1``.
 
     Returns:
         NumPyro model callable (no required arguments).
     """
     varying_names = space.varying_names
     fixed_values = space.get_initial_array()
+    prior_scale = math.sqrt(num_shards)
+    sigma_scale = float(noise_scale) * 1.5 * prior_scale
 
     # Materialise fixed arrays outside the model closure so they are not
     # traced as model parameters.
@@ -422,6 +463,9 @@ def get_heterodyne_model_constant(
                 contrast_val,
                 offset_val,
             )
+        n_nan = jnp.sum(~jnp.isfinite(c2_model))
+        numpyro.deterministic("n_numerical_issues", n_nan)
+        sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model
@@ -433,11 +477,12 @@ def get_heterodyne_model_constant_averaged(
     dt: float,
     phi_angle: float,
     c2_data: jnp.ndarray,
-    sigma: jnp.ndarray | float,
+    noise_scale: float,
     space: ParameterSpace,
     mean_contrast: float,
     mean_offset: float,
     shard_grid: ShardGrid | None = None,
+    num_shards: int = 1,
 ):
     """Create NumPyro model with a single averaged scaling broadcast to all angles.
 
@@ -445,22 +490,28 @@ def get_heterodyne_model_constant_averaged(
     average over all phi angles.  They are treated as fixed (not sampled) and
     broadcast uniformly.  Suitable for ``per_angle_mode="constant_averaged"``.
 
+    Sigma is sampled internally via ``HalfNormal(noise_scale * 1.5 *
+    sqrt(num_shards))`` for homodyne CMC parity.
+
     Args:
         t: Time array, shape ``(n_t,)``.
         q: Wavevector magnitude (Å⁻¹).
         dt: Lag-time step (s).
         phi_angle: Detector phi angle for this shard (degrees).
         c2_data: Observed correlation data.
-        sigma: Measurement uncertainty.
+        noise_scale: Data-driven prior center for sampled ``sigma``.
         space: Parameter space carrying priors and fixed values.
         mean_contrast: Scalar speckle contrast averaged over all phi angles.
         mean_offset: Scalar baseline offset averaged over all phi angles.
+        num_shards: CMC shard count for sigma prior tempering. Default ``1``.
 
     Returns:
         NumPyro model callable (no required arguments).
     """
     varying_names = space.varying_names
     fixed_values = space.get_initial_array()
+    prior_scale = math.sqrt(num_shards)
+    sigma_scale = float(noise_scale) * 1.5 * prior_scale
 
     # Ensure Python floats to avoid accidental JAX tracing at closure time.
     _contrast = float(mean_contrast)
@@ -496,6 +547,9 @@ def get_heterodyne_model_constant_averaged(
                 _contrast,
                 _offset,
             )
+        n_nan = jnp.sum(~jnp.isfinite(c2_model))
+        numpyro.deterministic("n_numerical_issues", n_nan)
+        sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
         numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model
@@ -507,13 +561,14 @@ def get_heterodyne_model_individual(
     dt: float,
     phi_angles: jnp.ndarray,
     c2_data: jnp.ndarray,
-    sigma: jnp.ndarray | float,
+    noise_scale: float,
     space: ParameterSpace,
     contrast_prior_loc: jnp.ndarray | float = 0.5,
     contrast_prior_scale: float = 0.25,
     offset_prior_loc: jnp.ndarray | float = 1.0,
     offset_prior_scale: float = 0.25,
     shard_grids: list[ShardGrid] | None = None,
+    num_shards: int = 1,
 ):
     """Create NumPyro model with per-angle sampled contrast and offset.
 
@@ -562,6 +617,9 @@ def get_heterodyne_model_individual(
     contrast_loc = jnp.broadcast_to(jnp.asarray(contrast_prior_loc), (n_phi,))
     offset_loc = jnp.broadcast_to(jnp.asarray(offset_prior_loc), (n_phi,))
 
+    prior_scale = math.sqrt(num_shards)
+    sigma_scale = float(noise_scale) * 1.5 * prior_scale
+
     def model():
         """NumPyro model with per-angle sampled contrast and offset."""
         # --- Shared physical parameters ---
@@ -595,11 +653,15 @@ def get_heterodyne_model_individual(
         offset_i = smooth_bound(offset_raw, 0.5, 1.5)
         numpyro.deterministic("offset", offset_i)
 
+        # --- Sigma sampled once and shared across angles (homodyne parity) ---
+        sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
+
         # --- Likelihood over all angles ---
         # contrast_i / offset_i have shape (n_phi,); iterate to build
         # predictions per angle.  A vmap would require static phi_arr indexing
         # which is safe here, but a Python loop keeps tracing simple and avoids
         # shape-inference issues with dynamic plate sizes.
+        n_total_nan: jnp.ndarray | int = 0
         for ai in range(n_phi):
             if shard_grids is not None:
                 c2_model_i = compute_c2_elementwise(
@@ -621,12 +683,13 @@ def get_heterodyne_model_individual(
                     contrast_i[ai],
                     offset_i[ai],
                 )
-            sigma_i = sigma[ai] if hasattr(sigma, "__len__") else sigma  # type: ignore[index]
+            n_total_nan = n_total_nan + jnp.sum(~jnp.isfinite(c2_model_i))
             numpyro.sample(
                 f"obs_{ai}",
-                dist.Normal(c2_model_i, sigma_i),
+                dist.Normal(c2_model_i, sigma),
                 obs=c2_data[ai],
             )
+        numpyro.deterministic("n_numerical_issues", n_total_nan)
 
     return model
 
@@ -638,10 +701,11 @@ def get_model_for_mode(
     dt: float,
     phi_angle: float,
     c2_data: jnp.ndarray,
-    sigma: jnp.ndarray | float,
+    noise_scale: float,
     space: ParameterSpace,
     nlsq_result: NLSQResult | None = None,
     reparam_config: ReparamConfig | None = None,
+    num_shards: int = 1,
     **kwargs: object,
 ) -> Callable[[], None]:
     """Select and build the appropriate NumPyro model based on per-angle mode.
@@ -676,12 +740,13 @@ def get_model_for_mode(
         dt: Lag-time step (s).
         phi_angle: Scalar phi angle (used by non-individual modes).
         c2_data: Observed correlation data.
-        sigma: Measurement uncertainty.
+        noise_scale: Data-driven prior centre for the sampled ``sigma`` site.
         space: Parameter space.
         nlsq_result: Optional NLSQ result for warm-starting (used by
             ``"auto"`` mode when ``reparam_config`` is supplied).
         reparam_config: Optional reparameterization config.  When provided
             alongside ``"auto"`` mode, activates the reparam model path.
+        num_shards: CMC shard count for sigma prior tempering. Default ``1``.
         **kwargs: Mode-specific keyword arguments forwarded verbatim.
 
     Returns:
@@ -711,13 +776,14 @@ def get_model_for_mode(
                 dt=dt,
                 phi_angle=phi_angle,
                 c2_data=c2_data,
-                sigma=sigma,
+                noise_scale=noise_scale,
                 space=space,
                 reparam_config=reparam_config,
                 scalings=scalings,
                 contrast=contrast,
                 offset=offset,
                 shard_grid=sg,
+                num_shards=num_shards,
             )
         return get_heterodyne_model(
             t=t,
@@ -725,11 +791,12 @@ def get_model_for_mode(
             dt=dt,
             phi_angle=phi_angle,
             c2_data=c2_data,
-            sigma=sigma,
+            noise_scale=noise_scale,
             space=space,
             contrast=contrast,
             offset=offset,
             shard_grid=sg,
+            num_shards=num_shards,
         )
 
     if per_angle_mode == "constant":
@@ -742,11 +809,12 @@ def get_model_for_mode(
             dt=dt,
             phi_angle=phi_angle,
             c2_data=c2_data,
-            sigma=sigma,
+            noise_scale=noise_scale,
             space=space,
             fixed_contrast=fixed_contrast,  # type: ignore[arg-type]
             fixed_offset=fixed_offset,  # type: ignore[arg-type]
             shard_grid=sg_const,
+            num_shards=num_shards,
         )
 
     if per_angle_mode == "constant_averaged":
@@ -759,11 +827,12 @@ def get_model_for_mode(
             dt=dt,
             phi_angle=phi_angle,
             c2_data=c2_data,
-            sigma=sigma,
+            noise_scale=noise_scale,
             space=space,
             mean_contrast=mean_contrast,
             mean_offset=mean_offset,
             shard_grid=sg_avg,
+            num_shards=num_shards,
         )
 
     # per_angle_mode == "individual"
@@ -775,9 +844,10 @@ def get_model_for_mode(
         dt=dt,
         phi_angles=phi_angles,  # type: ignore[arg-type]
         c2_data=c2_data,
-        sigma=sigma,
+        noise_scale=noise_scale,
         space=space,
         shard_grids=sg_individual,
+        num_shards=num_shards,
         **kwargs,  # type: ignore[arg-type]
     )
 

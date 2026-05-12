@@ -1025,3 +1025,49 @@ def estimate_contrast_offset_from_data(
         contrast_est,
     )
     return contrast_est, offset_est
+
+
+def validate_init_values_order(
+    init_values: dict[str, float],
+    expected_names: list[str],
+) -> None:
+    """Validate that init-values key order matches the expected parameter order.
+
+    Homodyne CMC parity helper.  Python 3.7+ dicts preserve insertion order,
+    so positional consumers of ``init_values`` (e.g. when zipping with NLSQ
+    arrays) depend on a stable iteration order.  This check makes ordering
+    bugs fail loudly with a descriptive error instead of producing silently
+    wrong parameter bindings.
+
+    Args:
+        init_values: Initial-values mapping, typically the output of
+            :func:`build_init_values_dict`.
+        expected_names: Required parameter order — usually
+            :func:`get_param_names_in_order` for the active mode.
+
+    Raises:
+        ValueError: When the key count or per-position order disagrees with
+            ``expected_names``.  The error names the first mismatching index
+            and quotes the full lists for fast diagnosis.
+    """
+    actual_names = list(init_values.keys())
+    if actual_names == expected_names:
+        return
+
+    if len(actual_names) != len(expected_names):
+        raise ValueError(
+            "Parameter count mismatch in init_values:\n"
+            f"  expected {len(expected_names)} params: {expected_names}\n"
+            f"  actual   {len(actual_names)} params: {actual_names}"
+        )
+
+    for i, (actual, expected) in enumerate(
+        zip(actual_names, expected_names, strict=False)
+    ):
+        if actual != expected:
+            raise ValueError(
+                "Parameter order mismatch at position "
+                f"{i}:\n  expected: {expected!r}\n  actual:   {actual!r}\n"
+                f"  full expected: {expected_names}\n"
+                f"  full actual:   {actual_names}"
+            )

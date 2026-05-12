@@ -781,24 +781,41 @@ class CMCConfig:
         tuple[int, int]
             ``(warmup, samples)`` after adaptive scaling.
         """
-        if not self.adaptive_sampling or shard_size >= _REFERENCE_SHARD_SIZE:
+        if not self.adaptive_sampling:
             return self.num_warmup, self.num_samples
 
-        scale = max(0.0, shard_size / _REFERENCE_SHARD_SIZE)
+        # Homodyne CMC parity (config.py:700-760): scale linearly up to a
+        # reference shard size, then enforce a *parameter-aware* floor that
+        # is itself capped at the user-configured maximum so adaptive scaling
+        # only ever reduces work, never inflates it.
+        scale = min(1.0, max(0.0, shard_size / _REFERENCE_SHARD_SIZE))
 
-        warmup = max(self.min_warmup, round(self.num_warmup * scale))
-        samples = max(self.min_samples, round(self.num_samples * scale))
+        scaled_warmup = int(self.num_warmup * scale)
+        scaled_samples = int(self.num_samples * scale)
 
-        # Absolute floor: at least n_params samples per chain.
-        samples = max(samples, n_params)
-
-        logger.debug(
-            "Adaptive sampling: shard_size=%d scale=%.3f → warmup=%d samples=%d.",
-            shard_size,
-            scale,
-            warmup,
-            samples,
+        # Parameter-aware floors capped at the configured ceiling.
+        min_warmup_for_params = min(
+            max(self.min_warmup, 20 * n_params), self.num_warmup
         )
+        min_samples_for_params = min(
+            max(self.min_samples, 50 * n_params), self.num_samples
+        )
+
+        warmup = max(min_warmup_for_params, scaled_warmup)
+        samples = max(min_samples_for_params, scaled_samples)
+
+        if warmup != self.num_warmup or samples != self.num_samples:
+            logger.debug(
+                "Adaptive sampling: shard_size=%d (scale=%.3f, n_params=%d) → "
+                "warmup=%d (was %d), samples=%d (was %d).",
+                shard_size,
+                scale,
+                n_params,
+                warmup,
+                self.num_warmup,
+                samples,
+                self.num_samples,
+            )
         return warmup, samples
 
     def get_effective_per_angle_mode(

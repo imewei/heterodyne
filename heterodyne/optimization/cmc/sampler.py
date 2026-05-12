@@ -27,6 +27,147 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+#: Below this shard size, ``SamplingPlan.for_shard`` downgrades a ``"parallel"``
+#: chain method to ``"sequential"`` so JIT and warmup costs are shared across
+#: chains.  Mirrors the homodyne small-shard policy.
+_SMALL_SHARD_CHAIN_THRESHOLD: int = 100
+
+
+# ---------------------------------------------------------------------------
+# Adapter state diagnostics — homodyne CMC parity
+# ---------------------------------------------------------------------------
+#
+# These helpers introspect the NumPyro ``last_state`` / ``adapt_state``
+# objects so callers can log the adapted step size, inverse mass matrix,
+# and accept-prob trajectory at the end of a run.  They are robust to
+# the multiple shapes NumPyro uses (scalar vs per-chain dense matrix vs
+# dict-of-arrays) and never raise.
+
+
+def _summarize_inverse_mass_matrix(inv_mass: Any) -> str:
+    """Return a compact textual summary of the adapted inverse mass matrix.
+
+    Handles scalar, 1-D diagonal, 2-D dense, ``(n_chains, dim, dim)``
+    per-chain dense, dict-of-arrays, and list/tuple-of-per-chain forms.
+    Reports diagonal min/max, condition number, and dimensionality so
+    callers can flag mass-matrix pathologies (near-singular, exploding
+    condition numbers) at glance.
+    """
+    import numpy as _np
+
+    def _one(mat: Any) -> str:
+        if isinstance(mat, dict):
+            keys = list(mat.keys())
+            if not keys:
+                return "dict(empty)"
+            first = mat[keys[0]]
+            return f"dict(keys={len(keys)}) first[{keys[0]}]: {_one(first)}"
+        try:
+            arr = _np.asarray(mat)
+        except Exception:  # noqa: BLE001
+            return f"type={type(mat).__name__}"
+        if arr.ndim == 0:
+            try:
+                return f"scalar={float(arr):.3g}"
+            except Exception:  # noqa: BLE001
+                return f"scalar(type={type(arr.item()).__name__})"
+        if arr.ndim == 1:
+            diag = arr[_np.isfinite(arr)]
+            if diag.size == 0:
+                return f"diag(dim={arr.size}) all-nonfinite"
+            dmin = float(_np.min(diag))
+            dmax = float(_np.max(diag))
+            cond = float(dmax / dmin) if dmin > 0 else float("inf")
+            return f"diag(dim={arr.size}) min={dmin:.3g} max={dmax:.3g} cond~{cond:.3g}"
+        if arr.ndim == 2 and arr.shape[0] == arr.shape[1]:
+            diag = _np.diag(arr)
+            diag = diag[_np.isfinite(diag)]
+            if diag.size == 0:
+                return f"dense(dim={arr.shape[0]}) diag all-nonfinite"
+            dmin = float(_np.min(diag))
+            dmax = float(_np.max(diag))
+            try:
+                cond = float(_np.linalg.cond(arr))
+            except Exception:  # noqa: BLE001
+                cond = float("nan")
+            return (
+                f"dense(dim={arr.shape[0]}) diag[min={dmin:.3g}, max={dmax:.3g}] "
+                f"cond={cond:.3g}"
+            )
+        if arr.ndim == 3 and arr.shape[1] == arr.shape[2]:
+            n_chains = arr.shape[0]
+            dim = arr.shape[1]
+            parts = [_one(arr[i]) for i in range(min(n_chains, 2))]
+            more = "" if n_chains <= 2 else f" (+{n_chains - 2} more)"
+            return f"per-chain dense(dim={dim})[{', '.join(parts)}]{more}"
+        return f"array(shape={arr.shape}, ndim={arr.ndim})"
+
+    if isinstance(inv_mass, list | tuple):
+        parts = [_one(m) for m in inv_mass[:2]]
+        more = "" if len(inv_mass) <= 2 else f" (+{len(inv_mass) - 2} more)"
+        return f"per-chain[{', '.join(parts)}]{more}"
+    return _one(inv_mass)
+
+
+def _extract_adapt_states(last_state: Any) -> list[Any]:
+    """Return a list of NumPyro per-chain ``adapt_state`` objects.
+
+    Empty when ``last_state`` is ``None`` or the adapt_state attribute is
+    not present (e.g. when NUTS adaptation never ran).
+    """
+    if last_state is None:
+        return []
+    if hasattr(last_state, "adapt_state"):
+        return [last_state.adapt_state]
+    if isinstance(last_state, list | tuple):
+        return [item.adapt_state for item in last_state if hasattr(item, "adapt_state")]
+    return []
+
+
+def _extract_step_sizes(adapt_states: list[Any]) -> list[float]:
+    """Pull the final adapted ``step_size`` out of each adapt_state."""
+    step_sizes: list[float] = []
+    for adapt_state in adapt_states:
+        if adapt_state is None:
+            continue
+        if hasattr(adapt_state, "step_size"):
+            try:
+                step_sizes.append(float(adapt_state.step_size))
+                continue
+            except Exception:  # noqa: S110 — robust fallback for adapt_state variants
+                pass
+        if isinstance(adapt_state, dict) and "step_size" in adapt_state:
+            try:
+                step_sizes.append(float(adapt_state["step_size"]))
+            except Exception:  # noqa: S110 — robust fallback
+                pass
+    return step_sizes
+
+
+def _log_array_stats(run_logger: Any, *, name: str, arr: Any) -> None:
+    """Emit a single-line stat summary for an MCMC extra-field array."""
+    import numpy as _np
+
+    try:
+        a = _np.asarray(arr)
+    except Exception:  # noqa: BLE001
+        return
+    if a.size == 0:
+        return
+    finite = _np.isfinite(a)
+    if not _np.any(finite):
+        run_logger.info(f"{name} stats: all non-finite, shape={a.shape}")
+        return
+    run_logger.info(
+        f"{name} stats: "
+        f"min={float(_np.min(a[finite])):.3g}, "
+        f"median={float(_np.median(a[finite])):.3g}, "
+        f"max={float(_np.max(a[finite])):.3g}, "
+        f"mean={float(_np.mean(a[finite])):.3g}, "
+        f"std={float(_np.std(a[finite])):.3g}, "
+        f"finite={float(_np.mean(finite)):.1%}, shape={a.shape}"
+    )
+
 
 @dataclass(frozen=True)
 class SamplingPlan:
@@ -182,9 +323,25 @@ class SamplingPlan:
         new_warmup = max(min_warmup, int(self.num_warmup * scale))
         new_samples = max(min_samples, int(self.num_samples * scale))
 
+        # Homodyne CMC parity: shards with very few points cannot amortise
+        # the parallel-chain dispatch overhead.  Fall back to sequential
+        # chains so each shard's chains share JIT state and warmup costs.
+        effective_chain_method = self.chain_method
+        if (
+            shard_size < _SMALL_SHARD_CHAIN_THRESHOLD
+            and self.chain_method == "parallel"
+        ):
+            logger.info(
+                "SamplingPlan.for_shard: shard_size=%d < %d; switching chain_method "
+                "from 'parallel' to 'sequential' for amortised JIT cost.",
+                shard_size,
+                _SMALL_SHARD_CHAIN_THRESHOLD,
+            )
+            effective_chain_method = "sequential"
+
         logger.debug(
             "SamplingPlan.for_shard: shard_size=%d, full_size=%d, scale=%.3f, "
-            "num_warmup=%d->%d, num_samples=%d->%d",
+            "num_warmup=%d->%d, num_samples=%d->%d, chain_method=%s",
             shard_size,
             full_size,
             scale,
@@ -192,6 +349,7 @@ class SamplingPlan:
             new_warmup,
             self.num_samples,
             new_samples,
+            effective_chain_method,
         )
 
         # frozen dataclass — use object.__setattr__ via a new instance
@@ -203,7 +361,7 @@ class SamplingPlan:
             max_tree_depth=self.max_tree_depth,
             adapt_step_size=self.adapt_step_size,
             dense_mass=self.dense_mass,
-            chain_method=self.chain_method,
+            chain_method=effective_chain_method,
             seed=self.seed,
         )
 
@@ -331,10 +489,19 @@ class NUTSSampler:
             )
 
         logger.info("NUTSSampler: starting sampling (seed=%d)", seed)
+        # Homodyne CMC parity: capture per-step accept_prob, num_steps, and
+        # potential_energy alongside divergence/energy so downstream
+        # diagnostics (BFMI, tree-depth analysis, accept-prob stats) work.
         self._mcmc.run(
             rng_key,
             init_params=perturbed_params,
-            extra_fields=("energy", "diverging"),
+            extra_fields=(
+                "energy",
+                "diverging",
+                "accept_prob",
+                "num_steps",
+                "potential_energy",
+            ),
         )
         # Block until JAX lazy evaluation completes so wall_time_seconds
         # reflects true compute time, not deferred device_get() overhead.
@@ -532,6 +699,53 @@ class NUTSSampler:
         if not self._has_run:
             raise RuntimeError("Cannot extract diagnostics before calling run()")
         return az.from_numpyro(self._mcmc)
+
+    def log_adapter_diagnostics(self, run_logger: Any | None = None) -> None:
+        """Log NUTS adapter state at INFO level — homodyne CMC parity helper.
+
+        Reports the adapted ``step_size`` per chain, a compact summary of
+        the adapted inverse mass matrix, and per-step ``accept_prob`` /
+        ``num_steps`` / ``potential_energy`` statistics when the
+        corresponding extra fields are present.
+
+        Args:
+            run_logger: Logger to emit through.  ``None`` uses this
+                module's logger.
+
+        Raises:
+            RuntimeError: If called before :meth:`run`.
+        """
+        if not self._has_run:
+            raise RuntimeError(
+                "Cannot extract adapter diagnostics before calling run()"
+            )
+
+        log_inst = run_logger if run_logger is not None else logger
+
+        last_state = getattr(self._mcmc, "last_state", None)
+        adapt_states = _extract_adapt_states(last_state)
+        step_sizes = _extract_step_sizes(adapt_states)
+        if step_sizes:
+            log_inst.info(
+                "Adapted step sizes (per chain): %s",
+                ", ".join(f"{s:.3g}" for s in step_sizes),
+            )
+
+        if adapt_states:
+            first = adapt_states[0]
+            inv_mass = getattr(first, "inverse_mass_matrix", None)
+            if inv_mass is None and isinstance(first, dict):
+                inv_mass = first.get("inverse_mass_matrix")
+            if inv_mass is not None:
+                log_inst.info(
+                    "Inverse mass matrix: %s",
+                    _summarize_inverse_mass_matrix(inv_mass),
+                )
+
+        extra = self._mcmc.get_extra_fields()
+        for field in ("accept_prob", "num_steps", "potential_energy"):
+            if field in extra:
+                _log_array_stats(log_inst, name=field, arr=extra[field])
 
     @property
     def mcmc(self) -> MCMC:
@@ -875,6 +1089,161 @@ def run_nuts_with_retry(
     assert best_samples is not None  # noqa: S101
     assert best_stats is not None  # noqa: S101
     return best_samples, best_stats
+
+
+def _compute_mcmc_safe_d0_component(
+    d0: float | None,
+    alpha: float | None,
+    d_offset: float | None,
+    *,
+    q: float,
+    dt: float,
+    time_grid: Any | None,
+    target_g1: float = 0.5,
+    g1_threshold: float = 0.1,
+) -> tuple[float, float] | None:
+    """Detect vanishing-gradient pathology for a single transport component.
+
+    The heterodyne signal is a mixture of two single-exponential
+    contributions :math:`g_1 = f \\exp(-q^2 J_s) + (1-f) \\exp(-q^2 J_r)`.
+    Each component can independently kill the gradient if its diffusion
+    integral grows large; this helper inspects one component's
+    ``(D0, alpha, D_offset)`` triple and returns a rescaled
+    ``(D0', D_offset')`` pair when ``g1`` falls below ``g1_threshold``.
+
+    Mirrors homodyne ``_compute_mcmc_safe_d0`` (sampler.py:143-278) but
+    is adapted for heterodyne's two-channel architecture by being called
+    twice (once per ``ref``/``sample`` channel).
+
+    Args:
+        d0: Diffusion prefactor (e.g. ``D0_ref`` or ``D0_sample``).
+        alpha: Power-law exponent on the diffusion term.
+        d_offset: Additive offset to the diffusion rate.
+        q: Wavevector magnitude (Å⁻¹).
+        dt: Lag-time step (s).
+        time_grid: Time grid for integration.  ``None`` → return ``None``.
+        target_g1: ``g1`` value the scaling targets when adjustment fires.
+        g1_threshold: ``g1`` floor below which an adjustment fires.
+
+    Returns:
+        ``(new_d0, new_d_offset)`` when an MCMC-safe scaling is required;
+        ``None`` when the original values are safe or cannot be evaluated.
+    """
+    import numpy as _np
+
+    if d0 is None or alpha is None or d_offset is None:
+        return None
+    if time_grid is None or len(time_grid) < 2:
+        return None
+    if not (_np.isfinite(d0) and _np.isfinite(alpha) and _np.isfinite(d_offset)):
+        return None
+
+    try:
+        epsilon = 1e-10
+        time_safe = _np.asarray(time_grid) + epsilon
+        # Homodyne parity: use a gradient-safe floor for the integrand.
+        # jnp.maximum would zero the gradient under the floor; np.maximum
+        # is safe here because we evaluate at concrete values outside the
+        # JAX tracer.
+        d_grid = d0 * (time_safe**alpha) + d_offset
+        d_grid = _np.maximum(d_grid, 1e-10)
+
+        if len(d_grid) > 1:
+            trap_avg = 0.5 * (d_grid[:-1] + d_grid[1:])
+            cumsum = _np.concatenate([[0.0], _np.cumsum(trap_avg)])
+        else:
+            cumsum = _np.cumsum(d_grid)
+
+        n = len(cumsum)
+        integral_estimate = abs(cumsum[3 * n // 4] - cumsum[n // 4])
+
+        prefactor = q**2 * dt
+        log_g1 = -prefactor * integral_estimate
+        log_g1_clipped = max(log_g1, -700.0)
+        g1_estimate = _np.exp(log_g1_clipped)
+
+        if g1_estimate >= g1_threshold:
+            return None
+
+        target_log_g1 = _np.log(target_g1)
+        target_integral = -target_log_g1 / prefactor
+        scale_factor = (
+            target_integral / integral_estimate if integral_estimate > 0 else 0.01
+        )
+        new_d0 = max(float(d0 * scale_factor), 1.0)
+        new_d_offset = max(float(d_offset * scale_factor), -1e6)
+        return new_d0, new_d_offset
+    except Exception:  # noqa: BLE001 — diagnostics helper must not crash MCMC
+        return None
+
+
+def compute_mcmc_safe_initial_values(
+    initial_values: dict[str, float] | None,
+    *,
+    q: float,
+    dt: float,
+    time_grid: Any | None,
+    target_g1: float = 0.5,
+    g1_threshold: float = 0.1,
+) -> dict[str, float] | None:
+    """Detect/repair vanishing-g1 initial parameters for heterodyne NUTS.
+
+    Inspects both the reference and sample transport components and, when
+    either drives ``g1`` below ``g1_threshold`` at a typical lag, rescales
+    its ``(D0, D_offset)`` pair so that ``g1 ≈ target_g1``.  Returns
+    ``None`` when no adjustment is needed so callers can short-circuit.
+
+    Args:
+        initial_values: NLSQ warm-start dictionary.  Expected keys include
+            ``D0_ref``, ``alpha_ref``, ``D_offset_ref``, ``D0_sample``,
+            ``alpha_sample``, ``D_offset_sample``.
+        q: Wavevector magnitude (Å⁻¹).
+        dt: Lag-time step (s).
+        time_grid: Time grid for integration.
+        target_g1: Target ``g1`` value when rescaling.
+        g1_threshold: Threshold below which rescaling fires.
+
+    Returns:
+        A new dictionary with adjusted ``D0_*`` / ``D_offset_*`` values
+        when adjustment is required, else ``None``.
+    """
+    if initial_values is None:
+        return None
+
+    adjusted: dict[str, float] = dict(initial_values)
+    any_change = False
+    for prefix in ("ref", "sample"):
+        d0_key = f"D0_{prefix}"
+        a_key = f"alpha_{prefix}"
+        off_key = f"D_offset_{prefix}"
+        result = _compute_mcmc_safe_d0_component(
+            adjusted.get(d0_key),
+            adjusted.get(a_key),
+            adjusted.get(off_key),
+            q=q,
+            dt=dt,
+            time_grid=time_grid,
+            target_g1=target_g1,
+            g1_threshold=g1_threshold,
+        )
+        if result is not None:
+            new_d0, new_off = result
+            logger.warning(
+                "compute_mcmc_safe_initial_values: %s pathology — "
+                "scaling %s %.4g -> %.4g, %s %.4g -> %.4g for MCMC stability",
+                prefix,
+                d0_key,
+                adjusted[d0_key],
+                new_d0,
+                off_key,
+                adjusted[off_key],
+                new_off,
+            )
+            adjusted[d0_key] = new_d0
+            adjusted[off_key] = new_off
+            any_change = True
+
+    return adjusted if any_change else None
 
 
 def _perturb_init_params(

@@ -291,3 +291,101 @@ def transform_to_physics_space(
             result[name] = values
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# D_offset ratio reparameterization — homodyne CMC parity
+# ---------------------------------------------------------------------------
+#
+# Homodyne's reparameterised model (model.py:863-1106) samples
+# ``D_offset_ratio = D_offset / D_ref`` instead of ``D_offset`` directly:
+#
+#   * It conditions the gradient with respect to ``D_offset`` on the
+#     active diffusion magnitude ``D_ref``, which is helpful when the
+#     offset is small relative to the prefactor.
+#   * It naturally supports negative offsets via a TruncatedNormal with
+#     ``low = -1 + ε`` so ``D_offset > -D_ref`` (i.e. ``J(t) > 0``).
+#
+# Heterodyne has *two* offsets (``D_offset_ref`` and ``D_offset_sample``)
+# so two ratios.  The helpers below provide the conversion in both
+# directions so callers (and a future reparam path) can move between
+# raw and ratio representations.
+
+#: Minimum allowed ratio.  Slightly above ``-1`` so the implied
+#: ``D_offset > -D_ref`` keeps the diffusion rate strictly positive at
+#: t_ref while preserving gradient information near the boundary.
+D_OFFSET_RATIO_MIN: float = -0.99
+
+
+def d_offset_to_ratio(d_offset: float, d_ref: float) -> float:
+    """Convert an absolute offset to the ratio representation.
+
+    ``d_offset_ratio = d_offset / d_ref``.  Returns ``0.0`` when
+    ``d_ref`` is non-positive (degenerate channel).
+    """
+    if d_ref <= 0.0:
+        return 0.0
+    return float(d_offset / d_ref)
+
+
+def ratio_to_d_offset(ratio: float, d_ref: float) -> float:
+    """Reconstruct the absolute offset from the ratio representation.
+
+    ``d_offset = ratio * d_ref``.  Returns ``0.0`` when ``d_ref`` is
+    non-positive.
+    """
+    if d_ref <= 0.0:
+        return 0.0
+    return float(ratio * d_ref)
+
+
+def heterodyne_offset_ratios_from_physics(
+    params: dict[str, float],
+    t_ref: float,
+) -> dict[str, float]:
+    """Compute ``D_offset_ratio`` for both reference and sample channels.
+
+    Evaluates each channel's diffusion magnitude at ``t_ref`` as
+    ``D_ref(t_ref) = D0 * t_ref**alpha`` and returns the ratios
+    ``D_offset_*_ratio = D_offset_* / D_ref(t_ref)``.  Channels whose
+    ``D_ref(t_ref)`` is non-positive yield a ``0.0`` ratio so callers
+    can fall back to direct sampling for that channel.
+
+    Args:
+        params: Mapping containing ``D0_ref``, ``alpha_ref``,
+            ``D_offset_ref``, ``D0_sample``, ``alpha_sample``,
+            ``D_offset_sample``.
+        t_ref: Reference time at which to evaluate ``D_ref``.
+
+    Returns:
+        ``{"D_offset_ref_ratio": float, "D_offset_sample_ratio": float}``.
+    """
+    out: dict[str, float] = {}
+    for prefix in ("ref", "sample"):
+        d0 = float(params.get(f"D0_{prefix}", 0.0))
+        alpha = float(params.get(f"alpha_{prefix}", 0.0))
+        d_offset = float(params.get(f"D_offset_{prefix}", 0.0))
+        d_ref = d0 * (t_ref**alpha) if t_ref > 0 else d0
+        out[f"D_offset_{prefix}_ratio"] = d_offset_to_ratio(d_offset, d_ref)
+    return out
+
+
+def heterodyne_physics_offsets_from_ratios(
+    ratios: dict[str, float],
+    physics: dict[str, float],
+    t_ref: float,
+) -> dict[str, float]:
+    """Inverse of :func:`heterodyne_offset_ratios_from_physics`.
+
+    Given ``D_offset_*_ratio`` values and the current physics-space
+    ``(D0_*, alpha_*)`` parameters, returns the absolute
+    ``D_offset_*`` values consistent with ``D_ref(t_ref)``.
+    """
+    out: dict[str, float] = {}
+    for prefix in ("ref", "sample"):
+        d0 = float(physics.get(f"D0_{prefix}", 0.0))
+        alpha = float(physics.get(f"alpha_{prefix}", 0.0))
+        ratio = float(ratios.get(f"D_offset_{prefix}_ratio", 0.0))
+        d_ref = d0 * (t_ref**alpha) if t_ref > 0 else d0
+        out[f"D_offset_{prefix}"] = ratio_to_d_offset(ratio, d_ref)
+    return out

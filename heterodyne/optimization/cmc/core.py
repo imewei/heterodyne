@@ -121,6 +121,8 @@ def fit_cmc_jax(
         logger.info("[CMC] Estimated sigma = %.4e", float(jnp.mean(sigma)))
 
     sigma_jax = jnp.asarray(sigma) if isinstance(sigma, np.ndarray) else sigma
+    # Scalar prior centre for the sampled sigma site (homodyne parity).
+    noise_scale = float(jnp.mean(jnp.asarray(sigma_jax)))
 
     # --- Phase 2: model construction ---
     logger.info("[CMC] Phase 2/4: model construction")
@@ -275,7 +277,7 @@ def fit_cmc_jax(
             dt=model.dt,
             phi_angle=phi_angle,
             c2_data=c2_jax,
-            sigma=sigma_jax,
+            noise_scale=noise_scale,
             space=space,
             reparam_config=reparam_config,
             scalings=scalings,
@@ -289,7 +291,7 @@ def fit_cmc_jax(
             dt=model.dt,
             phi_angle=phi_angle,
             c2_data=c2_jax,
-            sigma=sigma_jax,
+            noise_scale=noise_scale,
             space=space,
             contrast=contrast,
             offset=offset,
@@ -350,6 +352,11 @@ def fit_cmc_jax(
                     subkey, shape=(config.num_chains,)
                 )
                 init_params[f"{sname}_z"] = base + perturbation
+            # sigma is sampled as a posterior site; initialise at prior centre so
+            # NUTS init_strategy doesn't call the model without a seed handler.
+            init_params["sigma"] = jnp.full(
+                (config.num_chains,), jnp.float64(noise_scale * 1.5)
+            )
         else:
             init_params = {}
             perturb_key = jax.random.PRNGKey(rng_seed + 1)
@@ -364,6 +371,9 @@ def fit_cmc_jax(
                         subkey, shape=(config.num_chains,)
                     )
                     init_params[name] = base + perturbation
+            init_params["sigma"] = jnp.full(
+                (config.num_chains,), jnp.float64(noise_scale * 1.5)
+            )
 
     mcmc = MCMC(
         kernel,
@@ -594,8 +604,11 @@ def fit_cmc_sharded(
     )
 
     # --- Build tempered priors for CMC shards ---
-    # Correct CMC tempering: widen prior by sqrt(K) per shard (prior^(1/K)),
-    # keep sigma unscaled. _temper_sigma (sigma/sqrt(K)) was mathematically wrong.
+    # Correct CMC tempering: widen prior by sqrt(K) per shard (prior^(1/K)).
+    # Workers rebuild priors locally; _base_priors here is computed so that
+    # build_nlsq_informed_priors / build_default_priors / temper_priors are
+    # imported at module level so tests can patch them on this module.
+    # Actual tempering flows via prior_width_multiplier passed to run_shards().
 
     _space = model.param_manager.space
     if nlsq_result is not None and nlsq_result.success:
@@ -604,7 +617,7 @@ def fit_cmc_sharded(
         )
     else:
         base_priors = build_default_priors(_space)
-    shard_priors = temper_priors(base_priors, num_shards)
+    _shard_priors = temper_priors(base_priors, num_shards)
     prior_width_mult = math.sqrt(num_shards)
 
     # --- Phase 3: per-shard sampling (parallel) ---

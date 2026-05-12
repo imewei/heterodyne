@@ -159,6 +159,6 @@ class TestGetModelForModeValidation:
                 dt=0.01,
                 phi_angle=0.0,
                 c2_data=jnp.ones(10),
-                sigma=0.1,
+                noise_scale=0.1,
                 space=None,  # type: ignore[arg-type]
             )
