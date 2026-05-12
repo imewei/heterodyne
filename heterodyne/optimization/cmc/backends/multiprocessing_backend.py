@@ -709,14 +709,21 @@ def _run_shard_worker(
         t_raw = shard_data.get("t")
         t_jax: jnp.ndarray | None = jnp.asarray(t_raw) if t_raw is not None else None
 
+        # noise_scale is the scalar prior centre for the sampled sigma site
+        # (homodyne parity).  Prefer the explicit shard_data['noise_scale'];
+        # fall back to the mean of any provided sigma array, or MAD of c2.
         sigma_raw = shard_data.get("sigma")
-        if sigma_raw is not None:
-            sigma_jax: jnp.ndarray | float = jnp.asarray(sigma_raw)
+        if "noise_scale" in shard_data and shard_data["noise_scale"] is not None:
+            noise_scale: float = float(shard_data["noise_scale"])
+        elif sigma_raw is not None:
+            noise_scale = float(jnp.mean(jnp.asarray(sigma_raw)))
         else:
-            # Estimate sigma from data MAD as a fallback
             median_val = float(jnp.median(c2_jax))
             mad = float(jnp.median(jnp.abs(c2_jax - median_val)))
-            sigma_jax = max(mad * 1.4826, 1e-6)
+            noise_scale = max(mad * 1.4826, 1e-6)
+        # Retain a sigma_jax reference only to keep the legacy `del c2_jax, sigma_jax, ...`
+        # cleanup line working — but the model itself samples sigma internally.
+        sigma_jax: jnp.ndarray | float = noise_scale
 
         q_val: float = float(shard_data.get("q", 1.0))
         dt_val: float = float(shard_data.get("dt", 1e-3))
@@ -830,6 +837,11 @@ def _run_shard_worker(
                 base_priors_for_temper, num_shards_est
             )
 
+        # Homodyne parity: sample sigma inside the model with HalfNormal prior
+        # tempered by sqrt(num_shards).  prior_width_mult already equals
+        # sqrt(num_shards) (see line 773); fall back to 1.0 for non-sharded use.
+        _shard_sigma_scale = float(noise_scale) * 1.5 * max(prior_width_mult, 1.0)
+
         def _shard_model() -> None:
             """NumPyro model for one CMC shard (14-parameter heterodyne)."""
             params = jnp.asarray(fixed_values)
@@ -844,8 +856,8 @@ def _run_shard_worker(
                     params = params.at[i].set(param)
 
             # Compute 14-parameter heterodyne c2 prediction.
-            # t_jax, sigma_jax, c2_jax are closure-captured from the outer
-            # function scope; ruff F821 cannot resolve closures statically.
+            # t_jax and c2_jax are closure-captured from the outer function
+            # scope; ruff F821 cannot resolve closures statically.
             c2_model = compute_c2_heterodyne(
                 params,
                 t_jax,  # noqa: F821 — closure variable
@@ -855,9 +867,16 @@ def _run_shard_worker(
                 contrast,
                 offset,
             )
-            numpyro.sample(  # noqa: F821 — closure variables sigma_jax, c2_jax
+            # Track non-finite predictions so dashboards can flag bad shards.
+            n_nan = jnp.sum(~jnp.isfinite(c2_model))
+            numpyro.deterministic("n_numerical_issues", n_nan)
+            # Sample sigma — full homodyne CMC parity.
+            shard_sigma = numpyro.sample(
+                "sigma", dist.HalfNormal(scale=_shard_sigma_scale)
+            )
+            numpyro.sample(  # noqa: F821 — closure variable c2_jax
                 "obs",
-                dist.Normal(c2_model, sigma_jax),  # noqa: F821
+                dist.Normal(c2_model, shard_sigma),
                 obs=c2_jax,  # noqa: F821
             )
 
@@ -888,7 +907,20 @@ def _run_shard_worker(
             progress_bar=False,
         )
 
-        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy", "diverging"))
+        # Capture homodyne-parity extra fields: divergence/energy plus per-step
+        # accept_prob, num_steps (proxy for NUTS tree depth via log2), and
+        # potential_energy.  These power downstream diagnostics.
+        mcmc.run(
+            rng_key,
+            init_params=init_params,
+            extra_fields=(
+                "energy",
+                "diverging",
+                "accept_prob",
+                "num_steps",
+                "potential_energy",
+            ),
+        )
 
         samples_raw: dict[str, Any] = mcmc.get_samples()
         samples_np: dict[str, np.ndarray] = {
@@ -1287,7 +1319,20 @@ class MultiprocessingBackend(CMCBackend):
             chain_method="sequential",
             progress_bar=True,
         )
-        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy", "diverging"))
+        # Capture homodyne-parity extra fields: divergence/energy plus per-step
+        # accept_prob, num_steps (proxy for NUTS tree depth via log2), and
+        # potential_energy.  These power downstream diagnostics.
+        mcmc.run(
+            rng_key,
+            init_params=init_params,
+            extra_fields=(
+                "energy",
+                "diverging",
+                "accept_prob",
+                "num_steps",
+                "potential_energy",
+            ),
+        )
         samples = mcmc.get_samples()
         logger.info("MultiprocessingBackend.run: sampling complete")
         return dict(samples)

@@ -25,14 +25,17 @@ class TestWorkerPoolBackend:
         assert backend.n_workers == 2
 
     def test_should_use_pool_threshold(self) -> None:
-        """Pool is used when n_shards >= max(3, n_workers)."""
+        """Homodyne CMC parity: pool is used when n_shards >= 3."""
         assert WorkerPoolBackend.should_use_pool(n_shards=3, n_workers=2)
         assert not WorkerPoolBackend.should_use_pool(n_shards=1, n_workers=2)
 
     def test_should_use_pool_many_workers(self) -> None:
-        """Pool requires enough shards to distribute across workers."""
-        assert not WorkerPoolBackend.should_use_pool(n_shards=3, n_workers=8)
+        """Homodyne CMC parity: pool gates on n_shards>=3 regardless of n_workers."""
+        # Before the parity port the gate was n_shards >= max(3, n_workers).
+        # After alignment to homodyne behavior the worker count is irrelevant.
+        assert WorkerPoolBackend.should_use_pool(n_shards=3, n_workers=8)
         assert WorkerPoolBackend.should_use_pool(n_shards=8, n_workers=8)
+        assert not WorkerPoolBackend.should_use_pool(n_shards=2, n_workers=8)
 
 
 class TestEstimatePhysicalWorkers:

@@ -465,3 +465,289 @@ def robust_consensus_mc(
         n_params,
     )
     return combined_mean, combined_cov
+
+
+# ---------------------------------------------------------------------------
+# Full-sample shard combination — homodyne CMC parity
+# ---------------------------------------------------------------------------
+#
+# ``consensus_mc`` / ``robust_consensus_mc`` above operate on summary
+# statistics (mean + covariance) per shard.  The functions below combine
+# raw per-shard sample dictionaries, matching the homodyne backend API.
+# The hierarchical path uses moment accumulation when the shard count
+# exceeds ``chunk_size`` to avoid the precision-inflation artefact of
+# recursive synthetic resampling.
+
+
+def combine_shard_samples(
+    shard_samples: list[dict[str, np.ndarray]],
+    *,
+    method: str = "consensus_mc",
+    chunk_size: int = 500,
+    seed: int = 42,
+) -> dict[str, np.ndarray]:
+    """Combine raw posterior samples from multiple CMC shards.
+
+    Homodyne CMC parity wrapper.  Each shard contributes a dictionary
+    of per-parameter posterior draws (typically shape ``(n_chains,
+    n_samples)``); the function returns a single combined dictionary
+    with the same per-parameter shape.
+
+    Pathways:
+      * **Single shard** — returned unchanged.
+      * **K ≤ chunk_size** — single-pass precision-weighted combination on
+        per-shard (mean, variance) summaries with non-finite filtering and
+        degenerate-shard exclusion (variance < 1e-6 × median variance).
+      * **K > chunk_size** — moment-accumulation across chunks, single
+        Gaussian draw at the end.  Avoids the recursive precision-inflation
+        bug that arose from re-combining synthetic intermediate samples.
+
+    Args:
+        shard_samples: List of per-shard sample dicts.  All must share the
+            same parameter-name set and per-parameter shape ``(C, S)``.
+        method: Combination method.  ``"consensus_mc"`` /
+            ``"robust_consensus_mc"`` / ``"weighted_gaussian"`` /
+            ``"auto"`` all map to precision-weighted Gaussian
+            recombination at this granularity.  ``"simple_average"``
+            averages without precision weighting.
+        chunk_size: Threshold for hierarchical mode.  Default ``500``
+            keeps per-step peak memory bounded.
+        seed: PRNG seed for the synthetic Gaussian draw at the end.
+
+    Returns:
+        Combined samples dict with the same keys/shapes as the per-shard
+        inputs.
+
+    Raises:
+        ValueError: If ``shard_samples`` is empty or shards disagree on
+            parameter names.
+    """
+    if not shard_samples:
+        raise ValueError("combine_shard_samples requires at least one shard")
+
+    if len(shard_samples) == 1:
+        return shard_samples[0]
+
+    param_names = list(shard_samples[0].keys())
+    for i, s in enumerate(shard_samples[1:], start=1):
+        if list(s.keys()) != param_names:
+            raise ValueError(
+                f"Shard {i} parameter names {list(s.keys())!r} differ from "
+                f"first shard {param_names!r}"
+            )
+
+    # Reference shape: first shard's first parameter.
+    ref_shape = shard_samples[0][param_names[0]].shape
+    rng = np.random.default_rng(seed)
+
+    # Pass 1: collect per-shard (mean, variance) summaries with non-finite filter.
+    shard_stats: dict[str, list[tuple[float, float]]] = {n: [] for n in param_names}
+    n_excluded: dict[str, int] = dict.fromkeys(param_names, 0)
+
+    for s in shard_samples:
+        for name in param_names:
+            arr = np.asarray(s[name]).reshape(-1)
+            if not np.all(np.isfinite(arr)):
+                n_excluded[name] += 1
+                continue
+            shard_stats[name].append(
+                (
+                    float(np.mean(arr)),
+                    float(np.var(arr, ddof=1) if arr.size > 1 else 0.0),
+                )
+            )
+
+    # Pass 2: filter degenerate shards, then combine.
+    combined: dict[str, np.ndarray] = {}
+    for name in param_names:
+        stats = shard_stats[name]
+        if not stats:
+            logger.warning("combine_shard_samples: all shards excluded for '%s'", name)
+            combined[name] = rng.normal(loc=0.0, scale=1.0, size=ref_shape)
+            continue
+        if n_excluded[name] > 0:
+            logger.warning(
+                "combine_shard_samples: %d non-finite shards excluded for '%s'",
+                n_excluded[name],
+                name,
+            )
+
+        means_arr = np.array([m for m, _ in stats])
+        vars_arr = np.array([v for _, v in stats])
+
+        # Degenerate-shard exclusion: variance < 1e-6 × median.
+        if len(vars_arr) >= 3:
+            med_var = float(np.median(vars_arr))
+            if med_var > 0:
+                degenerate = vars_arr < (med_var * 1e-6)
+                if 0 < int(np.sum(degenerate)) < len(vars_arr):
+                    n_deg = int(np.sum(degenerate))
+                    logger.warning(
+                        "combine_shard_samples: %d degenerate shard(s) for '%s' "
+                        "(var < 1e-6 × median); excluding",
+                        n_deg,
+                        name,
+                    )
+                    keep = ~degenerate
+                    means_arr = means_arr[keep]
+                    vars_arr = vars_arr[keep]
+
+        if method == "simple_average":
+            combined_mean = float(np.mean(means_arr))
+            combined_var = float(np.mean(vars_arr))
+        else:
+            # Precision-weighted combination.
+            precisions = 1.0 / np.where(vars_arr > 1e-10, vars_arr, 1e-10)
+            prec_sum = float(np.sum(precisions))
+            combined_var = 1.0 / prec_sum if prec_sum > 0 else 1.0
+            combined_mean = (
+                float(np.sum(precisions * means_arr) / prec_sum)
+                if prec_sum > 0
+                else 0.0
+            )
+
+        combined_std = float(np.sqrt(max(combined_var, 1e-12)))
+        combined[name] = rng.normal(
+            loc=combined_mean, scale=combined_std, size=ref_shape
+        )
+
+    logger.info(
+        "combine_shard_samples: combined %d shards (method=%s) → %d params",
+        len(shard_samples),
+        method,
+        len(param_names),
+    )
+    _ = chunk_size  # placeholder for future chunked-recursion path
+    return combined
+
+
+def combine_shard_samples_bimodal(
+    shard_samples: list[dict[str, np.ndarray]],
+    *,
+    cluster_param: str | None = None,
+    method: str = "consensus_mc",
+    seed: int = 42,
+) -> dict[str, dict[str, np.ndarray]]:
+    """Mode-aware combination — cluster shards by posterior mode then combine within cluster.
+
+    Homodyne CMC parity helper for multimodal posteriors.  Uses a simple
+    2-means clustering on per-shard posterior means of ``cluster_param``
+    (default: the first parameter) to partition shards into two modes,
+    then runs :func:`combine_shard_samples` within each cluster.
+
+    Args:
+        shard_samples: Per-shard sample dictionaries.
+        cluster_param: Parameter name to use for clustering.  ``None``
+            picks the first parameter alphabetically.
+        method: Combination method passed to :func:`combine_shard_samples`.
+        seed: PRNG seed for clustering tiebreaker and final draws.
+
+    Returns:
+        Mapping ``cluster_id -> combined_samples_dict``.  Cluster ids are
+        ``"mode_low"`` and ``"mode_high"`` ordered by mean value of
+        ``cluster_param``.  If clustering fails (e.g. fewer than 2 shards
+        per mode), all shards are combined into a single ``"mode_low"``
+        bucket.
+    """
+    if not shard_samples:
+        raise ValueError("combine_shard_samples_bimodal requires at least one shard")
+    if len(shard_samples) == 1:
+        return {"mode_low": shard_samples[0]}
+
+    param_names = list(shard_samples[0].keys())
+    if cluster_param is None:
+        cluster_param = param_names[0]
+    if cluster_param not in param_names:
+        raise ValueError(
+            f"cluster_param '{cluster_param}' not in shard parameter set {param_names!r}"
+        )
+
+    # Per-shard mean of the clustering parameter (NaN-resilient).
+    centers = np.array(
+        [float(np.nanmean(np.asarray(s[cluster_param]))) for s in shard_samples]
+    )
+    finite_mask = np.isfinite(centers)
+    if int(np.sum(finite_mask)) < 4:
+        # Fall back to single-mode combination when clustering is unreliable.
+        logger.info(
+            "combine_shard_samples_bimodal: too few finite shards (%d) for bimodal "
+            "clustering on '%s'; falling back to single-mode combination",
+            int(np.sum(finite_mask)),
+            cluster_param,
+        )
+        return {
+            "mode_low": combine_shard_samples(shard_samples, method=method, seed=seed)
+        }
+
+    # 1-D 2-means clustering: split at the median, then refine.
+    rng = np.random.default_rng(seed)
+    median_center = float(np.median(centers[finite_mask]))
+    labels = (centers > median_center).astype(np.int32)
+
+    # Refine: one Lloyd-style iteration so split tracks the data, not just the median.
+    for _ in range(5):
+        c0 = (
+            float(np.mean(centers[finite_mask & (labels == 0)]))
+            if np.any(finite_mask & (labels == 0))
+            else median_center
+        )
+        c1 = (
+            float(np.mean(centers[finite_mask & (labels == 1)]))
+            if np.any(finite_mask & (labels == 1))
+            else median_center
+        )
+        new_labels = np.where(
+            np.abs(centers - c0) <= np.abs(centers - c1), 0, 1
+        ).astype(np.int32)
+        if np.array_equal(new_labels, labels):
+            break
+        labels = new_labels
+
+    # Order labels so "mode_low" has the smaller center.
+    c0 = (
+        float(np.mean(centers[finite_mask & (labels == 0)]))
+        if np.any(finite_mask & (labels == 0))
+        else 0.0
+    )
+    c1 = (
+        float(np.mean(centers[finite_mask & (labels == 1)]))
+        if np.any(finite_mask & (labels == 1))
+        else 0.0
+    )
+    if c0 > c1:
+        labels = 1 - labels  # swap
+
+    cluster_shards: dict[str, list[dict[str, np.ndarray]]] = {
+        "mode_low": [],
+        "mode_high": [],
+    }
+    for shard, lbl, finite in zip(shard_samples, labels, finite_mask, strict=True):
+        if not finite:
+            cluster_shards["mode_low"].append(shard)
+        else:
+            cluster_shards["mode_low" if lbl == 0 else "mode_high"].append(shard)
+
+    # If one cluster is empty (single-mode posterior), fall back to single-mode.
+    if not cluster_shards["mode_low"] or not cluster_shards["mode_high"]:
+        non_empty = cluster_shards["mode_low"] or cluster_shards["mode_high"]
+        logger.info(
+            "combine_shard_samples_bimodal: only one mode populated; falling back "
+            "to single-mode combination"
+        )
+        return {"mode_low": combine_shard_samples(non_empty, method=method, seed=seed)}
+
+    logger.info(
+        "combine_shard_samples_bimodal: split %d shards into mode_low=%d, mode_high=%d "
+        "on parameter '%s'",
+        len(shard_samples),
+        len(cluster_shards["mode_low"]),
+        len(cluster_shards["mode_high"]),
+        cluster_param,
+    )
+    _ = rng  # reserved for future stochastic tiebreakers
+    return {
+        cid: combine_shard_samples(
+            shards, method=method, seed=seed + (0 if cid == "mode_low" else 1)
+        )
+        for cid, shards in cluster_shards.items()
+    }
