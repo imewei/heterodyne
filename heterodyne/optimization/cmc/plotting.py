@@ -7,6 +7,7 @@ so that the rest of the package does not hard-depend on it.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -261,3 +262,201 @@ def plot_diagnostics_summary(idata: object) -> Figure:
     fig.tight_layout()
 
     return fig
+
+
+# ------------------------------------------------------------------
+# Homodyne CMC parity plots — save-to-disk variants
+# ------------------------------------------------------------------
+
+DEFAULT_FIGSIZE: tuple[int, int] = (12, 8)
+DEFAULT_DPI: int = 120
+
+
+def _physical_var_names(idata: object) -> list[str]:
+    """Return posterior variable names that are not contrast/offset scaling sites."""
+    posterior = getattr(idata, "posterior", None)
+    if posterior is None:
+        return []
+    all_vars = list(posterior.data_vars)
+    scaling_prefixes = ("contrast", "offset")
+    phys = [
+        v
+        for v in all_vars
+        if not any(v == p or v.startswith(p + "_") for p in scaling_prefixes)
+    ]
+    return phys or all_vars[:6]
+
+
+def plot_forest(
+    idata: object,
+    output_dir: Path,
+    var_names: list[str] | None = None,
+    figsize: tuple[int, int] = DEFAULT_FIGSIZE,
+    dpi: int = DEFAULT_DPI,
+) -> Path:
+    """Save an ArviZ forest plot to ``output_dir / forest_plot.png``.
+
+    Shows posterior intervals (94% HDI by default) for each parameter.
+    Homodyne-parity helper.
+    """
+    _require_arviz()
+    az.plot_forest(
+        idata, var_names=var_names, combined=True, hdi_prob=0.94, figsize=figsize
+    )
+    out = Path(output_dir) / "forest_plot.png"
+    plt.savefig(out, dpi=dpi, bbox_inches="tight")
+    plt.close()
+    logger.debug("Saved forest plot: %s", out)
+    return out
+
+
+def plot_energy(
+    idata: object,
+    output_dir: Path,
+    figsize: tuple[int, int] = (10, 6),
+    dpi: int = DEFAULT_DPI,
+) -> Path:
+    """Save an ArviZ energy plot to ``output_dir / energy_plot.png``.
+
+    Falls back gracefully when ``sample_stats`` lacks an energy field by
+    writing a placeholder image with an explanatory message. Homodyne
+    parity helper that handles NumPyro's ``potential_energy`` naming.
+    """
+    _require_arviz()
+    out = Path(output_dir) / "energy_plot.png"
+
+    has_energy = False
+    sample_stats = getattr(idata, "sample_stats", None)
+    if sample_stats is not None:
+        if hasattr(sample_stats, "energy"):
+            has_energy = True
+        elif hasattr(sample_stats, "potential_energy"):
+            # ArviZ looks for "energy"; rename in place.
+            idata.sample_stats = sample_stats.rename({"potential_energy": "energy"})  # type: ignore[attr-defined]
+            has_energy = True
+
+    if not has_energy:
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(
+            0.5,
+            0.5,
+            "Energy plot not available\n(energy/potential_energy missing in sample_stats)",
+            ha="center",
+            va="center",
+            fontsize=12,
+        )
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis("off")
+        plt.savefig(out, dpi=dpi, bbox_inches="tight")
+        plt.close()
+        return out
+
+    az.plot_energy(idata, figsize=figsize)
+    plt.savefig(out, dpi=dpi, bbox_inches="tight")
+    plt.close()
+    logger.debug("Saved energy plot: %s", out)
+    return out
+
+
+def plot_autocorr(
+    idata: object,
+    output_dir: Path,
+    var_names: list[str] | None = None,
+    figsize: tuple[int, int] = DEFAULT_FIGSIZE,
+    dpi: int = DEFAULT_DPI,
+) -> Path:
+    """Save an ArviZ autocorrelation plot.  Homodyne-parity helper."""
+    _require_arviz()
+    if var_names is None:
+        var_names = _physical_var_names(idata)
+    az.plot_autocorr(idata, var_names=var_names, combined=True, figsize=figsize)
+    out = Path(output_dir) / "autocorr_plot.png"
+    plt.savefig(out, dpi=dpi, bbox_inches="tight")
+    plt.close()
+    logger.debug("Saved autocorr plot: %s", out)
+    return out
+
+
+def plot_rank(
+    idata: object,
+    output_dir: Path,
+    var_names: list[str] | None = None,
+    figsize: tuple[int, int] = DEFAULT_FIGSIZE,
+    dpi: int = DEFAULT_DPI,
+) -> Path:
+    """Save an ArviZ rank plot.  Helps detect chain-mixing issues."""
+    _require_arviz()
+    if var_names is None:
+        var_names = _physical_var_names(idata)
+    az.plot_rank(idata, var_names=var_names, figsize=figsize)
+    out = Path(output_dir) / "rank_plot.png"
+    plt.savefig(out, dpi=dpi, bbox_inches="tight")
+    plt.close()
+    logger.debug("Saved rank plot: %s", out)
+    return out
+
+
+def plot_ess(
+    idata: object,
+    output_dir: Path,
+    var_names: list[str] | None = None,
+    figsize: tuple[int, int] = (10, 6),
+    dpi: int = DEFAULT_DPI,
+) -> Path:
+    """Save an ArviZ ESS-evolution plot."""
+    _require_arviz()
+    if var_names is None:
+        var_names = _physical_var_names(idata)
+    az.plot_ess(idata, var_names=var_names, kind="evolution", figsize=figsize)
+    out = Path(output_dir) / "ess_plot.png"
+    plt.savefig(out, dpi=dpi, bbox_inches="tight")
+    plt.close()
+    logger.debug("Saved ESS plot: %s", out)
+    return out
+
+
+def generate_diagnostic_plots(
+    idata: object,
+    output_dir: Path,
+    var_names: list[str] | None = None,
+    dpi: int = DEFAULT_DPI,
+) -> dict[str, Path]:
+    """Generate the full homodyne-parity diagnostic plot suite.
+
+    Writes ``forest_plot.png``, ``energy_plot.png``, ``autocorr_plot.png``,
+    ``rank_plot.png``, and ``ess_plot.png`` to ``output_dir``.  Individual
+    failures are isolated — one broken plot does not abort the others.
+
+    Args:
+        idata: ArviZ ``InferenceData``.
+        output_dir: Directory to write the PNGs into. Created if missing.
+        var_names: Optional explicit subset of parameter names to include.
+            Defaults to physical (non-scaling) sites.
+        dpi: Resolution of each PNG.
+
+    Returns:
+        Mapping ``plot_kind -> output_path`` for each plot that succeeded.
+    """
+    _require_arviz()
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if var_names is None:
+        var_names = _physical_var_names(idata)
+
+    results: dict[str, Path] = {}
+    for name, fn in (
+        ("forest", lambda: plot_forest(idata, out_dir, var_names=var_names, dpi=dpi)),
+        ("energy", lambda: plot_energy(idata, out_dir, dpi=dpi)),
+        (
+            "autocorr",
+            lambda: plot_autocorr(idata, out_dir, var_names=var_names, dpi=dpi),
+        ),
+        ("rank", lambda: plot_rank(idata, out_dir, var_names=var_names, dpi=dpi)),
+        ("ess", lambda: plot_ess(idata, out_dir, var_names=var_names, dpi=dpi)),
+    ):
+        try:
+            results[name] = fn()
+        except Exception as exc:  # noqa: BLE001 — diagnostic helper, isolate failures
+            logger.warning("generate_diagnostic_plots: %s plot failed (%s)", name, exc)
+    return results

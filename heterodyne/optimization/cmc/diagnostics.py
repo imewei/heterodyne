@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -1553,3 +1554,160 @@ def cluster_shard_modes(
     )
 
     return (cluster_0, cluster_1)
+
+
+def log_precision_analysis(
+    analysis: dict[str, dict[str, float]],
+    log_fn: Callable[[str], None] | None = None,
+    tolerance_pct: float = 20.0,
+) -> str:
+    """Format and emit the CMC vs NLSQ precision analysis report.
+
+    Homodyne CMC parity helper.  Consumes the output of
+    :func:`compute_precision_analysis` and produces a fixed-width report
+    summarising z-scores, percent differences, uncertainty ratios, and
+    posterior contraction ratios per parameter.  Flags severe disagreements
+    (``z > 3``, ``|diff| > tolerance_pct``, ``ratio < 0.5x``).
+
+    Args:
+        analysis: Per-parameter precision metrics from
+            :func:`compute_precision_analysis`.  Each value is a dict with
+            keys including ``cmc_mean``, ``cmc_std``, ``nlsq_value``,
+            ``z_score``, ``relative_diff``, ``uncertainty_ratio``,
+            ``posterior_contraction``.
+        log_fn: Logger function to emit the report through.  ``None``
+            routes through this module's logger at INFO level.
+        tolerance_pct: Percent-difference threshold for the ``[WARN]``
+            marker.  Default ``20.0``.
+
+    Returns:
+        The formatted report as a multi-line string.
+    """
+    if log_fn is None:
+        log_fn = logger.info
+
+    lines = ["=" * 80, "CMC vs NLSQ PRECISION ANALYSIS", "=" * 80]
+
+    z_scores = [
+        m.get("z_score", np.nan)
+        for m in analysis.values()
+        if np.isfinite(m.get("z_score", np.nan))
+    ]
+    rel_diffs = [
+        abs(m.get("relative_diff", np.nan) * 100)
+        for m in analysis.values()
+        if np.isfinite(m.get("relative_diff", np.nan))
+    ]
+    unc_ratios = [
+        m.get("uncertainty_ratio", np.nan)
+        for m in analysis.values()
+        if np.isfinite(m.get("uncertainty_ratio", np.nan))
+    ]
+    pcrs = [
+        m.get("posterior_contraction", np.nan)
+        for m in analysis.values()
+        if np.isfinite(m.get("posterior_contraction", np.nan))
+    ]
+
+    lines.append("SUMMARY:")
+    if z_scores:
+        max_z = max(z_scores)
+        mean_z = float(np.mean(z_scores))
+        lines.append(f"  Z-scores: max={max_z:.2f}, mean={mean_z:.2f}")
+        high_z = sum(1 for z in z_scores if z > 2)
+        very_high_z = sum(1 for z in z_scores if z > 3)
+        if very_high_z > 0:
+            lines.append(
+                f"    CRITICAL: {very_high_z}/{len(z_scores)} params have z > 3"
+            )
+        elif high_z > 0:
+            lines.append(f"    WARNING: {high_z}/{len(z_scores)} params have z > 2")
+        else:
+            lines.append("    All params have z <= 2 (good agreement)")
+
+    if rel_diffs:
+        max_diff = max(rel_diffs)
+        mean_diff = float(np.mean(rel_diffs))
+        lines.append(
+            f"  Percent differences: max={max_diff:.1f}%, mean={mean_diff:.1f}%"
+        )
+        over_tolerance = sum(1 for d in rel_diffs if d > tolerance_pct)
+        if over_tolerance > 0:
+            lines.append(
+                f"    WARNING: {over_tolerance}/{len(rel_diffs)} params exceed "
+                f"{tolerance_pct:.0f}% tolerance"
+            )
+        else:
+            lines.append(f"    All params within {tolerance_pct:.0f}% tolerance")
+
+    if unc_ratios:
+        lines.append(
+            f"  Uncertainty ratio (CMC/NLSQ): max={max(unc_ratios):.1f}x, "
+            f"median={float(np.median(unc_ratios)):.1f}x"
+        )
+        too_precise = sum(1 for r in unc_ratios if r < 0.5)
+        too_uncertain = sum(1 for r in unc_ratios if r > 10)
+        if too_precise > 0:
+            lines.append(
+                f"    WARNING: {too_precise}/{len(unc_ratios)} params have ratio "
+                "< 0.5x (CMC artificially precise — check for shard heterogeneity)"
+            )
+        if too_uncertain > 0:
+            lines.append(
+                f"    INFO: {too_uncertain}/{len(unc_ratios)} params have ratio > 10x"
+            )
+
+    if pcrs:
+        lines.append(
+            f"  Posterior contraction: max={max(pcrs):.2f}, "
+            f"mean={float(np.mean(pcrs)):.2f}"
+        )
+        low_pcr = sum(1 for p in pcrs if p < 0.3)
+        if low_pcr > 0:
+            lines.append(
+                f"    INFO: {low_pcr}/{len(pcrs)} params have PCR < 0.3 "
+                "(weak data constraint)"
+            )
+
+    lines.append("-" * 80)
+    lines.append(
+        f"{'Parameter':<18} {'CMC Mean':>11} {'CMC Std':>10} {'NLSQ':>11} "
+        f"{'Diff%':>7} {'Z':>6} {'Ratio':>7}"
+    )
+    lines.append("-" * 80)
+
+    for param_name, metrics in sorted(analysis.items()):
+        cmc_mean = metrics.get("cmc_mean", np.nan)
+        cmc_std = metrics.get("cmc_std", np.nan)
+        nlsq_val = metrics.get("nlsq_value", np.nan)
+        z_score = metrics.get("z_score", np.nan)
+        rel_diff = metrics.get("relative_diff", np.nan)
+        unc_ratio = metrics.get("uncertainty_ratio", np.nan)
+
+        cmc_mean_str = f"{cmc_mean:.4g}" if np.isfinite(cmc_mean) else "N/A"
+        cmc_std_str = f"{cmc_std:.4g}" if np.isfinite(cmc_std) else "N/A"
+        nlsq_str = f"{nlsq_val:.4g}" if np.isfinite(nlsq_val) else "N/A"
+        z_str = f"{z_score:.2f}" if np.isfinite(z_score) else "N/A"
+        diff_str = f"{rel_diff * 100:+.1f}%" if np.isfinite(rel_diff) else "N/A"
+        ratio_str = f"{unc_ratio:.1f}x" if np.isfinite(unc_ratio) else "N/A"
+
+        marker = ""
+        if np.isfinite(z_score) and z_score > 3:
+            marker = " [SEVERE]"
+        elif np.isfinite(z_score) and z_score > 2:
+            marker = " [WARN]"
+        elif np.isfinite(rel_diff) and abs(rel_diff * 100) > tolerance_pct:
+            marker = " [WARN]"
+        elif np.isfinite(unc_ratio) and unc_ratio < 0.5:
+            marker = " [WARN]"
+
+        lines.append(
+            f"{param_name:<18} {cmc_mean_str:>11} {cmc_std_str:>10} "
+            f"{nlsq_str:>11} {diff_str:>7} {z_str:>6} {ratio_str:>7}{marker}"
+        )
+
+    lines.append("=" * 80)
+
+    report = "\n".join(lines)
+    log_fn(report)
+    return report
