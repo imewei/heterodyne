@@ -493,6 +493,7 @@ class ParameterSpace:
                             space.bounds[param_name],
                         )
 
+        space._config_dict: dict[str, Any] = config  # type: ignore[attr-defined]
         return space
 
 
@@ -528,9 +529,7 @@ def _apply_initial_parameters(space: ParameterSpace, config: dict[str, Any]) -> 
         return
 
     # Apply name mapping for legacy/alias names
-    param_names = [
-        PARAMETER_NAME_MAPPING.get(str(n), str(n)) for n in param_names_raw
-    ]
+    param_names = [PARAMETER_NAME_MAPPING.get(str(n), str(n)) for n in param_names_raw]
 
     if len(param_names) != len(param_values):
         logger.warning(
@@ -553,9 +552,7 @@ def _apply_initial_parameters(space: ParameterSpace, config: dict[str, Any]) -> 
     # active_parameters: if provided, only these parameters vary
     active_raw = initial.get("active_parameters")
     if active_raw and isinstance(active_raw, list):
-        active_names = {
-            PARAMETER_NAME_MAPPING.get(str(n), str(n)) for n in active_raw
-        }
+        active_names = {PARAMETER_NAME_MAPPING.get(str(n), str(n)) for n in active_raw}
         for name in ALL_PARAM_NAMES_WITH_SCALING:
             if name in active_names:
                 space.vary[name] = True

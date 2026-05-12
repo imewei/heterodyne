@@ -748,14 +748,14 @@ def _run_shard_worker(
 
         ps_dict: dict[str, Any] = shard_data.get("parameter_space_dict") or {}
         try:
-            parameter_space = ParameterSpace.from_config(config_dict=ps_dict)
+            parameter_space = ParameterSpace.from_config(ps_dict)
         except Exception as exc:  # noqa: BLE001 — fall back to defaults
             logger.warning(
                 "ParameterSpace.from_config failed (%s); falling back to defaults. "
                 "Worker priors/bounds may differ from parent config.",
                 exc,
             )
-            parameter_space = ParameterSpace.default()
+            parameter_space = ParameterSpace()
 
         # ------------------------------------------------------------------
         # Build NumPyro model (inline closure over shard-local arrays)
