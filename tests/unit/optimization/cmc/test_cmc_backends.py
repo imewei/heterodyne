@@ -219,21 +219,27 @@ def test_mp_worker_init_params_restricted_to_physics_names() -> None:
     )
 
 
-def test_mp_worker_varying_names_validation_present() -> None:
-    """Worker raises ValueError early when varying_names contains non-physics params.
+def test_mp_worker_varying_names_filters_scaling_params() -> None:
+    """Worker filters scaling params (contrast, offset) from varying_names.
 
-    Ensures the diagnostic guard (_extra_sites check) is in the source so
-    any future ParameterSpace regression produces a clear error message
-    instead of an opaque NUTS pytree crash.
+    ParameterSpace.varying_names legitimately returns scaling params when the
+    space was built from an NLSQ result.  The worker must silently filter them
+    to physics-only (ALL_PARAM_NAMES) rather than raising, because _shard_model
+    only samples physics parameters and scaling params are fixed scalar args.
     """
     import inspect
 
     import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
 
     source = inspect.getsource(mb._run_shard_worker)
-    assert "_extra_sites" in source, (
-        "_run_shard_worker must check for extra (non-physics) sites in "
-        "varying_names and raise ValueError with a diagnostic message."
+    # Must restrict varying_names to _model_sites before building _shard_model
+    assert "_model_sites" in source, (
+        "_run_shard_worker must define _model_sites (frozenset of ALL_PARAM_NAMES) "
+        "and filter varying_names to physics-only before NUTS sampling."
+    )
+    assert "varying_names" in source and "_model_sites" in source, (
+        "_run_shard_worker must filter varying_names against _model_sites so scaling "
+        "params (contrast, offset) are excluded from NUTS latent sites."
     )
 
 

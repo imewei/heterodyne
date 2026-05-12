@@ -766,18 +766,17 @@ def _run_shard_worker(
         varying_names = parameter_space.varying_names
         fixed_values = parameter_space.get_initial_array()
 
-        # Guard: _shard_model calls numpyro.sample only for ALL_PARAM_NAMES (14
-        # physics).  Scaling params (contrast, offset) are fixed scalar args to
-        # compute_c2_heterodyne and must never appear as NUTS latent sites —
-        # doing so causes an opaque "tuple index out of range" pytree crash.
+        # _shard_model samples only ALL_PARAM_NAMES (14 physics); scaling params
+        # (contrast, offset) are fixed scalar args to compute_c2_heterodyne.
+        # Filter them out here — they arrive in varying_names when the caller's
+        # ParameterSpace was built from an NLSQ result that varies all 16 params.
         _model_sites: frozenset[str] = frozenset(ALL_PARAM_NAMES)
-        _extra_sites = sorted(set(varying_names) - _model_sites)
-        if _extra_sites:
+        varying_names = [n for n in varying_names if n in _model_sites]
+        if not varying_names:
             raise ValueError(
-                f"Shard {shard_idx}: ParameterSpace.varying_names contains "
-                f"{_extra_sites}, which are not latent sites in _shard_model. "
-                "Ensure parameter_space is passed to run_shards() so to_config() "
-                "can populate parameter_space_dict for workers."
+                f"Shard {shard_idx}: no physics parameters remain in "
+                "ParameterSpace.varying_names after filtering scaling params. "
+                "Ensure parameter_space has at least one physics parameter active."
             )
         worker_logger.debug(
             "Shard %d: %d physics params vary: %s",
