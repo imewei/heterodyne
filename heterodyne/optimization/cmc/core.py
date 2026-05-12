@@ -1668,8 +1668,11 @@ def _extract_credible_intervals(
     Args:
         output_names: Ordered list of parameter names.
         physics_samples: Dictionary mapping parameter names to sample arrays.
-        summary: ArviZ summary DataFrame with ``eti95_lb`` / ``eti95_ub``
-            columns, or ``None`` to fall back to raw percentiles.
+        summary: ArviZ summary DataFrame produced by ``az.summary(ci_prob=0.95)``,
+            or ``None`` to fall back to raw percentiles.  Modern ArviZ (≥ 0.12)
+            uses columns ``"eti_2.5%"`` / ``"eti_97.5%"``; older versions use
+            ``"hdi_2.5%"`` / ``"hdi_97.5%"``.  Both are tried before the
+            raw-percentile fallback.
 
     Returns:
         Dict mapping parameter names to ``{"2.5%": lb, "97.5%": ub}``.
@@ -1677,11 +1680,19 @@ def _extract_credible_intervals(
     credible_intervals: dict[str, dict[str, float]] = {}
     for name in output_names:
         if summary is not None and name in summary.index:
-            credible_intervals[name] = {
-                "2.5%": float(summary.loc[name, "eti95_lb"]),
-                "97.5%": float(summary.loc[name, "eti95_ub"]),
-            }
-        elif name in physics_samples:
+            try:
+                lb = float(summary.loc[name, "eti_2.5%"])
+                ub = float(summary.loc[name, "eti_97.5%"])
+            except KeyError:
+                try:
+                    lb = float(summary.loc[name, "hdi_2.5%"])
+                    ub = float(summary.loc[name, "hdi_97.5%"])
+                except KeyError:
+                    lb, ub = None, None
+            if lb is not None and ub is not None:
+                credible_intervals[name] = {"2.5%": lb, "97.5%": ub}
+                continue
+        if name in physics_samples:
             s = physics_samples[name]
             credible_intervals[name] = {
                 "2.5%": float(np.percentile(s, 2.5)),

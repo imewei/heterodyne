@@ -2173,18 +2173,18 @@ class MultiprocessingBackend(CMCBackend):
 
         success_rate = len(successful) / n_shards
         if success_rate < config.min_success_rate_warning:
-            logger.error(
-                "Success rate %.1f%% below minimum threshold %.1f%% "
-                "— analysis may be unreliable",
+            logger.warning(
+                "Success rate %.1f%% below warning threshold %.1f%% "
+                "— consider investigating failed shards",
                 success_rate * 100,
                 config.min_success_rate_warning * 100,
             )
-        elif success_rate < config.min_success_rate:
-            logger.warning(
-                "Success rate %.1f%% below recommended threshold %.1f%% "
-                "— consider investigating failed shards",
-                success_rate * 100,
-                config.min_success_rate * 100,
+        if success_rate < config.min_success_rate:
+            raise RuntimeError(
+                f"CMC shard success rate {success_rate:.1%} is below the configured "
+                f"minimum {config.min_success_rate:.1%}. "
+                "Increase max_points_per_shard, reduce num_shards, or lower "
+                "min_success_rate in CMCConfig."
             )
 
         valid_durations = [
