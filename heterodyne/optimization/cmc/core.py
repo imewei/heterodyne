@@ -674,7 +674,11 @@ def fit_cmc_sharded(
 
     # --- Phase 3: per-shard sampling (parallel) ---
     base_seed = config.seed if config.seed is not None else secrets.randbelow(2**31)
-    t_np = np.asarray(model.t)
+    # Derive time axis from C2 matrix shape, not model.t. NLSQ trim calls
+    # sync_time_axis(np.arange(1000)) which shrinks model.t to 1000 elements,
+    # but CMC receives the full (1001×1001) C2 — shard t1_idx/t2_idx reach
+    # index 1000, causing OOB if t_np is taken from the trimmed model.t.
+    t_np = np.arange(c2_np.shape[0], dtype=np.float64)
     contrast, offset = model.scaling.get_for_angle(0)
     q_val = float(model.q)
     dt_val = float(model.dt)

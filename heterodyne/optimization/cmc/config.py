@@ -724,7 +724,12 @@ class CMCConfig:
                 n_points / max(self.max_points_per_shard, 1)
             )
         else:
-            k_min_from_max_size = 1
+            # "auto": target shard size = min_shard_size_for_params so NUTS
+            # O(n) cost stays bounded. Without this floor K collapses to
+            # k_from_phi (typically 2) and shards become 100K+ points.
+            k_min_from_max_size = math.ceil(
+                n_points / max(min_shard_size_for_params, 1)
+            )
 
         # Combine: start from phi suggestion, respect all bounds.
         k = max(k_from_phi, k_min_from_max_size)
