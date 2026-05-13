@@ -42,6 +42,21 @@ def save_mcmc_results(
 
     saved_paths: dict[str, Path] = {}
 
+    # Degenerate result: all shards failed → write a tombstone instead of
+    # attempting to serialize NaN-filled arrays (which would crash json_safe).
+    if result.metadata.get("all_shards_failed"):
+        tombstone: dict[str, Any] = {
+            "status": "failed",
+            "reason": "all_shards_failed",
+            "parameter_names": result.parameter_names,
+            "metadata": result.metadata,
+            "timestamp": datetime.now().isoformat(),
+        }
+        tombstone_path = output_dir / f"{prefix}_summary.json"
+        save_json(tombstone, tombstone_path)
+        saved_paths["summary"] = tombstone_path
+        return saved_paths
+
     # Stage all files in a temp directory, then move atomically
     with tempfile.TemporaryDirectory(dir=str(output_dir.parent)) as tmp_dir:
         tmp = Path(tmp_dir)

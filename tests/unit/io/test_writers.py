@@ -762,3 +762,75 @@ class TestFormatMcmcSummary:
         )
         text = format_mcmc_summary(result)
         assert "x" in text
+
+
+# ===========================================================================
+# Regression: degenerate all-shards-failed result must not crash save_mcmc_results
+# ===========================================================================
+
+
+class TestSaveMCMCResultsAllShardsFailed:
+    """Regression for het_676ccc47: save_mcmc_results must write a tombstone
+    JSON rather than crashing with ValueError when all shards failed and the
+    result contains NaN-filled posterior_std/r_hat arrays.
+
+    Root cause: ArviZ 1.1.0 API change made az.from_dict(**kwargs) raise
+    TypeError for every shard, forcing convergence_passed=False for all,
+    which caused _combine_shard_posteriors to return a degenerate CMCResult
+    with posterior_std=NaN.  json_safe() then raised ValueError on those NaN
+    values, crashing the entire run and writing no output files at all.
+    """
+
+    @staticmethod
+    def _degenerate_result(n_params: int = 3) -> CMCResult:
+        names = [f"p{i}" for i in range(n_params)]
+        return CMCResult(
+            parameter_names=names,
+            posterior_mean=np.zeros(n_params),
+            posterior_std=np.full(n_params, np.nan),
+            credible_intervals={},
+            convergence_passed=False,
+            r_hat=np.full(n_params, np.nan),
+            ess_bulk=np.full(n_params, np.nan),
+            ess_tail=np.full(n_params, np.nan),
+            bfmi=None,
+            samples=None,
+            num_warmup=10,
+            num_samples=100,
+            num_chains=4,
+            metadata={"all_shards_failed": True, "n_total_shards": 47},
+        )
+
+    @pytest.mark.unit
+    def test_does_not_crash(self, tmp_path: Path) -> None:
+        """save_mcmc_results on a degenerate all-shards-failed result must not raise."""
+        save_mcmc_results(self._degenerate_result(), tmp_path, prefix="mcmc")
+
+    @pytest.mark.unit
+    def test_writes_tombstone_summary_json(self, tmp_path: Path) -> None:
+        """A tombstone summary.json is written so downstream tools can detect failure."""
+        import json
+
+        save_mcmc_results(self._degenerate_result(), tmp_path, prefix="mcmc")
+        tombstone_path = tmp_path / "mcmc_summary.json"
+        assert tombstone_path.exists(), "tombstone summary.json was not written"
+        data = json.loads(tombstone_path.read_text())
+        assert data["status"] == "failed"
+        assert data["reason"] == "all_shards_failed"
+        assert data["metadata"]["all_shards_failed"] is True
+
+    @pytest.mark.unit
+    def test_tombstone_contains_no_nan(self, tmp_path: Path) -> None:
+        """The tombstone JSON must be parseable with allow_nan=False (no NaN literals)."""
+        import json
+
+        save_mcmc_results(self._degenerate_result(), tmp_path, prefix="mcmc")
+        raw = (tmp_path / "mcmc_summary.json").read_text()
+        # Standard json.loads rejects NaN; this will raise if any slipped through.
+        json.loads(raw)
+
+    @pytest.mark.unit
+    def test_no_samples_npz_written(self, tmp_path: Path) -> None:
+        """No samples.npz should be created for a degenerate result (nothing to save)."""
+        save_mcmc_results(self._degenerate_result(), tmp_path, prefix="mcmc")
+        assert not (tmp_path / "mcmc_samples.npz").exists()

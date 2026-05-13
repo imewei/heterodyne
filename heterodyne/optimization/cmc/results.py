@@ -345,7 +345,7 @@ def cmc_result_to_arviz(result: CMCResult) -> Any:
             # Higher-dimensional parameter (e.g. covariance matrix per draw)
             posterior_dict[name] = arr
 
-    idata = az.from_dict(posterior=posterior_dict)
+    idata = az.from_dict({"posterior": posterior_dict})
 
     if result.bfmi is not None:
         sample_stats = {"energy": np.array(result.bfmi)}

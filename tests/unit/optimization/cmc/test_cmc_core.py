@@ -715,6 +715,56 @@ class TestCombineShardPosteriors:
         assert result.metadata.get("n_total_shards") == 2
         assert np.all(np.isnan(result.posterior_std))
 
+    @pytest.mark.unit
+    def test_combine_accepts_shards_with_unknown_convergence(self) -> None:
+        """Regression: shards with all-NaN r_hat (ArviZ failure) but valid std must
+        be accepted by _combine_shard_posteriors, not silently dropped as 'failed'.
+
+        This reproduces the het_676ccc47 failure mode where ArviZ 1.1.0 broke
+        az.from_dict(**kwargs), causing idata=None for every shard, forcing
+        r_hat=NaN, convergence_passed=False, and a completely degenerate result
+        despite 44/47 shards having successfully collected NUTS samples.
+        """
+        from types import SimpleNamespace
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import _combine_shard_posteriors
+
+        n_params = 3
+
+        def make_unknown_convergence_shard(mean_val: float = 2.0) -> SimpleNamespace:
+            r = SimpleNamespace()
+            r.convergence_passed = False  # forced False because ArviZ failed
+            r.parameter_names = [f"p{i}" for i in range(n_params)]
+            r.posterior_mean = np.full(n_params, mean_val)
+            r.posterior_std = np.ones(n_params) * 0.5  # valid — samples were collected
+            r.r_hat = np.full(n_params, np.nan)  # all NaN = ArviZ diagnostic failure
+            r.ess_bulk = np.full(n_params, np.nan)
+            r.ess_tail = np.full(n_params, np.nan)
+            r.bfmi = None
+            r.samples = {f"p{i}": np.full(100, mean_val) for i in range(n_params)}
+            r.num_warmup = 10
+            r.num_samples = 100
+            r.num_chains = 4
+            return r
+
+        shard_a = make_unknown_convergence_shard(mean_val=2.0)
+        shard_b = make_unknown_convergence_shard(mean_val=3.0)
+
+        result = _combine_shard_posteriors(
+            [shard_a, shard_b], CMCConfig(), num_shards=2, base_seed=0
+        )
+
+        # Must not return the degenerate all-shards-failed sentinel
+        assert not result.metadata.get("all_shards_failed"), (
+            "_combine_shard_posteriors incorrectly treated shards with unknown "
+            "convergence (all-NaN r_hat) as failed. This is the het_676ccc47 regression."
+        )
+        # Posterior mean must be finite and between the two shard means
+        assert np.all(np.isfinite(result.posterior_mean))
+        assert np.all(result.posterior_mean >= 1.0)
+        assert np.all(result.posterior_mean <= 4.0)
+
 
 class TestSamplingSynchronization:
     """Tests for forcing asynchronous JAX sampling results before diagnostics."""
@@ -799,3 +849,54 @@ class TestCombinationMethodDispatch:
             [self._shard(0)], config, num_shards=1, base_seed=0
         )
         assert result is not None
+
+
+class TestBugPrevention_ArviZAPI:
+    """Regression tests pinning the ArviZ from_dict API used throughout CMC.
+
+    ArviZ 1.0 changed az.from_dict() from accepting keyword args per group
+    (az.from_dict(posterior={...})) to accepting a single dict
+    (az.from_dict({"posterior": {...}})).  Breaking this API at the call sites
+    in core.py and results.py caused the entire het_676ccc47 run (6032s) to
+    produce a degenerate all-NaN result by silently swallowing the TypeError.
+
+    These tests will fail on the FIRST pytest run after an incompatible ArviZ
+    upgrade, long before any multi-hour NUTS run is launched.
+    """
+
+    @pytest.mark.unit
+    def test_arviz_from_dict_new_api_produces_valid_summary(self) -> None:
+        """az.from_dict({"posterior": {...}}) must produce the summary columns
+        that _extract_posterior_stats reads: mean, sd, r_hat, ess_bulk, ess_tail."""
+        import arviz as az
+
+        rng = np.random.default_rng(0)
+        posterior = {
+            "D0_ref": rng.normal(1e4, 500, (4, 500)),
+            "v0": rng.normal(1e3, 100, (4, 500)),
+        }
+        idata = az.from_dict({"posterior": posterior})
+        summary = az.summary(idata, var_names=["D0_ref", "v0"], ci_prob=0.95)
+
+        required_cols = {"mean", "sd", "r_hat", "ess_bulk", "ess_tail"}
+        missing = required_cols - set(summary.columns)
+        assert not missing, (
+            f"ArviZ summary is missing expected columns {missing}. "
+            "Check if the ArviZ version changed az.summary() output column names."
+        )
+        assert set(summary.index) == {"D0_ref", "v0"}
+        assert np.all(np.isfinite(summary["r_hat"].to_numpy(dtype=float)))
+
+    @pytest.mark.unit
+    def test_arviz_from_dict_old_kwarg_form_raises_type_error(self) -> None:
+        """az.from_dict(posterior={...}) must raise TypeError in ArviZ ≥1.0.
+
+        If this test starts PASSING (i.e. the old form is accepted again), the
+        compatibility shim in core.py and results.py should be reviewed — but
+        the new dict form should remain the canonical call to stay forward-compatible.
+        """
+        import arviz as az
+
+        posterior = {"D0_ref": np.random.randn(2, 100)}
+        with pytest.raises(TypeError, match="unexpected keyword argument"):
+            az.from_dict(posterior=posterior)

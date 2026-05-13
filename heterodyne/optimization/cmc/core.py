@@ -1173,14 +1173,30 @@ def _combine_shard_posteriors(
 
     # --- Filter: exclude failed/degenerate/high-divergence shards ---
     _max_div_rate = getattr(config, "max_divergence_rate", 0.10)
+
+    def _shard_has_valid_samples(sr: CMCResult) -> bool:
+        return sr.posterior_std is not None and bool(np.any(sr.posterior_std > 0))
+
+    def _shard_diagnostics_unknown(sr: CMCResult) -> bool:
+        # r_hat all-NaN means ArviZ failed to build InferenceData (e.g. API mismatch)
+        # but NUTS samples were collected — accept the shard on raw-sample basis.
+        return sr.r_hat is not None and bool(np.all(np.isnan(sr.r_hat)))
+
     successful = [
         sr
         for sr in shard_results
-        if sr.convergence_passed
-        and sr.posterior_std is not None
-        and np.any(sr.posterior_std > 0)
+        if _shard_has_valid_samples(sr)
         and getattr(sr, "metadata", {}).get("divergence_rate", 0.0) <= _max_div_rate
+        and (sr.convergence_passed or _shard_diagnostics_unknown(sr))
     ]
+    n_diag_unknown = sum(1 for sr in successful if not sr.convergence_passed)
+    if n_diag_unknown > 0:
+        logger.warning(
+            "_combine_shard_posteriors: %d/%d accepted shards have unknown convergence "
+            "(ArviZ diagnostics unavailable); combining on raw-sample basis",
+            n_diag_unknown,
+            len(successful),
+        )
 
     if not successful:
         logger.error(
@@ -1620,7 +1636,7 @@ def _result_dict_to_cmc_result(
                 }
             except (ValueError, AttributeError):
                 pass
-        idata = az.from_dict(**idata_kwargs)
+        idata = az.from_dict(idata_kwargs)
         if param_names:
             summary = az.summary(idata, var_names=param_names, ci_prob=0.95)
     except Exception as _exc:  # noqa: BLE001
