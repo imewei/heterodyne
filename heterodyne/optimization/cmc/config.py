@@ -549,9 +549,11 @@ class CMCConfig:
             )
 
         if self.min_success_rate_warning > self.min_success_rate:
-            errors.append(
-                f"min_success_rate_warning={self.min_success_rate_warning} "
-                f"must be <= min_success_rate={self.min_success_rate}."
+            logger.warning(
+                "min_success_rate_warning=%.2f > min_success_rate=%.2f — "
+                "the warning threshold will never trigger (abort fires first).",
+                self.min_success_rate_warning,
+                self.min_success_rate,
             )
 
         # ---- timeout --------------------------------------------------

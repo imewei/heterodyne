@@ -19,7 +19,11 @@ import numpy as np
 from numpyro.infer import MCMC, NUTS
 
 from heterodyne.optimization.cmc.config import CMCConfig
-from heterodyne.optimization.cmc.diagnostics import validate_convergence
+from heterodyne.optimization.cmc.diagnostics import (
+    analyze_divergences,
+    log_analysis_summary,
+    validate_convergence,
+)
 from heterodyne.optimization.cmc.model import (
     estimate_sigma,
     get_heterodyne_model,
@@ -115,6 +119,16 @@ def fit_cmc_jax(
     # --- Phase 1: data preparation ---
     logger.info("[CMC] Phase 1/4: data preparation")
     c2_jax = jnp.asarray(c2_data)
+
+    _n_total = int(c2_jax.size)
+    _MAX_SINGLE_SHARD = 100_000
+    if _n_total > _MAX_SINGLE_SHARD:
+        logger.warning(
+            "[CMC] Single-shard data has %d points (> %d). "
+            "NUTS is O(n) per leapfrog step — consider fit_cmc_sharded for large datasets.",
+            _n_total,
+            _MAX_SINGLE_SHARD,
+        )
 
     if sigma is None:
         sigma = estimate_sigma(c2_jax, method="diagonal")
@@ -505,6 +519,35 @@ def fit_cmc_jax(
         "PASSED" if convergence_passed else "FAILED",
     )
 
+    # Divergence analysis (parity with homodyne)
+    div_report = analyze_divergences(result)
+    for msg in div_report.messages:
+        logger.warning(msg)
+
+    # Structured analysis summary (parity with homodyne)
+    _r_hat_dict = (
+        {n: float(result.r_hat[i]) for i, n in enumerate(result.parameter_names)}
+        if result.r_hat is not None
+        else {}
+    )
+    _ess_dict = (
+        {n: float(result.ess_bulk[i]) for i, n in enumerate(result.parameter_names)}
+        if result.ess_bulk is not None
+        else {}
+    )
+    log_analysis_summary(
+        convergence_status=result.convergence_status
+        or ("converged" if result.convergence_passed else "not_converged"),
+        r_hat=_r_hat_dict,
+        ess_bulk=_ess_dict,
+        divergences=result.divergences or 0,
+        n_samples=config.num_samples,
+        n_chains=config.num_chains,
+        n_shards=1,
+        shards_succeeded=1 if result.convergence_passed else 0,
+        execution_time=wall_time,
+    )
+
     return result
 
 
@@ -636,6 +679,42 @@ def fit_cmc_sharded(
     q_val = float(model.q)
     dt_val = float(model.dt)
 
+    # Build reparameterization config for shard workers (parity with fit_cmc_jax).
+    # Workers use reparam_config_dict to sample D0/alpha in log-space, which
+    # greatly reduces the D0–alpha correlation and improves NUTS acceptance rate.
+    # Requires an NLSQ warm-start to compute t_ref; falls back to None (raw space).
+    _use_reparam = (
+        config.use_reparam and nlsq_result is not None and nlsq_result.success
+    )
+    _reparam_config: ReparamConfig | None = None
+    if _use_reparam:
+        _t_max_val = float(t_np[-1]) if len(t_np) > 0 else 1.0
+        _t_ref = compute_t_ref(dt_val, _t_max_val, fallback_value=1.0)
+        _reparam_config = ReparamConfig(
+            t_ref=_t_ref,
+            enable_d_ref=config.reparameterization_d_total,
+            enable_d_sample=config.reparameterization_d_total,
+            enable_v_ref=config.reparameterization_log_gamma,
+        )
+        logger.info(
+            "[CMC-sharded] Reparameterization enabled: t_ref=%.4e "
+            "(d_ref=%s, d_sample=%s, v_ref=%s)",
+            _t_ref,
+            config.reparameterization_d_total,
+            config.reparameterization_d_total,
+            config.reparameterization_log_gamma,
+        )
+    _reparam_config_dict: dict[str, Any] | None = (
+        {
+            "enable_d_ref": _reparam_config.enable_d_ref,
+            "enable_d_sample": _reparam_config.enable_d_sample,
+            "enable_v_ref": _reparam_config.enable_v_ref,
+            "t_ref": _reparam_config.t_ref,
+        }
+        if _reparam_config is not None
+        else None
+    )
+
     # Translate _create_shards output format to the dict format run_shards() expects.
     # Two wire formats are supported depending on the sharding strategy:
     #
@@ -667,7 +746,7 @@ def fit_cmc_sharded(
             "contrast": float(contrast),
             "offset": float(offset),
             "n_phi": 1,
-            "reparam_config_dict": None,
+            "reparam_config_dict": _reparam_config_dict,
         }
         if "t1_idx" in shard:
             # Element-wise (random): pass paired time values + full axis
@@ -1258,9 +1337,15 @@ def _combine_shard_posteriors(
     for name in param_names:
         if name in combined_samples:
             s = combined_samples[name]
+            z95 = float(np.percentile(s, 97.5))
+            l95 = float(np.percentile(s, 2.5))
+            z89 = float(np.percentile(s, 94.5))
+            l89 = float(np.percentile(s, 5.5))
             credible_intervals[name] = {
-                "2.5%": float(np.percentile(s, 2.5)),
-                "97.5%": float(np.percentile(s, 97.5)),
+                "lower_95": l95,
+                "upper_95": z95,
+                "lower_89": l89,
+                "upper_89": z89,
             }
 
     # --- MAP estimate ---
@@ -1745,3 +1830,16 @@ def _create_failed_result(parameter_names: list[str], message: str) -> CMCResult
         convergence_passed=False,
         metadata={"error": message},
     )
+
+
+def run_cmc_analysis(
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+    config: CMCConfig | None = None,
+    **kwargs: Any,
+) -> CMCResult:
+    """Convenience wrapper around :func:`fit_cmc_jax` (homodyne parity).
+
+    Accepts the same arguments as :func:`fit_cmc_jax` and delegates directly.
+    """
+    return fit_cmc_jax(model, c2_data, config=config, **kwargs)

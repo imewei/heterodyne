@@ -510,12 +510,12 @@ def merge_shard_cmc_results(
     ess_bulk_arrays = [sr.ess_bulk for sr in shard_results if sr.ess_bulk is not None]
     combined_ess_bulk: np.ndarray | None = None
     if ess_bulk_arrays:
-        combined_ess_bulk = np.min(np.stack(ess_bulk_arrays, axis=0), axis=0)
+        combined_ess_bulk = np.nansum(np.stack(ess_bulk_arrays, axis=0), axis=0)
 
     ess_tail_arrays = [sr.ess_tail for sr in shard_results if sr.ess_tail is not None]
     combined_ess_tail: np.ndarray | None = None
     if ess_tail_arrays:
-        combined_ess_tail = np.min(np.stack(ess_tail_arrays, axis=0), axis=0)
+        combined_ess_tail = np.nansum(np.stack(ess_tail_arrays, axis=0), axis=0)
 
     all_bfmi: list[float] | None = None
     bfmi_lists = [sr.bfmi for sr in shard_results if sr.bfmi is not None]
