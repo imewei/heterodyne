@@ -317,6 +317,7 @@ def run_cmc(
                 logger.warning(
                     "Warm-start quality below threshold for phi=%s°; using anyway", phi
                 )
+            nlsq_result_i = _clamp_warmstart_to_interior(nlsq_result_i)
 
         # Dispatch to sharded CMC for large per-angle datasets, single-run CMC
         # otherwise.  ``cmc_config.should_enable_cmc`` returns True only when the
@@ -580,6 +581,61 @@ def _warn_nlsq_bound_saturation(result: NLSQResult) -> None:
             len(saturated),
             saturated,
         )
+
+
+_BOUNDARY_INTERIOR_MARGIN = 1e-3  # fraction of bound range to keep away from walls
+
+
+def _clamp_warmstart_to_interior(result: NLSQResult) -> NLSQResult:
+    """Return a copy of *result* with parameters shifted inward from hard bounds.
+
+    NUTS step-size collapses when the chain initialises at a TruncatedNormal
+    boundary.  Each parameter is clamped to
+    ``[min_bound + margin, max_bound - margin]`` where margin is 0.1% of the
+    bound range, preventing the leapfrog step-size adaptation from converging
+    to near-zero before sampling begins.
+    """
+    import dataclasses
+
+    try:
+        from heterodyne.config.parameter_registry import ParameterRegistry
+
+        registry = ParameterRegistry()
+    except ImportError:
+        return result
+
+    params = result.parameters.copy()
+    clamped: list[str] = []
+
+    for i, name in enumerate(result.parameter_names):
+        try:
+            info = registry[name]
+        except KeyError:
+            continue
+        margin = _BOUNDARY_INTERIOR_MARGIN * (info.max_bound - info.min_bound)
+        lo = info.min_bound + margin
+        hi = info.max_bound - margin
+        if lo >= hi:
+            continue
+        old = float(params[i])
+        new = float(np.clip(old, lo, hi))
+        if new != old:
+            logger.warning(
+                "CMC init clamp: %s %.4g → %.4g (bounds [%.4g, %.4g]); "
+                "NUTS boundary-adjacent start prevented",
+                name,
+                old,
+                new,
+                info.min_bound,
+                info.max_bound,
+            )
+            clamped.append(name)
+            params[i] = new
+
+    if not clamped:
+        return result
+
+    return dataclasses.replace(result, parameters=params)
 
 
 _WARMSTART_LOG_PARAMS = ("D0_ref", "D0_sample", "v0", "alpha_ref", "alpha_sample")
