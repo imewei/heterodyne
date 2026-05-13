@@ -1661,6 +1661,17 @@ class MultiprocessingBackend(CMCBackend):
                     "t": (
                         np.asarray(shard["t"]) if shard.get("t") is not None else None
                     ),
+                    "t1": (
+                        np.asarray(shard["t1"]) if shard.get("t1") is not None else None
+                    ),
+                    "t2": (
+                        np.asarray(shard["t2"]) if shard.get("t2") is not None else None
+                    ),
+                    "time_grid": (
+                        np.asarray(shard["time_grid"])
+                        if shard.get("time_grid") is not None
+                        else None
+                    ),
                     "weights": (
                         np.asarray(shard["weights"])
                         if shard.get("weights") is not None
@@ -2181,6 +2192,17 @@ class MultiprocessingBackend(CMCBackend):
                     ),
                     "t": (
                         np.asarray(shard["t"]) if shard.get("t") is not None else None
+                    ),
+                    "t1": (
+                        np.asarray(shard["t1"]) if shard.get("t1") is not None else None
+                    ),
+                    "t2": (
+                        np.asarray(shard["t2"]) if shard.get("t2") is not None else None
+                    ),
+                    "time_grid": (
+                        np.asarray(shard["time_grid"])
+                        if shard.get("time_grid") is not None
+                        else None
                     ),
                     "weights": (
                         np.asarray(shard["weights"])

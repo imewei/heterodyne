@@ -425,3 +425,39 @@ def test_mp_worker_seeds_physics_params_without_nlsq_warmstart() -> None:
         "else branch (initial_values is None) so registry defaults are used to "
         "seed init_params for every varying physics parameter."
     )
+
+
+def test_run_shards_shard_builder_forwards_element_wise_keys() -> None:
+    """run_shards shard-dict builder must forward t1/t2/time_grid from parallel_shards.
+
+    Three wire-format declarations must stay in sync:
+      1. _SHARD_ARRAY_KEYS        — controls what shared-memory packs/unpacks.
+      2. shard_data_list builder  — controls what gets extracted from parallel_shards.
+      3. Worker shard_data.get()  — controls what the worker reads.
+
+    The previous fix (e1da22f) added t1/t2/time_grid to (1) and (3) but missed
+    (2).  When (2) omits a key, the SharedDataManager receives None → stores a
+    zero-length sentinel → worker reads None → falls to meshgrid path with
+    t_jax=None → crashes with:
+      TypeError: '>' not supported between NoneType and float
+
+    Regression guard for: het_96ff35ab — post-fix crash at 22:36 after e1da22f.
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb.MultiprocessingBackend.run_shards)
+    for key in ("t1", "t2", "time_grid"):
+        assert '"t1"' in source or f"'{key}'" in source, (
+            f"run_shards shard-dict builder is missing key '{key}'. "
+            "Element-wise shard data (t1/t2/time_grid) from fit_cmc_sharded "
+            "must be extracted in the builder so SharedDataManager actually "
+            "stores them. Missing keys become zero-length sentinels → None in "
+            "worker → wrong meshgrid path → TypeError."
+        )
+    # Verify the actual extraction pattern is present (not just the string)
+    assert 'shard.get("t1")' in source, (
+        'run_shards must extract t1 via shard.get("t1") in the shard-dict builder. '
+        "Regression guard for het_96ff35ab (post-fix crash)."
+    )
