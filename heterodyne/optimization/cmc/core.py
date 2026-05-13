@@ -781,18 +781,33 @@ def fit_cmc_sharded(
                 unc_dict[name] = float(unc)
         nlsq_uncertainties_dict = unc_dict if unc_dict else None
 
-    # Log rough runtime estimate before blocking.
+    # Log rough runtime estimate before blocking and warn if it exceeds timeout.
     avg_pts = sum(int(np.asarray(s["c2_data"]).size) for s in parallel_shards) // max(
         num_shards, 1
     )
-    _log_runtime_estimate(
+    _n_workers = _estimate_n_workers()
+    _estimated_total = _log_runtime_estimate(
         logger,
         n_shards=num_shards,
         n_chains=config.num_chains,
         n_warmup=config.num_warmup,
         n_samples=config.num_samples,
         avg_points_per_shard=avg_pts,
+        n_workers=_n_workers,
     )
+    _batches = (num_shards + _n_workers - 1) // _n_workers
+    _estimated_per_shard = _estimated_total / max(_batches, 1)
+    if _estimated_per_shard > config.per_shard_timeout:
+        logger.warning(
+            "[CMC-sharded] Estimated per-shard time (%.0fs = %.1fh) exceeds "
+            "per_shard_timeout=%ds. Shards will likely timeout. "
+            "avg_points_per_shard=%d exceeds the ~100K NUTS limit. "
+            "Use num_shards='auto' or reduce max_points_per_shard.",
+            _estimated_per_shard,
+            _estimated_per_shard / 3600,
+            config.per_shard_timeout,
+            avg_pts,
+        )
 
     logger.info(
         "[CMC-sharded] Phase 3/5: dispatching %d shards to MultiprocessingBackend",

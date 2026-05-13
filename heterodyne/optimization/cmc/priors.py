@@ -105,10 +105,8 @@ def build_default_priors(
 
     Uses ``prior_mean`` and ``prior_std`` from each parameter's
     :class:`~heterodyne.config.parameter_registry.ParameterInfo`.
-    For bounded fraction/contrast parameters (f0, f3, contrast),
-    auto-selects BetaScaled priors when prior_mean and prior_std are
-    available and bounds are finite. Otherwise falls back to
-    TruncatedNormal or Uniform.
+    All bounded parameters use TruncatedNormal so that ``temper_priors``
+    can scale them by ``sqrt(K)`` for Consensus Monte Carlo sharding.
 
     Args:
         param_space: Parameter space defining which parameters vary
@@ -123,56 +121,11 @@ def build_default_priors(
     if registry is None:
         registry = DEFAULT_REGISTRY
 
-    # Parameters that benefit from BetaScaled priors (bounded [0, 1] or similar)
-    _BETA_SCALED_CANDIDATES = {"f0", "f3", "contrast"}
-
     priors: dict[str, dist.Distribution] = {}
 
     for name in param_space.varying_names:
         info = registry[name]
         low, high = param_space.bounds[name]
-
-        # Try BetaScaled for candidate parameters with finite bounds
-        if (
-            name in _BETA_SCALED_CANDIDATES
-            and info.prior_mean is not None
-            and info.prior_std is not None
-            and info.prior_std > 0
-            and math.isfinite(low)
-            and math.isfinite(high)
-            and low < high
-        ):
-            try:
-                from heterodyne.config.parameter_space import (
-                    _compute_beta_concentrations,
-                )
-
-                conc1, conc2 = _compute_beta_concentrations(
-                    info.prior_mean,
-                    info.prior_std,
-                    low,
-                    high,
-                )
-                base = dist.Beta(conc1, conc2)
-                priors[name] = dist.TransformedDistribution(
-                    base,
-                    dist.transforms.AffineTransform(loc=low, scale=high - low),
-                )
-                logger.debug(
-                    "BetaScaled prior for %s: Beta(%.4f, %.4f) on [%.4e, %.4e]",
-                    name,
-                    conc1,
-                    conc2,
-                    low,
-                    high,
-                )
-                continue
-            except ValueError:
-                logger.debug(
-                    "BetaScaled not feasible for %s (std too large); "
-                    "falling back to TruncatedNormal",
-                    name,
-                )
 
         if (
             info.prior_mean is not None
