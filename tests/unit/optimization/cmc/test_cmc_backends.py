@@ -362,3 +362,66 @@ def test_mp_worker_clips_init_params_to_bounds() -> None:
         "alpha_sample=-2.0 with low=-2.0) do not produce -inf in the "
         "unconstrained transform."
     )
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: _SHARD_ARRAY_KEYS wire format and no-NLSQ init seeding
+# (guards against "'>' not supported between NoneType and float" — het_457cc550)
+# ---------------------------------------------------------------------------
+
+
+def test_shard_array_keys_includes_element_wise_format_keys() -> None:
+    """_SHARD_ARRAY_KEYS must include t1, t2, time_grid for random shards.
+
+    The packed shared-memory pipeline only forwards keys enumerated in
+    _SHARD_ARRAY_KEYS to workers.  Any key absent from this tuple is silently
+    dropped (None in worker).  The element-wise wire format (random sharding
+    strategy) uses t1/t2/time_grid — if these are missing, the worker falls
+    through to the meshgrid path with t_jax=None and crashes with:
+      TypeError: '>' not supported between instances of NoneType and float
+
+    Regression guard for: het_457cc550 — all shards failed [sampling].
+    """
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    missing = {"t1", "t2", "time_grid"} - set(mb._SHARD_ARRAY_KEYS)
+    assert not missing, (
+        f"_SHARD_ARRAY_KEYS is missing {missing}. Element-wise shard keys "
+        "must be listed so shared-memory pipeline forwards them to workers. "
+        "Absent keys silently become None, forcing the wrong meshgrid path "
+        "and crashing with TypeError: '>' not supported between NoneType and float."
+    )
+
+
+def test_mp_worker_seeds_physics_params_without_nlsq_warmstart() -> None:
+    """Worker must seed all physics params from registry defaults when initial_values is None.
+
+    When CMC runs without an NLSQ warm-start, initial_values is None and only
+    sigma is seeded.  NumPyro ≥0.21 asserts is_prng_key(key) inside
+    BetaScaled.sample() and TruncatedNormal.sample() — distributions used as
+    priors for f0 and contrast.  Any site absent from init_params triggers the
+    assertion when init_to_median tries to sample from these distributions.
+
+    The fix: when initial_values is None, iterate varying_names and seed each
+    param from parameter_space.values (registry defaults).  The source must
+    contain a branch that reads ps_vals = parameter_space.values and populates
+    init_params for the no-warm-start case.
+
+    Regression guard for: het_457cc550 BetaScaled init_to_median failure.
+    """
+    import inspect
+
+    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+
+    source = inspect.getsource(mb._run_shard_worker)
+    assert "parameter_space.values" in source, (
+        "_run_shard_worker must read parameter_space.values to seed all "
+        "physics params when initial_values is None (no NLSQ warm-start). "
+        "Without this, BetaScaled/TruncatedNormal priors crash in NumPyro "
+        "≥0.21 via: AssertionError: is_prng_key(key)."
+    )
+    assert "ps_vals = parameter_space.values" in source, (
+        "_run_shard_worker must assign ps_vals = parameter_space.values in the "
+        "else branch (initial_values is None) so registry defaults are used to "
+        "seed init_params for every varying physics parameter."
+    )

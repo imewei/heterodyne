@@ -636,23 +636,31 @@ def fit_cmc_sharded(
     q_val = float(model.q)
     dt_val = float(model.dt)
 
-    # Translate _create_shards output format to the dict format run_shards() expects:
-    # "c2_shard" → "c2_data", "sigma_shard" → "sigma", t_indices → "t" array,
-    # plus physics scalars shared across all shards (q, dt, phi_angle, contrast, offset).
-    parallel_shards: list[dict[str, Any]] = [
-        {
+    # Translate _create_shards output format to the dict format run_shards() expects.
+    # Two wire formats are supported depending on the sharding strategy:
+    #
+    # Element-wise format (random strategy, t1_idx/t2_idx present):
+    #   "t1"/"t2" — per-pair time values; "time_grid" — full axis for ShardGrid
+    #   Worker uses compute_c2_elementwise → 1-D output matching flat c2_data.
+    #
+    # Meshgrid format (contiguous strategy, t_indices present):
+    #   "t" — 1-D time axis for the shard block
+    #   Worker uses compute_c2_heterodyne → 2-D output matching square c2_data.
+    parallel_shards: list[dict[str, Any]] = []
+    for shard in shards:
+        _sigma_arr = shard["sigma_shard"]
+        _sigma_wire = (
+            np.asarray(_sigma_arr) if not isinstance(_sigma_arr, float) else _sigma_arr
+        )
+        _noise_scale = float(
+            np.mean(np.asarray(_sigma_arr))
+            if not isinstance(_sigma_arr, float)
+            else _sigma_arr
+        )
+        _base: dict[str, Any] = {
             "c2_data": np.asarray(shard["c2_shard"]),
-            "sigma": (
-                np.asarray(shard["sigma_shard"])
-                if not isinstance(shard["sigma_shard"], float)
-                else shard["sigma_shard"]
-            ),
-            "t": t_np[shard["t_indices"]],
-            "noise_scale": float(
-                np.mean(np.asarray(shard["sigma_shard"]))
-                if not isinstance(shard["sigma_shard"], float)
-                else shard["sigma_shard"]
-            ),
+            "sigma": _sigma_wire,
+            "noise_scale": _noise_scale,
             "q": q_val,
             "dt": dt_val,
             "phi_angle": phi_angle,
@@ -661,8 +669,15 @@ def fit_cmc_sharded(
             "n_phi": 1,
             "reparam_config_dict": None,
         }
-        for shard in shards
-    ]
+        if "t1_idx" in shard:
+            # Element-wise (random): pass paired time values + full axis
+            _base["t1"] = t_np[shard["t1_idx"]]
+            _base["t2"] = t_np[shard["t2_idx"]]
+            _base["time_grid"] = t_np
+        else:
+            # Meshgrid (contiguous): pass 1-D sub-axis
+            _base["t"] = t_np[shard["t_indices"]]
+        parallel_shards.append(_base)
 
     # NLSQ warm-start values passed to workers for chain initialisation.
     initial_values: dict[str, Any] | None = None
@@ -917,74 +932,43 @@ def _create_shards_random(
     seed: int,
     n: int,
 ) -> list[dict[str, Any]]:
-    """Random element-wise sharding of the upper-triangle + diagonal."""
+    """Random element-wise sharding — flat per-pair representation.
+
+    Each shard contains a 1-D array of selected c2 values together with their
+    (row, col) time indices.  The worker builds a ShardGrid from these indices
+    and calls ``compute_c2_elementwise``, which avoids the O(N²) meshgrid
+    allocation and produces a 1-D prediction that matches the flat c2 data.
+
+    Previous implementation reconstructed a (shard_n, shard_n) zero-padded
+    sub-matrix, which caused two bugs:
+      1. Shape metadata was lost during shared-memory serialisation, producing
+         a (1002001,) flat array in the worker instead of (1001, 1001).
+      2. ``compute_c2_heterodyne`` (NLSQ meshgrid path) returned (N, N) while
+         the obs array had the wrong shape → BroadcastError.
+    """
     rng = np.random.default_rng(seed)
 
-    # Work with all N*N elements (c2 is symmetric, so we use the full matrix)
+    # All N² flat indices (symmetric matrix — use every pair, not just triu)
     all_indices = np.arange(n * n, dtype=np.int64)
     rng.shuffle(all_indices)
-
-    # Split into num_shards roughly equal groups
     splits = np.array_split(all_indices, num_shards)
 
     shards: list[dict[str, Any]] = []
     for split_indices in splits:
         rows, cols = np.divmod(split_indices, n)
-
-        # Build a square sub-matrix: use unique row/col indices, then slice
-        # to the bounding box.  For random shards the "sub-matrix" is really
-        # a vector of selected elements; we reshape into a 1-D correlation
-        # vector for the shard likelihood.
-        c2_shard_vals = c2_np[rows, cols]
-
-        if sigma_is_scalar:
-            sigma_shard: np.ndarray | float = float(sigma_np)  # type: ignore[arg-type]
-        else:
-            sigma_shard = np.asarray(sigma_np)[rows, cols]
-
-        # Reshape to a (k, k) matrix using unique sorted row/col unions so
-        # the shard model can be evaluated efficiently.  We fall back to
-        # a 1-D representation when the shard is not square.
-        unique_rows = np.unique(rows)
-        unique_cols = np.unique(cols)
-
-        if len(unique_rows) == len(unique_cols) and np.array_equal(
-            unique_rows, unique_cols
-        ):
-            # Shard forms a square sub-matrix
-            idx_map = {int(v): i for i, v in enumerate(unique_rows)}
-            shard_n = len(unique_rows)
-            c2_sq = np.zeros((shard_n, shard_n), dtype=np.float64)
-            for flat_r, flat_c, val in zip(rows, cols, c2_shard_vals, strict=True):
-                c2_sq[idx_map[int(flat_r)], idx_map[int(flat_c)]] = val
-
-            if not sigma_is_scalar:
-                sigma_sq = np.zeros((shard_n, shard_n), dtype=np.float64)
-                for flat_r, flat_c, s_val in zip(
-                    rows, cols, np.asarray(sigma_shard), strict=True
-                ):
-                    sigma_sq[idx_map[int(flat_r)], idx_map[int(flat_c)]] = s_val
-                sigma_shard_out: np.ndarray | float = sigma_sq
-            else:
-                sigma_shard_out = float(sigma_np)  # type: ignore[arg-type]
-
-            shards.append(
-                {
-                    "c2_shard": jnp.asarray(c2_sq),
-                    "sigma_shard": sigma_shard_out,
-                    "indices": split_indices,
-                    "t_indices": unique_rows.astype(np.int64),
-                }
-            )
-        else:
-            # Non-square: random flat-index sharding produces data that cannot
-            # be matched to a model prediction — raise instead of silently
-            # producing wrong likelihood shapes.
-            raise ValueError(
-                f"Shard {len(shards)}: random sharding produced a non-square "
-                f"subset (unique_rows={len(unique_rows)}, unique_cols={len(unique_cols)}). "
-                "Use strategy='contiguous' for reliable sharding."
-            )
+        c2_flat = c2_np[rows, cols]
+        sigma_flat: np.ndarray | float = (
+            float(sigma_np) if sigma_is_scalar else np.asarray(sigma_np)[rows, cols]  # type: ignore[arg-type]
+        )
+        shards.append(
+            {
+                "c2_shard": c2_flat,  # shape (n_elements,)
+                "sigma_shard": sigma_flat,
+                "indices": split_indices,
+                "t1_idx": rows.astype(np.int64),  # row time indices
+                "t2_idx": cols.astype(np.int64),  # col time indices
+            }
+        )
 
     return shards
 

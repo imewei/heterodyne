@@ -406,13 +406,23 @@ class TestShardTIndices:
                 assert "t_indices" in shard, f"Square shard {i} missing t_indices"
                 assert c2_shard.shape[0] == len(shard["t_indices"])
 
-    def test_random_non_square_raises(self) -> None:
-        """Random sharding that yields a non-square shard must raise ValueError."""
+    def test_random_flat_format_works_for_any_split(self) -> None:
+        """Random sharding must succeed for any split, including non-square subsets.
+
+        The new flat per-pair format (t1_idx/t2_idx keys) handles any element
+        distribution without requiring a square sub-matrix.  The old ValueError
+        for 'non-square' no longer applies — the flat format is always valid.
+        """
         from heterodyne.optimization.cmc.core import _create_shards
 
-        # Small n, many shards → high probability of non-square shards
+        # Small n, many shards — previously this raised ValueError("non-square")
         n = 20
         rng = np.random.default_rng(42)
         c2 = rng.random((n, n)).astype(np.float64)
-        with pytest.raises(ValueError, match="non-square"):
-            _create_shards(c2, 1.0, num_shards=4, strategy="random", seed=42)
+        shards = _create_shards(c2, 1.0, num_shards=4, strategy="random", seed=42)
+        assert len(shards) == 4
+        for shard in shards:
+            assert "t1_idx" in shard, "Element-wise shard must have t1_idx"
+            assert "t2_idx" in shard, "Element-wise shard must have t2_idx"
+            assert shard["c2_shard"].ndim == 1, "c2_shard must be flat 1-D"
+            assert len(shard["c2_shard"]) == len(shard["t1_idx"])

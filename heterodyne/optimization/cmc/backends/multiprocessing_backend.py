@@ -73,10 +73,16 @@ _BYTES_PER_GB: float = 1024.0**3
 
 #: Keys for per-shard numpy arrays stored in packed shared memory.
 #: ``None``-valued arrays are stored as zero-length sentinels.
+#: Element-wise (random) shards use "t1"/"t2"/"time_grid"; contiguous shards
+#: use "t".  Both sets must be listed here so the parent→worker shared-memory
+#: pipeline forwards them; missing keys are silently dropped (None in worker).
 _SHARD_ARRAY_KEYS: tuple[str, ...] = (
     "c2_data",
     "sigma",
     "t",
+    "t1",
+    "t2",
+    "time_grid",
     "weights",
 )
 
@@ -651,6 +657,12 @@ def _run_shard_worker(
 
     from heterodyne.config.parameter_names import ALL_PARAM_NAMES
     from heterodyne.core.jax_backend import compute_c2_heterodyne
+    from heterodyne.core.physics_cmc import (
+        compute_c2_elementwise as _compute_c2_elementwise,
+    )
+    from heterodyne.core.physics_cmc import (
+        precompute_shard_grid as _precompute_shard_grid,
+    )
     from heterodyne.optimization.cmc.config import CMCConfig
 
     start_time = time.perf_counter()
@@ -704,10 +716,29 @@ def _run_shard_worker(
         else:
             rng_key = jax.random.PRNGKey(42 + shard_idx)
 
-        # Convert shard arrays to JAX
+        # Convert shard arrays to JAX.
+        # Two wire formats are accepted (set by fit_cmc_sharded):
+        #
+        #   Element-wise (random strategy): "t1", "t2", "time_grid" keys present.
+        #     c2_data is a flat 1-D array of shape (n_pairs,).
+        #     Worker builds ShardGrid and calls compute_c2_elementwise → (n_pairs,).
+        #
+        #   Meshgrid (contiguous strategy): "t" key present.
+        #     c2_data is a 2-D array of shape (shard_n, shard_n).
+        #     Worker calls compute_c2_heterodyne → (shard_n, shard_n).
         c2_jax = jnp.asarray(shard_data["c2_data"])
-        t_raw = shard_data.get("t")
-        t_jax: jnp.ndarray | None = jnp.asarray(t_raw) if t_raw is not None else None
+
+        # Build ShardGrid for element-wise path if t1/t2/time_grid are present
+        _shard_grid = None
+        if shard_data.get("t1") is not None and shard_data.get("time_grid") is not None:
+            _t1_jax = jnp.asarray(shard_data["t1"])
+            _t2_jax = jnp.asarray(shard_data["t2"])
+            _time_grid_jax = jnp.asarray(shard_data["time_grid"])
+            _shard_grid = _precompute_shard_grid(_time_grid_jax, _t1_jax, _t2_jax)
+            t_jax: jnp.ndarray | None = None  # not used in element-wise path
+        else:
+            t_raw = shard_data.get("t")
+            t_jax = jnp.asarray(t_raw) if t_raw is not None else None
 
         # noise_scale is the scalar prior centre for the sampled sigma site
         # (homodyne parity).  Prefer the explicit shard_data['noise_scale'];
@@ -813,6 +844,17 @@ def _run_shard_worker(
             for k, v in initial_values.items():
                 if k in varying_names and k in _model_sites:
                     init_params[k] = _safe_init_val(k, float(v))
+        else:
+            # No NLSQ warm-start: seed every physics param from registry
+            # defaults so init_to_median never tries to sample BetaScaled or
+            # TruncatedNormal distributions without a valid PRNG key.
+            # NumPyro ≥0.21 asserts is_prng_key(key) inside .sample(), which
+            # fires for any site absent from init_params when those distributions
+            # are used as priors (f0, contrast use BetaScaled by default).
+            ps_vals = parameter_space.values
+            for k in varying_names:
+                if k in ps_vals and k in _model_sites:
+                    init_params[k] = _safe_init_val(k, float(ps_vals[k]))
         # Seed sigma so init_to_median never samples HalfNormal with a
         # non-key argument (NumPyro ≥0.21 asserts is_prng_key(key)).
         init_params["sigma"] = jnp.broadcast_to(
@@ -900,17 +942,37 @@ def _run_shard_worker(
                     params = params.at[i].set(param)
 
             # Compute 14-parameter heterodyne c2 prediction.
-            # t_jax and c2_jax are closure-captured from the outer function
-            # scope; ruff F821 cannot resolve closures statically.
-            c2_model = compute_c2_heterodyne(
-                params,
-                t_jax,  # noqa: F821 — closure variable
-                q_val,
-                dt_val,
-                phi_angle,
-                contrast,
-                offset,
-            )
+            # Two paths based on shard wire format (set in fit_cmc_sharded):
+            #
+            #   _shard_grid present (element-wise, random strategy):
+            #     compute_c2_elementwise → shape (n_pairs,) — matches flat c2_data.
+            #     No N×N matrix allocation; O(n_pairs) memory.
+            #
+            #   _shard_grid absent (meshgrid, contiguous strategy):
+            #     compute_c2_heterodyne → shape (shard_n, shard_n) — matches 2-D c2_data.
+            #
+            # All variables are closure-captured from the outer scope; ruff F821
+            # cannot resolve closures statically.
+            if _shard_grid is not None:  # noqa: F821
+                c2_model = _compute_c2_elementwise(  # noqa: F821
+                    params,
+                    _shard_grid,  # noqa: F821
+                    q_val,
+                    dt_val,
+                    phi_angle,
+                    contrast,
+                    offset,
+                )
+            else:
+                c2_model = compute_c2_heterodyne(
+                    params,
+                    t_jax,  # noqa: F821
+                    q_val,
+                    dt_val,
+                    phi_angle,
+                    contrast,
+                    offset,
+                )
             # Track non-finite predictions so dashboards can flag bad shards.
             n_nan = jnp.sum(~jnp.isfinite(c2_model))
             numpyro.deterministic("n_numerical_issues", n_nan)
