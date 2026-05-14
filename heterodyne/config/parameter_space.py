@@ -590,10 +590,10 @@ def _apply_initial_parameters(space: ParameterSpace, config: dict[str, Any]) -> 
 # All parameters use TruncatedNormal priors truncated to their registry bounds.
 _DEFAULT_PRIOR_SPECS: dict[str, tuple[float, float]] = {
     "D0_ref": (1e4, 5e3),
-    "alpha_ref": (0.0, 1.0),
+    "alpha_ref": (0.0, 2.0),
     "D_offset_ref": (0.0, 1e3),
     "D0_sample": (1e4, 5e3),
-    "alpha_sample": (0.0, 1.0),
+    "alpha_sample": (0.0, 2.0),
     "D_offset_sample": (0.0, 1e3),
     "v0": (1e3, 500.0),
     "beta": (0.0, 1.0),

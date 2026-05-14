@@ -243,10 +243,11 @@ class TestDefaultRegistry:
         assert info.max_bound == 1e6
 
     def test_default_registry_alpha_bounds(self) -> None:
-        """DEFAULT_REGISTRY has correct alpha bounds."""
-        info = DEFAULT_REGISTRY["alpha_ref"]
-        assert info.min_bound == -2.0
-        assert info.max_bound == 2.0
+        """DEFAULT_REGISTRY has correct alpha bounds (widened to [-5, 5] to support sub-diffusive regimes)."""
+        for name in ("alpha_ref", "alpha_sample"):
+            info = DEFAULT_REGISTRY[name]
+            assert info.min_bound == -5.0, f"{name} min_bound"
+            assert info.max_bound == 5.0, f"{name} max_bound"
 
     def test_default_registry_fraction_bounds(self) -> None:
         """DEFAULT_REGISTRY has correct fraction parameter bounds."""

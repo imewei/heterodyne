@@ -155,14 +155,14 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
     params["alpha_ref"] = ParameterInfo(
         name="alpha_ref",
         default=0.0,
-        min_bound=-2.0,
-        max_bound=2.0,
-        description="Reference transport exponent (1=diffusive, <1=subdiffusive)",
+        min_bound=-5.0,
+        max_bound=5.0,
+        description="Reference transport exponent (1=diffusive, <1=subdiffusive, >1=superdiffusive)",
         unit="",
         group="reference",
         vary_default=True,
         prior_mean=0.0,
-        prior_std=1.0,
+        prior_std=2.0,
         is_physical=True,
     )
     params["D_offset_ref"] = ParameterInfo(
@@ -197,14 +197,14 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
     params["alpha_sample"] = ParameterInfo(
         name="alpha_sample",
         default=0.0,
-        min_bound=-2.0,
-        max_bound=2.0,
-        description="Sample transport exponent (1=diffusive, <1=subdiffusive)",
+        min_bound=-5.0,
+        max_bound=5.0,
+        description="Sample transport exponent (1=diffusive, <1=subdiffusive, >1=superdiffusive)",
         unit="",
         group="sample",
         vary_default=True,
         prior_mean=0.0,
-        prior_std=1.0,
+        prior_std=2.0,
         is_physical=True,
     )
     params["D_offset_sample"] = ParameterInfo(

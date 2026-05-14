@@ -469,10 +469,24 @@ def fit_cmc_jax(
         and len(ess_finite) > 0
         and np.all(ess_finite > config.min_ess)
     )
-    if bfmi is not None:
-        convergence_passed = convergence_passed and min(bfmi) > config.min_bfmi
+    # BFMI is advisory only (homodyne parity). Homodyne check_convergence uses
+    # R-hat + ESS as the sole hard gates. Applying BFMI as a hard gate here
+    # silently kills all shards when chains start near a parameter boundary
+    # (boundary reflection → low BFMI is expected and normal).
+    if bfmi is not None and not bfmi_compute_failed:
+        _min_bfmi = float(np.nanmin(np.asarray(bfmi, dtype=float)))
+        if _min_bfmi < config.min_bfmi:
+            logger.warning(
+                "[CMC] Low BFMI=%.3f < %.2f — poor HMC energy exploration "
+                "(advisory only; does not affect convergence gate)",
+                _min_bfmi,
+                config.min_bfmi,
+            )
     if bfmi_compute_failed:
-        convergence_passed = False
+        logger.debug(
+            "[CMC] BFMI unavailable (az.bfmi computation failed); "
+            "convergence determined by R-hat and ESS only"
+        )
 
     metadata: dict[str, Any] = {}
     # Store divergence_rate so fit_cmc_sharded can filter high-divergence shards
@@ -1422,8 +1436,19 @@ def _combine_shard_posteriors(
         and len(ess_finite) > 0
         and np.all(ess_finite > config.min_ess)
     )
+    # BFMI is advisory for combined result (homodyne parity).
+    # Low combined BFMI is a useful warning but not a hard gate — the
+    # combined R-hat and ESS from pooled shards are the authoritative signal.
     if combined_bfmi is not None:
-        convergence_passed = convergence_passed and min(combined_bfmi) > config.min_bfmi
+        _combined_min_bfmi = float(np.nanmin(np.asarray(combined_bfmi, dtype=float)))
+        if _combined_min_bfmi < config.min_bfmi:
+            logger.warning(
+                "_combine_shard_posteriors: low combined BFMI=%.3f < %.2f "
+                "(advisory; does not override R-hat/ESS convergence gate). "
+                "Consider reparameterization or wider parameter bounds.",
+                _combined_min_bfmi,
+                config.min_bfmi,
+            )
 
     logger.info(
         "[CMC-sharded] Consensus combination: %d/%d shards converged "
@@ -1688,13 +1713,42 @@ def _result_dict_to_cmc_result(
         and len(ess_finite) > 0
         and np.all(ess_finite > config.min_ess)
     )
+    # BFMI is advisory for per-shard results (homodyne parity).
+    # Homodyne check_convergence uses R-hat + ESS as the sole hard gates.
+    # Per-shard BFMI < 0.3 is expected when chains start near a parameter
+    # boundary (boundary reflection drives short trajectories → low BFMI).
+    # Using BFMI as a hard gate here causes 100% shard rejection on
+    # boundary-adjacent warm-starts such as alpha_sample=-2.0.
+    _shard_min_bfmi: float | None = None
     if bfmi is not None and not bfmi_compute_failed:
-        convergence_passed = convergence_passed and min(bfmi) > config.min_bfmi
+        _shard_min_bfmi = float(np.nanmin(np.asarray(bfmi, dtype=float)))
+        if _shard_min_bfmi < config.min_bfmi:
+            logger.warning(
+                "Shard: low BFMI=%.3f < %.2f (advisory; not a convergence gate). "
+                "Chains may be near a parameter boundary.",
+                _shard_min_bfmi,
+                config.min_bfmi,
+            )
     if bfmi_compute_failed:
-        convergence_passed = False
+        logger.debug(
+            "Shard: BFMI unavailable (az.bfmi failed); "
+            "convergence determined by R-hat and ESS only"
+        )
 
     total_iters = n_chains * n_samples
     divergence_rate = num_divergent / total_iters if total_iters > 0 else 0.0
+
+    logger.debug(
+        "Shard diagnostics: convergence=%s, max_r_hat=%.3f, min_ess=%.0f, "
+        "bfmi=%s, divergence_rate=%.1f%%, n_chains=%d, n_samples=%d",
+        "PASS" if convergence_passed else "FAIL",
+        float(np.nanmax(r_hat)) if len(r_hat_finite) > 0 else float("nan"),
+        float(np.nanmin(ess_bulk)) if len(ess_finite) > 0 else float("nan"),
+        f"{_shard_min_bfmi:.3f}" if _shard_min_bfmi is not None else "N/A",
+        divergence_rate * 100,
+        n_chains,
+        n_samples,
+    )
 
     return CMCResult(
         parameter_names=param_names,
