@@ -17,6 +17,29 @@ if TYPE_CHECKING:
     from heterodyne.optimization.cmc.results import CMCResult
 
 
+def _tombstone_safe_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    """Return a JSON-serializable copy of metadata for tombstone failure records.
+
+    ``shard_diagnostics`` may contain NaN R-hat / ESS arrays from shards that
+    completed NUTS but failed convergence — including them verbatim would crash
+    ``json.dumps(..., allow_nan=False)``.  Replace with a compact count string.
+    Any remaining non-finite scalar floats are replaced with None.
+    """
+    import math
+
+    safe: dict[str, Any] = {}
+    for k, v in metadata.items():
+        if k == "shard_diagnostics":
+            # Per-shard r_hat/ESS arrays can hold NaN — omit the full arrays.
+            count = len(v) if isinstance(v, (list, tuple)) else "?"
+            safe[k] = f"<{count} shards, omitted from tombstone>"
+        elif isinstance(v, float) and not math.isfinite(v):
+            safe[k] = None
+        else:
+            safe[k] = v
+    return safe
+
+
 def save_mcmc_results(
     result: CMCResult,
     output_dir: Path | str,
@@ -49,7 +72,7 @@ def save_mcmc_results(
             "status": "failed",
             "reason": "all_shards_failed",
             "parameter_names": result.parameter_names,
-            "metadata": result.metadata,
+            "metadata": _tombstone_safe_metadata(result.metadata),
             "timestamp": datetime.now().isoformat(),
         }
         tombstone_path = output_dir / f"{prefix}_summary.json"

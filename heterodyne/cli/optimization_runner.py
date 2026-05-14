@@ -631,15 +631,38 @@ def _clamp_warmstart_to_interior(result: NLSQResult) -> NLSQResult:
         old = float(params[i])
         new = float(np.clip(old, lo, hi))
         if new != old:
-            logger.warning(
-                "CMC init clamp: %s %.4g → %.4g (bounds [%.4g, %.4g]); "
-                "NUTS boundary-adjacent start prevented",
-                name,
-                old,
-                new,
-                info.min_bound,
-                info.max_bound,
-            )
+            # Distinguish "NLSQ converged exactly on the boundary" from
+            # "NLSQ wandered close but not there".  The former means the true
+            # posterior mode is at or past the boundary — NUTS leapfrog will
+            # hit the reflecting wall on every step, causing high divergence
+            # rates and all-shard consensus failure.
+            _at_lb = abs(old - info.min_bound) < 1e-10 * max(abs(info.min_bound), 1)
+            _at_ub = abs(old - info.max_bound) < 1e-10 * max(abs(info.max_bound), 1)
+            if _at_lb or _at_ub:
+                _side = "lower" if _at_lb else "upper"
+                logger.warning(
+                    "CMC init clamp: %s %.4g → %.4g (bounds [%.4g, %.4g]); "
+                    "NLSQ hit the %s bound exactly — true mode may be outside "
+                    "current bounds; expect high NUTS divergence rate. "
+                    "Consider widening the %s bound in your config.",
+                    name,
+                    old,
+                    new,
+                    info.min_bound,
+                    info.max_bound,
+                    _side,
+                    _side,
+                )
+            else:
+                logger.warning(
+                    "CMC init clamp: %s %.4g → %.4g (bounds [%.4g, %.4g]); "
+                    "NUTS boundary-adjacent start prevented",
+                    name,
+                    old,
+                    new,
+                    info.min_bound,
+                    info.max_bound,
+                )
             clamped.append(name)
             params[i] = new
 

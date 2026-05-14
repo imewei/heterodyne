@@ -1199,10 +1199,34 @@ def _combine_shard_posteriors(
         )
 
     if not successful:
+        _n_no_samples = sum(
+            1 for sr in shard_results if not _shard_has_valid_samples(sr)
+        )
+        _n_high_div = sum(
+            1
+            for sr in shard_results
+            if _shard_has_valid_samples(sr)
+            and getattr(sr, "metadata", {}).get("divergence_rate", 0.0) > _max_div_rate
+        )
+        _div_rates = [
+            getattr(sr, "metadata", {}).get("divergence_rate")
+            for sr in shard_results
+            if _shard_has_valid_samples(sr)
+        ]
+        _finite_rates = [r for r in _div_rates if r is not None]
+        _mean_div = float(np.mean(_finite_rates)) if _finite_rates else float("nan")
         logger.error(
-            "_combine_shard_posteriors: all %d shards failed; "
+            "_combine_shard_posteriors: all %d shards failed "
+            "(no_samples=%d, high_divergence[>%.0f%%]=%d, bad_convergence=%d, "
+            "mean_divergence_rate=%.1f%%) — "
+            "if divergence is high, a warm-start parameter may be at a hard bound; "
             "returning degenerate result",
             len(shard_results),
+            _n_no_samples,
+            _max_div_rate * 100,
+            _n_high_div,
+            len(shard_results) - _n_no_samples - _n_high_div,
+            _mean_div * 100,
         )
         return CMCResult(
             parameter_names=param_names,

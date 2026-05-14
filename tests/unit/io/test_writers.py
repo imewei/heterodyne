@@ -834,3 +834,68 @@ class TestSaveMCMCResultsAllShardsFailed:
         """No samples.npz should be created for a degenerate result (nothing to save)."""
         save_mcmc_results(self._degenerate_result(), tmp_path, prefix="mcmc")
         assert not (tmp_path / "mcmc_samples.npz").exists()
+
+    @pytest.mark.unit
+    def test_tombstone_with_nan_shard_diagnostics_does_not_crash(
+        self, tmp_path: Path
+    ) -> None:
+        """Regression for het_2e41117d: fit_cmc_sharded augments the degenerate
+        CMCResult metadata with shard_diagnostics that contain NaN r_hat/ESS
+        arrays (from shards that completed NUTS but failed convergence checks).
+        The tombstone path must not crash when serializing that metadata.
+        """
+        import json
+
+        n_params = 3
+        # Simulate the shard_diagnostics structure added by fit_cmc_sharded
+        shard_diagnostics = [
+            {
+                "convergence_passed": False,
+                "r_hat": [float("nan")] * n_params,
+                "ess_bulk": [float("nan")] * n_params,
+                "bfmi": None,
+                "wall_time_seconds": 3541.2,
+            }
+            for _ in range(44)
+        ] + [
+            # 3 timed-out shards: no r_hat/ESS
+            {
+                "convergence_passed": False,
+                "r_hat": None,
+                "ess_bulk": None,
+                "bfmi": None,
+                "wall_time_seconds": 3604.0,
+            }
+            for _ in range(3)
+        ]
+        names = [f"p{i}" for i in range(n_params)]
+        result = CMCResult(
+            parameter_names=names,
+            posterior_mean=np.zeros(n_params),
+            posterior_std=np.full(n_params, np.nan),
+            credible_intervals={},
+            convergence_passed=False,
+            r_hat=np.full(n_params, np.nan),
+            ess_bulk=np.full(n_params, np.nan),
+            ess_tail=np.full(n_params, np.nan),
+            bfmi=None,
+            samples=None,
+            num_warmup=500,
+            num_samples=1000,
+            num_chains=4,
+            metadata={
+                "all_shards_failed": True,
+                "n_total_shards": 47,
+                "n_failed_shards": 47,
+                "num_shards": 47,
+                "shard_diagnostics": shard_diagnostics,
+            },
+        )
+        # Must not raise ValueError: Cannot serialize non-finite float to JSON
+        save_mcmc_results(result, tmp_path, prefix="cmc_phi0")
+        raw = (tmp_path / "cmc_phi0_summary.json").read_text()
+        data = json.loads(raw)  # also verifies strict allow_nan=False
+        assert data["status"] == "failed"
+        # shard_diagnostics should be summarised, not raw NaN arrays
+        assert isinstance(data["metadata"]["shard_diagnostics"], str)
+        assert "47 shards" in data["metadata"]["shard_diagnostics"]
