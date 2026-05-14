@@ -583,17 +583,19 @@ def _warn_nlsq_bound_saturation(result: NLSQResult) -> None:
         )
 
 
-_BOUNDARY_INTERIOR_MARGIN = 1e-3  # fraction of bound range to keep away from walls
+_BOUNDARY_INTERIOR_MARGIN = 5e-2  # fraction of bound range to keep away from walls
 
 
 def _clamp_warmstart_to_interior(result: NLSQResult) -> NLSQResult:
     """Return a copy of *result* with parameters shifted inward from hard bounds.
 
     NUTS step-size collapses when the chain initialises at a TruncatedNormal
-    boundary.  Each parameter is clamped to
-    ``[min_bound + margin, max_bound - margin]`` where margin is 0.1% of the
-    bound range, preventing the leapfrog step-size adaptation from converging
-    to near-zero before sampling begins.
+    boundary.  Linear-scale parameters are clamped to
+    ``[min_bound + margin, max_bound - margin]`` where margin is 5% of the
+    bound range.  Log-space parameters (D0, v0) use a geometric margin so a
+    linear fraction of a multi-decade range does not produce an absurd clamp
+    target.  Both ensure the leapfrog step-size adaptation starts well away
+    from the reflecting wall.
     """
     import dataclasses
 
@@ -612,9 +614,18 @@ def _clamp_warmstart_to_interior(result: NLSQResult) -> NLSQResult:
             info = registry[name]
         except KeyError:
             continue
-        margin = _BOUNDARY_INTERIOR_MARGIN * (info.max_bound - info.min_bound)
-        lo = info.min_bound + margin
-        hi = info.max_bound - margin
+        if info.log_space and info.min_bound > 0:
+            # Geometric margin for log-distributed params: a linear fraction of
+            # [100, 1e6] would clamp D0=100 to ~50 000 (500× off); log-space
+            # margin of 5% gives 100 × (1e6/100)^0.05 ≈ 159 instead.
+            log_range = np.log(info.max_bound / info.min_bound)
+            factor = np.exp(_BOUNDARY_INTERIOR_MARGIN * log_range)
+            lo = info.min_bound * factor
+            hi = info.max_bound / factor
+        else:
+            margin = _BOUNDARY_INTERIOR_MARGIN * (info.max_bound - info.min_bound)
+            lo = info.min_bound + margin
+            hi = info.max_bound - margin
         if lo >= hi:
             continue
         old = float(params[i])

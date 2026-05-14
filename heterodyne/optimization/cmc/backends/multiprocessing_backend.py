@@ -2327,11 +2327,32 @@ class MultiprocessingBackend(CMCBackend):
                 config.min_success_rate_warning * 100,
             )
         if success_rate < config.min_success_rate:
+            # Build per-category shard index list for the error message.
+            _fail_cats: dict[str, list[int]] = {}
+            for _res in results:
+                if not _res.get("success"):
+                    _cat = _res.get("error_category", "unknown")
+                    _fail_cats.setdefault(_cat, []).append(_res.get("shard_idx", -1))
+            _shard_summary = "; ".join(
+                f"{_cat}: shards {_idxs}" for _cat, _idxs in sorted(_fail_cats.items())
+            )
+            _timeout_n = len(_fail_cats.get("timeout", []))
+            _advice: list[str] = []
+            if _timeout_n:
+                _advice.append(
+                    f"increase per_shard_timeout (currently {config.per_shard_timeout}s)"
+                    " or reduce num_warmup/num_samples"
+                )
+            if len(_fail_cats) - (1 if _timeout_n else 0) > 0:
+                _advice.append(
+                    "inspect shard error logs above for convergence failures"
+                )
+            _advice.append("lower min_success_rate in CMCConfig")
             raise RuntimeError(
                 f"CMC shard success rate {success_rate:.1%} is below the configured "
                 f"minimum {config.min_success_rate:.1%}. "
-                "Increase max_points_per_shard, reduce num_shards, or lower "
-                "min_success_rate in CMCConfig."
+                f"Failed shards — {_shard_summary}. "
+                f"Suggested fixes: {'; '.join(_advice)}."
             )
 
         valid_durations = [

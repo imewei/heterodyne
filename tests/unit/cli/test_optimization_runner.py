@@ -436,3 +436,48 @@ class TestValidateWarmstartQuality:
         result = _make_nlsq_result(success=True, reduced_chi2=1.0)
         result.reduced_chi_squared = None
         assert _validate_warmstart_quality(result) is True
+
+
+@pytest.mark.unit
+class TestClampWarmstartToInterior:
+    """Tests for _clamp_warmstart_to_interior (5% boundary margin)."""
+
+    def _clamp(self, **params: float):  # type: ignore[return]
+        from heterodyne.cli.optimization_runner import _clamp_warmstart_to_interior
+
+        result = _make_nlsq_result(params=params)
+        return _clamp_warmstart_to_interior(result)
+
+    def test_alpha_at_lower_bound_is_clamped(self) -> None:
+        """alpha_sample=-2 (lower hard bound) must be shifted to -1.8 (5% of range 4)."""
+        clamped = self._clamp(alpha_sample=-2.0)
+        idx = list(clamped.parameter_names).index("alpha_sample")
+        assert abs(float(clamped.parameters[idx]) - (-1.8)) < 1e-9
+
+    def test_alpha_at_upper_bound_is_clamped(self) -> None:
+        """alpha_ref=2 (upper hard bound) must be shifted to 1.8."""
+        clamped = self._clamp(alpha_ref=2.0)
+        idx = list(clamped.parameter_names).index("alpha_ref")
+        assert abs(float(clamped.parameters[idx]) - 1.8) < 1e-9
+
+    def test_interior_alpha_is_unchanged(self) -> None:
+        """alpha_sample in the interior must not be modified."""
+        result = self._clamp(alpha_sample=0.5)
+        idx = list(result.parameter_names).index("alpha_sample")
+        assert float(result.parameters[idx]) == pytest.approx(0.5)
+
+    def test_log_space_param_uses_geometric_margin(self) -> None:
+        """D0_ref at min_bound=100 must be clamped via geometric, not linear, margin."""
+        import numpy as np
+
+        # Expected: 100 × exp(0.05 × log(1e6 / 100)) ≈ 158.49
+        expected = 100.0 * np.exp(0.05 * np.log(1e6 / 100.0))
+        clamped = self._clamp(D0_ref=100.0)
+        idx = list(clamped.parameter_names).index("D0_ref")
+        assert float(clamped.parameters[idx]) == pytest.approx(expected, rel=1e-6)
+
+    def test_log_space_interior_param_is_unchanged(self) -> None:
+        """D0_ref at its default 1e4 is well inside bounds and must not be clamped."""
+        result = self._clamp(D0_ref=1e4)
+        idx = list(result.parameter_names).index("D0_ref")
+        assert float(result.parameters[idx]) == pytest.approx(1e4)
