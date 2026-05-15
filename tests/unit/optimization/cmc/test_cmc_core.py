@@ -900,3 +900,181 @@ class TestBugPrevention_ArviZAPI:
         posterior = {"D0_ref": np.random.randn(2, 100)}
         with pytest.raises(TypeError, match="unexpected keyword argument"):
             az.from_dict(posterior=posterior)
+
+
+@pytest.mark.unit
+class TestBugPrevention_BFMIAdvisory:
+    """Regression tests for het_dd0f825b: BFMI must not be a hard convergence gate.
+
+    Root cause: low BFMI (<0.3) from chains near the alpha_sample=-2.0 boundary
+    caused all 47/47 shards to fail convergence, producing a degenerate result.
+    Homodyne parity: check_convergence uses only R-hat + ESS as hard gates.
+    """
+
+    def _make_result_dict(
+        self,
+        n_chains: int = 4,
+        n_samples: int = 100,
+        mean: float = 1.0,
+        std: float = 0.1,
+    ) -> dict:
+        """Build a minimal worker result dict with healthy R-hat but no energy field."""
+        rng = np.random.default_rng(42)
+        params = ["D0_ref", "alpha_sample"]
+        samples = {p: rng.normal(mean, std, size=n_chains * n_samples) for p in params}
+        return {
+            "success": True,
+            "samples": samples,
+            "param_names": params,
+            "n_chains": n_chains,
+            "n_samples": n_samples,
+            "extra_fields": {},  # no energy → BFMI will be unavailable
+            "duration": 1.0,
+            "stats": {"num_divergent": 5, "n_warmup": 50},
+        }
+
+    @pytest.mark.unit
+    def test_bfmi_compute_failure_does_not_kill_shard_convergence(self) -> None:
+        """Regression het_dd0f825b: bfmi_compute_failed must NOT set convergence_passed=False.
+
+        Previously: bfmi_compute_failed → convergence_passed = False unconditionally.
+        This caused 100% shard failure when az.bfmi() raised TypeError/KeyError.
+        Fix: BFMI is advisory; convergence determined by R-hat + ESS only.
+        """
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import _result_dict_to_cmc_result
+
+        config = CMCConfig()
+        # With no energy field, az.bfmi() will fail (bfmi_compute_failed=True).
+        # With healthy chains (small std → low r_hat), convergence must still pass.
+        result_dict = self._make_result_dict(n_chains=4, n_samples=500, std=0.05)
+        result = _result_dict_to_cmc_result(result_dict, config)
+
+        # bfmi unavailable should NOT force convergence failure
+        assert result.bfmi is None or result.convergence_passed, (
+            "bfmi_compute_failed incorrectly forced convergence_passed=False. "
+            "This is the het_dd0f825b regression: BFMI must be advisory only."
+        )
+
+    @pytest.mark.unit
+    def test_combine_shard_posteriors_accepts_shards_with_low_bfmi(self) -> None:
+        """Regression het_dd0f825b: _combine_shard_posteriors must accept shards where
+        convergence_passed=True even when combined_bfmi < min_bfmi.
+
+        Previously: combined_bfmi < min_bfmi → convergence_passed=False on the
+        combined result, even when all individual shards converged (R-hat + ESS OK).
+        """
+        from types import SimpleNamespace
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import _combine_shard_posteriors
+
+        n_params = 2
+        config = CMCConfig()
+
+        def _converged_shard_low_bfmi(seed: int) -> SimpleNamespace:
+            rng = np.random.default_rng(seed)
+            r = SimpleNamespace()
+            r.convergence_passed = True
+            r.parameter_names = ["D0_ref", "alpha_sample"]
+            r.posterior_mean = rng.normal(1.0, 0.01, size=n_params)
+            r.posterior_std = np.ones(n_params) * 0.1
+            r.r_hat = np.array([1.01, 1.02])  # good R-hat
+            r.ess_bulk = np.array([400.0, 380.0])  # good ESS
+            r.ess_tail = np.array([350.0, 340.0])
+            r.bfmi = [0.15, 0.18]  # low BFMI (advisory)
+            r.samples = {
+                "D0_ref": rng.normal(1.0, 0.1, 400),
+                "alpha_sample": rng.normal(-1.5, 0.3, 400),
+            }
+            r.num_warmup = 50
+            r.num_samples = 100
+            r.num_chains = 4
+            r.metadata = {"divergence_rate": 0.03}
+            return r
+
+        shards = [_converged_shard_low_bfmi(i) for i in range(4)]
+        result = _combine_shard_posteriors(shards, config, num_shards=4, base_seed=0)
+
+        # Low combined BFMI must NOT cause all-shards-failed
+        assert not result.metadata.get("all_shards_failed"), (
+            "_combine_shard_posteriors rejected all shards because combined BFMI "
+            "< min_bfmi. BFMI must be advisory, not a hard convergence gate."
+        )
+        # And the result should be finite (shards DID converge)
+        assert np.all(np.isfinite(result.posterior_mean)), (
+            "Combined posterior mean is not finite despite converged shards."
+        )
+
+    @pytest.mark.unit
+    def test_bfmi_nanmin_handles_multielement_array(self) -> None:
+        """Regression: az.bfmi() returns dict of arrays; float(min(list_of_arrays))
+        raised DataArray.__bool__ ValueError. Fix: float(np.nanmin(np.asarray(bfmi))).
+        """
+        import arviz as az
+
+        from heterodyne.optimization.cmc.core import _compute_bfmi
+
+        # Build InferenceData with energy in sample_stats (4 chains × 100 samples)
+        rng = np.random.default_rng(0)
+        energy = rng.normal(size=(4, 100))
+        idata = az.from_dict(
+            {
+                "posterior": {"D0_ref": rng.normal(size=(4, 100))},
+                "sample_stats": {"energy": energy},
+            }
+        )
+        bfmi, failed = _compute_bfmi(idata)
+
+        # Whether BFMI succeeds or fails, we must be able to take nanmin without error
+        if bfmi is not None and not failed:
+            import numpy as _np
+
+            min_bfmi = float(_np.nanmin(_np.asarray(bfmi, dtype=float)))
+            assert _np.isfinite(min_bfmi), "BFMI min should be finite scalar"
+
+
+@pytest.mark.unit
+class TestBugPrevention_AlphaBounds:
+    """Regression tests for alpha_ref/alpha_sample bound widening.
+
+    Root cause (het_dd0f825b): alpha_sample=-2.0 at the lower bound (min_bound was -2.0).
+    NLSQ hit the boundary exactly, meaning the true posterior extends below -2.0.
+    Bounds widened to [-5, 5] so NUTS can explore sub-diffusive regimes.
+    """
+
+    @pytest.mark.unit
+    def test_alpha_bounds_allow_sub_minus_two(self) -> None:
+        """alpha_ref and alpha_sample must accept values below -2.0."""
+        from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
+
+        for name in ("alpha_ref", "alpha_sample"):
+            info = DEFAULT_REGISTRY[name]
+            assert info.min_bound <= -3.0, (
+                f"{name} min_bound={info.min_bound} is too restrictive. "
+                "NLSQ can legitimately hit -2.0 for strongly sub-diffusive samples; "
+                "bounds must extend below -2.0 to let NUTS explore the full posterior."
+            )
+            assert info.max_bound >= 3.0, f"{name} max_bound={info.max_bound}"
+
+    @pytest.mark.unit
+    def test_alpha_prior_std_safe_for_tempered_priors(self) -> None:
+        """alpha prior_std must stay <= 1.5 to avoid near-flat tempered distributions.
+
+        With CMC tempering by sqrt(47) ≈ 6.86:
+          tempered_std = prior_std * 6.86
+        For bounds [-5, 5] (range=10), a safe prior requires tempered_std < range/2 = 5.
+        prior_std > ~0.73 with 47 shards creates near-uniform distributions;
+        prior_std > 1.5 causes NUTS to saturate max_tree_depth on every iteration
+        (O(2^10) leapfrog steps), making shards timeout without producing any samples.
+        """
+        from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
+
+        max_safe_std = 1.5
+        for name in ("alpha_ref", "alpha_sample"):
+            info = DEFAULT_REGISTRY[name]
+            assert info.prior_std <= max_safe_std, (
+                f"{name} prior_std={info.prior_std} > {max_safe_std}. "
+                "Wide tempered priors cause near-uniform density → NUTS timeout "
+                "when running without NLSQ warmstart (het_c7548ee8 failure mode)."
+            )

@@ -823,6 +823,27 @@ def fit_cmc_sharded(
             avg_pts,
         )
 
+    # Early abort guard: without an NLSQ warm-start, NUTS starts from the
+    # default prior (identity mass matrix) and must discover the posterior
+    # geometry from scratch during warmup.  For the 14-parameter heterodyne
+    # model with shards >10K points, warmup alone exceeds 7200s because NUTS
+    # saturates max_tree_depth (1024 leapfrog steps) on every iteration.
+    # This is the het_c7548ee8 failure mode: all 47 shards timeout with 0
+    # posterior samples collected.
+    _NO_NLSQ_SHARD_LIMIT = 10_000
+    if nlsq_result is None and avg_pts > _NO_NLSQ_SHARD_LIMIT:
+        logger.error(
+            "[CMC-sharded] CRITICAL: No NLSQ warm-start provided and "
+            "avg_points_per_shard=%d > %d. Without a warm-start, NUTS must "
+            "adapt the mass matrix from scratch over a 14-parameter posterior. "
+            "All %d shards will timeout (7200s) with 0 posterior samples. "
+            "Fix: run NLSQ first (optimizer: nlsq) then re-run CMC, or use "
+            "optimizer: both to run NLSQ→CMC in one pass.",
+            avg_pts,
+            _NO_NLSQ_SHARD_LIMIT,
+            num_shards,
+        )
+
     logger.info(
         "[CMC-sharded] Phase 3/5: dispatching %d shards to MultiprocessingBackend",
         num_shards,

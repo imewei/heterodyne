@@ -449,16 +449,16 @@ class TestClampWarmstartToInterior:
         return _clamp_warmstart_to_interior(result)
 
     def test_alpha_at_lower_bound_is_clamped(self) -> None:
-        """alpha_sample=-2 (lower hard bound) must be shifted to -1.8 (5% of range 4)."""
-        clamped = self._clamp(alpha_sample=-2.0)
+        """alpha_sample=-5 (lower hard bound) must be shifted to -4.5 (5% of range 10)."""
+        clamped = self._clamp(alpha_sample=-5.0)
         idx = list(clamped.parameter_names).index("alpha_sample")
-        assert abs(float(clamped.parameters[idx]) - (-1.8)) < 1e-9
+        assert abs(float(clamped.parameters[idx]) - (-4.5)) < 1e-9
 
     def test_alpha_at_upper_bound_is_clamped(self) -> None:
-        """alpha_ref=2 (upper hard bound) must be shifted to 1.8."""
-        clamped = self._clamp(alpha_ref=2.0)
+        """alpha_ref=5 (upper hard bound) must be shifted to 4.5 (5% of range 10)."""
+        clamped = self._clamp(alpha_ref=5.0)
         idx = list(clamped.parameter_names).index("alpha_ref")
-        assert abs(float(clamped.parameters[idx]) - 1.8) < 1e-9
+        assert abs(float(clamped.parameters[idx]) - 4.5) < 1e-9
 
     def test_interior_alpha_is_unchanged(self) -> None:
         """alpha_sample in the interior must not be modified."""

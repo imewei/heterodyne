@@ -162,7 +162,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="reference",
         vary_default=True,
         prior_mean=0.0,
-        prior_std=2.0,
+        prior_std=1.0,
         is_physical=True,
     )
     params["D_offset_ref"] = ParameterInfo(
@@ -204,7 +204,7 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="sample",
         vary_default=True,
         prior_mean=0.0,
-        prior_std=2.0,
+        prior_std=1.0,
         is_physical=True,
     )
     params["D_offset_sample"] = ParameterInfo(
