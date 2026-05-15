@@ -832,16 +832,22 @@ def fit_cmc_sharded(
     # posterior samples collected.
     _NO_NLSQ_SHARD_LIMIT = 10_000
     if nlsq_result is None and avg_pts > _NO_NLSQ_SHARD_LIMIT:
-        logger.error(
-            "[CMC-sharded] CRITICAL: No NLSQ warm-start provided and "
-            "avg_points_per_shard=%d > %d. Without a warm-start, NUTS must "
-            "adapt the mass matrix from scratch over a 14-parameter posterior. "
-            "All %d shards will timeout (7200s) with 0 posterior samples. "
+        # Hard abort: 3 separate runs (het_c7548ee8, het_e34fa942, het_dd0f825b)
+        # prove that CMC without NLSQ on >10K-point shards ALWAYS timeouts after
+        # 8+ hours with 0 posterior samples. NUTS must discover a 14-parameter
+        # posterior geometry from scratch (identity mass matrix, no warm start).
+        # Warmup alone saturates max_tree_depth=10 (1024 leapfrog steps/step)
+        # on every iteration, far exceeding per_shard_timeout=7200s.
+        # Abort immediately to prevent silent 8-hour waste.
+        raise RuntimeError(
+            f"[CMC-sharded] Aborting: no NLSQ warm-start provided and "
+            f"avg_points_per_shard={avg_pts} > {_NO_NLSQ_SHARD_LIMIT}. "
+            f"Without a warm-start, all {num_shards} shards will timeout "
+            f"({config.per_shard_timeout}s) with 0 posterior samples collected. "
             "Fix: run NLSQ first (optimizer: nlsq) then re-run CMC, or use "
-            "optimizer: both to run NLSQ→CMC in one pass.",
-            avg_pts,
-            _NO_NLSQ_SHARD_LIMIT,
-            num_shards,
+            "optimizer: both to run NLSQ→CMC in one pass. "
+            "To override (e.g. for small pilot runs), reduce max_points_per_shard "
+            f"below {_NO_NLSQ_SHARD_LIMIT} in the CMC config."
         )
 
     logger.info(

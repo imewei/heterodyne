@@ -2313,10 +2313,20 @@ class MultiprocessingBackend(CMCBackend):
                     error_categories_summary[_cat] = (
                         error_categories_summary.get(_cat, 0) + 1
                     )
-            raise RuntimeError(
-                f"All {n_shards} shards failed. "
-                f"Error categories: {error_categories_summary}"
+            # Log as ERROR and return empty list — do NOT raise. fit_cmc_sharded
+            # pads missing shards with failed placeholders and _combine_shard_posteriors
+            # returns a degenerate CMCResult (all_shards_failed=True) gracefully.
+            # Raising here crashed the CLI without saving any diagnostic output
+            # (het_c7548ee8 failure mode: all 47 shards timeout with no NLSQ warmstart).
+            logger.error(
+                "All %d shards failed. Error categories: %s. "
+                "Returning empty result list — caller will produce a degenerate CMCResult. "
+                "Most likely cause: no NLSQ warm-start provided for a large dataset. "
+                "Fix: run NLSQ first (optimizer: nlsq) then re-run CMC.",
+                n_shards,
+                error_categories_summary,
             )
+            return []
 
         success_rate = len(successful) / n_shards
         if success_rate < config.min_success_rate_warning:
@@ -2348,11 +2358,20 @@ class MultiprocessingBackend(CMCBackend):
                     "inspect shard error logs above for convergence failures"
                 )
             _advice.append("lower min_success_rate in CMCConfig")
-            raise RuntimeError(
-                f"CMC shard success rate {success_rate:.1%} is below the configured "
-                f"minimum {config.min_success_rate:.1%}. "
-                f"Failed shards — {_shard_summary}. "
-                f"Suggested fixes: {'; '.join(_advice)}."
+            # Log as ERROR and continue — do NOT raise. _combine_shard_posteriors
+            # already handles partial-failure gracefully and produces a degenerate
+            # CMCResult with convergence_passed=False and diagnostic metadata.
+            # Raising here prevented any result from being saved to disk.
+            logger.error(
+                "CMC shard success rate %.1f%% is below the configured minimum %.1f%%. "
+                "Failed shards — %s. Suggested fixes: %s. "
+                "Proceeding with %d/%d successful shards — result will be degenerate.",
+                success_rate * 100,
+                config.min_success_rate * 100,
+                _shard_summary,
+                "; ".join(_advice),
+                len(successful),
+                n_shards,
             )
 
         valid_durations = [

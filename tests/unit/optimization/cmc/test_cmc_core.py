@@ -1035,6 +1035,112 @@ class TestBugPrevention_BFMIAdvisory:
 
 
 @pytest.mark.unit
+class TestBugPrevention_NoNLSQLargeShardAbort:
+    """Regression tests for het_c7548ee8 / het_e34fa942: fit_cmc_sharded must abort
+    immediately (RuntimeError) when no NLSQ warmstart is provided AND
+    avg_points_per_shard > 10K.
+
+    Root cause: without warmstart, NUTS saturates max_tree_depth on every
+    iteration → all shards timeout after 8h with 0 posterior samples.
+    Three separate runs confirmed this is deterministic.
+    """
+
+    @pytest.mark.unit
+    def test_no_nlsq_large_shards_raises_immediately(self) -> None:
+        """fit_cmc_sharded raises RuntimeError before dispatching workers when
+        nlsq_result=None and shards are too large for NUTS without warmstart.
+
+        Previously: ran 8 hours, all shards timed out, CLI crashed.
+        Fixed: abort at shard-size check with a descriptive error.
+        """
+        import unittest.mock as mock
+
+        import numpy as np
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_sharded
+
+        # Create minimal mock model (never touches JAX)
+        model = mock.MagicMock()
+        model.param_manager.space.varying_names = ["D0_ref", "alpha_ref"]
+        model.param_manager.space.varying_physics_names = ["D0_ref", "alpha_ref"]
+        model.param_manager.space.bounds = {
+            "D0_ref": (100.0, 1e6),
+            "alpha_ref": (-5.0, 5.0),
+        }
+        model.q = 0.005
+        model.dt = 0.001
+        model.t = np.linspace(0, 10, 100)
+        model.scaling.get_for_angle.return_value = (0.5, 1.0)
+
+        # Large c2 matrix: N=200 → 200×200 = 40K points, avg_pts/shard >> 10K
+        rng = np.random.default_rng(0)
+        c2 = rng.normal(1.0, 0.05, size=(200, 200))
+        c2 = (c2 + c2.T) / 2
+        np.fill_diagonal(c2, 1.0)
+
+        config = CMCConfig()
+
+        with pytest.raises(RuntimeError, match="no NLSQ warm-start"):
+            fit_cmc_sharded(
+                model=model,
+                c2_data=c2,
+                config=config,
+                nlsq_result=None,
+                num_shards=2,  # 2 shards → avg ~20K pts each, > 10K limit
+            )
+
+    @pytest.mark.unit
+    def test_no_nlsq_small_shards_does_not_raise(self) -> None:
+        """fit_cmc_sharded should NOT abort when shards are small enough.
+
+        Small datasets (avg_pts <= 10K) may converge with default priors.
+        The abort guard must not block legitimate small-scale CMC runs.
+        """
+        import unittest.mock as mock
+
+        import numpy as np
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_sharded
+
+        model = mock.MagicMock()
+        model.param_manager.space.varying_names = ["D0_ref"]
+        model.param_manager.space.varying_physics_names = ["D0_ref"]
+        model.param_manager.space.bounds = {"D0_ref": (100.0, 1e6)}
+        model.q = 0.005
+        model.dt = 0.001
+        model.t = np.linspace(0, 1, 20)
+        model.scaling.get_for_angle.return_value = (0.5, 1.0)
+
+        # Small c2: N=50 → 2 shards × 1250 pts each (well below 10K)
+        rng = np.random.default_rng(0)
+        c2 = rng.normal(1.0, 0.05, size=(50, 50))
+        c2 = (c2 + c2.T) / 2
+        np.fill_diagonal(c2, 1.0)
+
+        config = CMCConfig()
+
+        # The abort guard must NOT fire for small shards. The run may fail
+        # later for unrelated reasons (mock pickling, etc.) — we only care
+        # that the specific "no NLSQ warm-start" abort guard is not triggered.
+        try:
+            fit_cmc_sharded(
+                model=model,
+                c2_data=c2,
+                config=config,
+                nlsq_result=None,
+                num_shards=4,
+            )
+        except Exception as e:
+            assert "no NLSQ warm-start" not in str(e), (
+                f"fit_cmc_sharded incorrectly aborted a small-shard run: {e}. "
+                "The no-NLSQ abort guard must only fire for avg_pts > 10K."
+            )
+            # Any other exception (pickling, etc.) is expected when using mocks
+
+
+@pytest.mark.unit
 class TestBugPrevention_AlphaBounds:
     """Regression tests for alpha_ref/alpha_sample bound widening.
 

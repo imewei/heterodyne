@@ -461,3 +461,93 @@ def test_run_shards_shard_builder_forwards_element_wise_keys() -> None:
         'run_shards must extract t1 via shard.get("t1") in the shard-dict builder. '
         "Regression guard for het_96ff35ab (post-fix crash)."
     )
+
+
+@pytest.mark.unit
+class TestBugPrevention_CollectResultsGracefulDegradation:
+    """Regression tests for het_c7548ee8: _collect_results must not raise when
+    all shards fail — it should return [] so fit_cmc_sharded + _combine_shard_posteriors
+    produce a degenerate CMCResult instead of crashing the CLI.
+
+    Previously: _collect_results raised RuntimeError("All N shards failed"),
+    which propagated all the way to the CLI with no result saved to disk.
+    """
+
+    @pytest.mark.unit
+    def test_all_shards_failed_returns_empty_list_not_raises(self) -> None:
+        """_collect_results returns [] when every shard failed (regression het_c7548ee8)."""
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+            MultiprocessingBackend,
+        )
+
+        backend = MultiprocessingBackend()
+        config = CMCConfig()
+
+        all_failed = [
+            {
+                "type": "result",
+                "success": False,
+                "shard_idx": i,
+                "error": "Runtime timeout after 7200s",
+                "error_category": "timeout",
+                "duration": 7200.0,
+            }
+            for i in range(5)
+        ]
+
+        # Must return [] not raise RuntimeError
+        result = backend._collect_results(all_failed, n_shards=5, config=config)
+        assert result == [], (
+            "_collect_results raised instead of returning [] when all shards failed. "
+            "This is the het_c7548ee8 regression: all-timeout failure must degrade "
+            "gracefully to a degenerate CMCResult, not crash the CLI."
+        )
+
+    @pytest.mark.unit
+    def test_below_min_success_rate_logs_error_not_raises(self) -> None:
+        """_collect_results returns partial results when success_rate < min_success_rate."""
+        import numpy as np
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+            MultiprocessingBackend,
+        )
+
+        backend = MultiprocessingBackend()
+        config = CMCConfig()
+        # Default min_success_rate is typically 0.5; create 1 success + 9 failures
+        n_chains, n_samples = 4, 100
+        rng = np.random.default_rng(0)
+        one_good = {
+            "type": "result",
+            "success": True,
+            "shard_idx": 0,
+            "samples": {"D0_ref": rng.normal(size=n_chains * n_samples)},
+            "param_names": ["D0_ref"],
+            "n_chains": n_chains,
+            "n_samples": n_samples,
+            "extra_fields": {},
+            "duration": 30.0,
+            "stats": {"num_divergent": 0, "n_warmup": 50},
+        }
+        failures = [
+            {
+                "type": "result",
+                "success": False,
+                "shard_idx": i + 1,
+                "error": "timeout",
+                "error_category": "timeout",
+                "duration": 7200.0,
+            }
+            for i in range(9)
+        ]
+
+        results = [one_good] + failures
+        # Must return the 1 successful shard, not raise
+        returned = backend._collect_results(results, n_shards=10, config=config)
+        assert len(returned) == 1, (
+            f"Expected 1 successful shard returned, got {len(returned)}. "
+            "_collect_results should not raise when success_rate < min_success_rate."
+        )
+        assert returned[0]["success"] is True
