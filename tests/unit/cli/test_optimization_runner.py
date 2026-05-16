@@ -481,3 +481,75 @@ class TestClampWarmstartToInterior:
         result = self._clamp(D0_ref=1e4)
         idx = list(result.parameter_names).index("D0_ref")
         assert float(result.parameters[idx]) == pytest.approx(1e4)
+
+
+@pytest.mark.unit
+class TestBugPrevention_StaleNLSQFixedParamOverride:
+    """Regression tests for het_c7fb5859: _clamp_warmstart_to_interior must apply
+    fixed_param_overrides from the current model config before bounds clamping.
+
+    Root cause: nlsq_data.npz was fitted in a prior run where alpha_sample was
+    free; it converged to the NLSQ lower bound (-2.0).  Current config now has
+    fixed_parameters: {alpha_sample: -0.0947}.  Without the override, the stale
+    value propagates into CMC, giving D_total_sample = D0 + D_offset < 0 →
+    log-prior = -inf at the NUTS start point → BFMI=0, R-hat=NaN on all shards.
+    """
+
+    def test_fixed_param_override_replaces_stale_nlsq_value(self) -> None:
+        """_clamp_warmstart_to_interior replaces a stale NLSQ value with the
+        config-fixed value when fixed_param_overrides is supplied."""
+        from heterodyne.cli.optimization_runner import _clamp_warmstart_to_interior
+
+        result = _make_nlsq_result(
+            params={
+                "alpha_sample": -2.0,  # stale: was free, hit NLSQ lower bound
+                "D0_sample": 1390.0,
+                "D_offset_sample": -2644.0,
+            }
+        )
+        overrides = {"alpha_sample": -0.09469581698875865}
+        clamped = _clamp_warmstart_to_interior(result, fixed_param_overrides=overrides)
+
+        idx = list(clamped.parameter_names).index("alpha_sample")
+        assert float(clamped.parameters[idx]) == pytest.approx(
+            -0.09469581698875865, rel=1e-10
+        ), (
+            "Fixed alpha_sample must be overridden from stale NLSQ value -2.0 "
+            "to the config-fixed value -0.0947 (het_c7fb5859 RCA)"
+        )
+
+    def test_non_fixed_params_still_bounds_clamped(self) -> None:
+        """Parameters not in fixed_param_overrides are still clamped inward."""
+        from heterodyne.cli.optimization_runner import _clamp_warmstart_to_interior
+
+        result = _make_nlsq_result(
+            params={
+                "alpha_sample": -2.0,
+                "f0": 1e-6,  # near lower bound 0 → should be clamped
+            }
+        )
+        overrides = {"alpha_sample": -0.0947}
+        clamped = _clamp_warmstart_to_interior(result, fixed_param_overrides=overrides)
+
+        idx_alpha = list(clamped.parameter_names).index("alpha_sample")
+        assert float(clamped.parameters[idx_alpha]) == pytest.approx(-0.0947, rel=1e-6)
+
+        idx_f0 = list(clamped.parameter_names).index("f0")
+        assert float(clamped.parameters[idx_f0]) > 1e-6, (
+            "f0 near lower bound must be clamped inward regardless of override"
+        )
+
+    def test_no_overrides_is_backward_compatible(self) -> None:
+        """Passing fixed_param_overrides=None produces identical output to the
+        original one-argument call signature."""
+        from heterodyne.cli.optimization_runner import _clamp_warmstart_to_interior
+
+        result = _make_nlsq_result(params={"D0_ref": 1e4, "alpha_ref": 0.5})
+        with_none = _clamp_warmstart_to_interior(result, fixed_param_overrides=None)
+        positional = _clamp_warmstart_to_interior(result)
+
+        np.testing.assert_array_equal(
+            with_none.parameters,
+            positional.parameters,
+            err_msg="fixed_param_overrides=None must be identical to omitting it",
+        )

@@ -317,7 +317,19 @@ def run_cmc(
                 logger.warning(
                     "Warm-start quality below threshold for phi=%s°; using anyway", phi
                 )
-            nlsq_result_i = _clamp_warmstart_to_interior(nlsq_result_i)
+            # Build fixed-parameter overrides from the current model config.
+            # Parameters not in model.varying_names are fixed; their model
+            # values override whatever the (possibly stale) NLSQ result holds.
+            _varying_set = set(model.varying_names)
+            _fixed_overrides: dict[str, float] = {
+                name: float(val)
+                for name, val in model.get_params_dict().items()
+                if name not in _varying_set
+            }
+            nlsq_result_i = _clamp_warmstart_to_interior(
+                nlsq_result_i,
+                fixed_param_overrides=_fixed_overrides or None,
+            )
 
         # Dispatch to sharded CMC for large per-angle datasets, single-run CMC
         # otherwise.  ``cmc_config.should_enable_cmc`` returns True only when the
@@ -586,7 +598,10 @@ def _warn_nlsq_bound_saturation(result: NLSQResult) -> None:
 _BOUNDARY_INTERIOR_MARGIN = 5e-2  # fraction of bound range to keep away from walls
 
 
-def _clamp_warmstart_to_interior(result: NLSQResult) -> NLSQResult:
+def _clamp_warmstart_to_interior(
+    result: NLSQResult,
+    fixed_param_overrides: dict[str, float] | None = None,
+) -> NLSQResult:
     """Return a copy of *result* with parameters shifted inward from hard bounds.
 
     NUTS step-size collapses when the chain initialises at a TruncatedNormal
@@ -596,6 +611,14 @@ def _clamp_warmstart_to_interior(result: NLSQResult) -> NLSQResult:
     linear fraction of a multi-decade range does not produce an absurd clamp
     target.  Both ensure the leapfrog step-size adaptation starts well away
     from the reflecting wall.
+
+    ``fixed_param_overrides`` maps parameter names to values from the current
+    model config's ``fixed_parameters``.  When provided, any NLSQ result value
+    for a fixed parameter is replaced with the config value before bounds
+    clamping.  This prevents a stale ``nlsq_data.npz`` (fitted in a prior run
+    where the parameter was free) from propagating a superseded value into CMC
+    initialisation, which can place the warm-start outside the reparameterised
+    prior support and cause log-prior = −∞ → BFMI = 0 across all shards.
     """
     import dataclasses
 
@@ -610,6 +633,25 @@ def _clamp_warmstart_to_interior(result: NLSQResult) -> NLSQResult:
     clamped: list[str] = []
 
     for i, name in enumerate(result.parameter_names):
+        # Apply fixed-parameter overrides before bounds clamping. A stale
+        # nlsq_data.npz (from a run where the parameter was free) can carry a
+        # value that is no longer valid under the current config. Override it
+        # with the model's configured fixed value to keep the warm-start inside
+        # the reparameterised prior support.
+        if fixed_param_overrides and name in fixed_param_overrides:
+            old = float(params[i])
+            new = float(fixed_param_overrides[name])
+            if abs(new - old) > 1e-12:
+                logger.info(
+                    "CMC init override: %s %.4g → %.4g "
+                    "(fixed in current config; stale NLSQ value replaced)",
+                    name,
+                    old,
+                    new,
+                )
+                params[i] = new
+                clamped.append(name)
+            continue
         try:
             info = registry[name]
         except KeyError:

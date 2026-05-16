@@ -794,6 +794,53 @@ def fit_cmc_sharded(
             if unc is not None and float(unc) > 0:
                 unc_dict[name] = float(unc)
         nlsq_uncertainties_dict = unc_dict if unc_dict else None
+    else:
+        # Fall back to model-configured initial values (e.g. NLSQ results
+        # pre-populated in the config's `parameters:` section). Without a full
+        # NLSQResult, NLSQ-informed priors and uncertainties are unavailable,
+        # so priors remain registry-based — warmup may need more steps.
+        _varying = set(model.varying_names)
+        _model_vals = model.get_params_dict()
+        if _model_vals:
+            initial_values = {
+                name: float(v) for name, v in _model_vals.items() if name in _varying
+            }
+
+    # Pre-dispatch D_total sign guard (het_c7fb5859 prevention).
+    # Reparameterisation samples D_total = D0 + D_offset per transport group.
+    # If D_total ≤ 0 at the warm-start point the prior has log_prob = −∞ →
+    # every NUTS leapfrog proposal is rejected → BFMI=0.000 and R-hat=NaN
+    # across all shards.  Clamp D_offset so D_total = 1% of D0 (tiny but
+    # positive) before workers are dispatched.
+    if _use_reparam and config.reparameterization_d_total and initial_values:
+        _iv_mutable: dict[str, Any] | None = None  # lazy copy-on-write
+        for _grp in ("ref", "sample"):
+            _d0 = initial_values.get(f"D0_{_grp}")
+            _doff = initial_values.get(f"D_offset_{_grp}")
+            if _d0 is not None and _doff is not None:
+                _d_total = float(_d0) + float(_doff)
+                if _d_total <= 0.0:
+                    _new_doff = -0.99 * float(_d0)  # D_total = 0.01×D0 > 0
+                    logger.warning(
+                        "[CMC-sharded] D_total_%s = D0_%s + D_offset_%s = %.3g ≤ 0 — "
+                        "reparameterised prior requires D_total > 0 "
+                        "(log-prior = −∞ at warm-start → BFMI=0 on all shards). "
+                        "Clamping D_offset_%s %.3g → %.3g. "
+                        "Root cause: stale NLSQ warm-start with degenerate parameter "
+                        "combination; re-run NLSQ with current config bounds.",
+                        _grp,
+                        _grp,
+                        _grp,
+                        _d_total,
+                        _grp,
+                        float(_doff),
+                        _new_doff,
+                    )
+                    if _iv_mutable is None:
+                        _iv_mutable = dict(initial_values)
+                    _iv_mutable[f"D_offset_{_grp}"] = _new_doff
+        if _iv_mutable is not None:
+            initial_values = _iv_mutable
 
     # Log rough runtime estimate before blocking and warn if it exceeds timeout.
     avg_pts = sum(int(np.asarray(s["c2_data"]).size) for s in parallel_shards) // max(
@@ -823,32 +870,45 @@ def fit_cmc_sharded(
             avg_pts,
         )
 
-    # Early abort guard: without an NLSQ warm-start, NUTS starts from the
-    # default prior (identity mass matrix) and must discover the posterior
-    # geometry from scratch during warmup.  For the 14-parameter heterodyne
-    # model with shards >10K points, warmup alone exceeds 7200s because NUTS
-    # saturates max_tree_depth (1024 leapfrog steps) on every iteration.
+    # Early abort guard: without any warm-start, NUTS starts from the default
+    # prior (identity mass matrix) and must discover the posterior geometry
+    # from scratch during warmup.  For the 14-parameter heterodyne model with
+    # shards >10K points, warmup alone exceeds 7200s because NUTS saturates
+    # max_tree_depth (1024 leapfrog steps) on every iteration.
     # This is the het_c7548ee8 failure mode: all 47 shards timeout with 0
     # posterior samples collected.
     _NO_NLSQ_SHARD_LIMIT = 10_000
     if nlsq_result is None and avg_pts > _NO_NLSQ_SHARD_LIMIT:
-        # Hard abort: 3 separate runs (het_c7548ee8, het_e34fa942, het_dd0f825b)
-        # prove that CMC without NLSQ on >10K-point shards ALWAYS timeouts after
-        # 8+ hours with 0 posterior samples. NUTS must discover a 14-parameter
-        # posterior geometry from scratch (identity mass matrix, no warm start).
-        # Warmup alone saturates max_tree_depth=10 (1024 leapfrog steps/step)
-        # on every iteration, far exceeding per_shard_timeout=7200s.
-        # Abort immediately to prevent silent 8-hour waste.
-        raise RuntimeError(
-            f"[CMC-sharded] Aborting: no NLSQ warm-start provided and "
-            f"avg_points_per_shard={avg_pts} > {_NO_NLSQ_SHARD_LIMIT}. "
-            f"Without a warm-start, all {num_shards} shards will timeout "
-            f"({config.per_shard_timeout}s) with 0 posterior samples collected. "
-            "Fix: run NLSQ first (optimizer: nlsq) then re-run CMC, or use "
-            "optimizer: both to run NLSQ→CMC in one pass. "
-            "To override (e.g. for small pilot runs), reduce max_points_per_shard "
-            f"below {_NO_NLSQ_SHARD_LIMIT} in the CMC config."
-        )
+        if initial_values:
+            # Model-configured initial values (e.g. NLSQ results pre-populated
+            # in config's `parameters:` section) provide a good starting point.
+            # NLSQ-informed priors and uncertainties are unavailable, so the
+            # mass matrix adapts from identity during warmup — expect more warmup
+            # steps than with a full NLSQResult, but the run will not timeout.
+            logger.warning(
+                "[CMC-sharded] No NLSQ result object provided; using model-configured "
+                "initial values as fallback warm-start (%d varying params). "
+                "Priors are registry-based (not NLSQ-informed) — warmup may be slower.",
+                len(initial_values),
+            )
+        else:
+            # Hard abort: 3 separate runs (het_c7548ee8, het_e34fa942, het_dd0f825b)
+            # prove that CMC without ANY warm-start on >10K-point shards ALWAYS
+            # timeouts after 8+ hours with 0 posterior samples. NUTS must discover
+            # a 14-parameter posterior geometry from scratch (identity mass matrix).
+            # Warmup alone saturates max_tree_depth=10 (1024 leapfrog steps/step)
+            # on every iteration, far exceeding per_shard_timeout=7200s.
+            # Abort immediately to prevent silent 8-hour waste.
+            raise RuntimeError(
+                f"[CMC-sharded] Aborting: no NLSQ warm-start provided and "
+                f"avg_points_per_shard={avg_pts} > {_NO_NLSQ_SHARD_LIMIT}. "
+                f"Without a warm-start, all {num_shards} shards will timeout "
+                f"({config.per_shard_timeout}s) with 0 posterior samples collected. "
+                "Fix: run NLSQ first (optimizer: nlsq) then re-run CMC, or use "
+                "optimizer: both to run NLSQ→CMC in one pass. "
+                "To override (e.g. for small pilot runs), reduce max_points_per_shard "
+                f"below {_NO_NLSQ_SHARD_LIMIT} in the CMC config."
+            )
 
     logger.info(
         "[CMC-sharded] Phase 3/5: dispatching %d shards to MultiprocessingBackend",

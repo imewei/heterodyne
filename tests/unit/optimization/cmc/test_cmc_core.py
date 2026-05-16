@@ -1184,3 +1184,170 @@ class TestBugPrevention_AlphaBounds:
                 "Wide tempered priors cause near-uniform density → NUTS timeout "
                 "when running without NLSQ warmstart (het_c7548ee8 failure mode)."
             )
+
+
+@pytest.mark.unit
+class TestBugPrevention_DTotalSignGuard:
+    """Regression tests for het_c7fb5859: fit_cmc_sharded must emit a WARNING
+    and clamp D_offset when D_total = D0 + D_offset ≤ 0 and reparameterisation
+    is enabled.
+
+    Root cause: stale NLSQ result had D0_sample=1390, D_offset_sample=-2644 →
+    D_total_sample = -1254 < 0.  Reparameterised prior requires D_total > 0, so
+    log_prior = -inf at the warm-start init point → all NUTS leapfrog proposals
+    rejected → BFMI=0.000, R-hat=NaN across all 47 shards.
+    """
+
+    @pytest.mark.unit
+    def test_negative_d_total_sample_emits_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A WARNING is emitted and D_offset_sample is clamped when
+        D0_sample + D_offset_sample ≤ 0 with reparameterisation enabled."""
+        import unittest.mock as mock
+
+        import numpy as np
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_sharded
+        from heterodyne.optimization.nlsq.results import NLSQResult
+
+        model = mock.MagicMock()
+        model.param_manager.space.varying_names = [
+            "D0_ref",
+            "D0_sample",
+            "D_offset_sample",
+        ]
+        model.param_manager.space.varying_physics_names = (
+            model.param_manager.space.varying_names
+        )
+        model.param_manager.space.bounds = {
+            "D0_ref": (100.0, 1e6),
+            "D0_sample": (100.0, 1e6),
+            "D_offset_sample": (-1e5, 1e5),
+        }
+        model.q = 0.0054
+        model.dt = 0.1
+        model.t = np.linspace(0.1, 10.0, 50)
+        model.scaling.get_for_angle.return_value = (0.3, 1.0)
+
+        # NLSQ result replicating het_c7fb5859: D_total_sample = 1390 - 2644 < 0
+        nlsq = NLSQResult(
+            parameters=np.array([5110.0, 1390.0, -2644.0]),
+            parameter_names=["D0_ref", "D0_sample", "D_offset_sample"],
+            success=True,
+            message="converged",
+            reduced_chi_squared=0.86,
+            metadata={},
+        )
+
+        # Small c2 (50×50 = 2500 pts, 2 shards → 1250 pts each < 10K abort limit)
+        rng = np.random.default_rng(42)
+        c2 = rng.normal(1.0, 0.05, size=(50, 50))
+        c2 = (c2 + c2.T) / 2
+        np.fill_diagonal(c2, 1.0)
+
+        config = (
+            CMCConfig()
+        )  # use_reparam=True, reparameterization_d_total=True by default
+
+        import heterodyne.optimization.cmc.core as cmc_core
+
+        warning_calls: list[str] = []
+        _orig_warn = cmc_core.logger.warning
+
+        def _capture(msg: object, *args: object, **kw: object) -> None:
+            warning_calls.append(str(msg) % args if args else str(msg))
+            _orig_warn(msg, *args, **kw)  # type: ignore[arg-type]
+
+        with mock.patch.object(cmc_core.logger, "warning", side_effect=_capture):
+            try:
+                fit_cmc_sharded(
+                    model=model,
+                    c2_data=c2,
+                    config=config,
+                    nlsq_result=nlsq,
+                    num_shards=2,
+                )
+            except Exception:
+                pass  # may fail later (mock pickling) — only the warning matters
+
+        warned = any("D_total_sample" in msg for msg in warning_calls)
+        assert warned, (
+            "Expected WARNING about D_total_sample <= 0 before dispatching shards. "
+            "het_c7fb5859: D_total<0 with reparam causes BFMI=0 on all shards "
+            "without this guard. Captured: " + str(warning_calls)
+        )
+
+    @pytest.mark.unit
+    def test_positive_d_total_does_not_warn(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """No D_total warning is emitted when D0 + D_offset > 0."""
+        import logging
+        import unittest.mock as mock
+
+        import numpy as np
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_sharded
+        from heterodyne.optimization.nlsq.results import NLSQResult
+
+        model = mock.MagicMock()
+        model.param_manager.space.varying_names = [
+            "D0_ref",
+            "D0_sample",
+            "D_offset_sample",
+        ]
+        model.param_manager.space.varying_physics_names = (
+            model.param_manager.space.varying_names
+        )
+        model.param_manager.space.bounds = {
+            "D0_ref": (100.0, 1e6),
+            "D0_sample": (100.0, 1e6),
+            "D_offset_sample": (-1e5, 1e5),
+        }
+        model.q = 0.0054
+        model.dt = 0.1
+        model.t = np.linspace(0.1, 10.0, 50)
+        model.scaling.get_for_angle.return_value = (0.3, 1.0)
+
+        # Healthy NLSQ result: D_total_sample = 5000 + (-100) = 4900 > 0
+        nlsq = NLSQResult(
+            parameters=np.array([5000.0, 5000.0, -100.0]),
+            parameter_names=["D0_ref", "D0_sample", "D_offset_sample"],
+            success=True,
+            message="converged",
+            reduced_chi_squared=0.9,
+            metadata={},
+        )
+
+        rng = np.random.default_rng(7)
+        c2 = rng.normal(1.0, 0.05, size=(50, 50))
+        c2 = (c2 + c2.T) / 2
+        np.fill_diagonal(c2, 1.0)
+
+        config = CMCConfig()
+
+        with caplog.at_level(
+            logging.WARNING, logger="heterodyne.optimization.cmc.core"
+        ):
+            try:
+                fit_cmc_sharded(
+                    model=model,
+                    c2_data=c2,
+                    config=config,
+                    nlsq_result=nlsq,
+                    num_shards=2,
+                )
+            except Exception:
+                pass
+
+        d_total_warnings = [
+            r
+            for r in caplog.records
+            if r.levelno >= logging.WARNING and "D_total_sample" in r.message
+        ]
+        assert not d_total_warnings, (
+            f"No D_total warning expected when D_total > 0, got: {d_total_warnings}"
+        )
