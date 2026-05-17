@@ -315,13 +315,47 @@ class AnalysisSummaryLogger:
         """
         self._output_files.append(Path(path))
 
+    # Statuses that indicate a failure outcome. Once any of these has been
+    # recorded, calls with a non-failure status are ignored so a partial
+    # success cannot silently mask the failure. Defends against a future bug
+    # where some code path optimistically calls
+    # ``set_convergence_status("converged")`` after a failure was already
+    # recorded — the het_a10cf27e regression mode would have caught itself
+    # at the logger boundary even before the dispatch-side fix.
+    _FAILURE_STATUSES: frozenset[str] = frozenset(
+        {"failed", "not_converged", "max_iter"}
+    )
+
     def set_convergence_status(self, status: str) -> None:
-        """Set final convergence status.
+        """Set final convergence status (failure is sticky).
+
+        Once a failure status ("failed", "not_converged", "max_iter") has
+        been recorded, subsequent calls with a non-failure status are
+        ignored. Failure-to-failure transitions and success-to-failure
+        transitions are always allowed.
 
         Args:
             status: Convergence status (e.g., "converged", "max_iter", "failed").
         """
+        current = self._convergence_status
+        if current is None:
+            self._convergence_status = status
+            return
+
+        # If the current status is a failure, only another failure may overwrite.
+        if current in self._FAILURE_STATUSES and status not in self._FAILURE_STATUSES:
+            return
+
         self._convergence_status = status
+
+    @property
+    def convergence_status(self) -> str | None:
+        """Final convergence status recorded for this run (read-only)."""
+        return self._convergence_status
+
+    def is_failure(self) -> bool:
+        """Return True when the recorded status indicates a failed run."""
+        return self._convergence_status in self._FAILURE_STATUSES
 
     def increment_warning_count(self) -> None:
         """Increment warning counter."""

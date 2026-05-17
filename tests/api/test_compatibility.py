@@ -171,12 +171,19 @@ class TestOptimizationSignatures:
 
     @pytest.mark.unit
     def test_cmc_config_defaults_aligned(self) -> None:
-        """CMCConfig defaults match homodyne parity targets."""
+        """CMCConfig defaults match homodyne parity targets.
+
+        ``target_accept_prob=0.90`` is the het_a10cf27e-hardened default:
+        commits 7892c09 / 779523c / c91fe9d raised it from 0.85 to reduce
+        divergence rates on boundary-adjacent warm-starts. Higher target
+        acceptance shrinks NUTS step size, making the sampler more robust
+        when chains start near a parameter bound.
+        """
         from heterodyne import CMCConfig
 
         cfg = CMCConfig()
         assert cfg.num_samples == 1500
-        assert cfg.target_accept_prob == 0.85
+        assert cfg.target_accept_prob == 0.90
         assert cfg.min_ess == 400
         assert cfg.seed == 42
 
@@ -194,8 +201,15 @@ class TestModuleAvailability:
         """All HAS_* flags are boolean."""
         import heterodyne
 
-        flags = ["HAS_CORE", "HAS_DATA", "HAS_CONFIG", "HAS_OPTIMIZATION",
-                 "HAS_DEVICE", "HAS_VIZ", "HAS_CLI"]
+        flags = [
+            "HAS_CORE",
+            "HAS_DATA",
+            "HAS_CONFIG",
+            "HAS_OPTIMIZATION",
+            "HAS_DEVICE",
+            "HAS_VIZ",
+            "HAS_CLI",
+        ]
         for flag in flags:
             val = getattr(heterodyne, flag)
             assert isinstance(val, bool), f"{flag} is {type(val)}, expected bool"

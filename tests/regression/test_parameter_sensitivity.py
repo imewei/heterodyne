@@ -37,6 +37,40 @@ def _default_params() -> np.ndarray:
     )
 
 
+# Non-degenerate operating point used by ``TestJacobianStructure`` to verify
+# identifiability. The registry defaults are deliberately symmetric
+# (alpha_ref=alpha_sample=0, D0_ref=D0_sample, beta=0, f1=0) — at that point
+# the model is structurally non-identifiable: ref/sample pairs are collinear,
+# v0/v_offset are collinear (both constant when beta=0), and ∂c2/∂f1 = 0
+# because the mixing fraction is irrelevant when the two transport
+# components are physically identical. To test sensitivity properly we have
+# to evaluate the Jacobian away from that symmetric singularity.
+_NONDEGENERATE_VALUES: dict[str, float] = {
+    "D0_ref": 1.5e4,
+    "alpha_ref": 0.3,
+    "D_offset_ref": 1.0e2,
+    "D0_sample": 8.0e3,
+    "alpha_sample": 0.5,
+    "D_offset_sample": 50.0,
+    "v0": 800.0,
+    "beta": 0.2,
+    "v_offset": 30.0,
+    "f0": 0.6,
+    "f1": 0.5,
+    "f2": 0.02,
+    "f3": 0.1,
+    "phi0": 0.0,
+}
+
+
+def _nondegenerate_params() -> np.ndarray:
+    """Parameter vector that breaks every default-point symmetry."""
+    return np.array(
+        [_NONDEGENERATE_VALUES[name] for name in ALL_PARAM_NAMES],
+        dtype=np.float64,
+    )
+
+
 def _time_grid() -> tuple[np.ndarray, float]:
     """Return (t, dt) for the small test grid."""
     t = np.linspace(1e-6, 0.1, N_TIMES)
@@ -100,64 +134,92 @@ class TestParameterPerturbation:
 
 @pytest.mark.regression
 class TestJacobianStructure:
-    """Jacobian at default parameters is well-structured."""
+    """Jacobian at a non-degenerate operating point has full rank.
+
+    The registry defaults (alpha_ref=alpha_sample=0, D0_ref=D0_sample, beta=0,
+    f1=0) are deliberately symmetric and produce a Jacobian with rank 9/14:
+    ref/sample pairs are collinear, v0/v_offset are collinear (both constant
+    when beta=0), and ∂c2/∂f1 = 0 because the mixing fraction is irrelevant
+    when the two transport components are physically identical.
+
+    To verify the model's *intrinsic* identifiability we evaluate the
+    Jacobian at a non-degenerate point that breaks every symmetry, and
+    confirm full rank (14) and non-zero sensitivity for every parameter.
+    The degeneracy at registry defaults is documented separately by
+    ``TestJacobianAtSymmetricDefaults``.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _setup(self) -> None:
+        self.params = _nondegenerate_params()
+        self.jac = compute_numerical_jacobian(_residual_fn, self.params)
+
+    def test_jacobian_full_rank_at_nondegenerate_point(self) -> None:
+        """All 14 parameters identifiable off the symmetric singularity."""
+        rank = int(np.linalg.matrix_rank(self.jac))
+        assert rank == 14, (
+            f"Jacobian rank {rank} < 14 at non-degenerate point — "
+            f"a parameter has unexpectedly lost identifiability"
+        )
+
+    def test_condition_number_finite(self) -> None:
+        """J^T J condition number is finite at the non-degenerate point."""
+        cond = compute_jacobian_condition_number(self.jac)
+        assert np.isfinite(cond), "Jacobian condition number is not finite"
+
+    def test_d0_has_nonzero_sensitivity(self) -> None:
+        """D0_ref and D0_sample have non-zero Jacobian column norms."""
+        sensitivity = analyze_parameter_sensitivity(self.jac, list(ALL_PARAM_NAMES))
+        assert sensitivity["D0_ref"] > 1e-30, "D0_ref has zero sensitivity"
+        assert sensitivity["D0_sample"] > 1e-30, "D0_sample has zero sensitivity"
+
+    def test_all_parameters_nonzero_sensitivity(self) -> None:
+        """Every physics parameter is sensitive at the non-degenerate point."""
+        sensitivity = analyze_parameter_sensitivity(self.jac, list(ALL_PARAM_NAMES))
+        for name, norm in sensitivity.items():
+            assert norm > 1e-30, (
+                f"{name}: sensitivity is effectively zero ({norm:.2e}) at the "
+                f"non-degenerate operating point — model has lost identifiability"
+            )
+
+
+@pytest.mark.regression
+class TestJacobianAtSymmetricDefaults:
+    """Document the structural degeneracies at registry default parameters.
+
+    These tests pin down the *expected* unidentifiabilities so we notice if
+    they shift. Anyone warm-starting CMC at parameters this close to the
+    symmetric defaults must expect divergent NUTS chains (this is the
+    het_a10cf27e failure mode).
+    """
 
     @pytest.fixture(autouse=True)
     def _setup(self) -> None:
         self.params = _default_params()
         self.jac = compute_numerical_jacobian(_residual_fn, self.params)
 
-    def test_jacobian_sufficient_rank(self) -> None:
-        """Jacobian has rank >= 10 (some params are insensitive at defaults).
-
-        At the default parameter point, f1=0 makes f2 irrelevant, and
-        the fraction is constant so some cross-couplings vanish.  The
-        model achieves full rank only at non-default operating points.
+    def test_rank_reflects_symmetric_singularity(self) -> None:
+        """At symmetric defaults, rank is 9/14 (ref/sample collinear; v0/v_offset
+        collinear at beta=0; f1, f2 have zero columns).
         """
         rank = int(np.linalg.matrix_rank(self.jac))
-        # At least 10 of 14 parameters should be identifiable at defaults
-        assert rank >= 10, (
-            f"Jacobian rank {rank} is too low — expected at least 10 "
-            f"identifiable parameters at default values"
+        assert rank == 9, (
+            f"Expected rank 9 at symmetric defaults (structural degeneracy); "
+            f"got {rank}. If this changed, document the new identifiability."
         )
 
-    def test_condition_number_finite(self) -> None:
-        """J^T J condition number is finite (not inf/nan).
-
-        At default parameters the condition number is very large because
-        some fraction parameters (f2 when f1=0) are insensitive.  We only
-        check finiteness here; practical NLSQ runs use a reduced parameter
-        set with better conditioning.
-        """
-        cond = compute_jacobian_condition_number(self.jac)
-        assert np.isfinite(cond), "Jacobian condition number is not finite"
-
-    def test_d0_has_nonzero_sensitivity(self) -> None:
-        """D0_ref and D0_sample have non-zero Jacobian column norms.
-
-        At default parameters (alpha=0), the transport rate is D0*t^0 + offset = D0 + offset,
-        so D0 contributes but is not necessarily the dominant sensitivity.  The exponent
-        parameters (alpha, beta) can dominate because small exponent changes affect the
-        time-dependent shape strongly.
+    def test_f1_and_f2_have_zero_columns(self) -> None:
+        """When ref and sample physics are identical, the mixing fraction
+        f0*exp(f1*(t-f2)) + f3 has no effect on the model. ∂c2/∂f1 = 0 and
+        ∂c2/∂f2 = 0 at this degenerate point.
         """
         sensitivity = analyze_parameter_sensitivity(self.jac, list(ALL_PARAM_NAMES))
-        assert sensitivity["D0_ref"] > 1e-30, "D0_ref has zero sensitivity"
-        assert sensitivity["D0_sample"] > 1e-30, "D0_sample has zero sensitivity"
-
-    def test_active_parameters_nonzero_sensitivity(self) -> None:
-        """Physics parameters that are active at defaults have non-zero sensitivity.
-
-        At defaults, f1=0 makes f2 insensitive (f2 is a time shift in
-        f0*exp(f1*(t-f2))+f3, which is constant when f1=0).  We check
-        the remaining 13 parameters.
-        """
-        # f2 is expected to have zero sensitivity when f1=0
-        expected_insensitive = {"f2"}
-        sensitivity = analyze_parameter_sensitivity(self.jac, list(ALL_PARAM_NAMES))
-        for name, norm in sensitivity.items():
-            if name in expected_insensitive:
-                continue
-            assert norm > 1e-30, f"{name}: sensitivity is effectively zero ({norm:.2e})"
+        assert sensitivity["f1"] < 1e-12, (
+            f"f1 expected zero at symmetric defaults; got {sensitivity['f1']:.2e}"
+        )
+        assert sensitivity["f2"] < 1e-12, (
+            f"f2 expected zero at symmetric defaults; got {sensitivity['f2']:.2e}"
+        )
 
 
 @pytest.mark.regression

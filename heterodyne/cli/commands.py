@@ -27,6 +27,24 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _result_converged(result: Any) -> bool:
+    """Return True when an optimizer result represents a converged fit.
+
+    NLSQResult exposes ``success`` (least-squares termination).
+    CMCResult exposes ``convergence_passed`` (R-hat/ESS gates).
+
+    Read whichever attribute the result type provides; do not silently default
+    to ``True`` when neither is present, since that masked the het_a10cf27e
+    failure mode (47/47 shards failed every angle, reported as "converged").
+    """
+    if hasattr(result, "convergence_passed"):
+        return bool(result.convergence_passed)
+    if hasattr(result, "success"):
+        return bool(result.success)
+    # Unknown result type — be conservative.
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------
@@ -443,12 +461,18 @@ def dispatch_command(args: argparse.Namespace) -> int:
         nlsq_results = opt["nlsq_results"]
         cmc_results = opt["cmc_results"]
 
-        # Record convergence status and metrics from optimization results
+        # Record convergence status and metrics from optimization results.
+        # NLSQResult exposes ``success`` (least-squares convergence); CMCResult
+        # exposes ``convergence_passed`` (R-hat/ESS gates). Using a single
+        # ``getattr(r, "success", True)`` silently treated every CMCResult as
+        # successful because the attribute does not exist on CMCResult — even
+        # when 100% of MCMC shards failed convergence (run het_a10cf27e: all
+        # 47/47 shards failed across all 3 angles, yet status was "converged").
         active_results = (
             cmc_results if method in ("cmc", "both") and cmc_results else nlsq_results
         )
         if active_results:
-            converged = all(getattr(r, "success", True) for r in active_results)
+            converged = all(_result_converged(r) for r in active_results)
             summary.set_convergence_status(
                 "converged" if converged else "not_converged"
             )
@@ -512,6 +536,16 @@ def dispatch_command(args: argparse.Namespace) -> int:
     summary.log_summary(logger)
     if log_file is not None:
         logger.info("[CLI] Analysis log saved to: %s", log_file)
+    # Non-zero exit when convergence failed so CI / downstream tooling can
+    # detect the het_a10cf27e-class regression even if the human reader
+    # missed the "not_converged" line in the analysis summary.
+    if summary.is_failure():
+        logger.warning(
+            "[CLI] Exiting with code 2 — optimization did not converge "
+            "(status=%s; see analysis summary above).",
+            summary.convergence_status,
+        )
+        return 2
     return 0
 
 

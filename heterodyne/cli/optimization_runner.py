@@ -401,8 +401,49 @@ def run_cmc(
         save_mcmc_results(result, output_dir, prefix=prefix)
         logger.info("Saved CMC results → %s (prefix=%s)", output_dir, prefix)
 
+        # Short-circuit on fully-degenerate result: when 100% of shards failed
+        # the consensus combiner returns a CMCResult with no samples and
+        # convergence_passed=False. The remaining angles share the same warm-
+        # start regime and will fail identically (run het_a10cf27e burned 11h
+        # producing 3 identical degenerate results). Stop and surface the
+        # failure immediately.
+        if _is_degenerate_cmc_result(result) and i + 1 < len(phi_angles):
+            remaining = len(phi_angles) - (i + 1)
+            logger.error(
+                "[CMC] All shards failed for phi=%s° — aborting remaining "
+                "%d angle(s). The warm-start parameters are degenerate or the "
+                "model is unidentifiable for this dataset; running additional "
+                "angles will produce identical empty results. "
+                "Fixes: freeze degenerate params in YAML "
+                "(optimization.cmc.fixed_params), tighten NLSQ bounds, or "
+                "use allow_degenerate_warmstart: true to override.",
+                phi,
+                remaining,
+            )
+            break
+
     logger.info("CMC analysis complete")
     return results
+
+
+def _is_degenerate_cmc_result(result: CMCResult) -> bool:
+    """Return True when a CMC result is the all-shards-failed sentinel.
+
+    ``_combine_shard_posteriors`` returns a CMCResult with no samples and
+    ``convergence_passed=False`` when zero shards survived the
+    R-hat/ESS/no-samples gates. Detecting this lets the per-angle loop bail
+    out instead of running the next angle with the same broken warm-start.
+    """
+    if getattr(result, "convergence_passed", True):
+        return False
+    samples = getattr(result, "samples", None)
+    if samples is None:
+        return True
+    # samples present but empty is also degenerate
+    try:
+        return all(np.asarray(s).size == 0 for s in samples.values())
+    except Exception:
+        return False
 
 
 def resolve_nlsq_warmstart(
