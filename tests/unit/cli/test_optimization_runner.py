@@ -553,3 +553,108 @@ class TestBugPrevention_StaleNLSQFixedParamOverride:
             positional.parameters,
             err_msg="fixed_param_overrides=None must be identical to omitting it",
         )
+
+
+@pytest.mark.unit
+class TestWarnDegenerateSampleRegime:
+    """Regression tests for het_bb97531f: _warn_degenerate_sample_regime must
+    emit a WARNING when the NLSQ warm-start has f0 < 0.10 or
+    alpha_sample < -1.5, either of which causes 100% CMC shard bad_convergence
+    with BFMI=0.000.
+    """
+
+    # Heterodyne uses a StreamHandler-based logger that does not propagate
+    # to pytest's caplog handler.  Use mock.patch.object to capture calls to
+    # logger.warning directly (same pattern as TestBugPrevention_DTotalSignGuard).
+
+    def _capture_warnings(self, fn, *args, **kwargs) -> list[str]:  # type: ignore[no-untyped-def]
+        """Run *fn* with args/kwargs and return all captured warning strings."""
+        from unittest.mock import patch
+
+        import heterodyne.cli.optimization_runner as runner_mod
+
+        calls: list[str] = []
+        _orig = runner_mod.logger.warning
+
+        def _capture(msg: object, *a: object, **kw: object) -> None:
+            calls.append(str(msg) % a if a else str(msg))
+            _orig(msg, *a, **kw)  # type: ignore[arg-type]
+
+        with patch.object(runner_mod.logger, "warning", side_effect=_capture):
+            fn(*args, **kwargs)
+        return calls
+
+    @pytest.mark.unit
+    def test_low_f0_triggers_warning(self) -> None:
+        """f0 < 0.10 triggers degenerate-regime WARNING."""
+        from heterodyne.cli.optimization_runner import _warn_degenerate_sample_regime
+
+        result = _make_nlsq_result(
+            params={"D0_ref": 5e3, "D0_sample": 1.4e3, "alpha_sample": -0.3, "f0": 0.03}
+        )
+        calls = self._capture_warnings(_warn_degenerate_sample_regime, result)
+        degen = [m for m in calls if "Degenerate" in m]
+        assert degen, f"Expected WARNING for f0=0.03 < 0.10. Captured: {calls}"
+        assert any("f0=" in m for m in degen), "WARNING message must mention f0 value"
+
+    @pytest.mark.unit
+    def test_very_negative_alpha_sample_triggers_warning(self) -> None:
+        """alpha_sample < -1.5 triggers degenerate-regime WARNING."""
+        from heterodyne.cli.optimization_runner import _warn_degenerate_sample_regime
+
+        result = _make_nlsq_result(
+            params={"D0_ref": 5e3, "D0_sample": 1.4e3, "alpha_sample": -2.0, "f0": 0.5}
+        )
+        calls = self._capture_warnings(_warn_degenerate_sample_regime, result)
+        degen = [m for m in calls if "Degenerate" in m]
+        assert degen, (
+            f"Expected WARNING for alpha_sample=-2.0 < -1.5. Captured: {calls}"
+        )
+        assert any("alpha_sample=" in m for m in degen), (
+            "WARNING message must mention alpha_sample value"
+        )
+
+    @pytest.mark.unit
+    def test_both_conditions_produces_single_warning(self) -> None:
+        """f0 < 0.10 AND alpha_sample < -1.5 together produce one WARNING call."""
+        from heterodyne.cli.optimization_runner import _warn_degenerate_sample_regime
+
+        result = _make_nlsq_result(
+            params={"D0_ref": 5e3, "D0_sample": 1.4e3, "alpha_sample": -2.0, "f0": 0.03}
+        )
+        calls = self._capture_warnings(_warn_degenerate_sample_regime, result)
+        degen = [m for m in calls if "Degenerate" in m]
+        assert len(degen) == 1, (
+            f"Expected exactly one WARNING for both conditions, got {len(degen)}: {degen}"
+        )
+        assert "f0=" in degen[0] and "alpha_sample=" in degen[0], (
+            "Single WARNING must mention both f0 and alpha_sample"
+        )
+
+    @pytest.mark.unit
+    def test_healthy_regime_no_warning(self) -> None:
+        """No WARNING for f0 ≥ 0.10 and alpha_sample ≥ -1.5."""
+        from heterodyne.cli.optimization_runner import _warn_degenerate_sample_regime
+
+        result = _make_nlsq_result(
+            params={
+                "D0_ref": 5e3,
+                "D0_sample": 1.4e3,
+                "alpha_sample": -0.25,
+                "f0": 0.45,
+            }
+        )
+        calls = self._capture_warnings(_warn_degenerate_sample_regime, result)
+        warnings = [m for m in calls if "Degenerate" in m]
+        assert not warnings, (
+            f"No WARNING expected for healthy warm-start, got: {warnings}"
+        )
+
+    @pytest.mark.unit
+    def test_missing_f0_does_not_raise(self) -> None:
+        """Function is silent when f0 / alpha_sample are not in the result."""
+        from heterodyne.cli.optimization_runner import _warn_degenerate_sample_regime
+
+        result = _make_nlsq_result(params={"D0_ref": 5e3})
+        # Must not raise; no f0 or alpha_sample → nothing to check
+        _warn_degenerate_sample_regime(result)

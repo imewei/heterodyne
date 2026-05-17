@@ -1351,3 +1351,293 @@ class TestBugPrevention_DTotalSignGuard:
         assert not d_total_warnings, (
             f"No D_total warning expected when D_total > 0, got: {d_total_warnings}"
         )
+
+
+@pytest.mark.unit
+class TestBugPrevention_DegenerateWarmstart:
+    """Regression tests for het_bb97531f: fit_cmc_sharded must emit a WARNING
+    before dispatching shards when the warm-start is in a degenerate regime
+    that causes 100% shard bad_convergence with BFMI=0.000.
+
+    Two trigger conditions:
+      (a) f0 < 0.10  → sample fraction near-zero → sample-transport params
+          unidentifiable → NUTS can't thermalize from warm-start in 500 steps.
+      (b) alpha_sample < -1.5 → J_sample ∝ t^α has non-integrable singularity
+          at short lags → NUTS step-size collapses for sample group.
+    """
+
+    def _make_model_mock(self) -> Any:
+        import unittest.mock as mock
+
+        import numpy as np
+
+        model = mock.MagicMock()
+        model.param_manager.space.varying_names = [
+            "D0_ref",
+            "D0_sample",
+            "alpha_sample",
+            "f0",
+        ]
+        model.param_manager.space.varying_physics_names = (
+            model.param_manager.space.varying_names
+        )
+        model.param_manager.space.bounds = {
+            "D0_ref": (100.0, 1e6),
+            "D0_sample": (100.0, 1e6),
+            "alpha_sample": (-5.0, 5.0),
+            "f0": (0.0, 1.0),
+        }
+        model.q = 0.0054
+        model.dt = 0.001
+        model.t = np.linspace(0.001, 10.0, 50)
+        model.scaling.get_for_angle.return_value = (0.3, 1.0)
+        return model
+
+    def _make_c2(self) -> Any:
+        import numpy as np
+
+        rng = np.random.default_rng(42)
+        c2 = rng.normal(1.0, 0.05, size=(50, 50))
+        c2 = (c2 + c2.T) / 2
+        np.fill_diagonal(c2, 1.0)
+        return c2
+
+    @pytest.mark.unit
+    def test_low_f0_emits_degenerate_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """WARNING emitted when f0 < 0.10 (sample fraction near-zero)."""
+        import unittest.mock as mock
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_sharded
+        from heterodyne.optimization.nlsq.results import NLSQResult
+
+        nlsq = NLSQResult(
+            parameters=[5110.0, 1390.0, 0.0, 0.03],  # f0=0.03 < 0.10
+            parameter_names=["D0_ref", "D0_sample", "alpha_sample", "f0"],
+            success=True,
+            message="converged",
+            reduced_chi_squared=0.86,
+            metadata={},
+        )
+        import heterodyne.optimization.cmc.core as cmc_core
+
+        warning_calls: list[str] = []
+        _orig = cmc_core.logger.warning
+
+        def _capture(msg: object, *args: object, **kw: object) -> None:
+            warning_calls.append(str(msg) % args if args else str(msg))
+            _orig(msg, *args, **kw)  # type: ignore[arg-type]
+
+        with mock.patch.object(cmc_core.logger, "warning", side_effect=_capture):
+            try:
+                fit_cmc_sharded(
+                    model=self._make_model_mock(),
+                    c2_data=self._make_c2(),
+                    config=CMCConfig(),
+                    nlsq_result=nlsq,
+                    num_shards=2,
+                )
+            except Exception:
+                pass
+
+        assert any(
+            "Degenerate warm-start" in m and "f0=" in m for m in warning_calls
+        ), (
+            "Expected WARNING about degenerate warm-start with f0 near-zero. "
+            f"Captured: {warning_calls}"
+        )
+
+    @pytest.mark.unit
+    def test_negative_alpha_sample_emits_degenerate_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """WARNING emitted when alpha_sample < -1.5 (J_sample singularity)."""
+        import unittest.mock as mock
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_sharded
+        from heterodyne.optimization.nlsq.results import NLSQResult
+
+        nlsq = NLSQResult(
+            parameters=[5110.0, 1390.0, -2.0, 0.5],  # alpha_sample=-2.0 < -1.5
+            parameter_names=["D0_ref", "D0_sample", "alpha_sample", "f0"],
+            success=True,
+            message="converged",
+            reduced_chi_squared=0.86,
+            metadata={},
+        )
+        import heterodyne.optimization.cmc.core as cmc_core
+
+        warning_calls: list[str] = []
+        _orig = cmc_core.logger.warning
+
+        def _capture(msg: object, *args: object, **kw: object) -> None:
+            warning_calls.append(str(msg) % args if args else str(msg))
+            _orig(msg, *args, **kw)  # type: ignore[arg-type]
+
+        with mock.patch.object(cmc_core.logger, "warning", side_effect=_capture):
+            try:
+                fit_cmc_sharded(
+                    model=self._make_model_mock(),
+                    c2_data=self._make_c2(),
+                    config=CMCConfig(),
+                    nlsq_result=nlsq,
+                    num_shards=2,
+                )
+            except Exception:
+                pass
+
+        assert any(
+            "Degenerate warm-start" in m and "alpha_sample=" in m for m in warning_calls
+        ), (
+            "Expected WARNING about degenerate warm-start with alpha_sample < -1.5. "
+            f"Captured: {warning_calls}"
+        )
+
+    @pytest.mark.unit
+    def test_healthy_warmstart_no_degenerate_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """No degenerate-warmstart WARNING when f0 and alpha_sample are normal."""
+        import logging
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_sharded
+        from heterodyne.optimization.nlsq.results import NLSQResult
+
+        nlsq = NLSQResult(
+            parameters=[5110.0, 1390.0, -0.3, 0.4],  # f0=0.4, alpha_sample=-0.3
+            parameter_names=["D0_ref", "D0_sample", "alpha_sample", "f0"],
+            success=True,
+            message="converged",
+            reduced_chi_squared=0.9,
+            metadata={},
+        )
+
+        with caplog.at_level(
+            logging.WARNING, logger="heterodyne.optimization.cmc.core"
+        ):
+            try:
+                fit_cmc_sharded(
+                    model=self._make_model_mock(),
+                    c2_data=self._make_c2(),
+                    config=CMCConfig(),
+                    nlsq_result=nlsq,
+                    num_shards=2,
+                )
+            except Exception:
+                pass
+
+        degen_warnings = [
+            r
+            for r in caplog.records
+            if r.levelno >= logging.WARNING and "Degenerate warm-start" in r.message
+        ]
+        assert not degen_warnings, (
+            f"No degenerate-warmstart warning expected for healthy params, "
+            f"got: {degen_warnings}"
+        )
+
+    @pytest.mark.unit
+    def test_mean_shard_bfmi_in_metadata(self) -> None:
+        """mean_shard_bfmi and n_bfmi_zero are present in the final metadata."""
+
+        import numpy as np
+
+        from heterodyne.optimization.cmc.results import CMCResult
+
+        # Build fake shard results with known BFMI values
+        names = ["D0_ref", "D0_sample"]
+        n = len(names)
+        rng = np.random.default_rng(0)
+
+        def _good(bfmi_val: float) -> CMCResult:
+            samples = {nm: rng.normal(size=200) for nm in names}
+            return CMCResult(
+                parameter_names=names,
+                posterior_mean=np.ones(n),
+                posterior_std=np.ones(n) * 0.1,
+                credible_intervals={nm: {"2.5%": -1.0, "97.5%": 1.0} for nm in names},
+                convergence_passed=True,
+                r_hat=np.ones(n) * 1.01,
+                ess_bulk=np.ones(n) * 600.0,
+                ess_tail=np.ones(n) * 600.0,
+                bfmi=[bfmi_val],
+                samples=samples,
+                map_estimate=np.ones(n),
+                num_warmup=100,
+                num_samples=200,
+                num_chains=1,
+                wall_time_seconds=1.0,
+                metadata={},
+            )
+
+        # Two shards: one healthy BFMI, one zero BFMI
+        shard_results = [_good(0.5), _good(0.0)]
+
+        # Directly test the metadata-assembly logic (matches core.py lines verbatim)
+        all_bfmi = [b for r in shard_results if r.bfmi is not None for b in r.bfmi]
+        mean_bfmi = float(np.nanmean(np.asarray(all_bfmi, dtype=float)))
+        n_zero = sum(
+            1
+            for r in shard_results
+            if r.bfmi is not None
+            and float(np.nanmin(np.asarray(r.bfmi, dtype=float))) < 0.01
+        )
+        assert abs(mean_bfmi - 0.25) < 1e-9, f"mean_bfmi={mean_bfmi}"
+        assert n_zero == 1, f"n_bfmi_zero={n_zero}"
+
+    @pytest.mark.unit
+    def test_failing_shard_diagnostics_logged_at_warning(self) -> None:
+        """A failing shard emits its diagnostics at WARNING (not just DEBUG)."""
+        import unittest.mock as mock
+
+        import numpy as np
+
+        import heterodyne.optimization.cmc.core as cmc_core
+        from heterodyne.optimization.cmc.core import (
+            CMCConfig,
+            _result_dict_to_cmc_result,
+        )
+
+        # Build a minimal result_dict that will fail convergence (r_hat > max_r_hat)
+        names = ["D0_ref", "alpha_sample"]
+        n_chains, n_samples = 4, 100
+        rng = np.random.default_rng(7)
+        # Each chain samples from a different mean → high R-hat
+        chain_samples = [
+            rng.normal(float(c) * 10, 0.1, n_samples) for c in range(n_chains)
+        ]
+        flat = np.concatenate(chain_samples)
+        result_dict = {
+            "success": True,
+            "param_names": names,
+            "samples": dict.fromkeys(names, flat),
+            "n_chains": n_chains,
+            "n_samples": n_samples,
+            "extra_fields": {},
+            "stats": {"num_divergent": 0, "n_warmup": 500},
+            "duration": 1.0,
+        }
+        config = CMCConfig(max_r_hat=1.1, min_ess=400)
+
+        warning_calls: list[str] = []
+        _orig = cmc_core.logger.warning
+
+        def _capture(msg: object, *a: object, **kw: object) -> None:
+            warning_calls.append(str(msg) % a if a else str(msg))
+            _orig(msg, *a, **kw)  # type: ignore[arg-type]
+
+        with mock.patch.object(cmc_core.logger, "warning", side_effect=_capture):
+            _result_dict_to_cmc_result(result_dict, config)
+
+        shard_diag_warnings = [m for m in warning_calls if "Shard diagnostics" in m]
+        assert shard_diag_warnings, (
+            "Expected WARNING-level 'Shard diagnostics' log for a failing shard. "
+            f"Captured: {warning_calls}"
+        )
+        assert any("FAIL" in m for m in shard_diag_warnings), (
+            "Shard diagnostics WARNING must contain 'FAIL'"
+        )

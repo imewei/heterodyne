@@ -842,6 +842,63 @@ def fit_cmc_sharded(
         if _iv_mutable is not None:
             initial_values = _iv_mutable
 
+    # Degenerate warm-start detector (het_bb97531f failure mode).
+    # Two compounding conditions cause 100% shard bad_convergence and BFMI=0.000:
+    #  (a) f0 ≈ 0 → sample fraction near-zero → alpha_sample, D0_sample,
+    #      D_offset_sample are unidentifiable from data.  Per-shard posteriors
+    #      are dominated by the tempered prior and chains must thermalize over
+    #      the full prior range during warmup with effectively zero likelihood
+    #      gradient for the sample-transport parameter group.
+    #  (b) alpha_sample < -1.5 → J_sample(t) ∝ t^α has a non-integrable
+    #      singularity at t→0 (∫₀^τ t^α dt diverges for α ≤ -1).  Even if f0
+    #      is moderate, the NUTS gradient for alpha_sample collapses to zero at
+    #      short lags (exp(-q²·half_tr_sample) → 0) while being huge at the
+    #      first time-grid point → step-size adaptation breaks down.
+    # Together these guarantee that all 47 shards fail convergence, wasting
+    # hours of compute.  Warn before dispatch so the user can act (e.g. freeze
+    # degenerate parameters or increase num_warmup) without waiting 7+ hours.
+    _F0_DEGEN_THRESHOLD = 0.10  # sample fraction below which params unidentifiable
+    _ALPHA_SINGULARITY = -1.5  # alpha at which J_sample integral diverges at t→0
+    if initial_values:
+        _f0_iv = initial_values.get("f0")
+        _alpha_s_iv = initial_values.get("alpha_sample")
+        _f0_degen = _f0_iv is not None and float(_f0_iv) < _F0_DEGEN_THRESHOLD
+        _alpha_sing = (
+            _alpha_s_iv is not None and float(_alpha_s_iv) < _ALPHA_SINGULARITY
+        )
+        if _f0_degen or _alpha_sing:
+            _parts: list[str] = []
+            if _f0_degen:
+                _parts.append(
+                    f"f0={float(_f0_iv):.4f} < {_F0_DEGEN_THRESHOLD} — "  # type: ignore[arg-type]
+                    "sample fraction near-zero → alpha_sample / D0_sample / "
+                    "D_offset_sample are unidentifiable; posterior ≈ tempered prior"
+                )
+            if _alpha_sing:
+                _parts.append(
+                    f"alpha_sample={float(_alpha_s_iv):.3f} < {_ALPHA_SINGULARITY} — "  # type: ignore[arg-type]
+                    "J_sample ∝ t^α has non-integrable singularity at short lags; "
+                    "NUTS step-size collapses for the sample-transport group"
+                )
+            logger.warning(
+                "[CMC-sharded] Degenerate warm-start detected (het_bb97531f failure "
+                "mode) — ALL shards are likely to fail convergence:\n  %s\n"
+                "Recommended fixes:\n"
+                "  1. Freeze the unidentifiable parameters in your YAML config:\n"
+                "       optimization:\n"
+                "         cmc:\n"
+                "           fixed_params:\n"
+                "             alpha_sample: %.3f\n"
+                "             D0_sample: %.3g\n"
+                "  2. Increase num_warmup to ≥2000 (default 500 is insufficient\n"
+                "     when warm-start is far from per-shard posterior mode).\n"
+                "  3. If f0 < 0.05, consider disabling the sample component\n"
+                "     entirely (fix f0=0) and running a reference-only model.",
+                ";\n  ".join(_parts),
+                float(_alpha_s_iv) if _alpha_s_iv is not None else float("nan"),
+                float(initial_values.get("D0_sample", float("nan"))),
+            )
+
     # Log rough runtime estimate before blocking and warn if it exceeds timeout.
     avg_pts = sum(int(np.asarray(s["c2_data"]).size) for s in parallel_shards) // max(
         num_shards, 1
@@ -956,6 +1013,48 @@ def fit_cmc_sharded(
                 _create_failed_result(_fallback_names, "shard failed or timed out")
             )
 
+    # Emit an aggregate convergence summary at WARNING level so failures are
+    # visible in production logs without requiring --debug / log_level: DEBUG.
+    # Per-shard detail (R-hat, ESS, BFMI per parameter) remains at DEBUG to
+    # avoid flooding the log with up to 47 lines per angle.
+    _n_bad_shards = sum(1 for sr in shard_results if not sr.convergence_passed)
+    if _n_bad_shards > 0:
+        _first_bad = next(
+            (sr for sr in shard_results if not sr.convergence_passed), None
+        )
+        if _first_bad is not None:
+            _fb_rh = _first_bad.r_hat
+            _fb_ess = _first_bad.ess_bulk
+            _fb_bfmi = _first_bad.bfmi
+            _fb_max_rhat = (
+                float(np.nanmax(_fb_rh))
+                if _fb_rh is not None and len(_fb_rh) > 0
+                else float("nan")
+            )
+            _fb_min_ess = (
+                float(np.nanmin(_fb_ess))
+                if _fb_ess is not None and len(_fb_ess) > 0
+                else float("nan")
+            )
+            _fb_min_bfmi = (
+                float(np.nanmin(np.asarray(_fb_bfmi, dtype=float)))
+                if _fb_bfmi is not None
+                else float("nan")
+            )
+            logger.warning(
+                "[CMC-sharded] %d/%d shards failed convergence. "
+                "First failing shard: max_r_hat=%.3f (threshold=%.2f), "
+                "min_ess=%.0f (threshold=%d), min_bfmi=%.3f. "
+                "Run with log_level: DEBUG (or --debug) to see per-shard details.",
+                _n_bad_shards,
+                len(shard_results),
+                _fb_max_rhat,
+                config.max_r_hat,
+                _fb_min_ess,
+                config.min_ess,
+                _fb_min_bfmi,
+            )
+
     # --- Phase 4: consensus combination ---
     logger.info("[CMC-sharded] Phase 4/5: combining shard posteriors (consensus)")
     combined_result = _combine_shard_posteriors(
@@ -1023,6 +1122,22 @@ def fit_cmc_sharded(
     metadata["shard_diagnostics"] = shard_diagnostics
     metadata["n_failed_shards"] = sum(
         1 for r in shard_results if not r.convergence_passed
+    )
+    # BFMI summary across all shards — BFMI=0.000 on all shards is the
+    # fingerprint of the het_bb97531f degenerate warm-start failure mode.
+    # Storing mean_shard_bfmi and n_bfmi_zero enables post-hoc diagnosis
+    # without re-running with DEBUG logging.
+    _all_bfmi_flat = [b for r in shard_results if r.bfmi is not None for b in r.bfmi]
+    metadata["mean_shard_bfmi"] = (
+        float(np.nanmean(np.asarray(_all_bfmi_flat, dtype=float)))
+        if _all_bfmi_flat
+        else None
+    )
+    metadata["n_bfmi_zero"] = sum(
+        1
+        for r in shard_results
+        if r.bfmi is not None
+        and float(np.nanmin(np.asarray(r.bfmi, dtype=float))) < 0.01
     )
     metadata.update(bimodal_metadata)
 
@@ -1825,16 +1940,20 @@ def _result_dict_to_cmc_result(
     total_iters = n_chains * n_samples
     divergence_rate = num_divergent / total_iters if total_iters > 0 else 0.0
 
-    logger.debug(
-        "Shard diagnostics: convergence=%s, max_r_hat=%.3f, min_ess=%.0f, "
-        "bfmi=%s, divergence_rate=%.1f%%, n_chains=%d, n_samples=%d",
+    # Escalate to WARNING when a shard fails so failures are visible in
+    # production logs without --debug.  PASS shards stay at DEBUG (avoid
+    # flooding 47-shard runs with INFO noise).
+    _diag_log = logger.warning if not convergence_passed else logger.debug
+    _diag_log(
+        "Shard diagnostics: convergence=%s, max_r_hat=%.3f (threshold=%.2f), "
+        "min_ess=%.0f (threshold=%d), bfmi=%s, divergence_rate=%.1f%%",
         "PASS" if convergence_passed else "FAIL",
         float(np.nanmax(r_hat)) if len(r_hat_finite) > 0 else float("nan"),
+        config.max_r_hat,
         float(np.nanmin(ess_bulk)) if len(ess_finite) > 0 else float("nan"),
+        config.min_ess,
         f"{_shard_min_bfmi:.3f}" if _shard_min_bfmi is not None else "N/A",
         divergence_rate * 100,
-        n_chains,
-        n_samples,
     )
 
     return CMCResult(

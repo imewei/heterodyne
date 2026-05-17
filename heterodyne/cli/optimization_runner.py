@@ -330,6 +330,9 @@ def run_cmc(
                 nlsq_result_i,
                 fixed_param_overrides=_fixed_overrides or None,
             )
+            # Warn about degenerate sample-transport regime using the clamped
+            # values so the message reflects what will actually be passed to NUTS.
+            _warn_degenerate_sample_regime(nlsq_result_i)
 
         # Dispatch to sharded CMC for large per-angle datasets, single-run CMC
         # otherwise.  ``cmc_config.should_enable_cmc`` returns True only when the
@@ -715,6 +718,64 @@ def _clamp_warmstart_to_interior(
 
 
 _WARMSTART_LOG_PARAMS = ("D0_ref", "D0_sample", "v0", "alpha_ref", "alpha_sample")
+
+# Thresholds matching core.py's degenerate warm-start detector.
+_F0_DEGEN_THRESHOLD = 0.10
+_ALPHA_SINGULARITY = -1.5
+
+
+def _warn_degenerate_sample_regime(result: NLSQResult) -> None:
+    """Warn when the NLSQ solution is in a degenerate sample-transport regime.
+
+    Two conditions — individually or combined — cause 100% CMC shard
+    bad_convergence and BFMI=0.000 (the het_bb97531f failure mode):
+
+    1. f0 < ``_F0_DEGEN_THRESHOLD``: sample fraction near zero makes
+       alpha_sample, D0_sample, D_offset_sample unidentifiable.  Per-shard
+       posteriors are dominated by the tempered prior; NUTS must thermalize
+       from the warm-start across the full prior range with near-zero
+       likelihood gradient for the sample-transport group.
+
+    2. alpha_sample < ``_ALPHA_SINGULARITY``: J_sample(t) ∝ t^α has a
+       non-integrable singularity at t→0.  NUTS step-size adaptation
+       collapses for the sample-transport group.
+
+    Calling this before CMC dispatch surfaces the problem immediately,
+    giving the user time to act (freeze parameters, increase warmup) before
+    investing hours of compute.
+    """
+    params = result.params_dict
+    f0 = params.get("f0")
+    alpha_s = params.get("alpha_sample")
+    f0_degen = f0 is not None and float(f0) < _F0_DEGEN_THRESHOLD
+    alpha_sing = alpha_s is not None and float(alpha_s) < _ALPHA_SINGULARITY
+    if not f0_degen and not alpha_sing:
+        return
+
+    parts: list[str] = []
+    if f0_degen:
+        parts.append(
+            f"f0={float(f0):.4f} < {_F0_DEGEN_THRESHOLD} — sample fraction "  # type: ignore[arg-type]
+            "near-zero; alpha_sample / D0_sample / D_offset_sample are "
+            "unidentifiable from data"
+        )
+    if alpha_sing:
+        parts.append(
+            f"alpha_sample={float(alpha_s):.3f} < {_ALPHA_SINGULARITY} — "  # type: ignore[arg-type]
+            "J_sample ∝ t^α singularity at short lags; NUTS step-size collapses"
+        )
+    logger.warning(
+        "Degenerate NLSQ warm-start (het_bb97531f failure mode) — CMC likely "
+        "to fail for ALL shards:\n  %s\n"
+        "Fixes:\n"
+        "  • Freeze degenerate params in YAML → optimization.cmc.fixed_params: "
+        "{alpha_sample: %.3f, D0_sample: %.3g}\n"
+        "  • Or increase num_warmup to ≥2000\n"
+        "  • If f0 < 0.05, consider fixing f0=0 (reference-only model)",
+        ";\n  ".join(parts),
+        float(alpha_s) if alpha_s is not None else float("nan"),
+        float(params.get("D0_sample", float("nan"))),
+    )
 
 
 def _log_warmstart_physical_params(result: NLSQResult) -> None:
