@@ -1641,3 +1641,271 @@ class TestBugPrevention_DegenerateWarmstart:
         assert any("FAIL" in m for m in shard_diag_warnings), (
             "Shard diagnostics WARNING must contain 'FAIL'"
         )
+
+
+# ===========================================================================
+# het_bb97531f prevention: degenerate warm-start abort gate
+# ===========================================================================
+
+
+@pytest.mark.unit
+class TestBugPrevention_DegenerateWarmstartAbort:
+    """Regression tests for het_bb97531f: fit_cmc_sharded must raise RuntimeError
+    before dispatching workers when the warm-start is in a degenerate
+    sample-transport regime (f0 < CMC_F0_DEGEN_THRESHOLD or
+    alpha_sample < CMC_ALPHA_SINGULARITY).
+
+    Previously: a warning fired, K shards were dispatched, all failed with
+    BFMI=0.000, wasting K × per_shard_timeout of compute.
+    Fixed: RuntimeError abort before dispatch unless allow_degenerate_warmstart=True.
+    """
+
+    def _make_parts(
+        self,
+        f0: float = 0.5,
+        alpha_sample: float = 0.0,
+    ):
+        import unittest.mock as mock
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.nlsq.results import NLSQResult
+
+        names = ["D0_ref", "alpha_ref", "f0", "alpha_sample"]
+        model = mock.MagicMock()
+        model.param_manager.space.varying_names = names
+        model.param_manager.space.varying_physics_names = names
+        model.param_manager.space.bounds = {
+            "D0_ref": (100.0, 1e6),
+            "alpha_ref": (-5.0, 5.0),
+            "f0": (0.0, 1.0),
+            "alpha_sample": (-5.0, 5.0),
+        }
+        model.varying_names = names
+        model.get_params_dict.return_value = dict.fromkeys(names, 0.3)
+        model.q = 0.005
+        model.dt = 0.001
+        model.t = np.linspace(0, 10, 30)
+        model.scaling.get_for_angle.return_value = (0.5, 1.0)
+
+        vals = {
+            "D0_ref": 1e4,
+            "alpha_ref": 0.0,
+            "f0": f0,
+            "alpha_sample": alpha_sample,
+        }
+        nlsq = NLSQResult(
+            parameters=np.array([vals[n] for n in names]),
+            parameter_names=names,
+            success=True,
+            message="ok",
+        )
+        rng = np.random.default_rng(0)
+        c2 = rng.normal(1.0, 0.05, (30, 30))
+        c2 = (c2 + c2.T) / 2
+        np.fill_diagonal(c2, 1.0)
+        config = CMCConfig(use_reparam=False)
+        return model, nlsq, c2, config
+
+    def test_low_f0_aborts(self) -> None:
+        """RuntimeError raised when f0 < CMC_F0_DEGEN_THRESHOLD (default allow=False)."""
+        from heterodyne.optimization.cmc.core import (
+            CMC_F0_DEGEN_THRESHOLD,
+            fit_cmc_sharded,
+        )
+
+        model, nlsq, c2, config = self._make_parts(f0=CMC_F0_DEGEN_THRESHOLD - 0.01)
+        with pytest.raises(RuntimeError, match="het_bb97531f"):
+            fit_cmc_sharded(
+                model=model, c2_data=c2, config=config, nlsq_result=nlsq, num_shards=2
+            )
+
+    def test_low_alpha_sample_aborts(self) -> None:
+        """RuntimeError raised when alpha_sample < CMC_ALPHA_SINGULARITY."""
+        from heterodyne.optimization.cmc.core import (
+            CMC_ALPHA_SINGULARITY,
+            fit_cmc_sharded,
+        )
+
+        model, nlsq, c2, config = self._make_parts(
+            alpha_sample=CMC_ALPHA_SINGULARITY - 0.1
+        )
+        with pytest.raises(RuntimeError, match="het_bb97531f"):
+            fit_cmc_sharded(
+                model=model, c2_data=c2, config=config, nlsq_result=nlsq, num_shards=2
+            )
+
+    def test_allow_degenerate_warmstart_bypasses_abort(self) -> None:
+        """No RuntimeError when allow_degenerate_warmstart=True; returns tombstone."""
+        import unittest.mock as mock
+
+        from heterodyne.optimization.cmc import CMCConfig
+        from heterodyne.optimization.cmc.core import (
+            CMC_F0_DEGEN_THRESHOLD,
+            fit_cmc_sharded,
+        )
+
+        model, nlsq, c2, _ = self._make_parts(f0=CMC_F0_DEGEN_THRESHOLD - 0.01)
+        config = CMCConfig(use_reparam=False, allow_degenerate_warmstart=True)
+
+        with mock.patch(
+            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+        ) as mock_cls:
+            mock_cls.return_value.run_shards.return_value = []
+            result = fit_cmc_sharded(
+                model=model,
+                c2_data=c2,
+                config=config,
+                nlsq_result=nlsq,
+                num_shards=2,
+            )
+        assert not result.convergence_passed, (
+            "Expected degenerate tombstone when all shards produce no samples"
+        )
+
+    def test_healthy_warmstart_not_aborted(self) -> None:
+        """No RuntimeError when f0 and alpha_sample are both above thresholds."""
+        import unittest.mock as mock
+
+        from heterodyne.optimization.cmc.core import fit_cmc_sharded
+
+        model, nlsq, c2, config = self._make_parts(f0=0.5, alpha_sample=0.0)
+
+        with mock.patch(
+            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+        ) as mock_cls:
+            mock_cls.return_value.run_shards.return_value = []
+            result = fit_cmc_sharded(
+                model=model,
+                c2_data=c2,
+                config=config,
+                nlsq_result=nlsq,
+                num_shards=2,
+            )
+        assert not result.convergence_passed
+
+
+# ===========================================================================
+# Bug 2 prevention: threshold constants must stay in sync
+# ===========================================================================
+
+
+@pytest.mark.unit
+class TestBugPrevention_ConstantSync:
+    """Regression tests: CMC degenerate warm-start thresholds must be identical
+    in core.py and optimization_runner.py.
+
+    Previously: each module defined its own copy — a silent drift risk.
+    Fixed: optimization_runner.py imports from core.py.
+    """
+
+    def test_f0_threshold_is_imported_from_core(self) -> None:
+        from heterodyne.cli.optimization_runner import _F0_DEGEN_THRESHOLD
+        from heterodyne.optimization.cmc.core import CMC_F0_DEGEN_THRESHOLD
+
+        assert _F0_DEGEN_THRESHOLD == CMC_F0_DEGEN_THRESHOLD, (
+            f"_F0_DEGEN_THRESHOLD={_F0_DEGEN_THRESHOLD} diverged from "
+            f"CMC_F0_DEGEN_THRESHOLD={CMC_F0_DEGEN_THRESHOLD}. "
+            "optimization_runner.py must import this constant from core.py."
+        )
+
+    def test_alpha_singularity_is_imported_from_core(self) -> None:
+        from heterodyne.cli.optimization_runner import _ALPHA_SINGULARITY
+        from heterodyne.optimization.cmc.core import CMC_ALPHA_SINGULARITY
+
+        assert _ALPHA_SINGULARITY == CMC_ALPHA_SINGULARITY
+
+
+# ===========================================================================
+# Bug 3 prevention: model-fallback initial values must be clamped
+# ===========================================================================
+
+
+@pytest.mark.unit
+class TestBugPrevention_ModelFallbackClamping:
+    """Regression tests: when nlsq_result=None, initial values from
+    model.get_params_dict() must be clamped away from hard bounds before
+    dispatch — the same protection _clamp_warmstart_to_interior provides for
+    the NLSQ path.
+
+    Root cause: ``parameters: {alpha_ref: -5.0}`` would place the NUTS start
+    exactly on the boundary wall, causing leapfrog reflections that degrade
+    BFMI across all shards.
+    """
+
+    def _make_model(self, alpha_ref_val: float = 0.0):
+        import unittest.mock as mock
+
+        names = ["D0_ref", "alpha_ref"]
+        model = mock.MagicMock()
+        model.param_manager.space.varying_names = names
+        model.param_manager.space.varying_physics_names = names
+        model.param_manager.space.bounds = {
+            "D0_ref": (100.0, 1e6),
+            "alpha_ref": (-5.0, 5.0),
+        }
+        model.varying_names = names
+        model.get_params_dict.return_value = {
+            "D0_ref": 1e4,
+            "alpha_ref": alpha_ref_val,
+        }
+        model.q = 0.005
+        model.dt = 0.001
+        model.t = np.linspace(0, 10, 30)
+        model.scaling.get_for_angle.return_value = (0.5, 1.0)
+        return model
+
+    def _run_and_capture_iv(self, model, c2, config):
+        import unittest.mock as mock
+
+        from heterodyne.optimization.cmc.core import fit_cmc_sharded
+
+        with mock.patch(
+            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+        ) as mock_cls:
+            mock_cls.return_value.run_shards.return_value = []
+            fit_cmc_sharded(
+                model=model,
+                c2_data=c2,
+                config=config,
+                nlsq_result=None,
+                num_shards=2,
+            )
+        call_args = mock_cls.return_value.run_shards.call_args
+        assert call_args is not None, "run_shards was not called"
+        return call_args.kwargs.get("initial_values")
+
+    def test_boundary_alpha_ref_is_clamped(self) -> None:
+        """alpha_ref at exact lower bound (-5.0) must be clamped to interior."""
+        from heterodyne.optimization.cmc import CMCConfig
+
+        model = self._make_model(alpha_ref_val=-5.0)  # exact lower bound
+        rng = np.random.default_rng(0)
+        c2 = rng.normal(1.0, 0.05, (30, 30))
+        c2 = (c2 + c2.T) / 2
+        np.fill_diagonal(c2, 1.0)
+        config = CMCConfig(use_reparam=False)
+
+        iv = self._run_and_capture_iv(model, c2, config)
+        assert iv is not None, "initial_values not passed to run_shards"
+        assert "alpha_ref" in iv
+        assert iv["alpha_ref"] > -5.0, (
+            f"alpha_ref={iv['alpha_ref']:.4f} at exact lower bound must be clamped "
+            "away from the boundary wall (prevents NUTS leapfrog reflections)."
+        )
+
+    def test_interior_alpha_ref_not_clamped(self) -> None:
+        """alpha_ref=0.0 (well inside bounds) must pass through unchanged."""
+        from heterodyne.optimization.cmc import CMCConfig
+
+        model = self._make_model(alpha_ref_val=0.0)
+        rng = np.random.default_rng(0)
+        c2 = rng.normal(1.0, 0.05, (30, 30))
+        c2 = (c2 + c2.T) / 2
+        np.fill_diagonal(c2, 1.0)
+        config = CMCConfig(use_reparam=False)
+
+        iv = self._run_and_capture_iv(model, c2, config)
+        assert iv is not None
+        assert abs(iv.get("alpha_ref", -999.0)) < 1e-6, (
+            f"alpha_ref=0.0 (interior) must not be modified; got {iv.get('alpha_ref')}"
+        )

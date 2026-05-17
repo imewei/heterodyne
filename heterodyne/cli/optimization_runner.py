@@ -719,9 +719,14 @@ def _clamp_warmstart_to_interior(
 
 _WARMSTART_LOG_PARAMS = ("D0_ref", "D0_sample", "v0", "alpha_ref", "alpha_sample")
 
-# Thresholds matching core.py's degenerate warm-start detector.
-_F0_DEGEN_THRESHOLD = 0.10
-_ALPHA_SINGULARITY = -1.5
+# Import thresholds from the authoritative source so the two warning systems
+# stay in sync when a threshold is tuned.
+from heterodyne.optimization.cmc.core import (  # noqa: E402
+    CMC_ALPHA_SINGULARITY as _ALPHA_SINGULARITY,
+)
+from heterodyne.optimization.cmc.core import (
+    CMC_F0_DEGEN_THRESHOLD as _F0_DEGEN_THRESHOLD,
+)
 
 
 def _warn_degenerate_sample_regime(result: NLSQResult) -> None:

@@ -18,6 +18,7 @@ import jax.numpy as jnp
 import numpy as np
 from numpyro.infer import MCMC, NUTS
 
+from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
 from heterodyne.optimization.cmc.config import CMCConfig
 from heterodyne.optimization.cmc.diagnostics import (
     analyze_divergences,
@@ -48,6 +49,19 @@ if TYPE_CHECKING:
     from heterodyne.core.heterodyne_model import HeterodyneModel
 
 logger = get_logger(__name__)
+
+# ---------------------------------------------------------------------------
+# Degenerate warm-start thresholds — shared with optimization_runner.py.
+# Defined here (authoritative source) so both modules stay in sync.
+# ---------------------------------------------------------------------------
+
+#: Sample fraction below which alpha_sample/D0_sample/D_offset_sample are
+#: unidentifiable, causing 100% shard failure (het_bb97531f failure mode).
+CMC_F0_DEGEN_THRESHOLD: float = 0.10
+
+#: alpha_sample value at which J_sample(t) ∝ t^α has a non-integrable
+#: singularity at t→0, collapsing NUTS step-size for the sample group.
+CMC_ALPHA_SINGULARITY: float = -1.5
 
 
 def _block_until_ready_pytree(tree: Any) -> Any:
@@ -805,6 +819,28 @@ def fit_cmc_sharded(
             initial_values = {
                 name: float(v) for name, v in _model_vals.items() if name in _varying
             }
+        # Clamp model-default values away from hard bounds (same protection
+        # that _clamp_warmstart_to_interior applies to NLSQ results in the CLI
+        # path). Without clamping, a config like ``parameters: {alpha_ref: -5.0}``
+        # places the start exactly on the boundary wall, causing NUTS leapfrog
+        # reflections that degrade BFMI for the whole run.
+        if initial_values:
+            _FALLBACK_MARGIN = 5e-2
+            _iv_clamped: dict[str, float] = {}
+            for _fname, _fval in initial_values.items():
+                if _fname in DEFAULT_REGISTRY:
+                    _finfo = DEFAULT_REGISTRY[_fname]
+                    _fspan = _finfo.max_bound - _finfo.min_bound
+                    _flo = _finfo.min_bound + _FALLBACK_MARGIN * _fspan
+                    _fhi = _finfo.max_bound - _FALLBACK_MARGIN * _fspan
+                    _iv_clamped[_fname] = (
+                        float(np.clip(_fval, _flo, _fhi))
+                        if _flo < _fhi
+                        else float(_fval)
+                    )
+                else:
+                    _iv_clamped[_fname] = float(_fval)
+            initial_values = _iv_clamped
 
     # Pre-dispatch D_total sign guard (het_c7fb5859 prevention).
     # Reparameterisation samples D_total = D0 + D_offset per transport group.
@@ -857,26 +893,24 @@ def fit_cmc_sharded(
     # Together these guarantee that all 47 shards fail convergence, wasting
     # hours of compute.  Warn before dispatch so the user can act (e.g. freeze
     # degenerate parameters or increase num_warmup) without waiting 7+ hours.
-    _F0_DEGEN_THRESHOLD = 0.10  # sample fraction below which params unidentifiable
-    _ALPHA_SINGULARITY = -1.5  # alpha at which J_sample integral diverges at t→0
     if initial_values:
         _f0_iv = initial_values.get("f0")
         _alpha_s_iv = initial_values.get("alpha_sample")
-        _f0_degen = _f0_iv is not None and float(_f0_iv) < _F0_DEGEN_THRESHOLD
+        _f0_degen = _f0_iv is not None and float(_f0_iv) < CMC_F0_DEGEN_THRESHOLD
         _alpha_sing = (
-            _alpha_s_iv is not None and float(_alpha_s_iv) < _ALPHA_SINGULARITY
+            _alpha_s_iv is not None and float(_alpha_s_iv) < CMC_ALPHA_SINGULARITY
         )
         if _f0_degen or _alpha_sing:
             _parts: list[str] = []
             if _f0_degen:
                 _parts.append(
-                    f"f0={float(_f0_iv):.4f} < {_F0_DEGEN_THRESHOLD} — "  # type: ignore[arg-type]
+                    f"f0={float(_f0_iv):.4f} < {CMC_F0_DEGEN_THRESHOLD} — "  # type: ignore[arg-type]
                     "sample fraction near-zero → alpha_sample / D0_sample / "
                     "D_offset_sample are unidentifiable; posterior ≈ tempered prior"
                 )
             if _alpha_sing:
                 _parts.append(
-                    f"alpha_sample={float(_alpha_s_iv):.3f} < {_ALPHA_SINGULARITY} — "  # type: ignore[arg-type]
+                    f"alpha_sample={float(_alpha_s_iv):.3f} < {CMC_ALPHA_SINGULARITY} — "  # type: ignore[arg-type]
                     "J_sample ∝ t^α has non-integrable singularity at short lags; "
                     "NUTS step-size collapses for the sample-transport group"
                 )
@@ -898,6 +932,13 @@ def fit_cmc_sharded(
                 float(_alpha_s_iv) if _alpha_s_iv is not None else float("nan"),
                 float(initial_values.get("D0_sample", float("nan"))),
             )
+            if not config.allow_degenerate_warmstart:
+                raise RuntimeError(
+                    "[CMC-sharded] Aborting: degenerate warm-start will cause 100% "
+                    "shard failure (het_bb97531f failure mode). See warnings above "
+                    "for recommended fixes. To override and dispatch anyway, set "
+                    "allow_degenerate_warmstart: true in your CMC config."
+                )
 
     # Log rough runtime estimate before blocking and warn if it exceeds timeout.
     avg_pts = sum(int(np.asarray(s["c2_data"]).size) for s in parallel_shards) // max(

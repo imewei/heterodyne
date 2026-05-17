@@ -169,6 +169,14 @@ class CMCConfig:
         Maximum fraction of divergent transitions before a shard is rejected.
     require_nlsq_warmstart:
         Abort if an NLSQ warm-start was requested but unavailable.
+    allow_degenerate_warmstart:
+        When ``False`` (default) an early ``RuntimeError`` is raised before
+        dispatching any shards if the warm-start is in a regime that is
+        guaranteed to cause 100% shard failure (f0 < 0.10 or
+        alpha_sample < -1.5 — the het_bb97531f failure mode).  Set to
+        ``True`` to bypass the abort and let NUTS attempt the run anyway;
+        useful when you want to see exactly how bad the posteriors are or
+        when you have increased ``num_warmup`` substantially (≥ 2000).
     max_parameter_cv:
         Maximum allowed coefficient of variation across chains for any
         parameter; guards against pathological multi-modal posteriors.
@@ -270,6 +278,7 @@ class CMCConfig:
     min_bfmi: float = 0.3
     max_divergence_rate: float = 0.10
     require_nlsq_warmstart: bool = False
+    allow_degenerate_warmstart: bool = False
     max_parameter_cv: float = 1.0
     heterogeneity_abort: bool = True
 
