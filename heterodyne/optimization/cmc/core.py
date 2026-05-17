@@ -916,7 +916,7 @@ def fit_cmc_sharded(
                 )
             logger.warning(
                 "[CMC-sharded] Degenerate warm-start detected (het_bb97531f failure "
-                "mode) — ALL shards are likely to fail convergence:\n  %s\n"
+                "mode) — convergence is unlikely without intervention:\n  %s\n"
                 "Recommended fixes:\n"
                 "  1. Freeze the unidentifiable parameters in your YAML config:\n"
                 "       optimization:\n"
@@ -924,7 +924,7 @@ def fit_cmc_sharded(
                 "           fixed_params:\n"
                 "             alpha_sample: %.3f\n"
                 "             D0_sample: %.3g\n"
-                "  2. Increase num_warmup to ≥2000 (default 500 is insufficient\n"
+                "  2. Increase num_warmup to ≥2000 (default 1500 may be insufficient\n"
                 "     when warm-start is far from per-shard posterior mode).\n"
                 "  3. If f0 < 0.05, consider disabling the sample component\n"
                 "     entirely (fix f0=0) and running a reference-only model.",
@@ -932,13 +932,30 @@ def fit_cmc_sharded(
                 float(_alpha_s_iv) if _alpha_s_iv is not None else float("nan"),
                 float(initial_values.get("D0_sample", float("nan"))),
             )
+            # Soft abort: auto-clamp the offending warm-start values into the
+            # safe zone instead of raising — the previous hard ``raise
+            # RuntimeError`` killed the entire run on a single threshold trip
+            # with no way to recover.  The clamp pushes alpha_sample just above
+            # the t^α singularity and f0 just above the identifiability floor;
+            # posteriors may still be wide but the run completes and the
+            # downstream ``min_success_rate`` gate can decide whether the
+            # output is usable.  ``allow_degenerate_warmstart=True`` keeps the
+            # raw NLSQ values (no clamp), for callers who want to observe the
+            # full degenerate behaviour (e.g. test harnesses, audits).
             if not config.allow_degenerate_warmstart:
-                raise RuntimeError(
-                    "[CMC-sharded] Aborting: degenerate warm-start will cause 100% "
-                    "shard failure (het_bb97531f failure mode). See warnings above "
-                    "for recommended fixes. To override and dispatch anyway, set "
-                    "allow_degenerate_warmstart: true in your CMC config."
+                _iv_degen_clamped: dict[str, Any] = dict(initial_values)
+                if _alpha_sing:
+                    _iv_degen_clamped["alpha_sample"] = CMC_ALPHA_SINGULARITY + 0.1
+                if _f0_degen:
+                    _iv_degen_clamped["f0"] = CMC_F0_DEGEN_THRESHOLD + 0.01
+                logger.warning(
+                    "[CMC-sharded] Auto-clamping degenerate warm-start to safe "
+                    "zone (alpha_sample=%.3f, f0=%.4f) — set "
+                    "allow_degenerate_warmstart: true to keep raw NLSQ values.",
+                    float(_iv_degen_clamped.get("alpha_sample", float("nan"))),
+                    float(_iv_degen_clamped.get("f0", float("nan"))),
                 )
+                initial_values = _iv_degen_clamped
 
     # Log rough runtime estimate before blocking and warn if it exceeds timeout.
     avg_pts = sum(int(np.asarray(s["c2_data"]).size) for s in parallel_shards) // max(
@@ -1913,7 +1930,26 @@ def _result_dict_to_cmc_result(
     num_divergent: int = stats.get("num_divergent", 0)
     n_warmup: int = stats.get("n_warmup", config.num_warmup)
 
-    # Reshape (n_chains * n_samples,) → (n_chains, n_samples) for ArviZ
+    # Reshape (n_chains * n_samples,) → (n_chains, n_samples) for ArviZ.
+    # Shape contract: each sample array must have exactly n_chains * n_samples
+    # elements; if a worker reports stale or truncated stats (e.g. on timeout)
+    # the configured fallback values won't match the actual sample count and
+    # numpy's reshape will raise a cryptic "cannot reshape" message deep in
+    # ArviZ.  Validate explicitly so the failure mode is one log line, not a
+    # ten-frame traceback (deep-RCA F5, Prevention 4).
+    _expected_size = int(n_chains) * int(n_samples)
+    for _k, _v in samples_np.items():
+        _actual = int(np.asarray(_v).size)
+        if _actual != _expected_size:
+            raise ValueError(
+                f"Shard sample-array shape contract violated for parameter "
+                f"{_k!r}: expected n_chains × n_samples = "
+                f"{n_chains} × {n_samples} = {_expected_size} elements, "
+                f"got {_actual}.  This usually means a worker returned a "
+                "partial result (timeout, abort, or signal) while the result "
+                "dict's n_samples fell back to the configured value.  "
+                "Inspect worker logs for the affected shard."
+            )
     idata: az.InferenceData | None = None
     summary: Any = None
     try:

@@ -588,14 +588,17 @@ def _apply_initial_parameters(space: ParameterSpace, config: dict[str, Any]) -> 
 
 # Default TruncatedNormal prior specifications: (loc, scale)
 # All parameters use TruncatedNormal priors truncated to their registry bounds.
+# IMPORTANT: must stay in sync with parameter_registry.py prior_mean/prior_std
+# (CLAUDE.md rule #9 — dual prior system).  See tests/unit/test_prior_sanity.py
+# for the contract test that enforces this.
 _DEFAULT_PRIOR_SPECS: dict[str, tuple[float, float]] = {
-    "D0_ref": (1e4, 5e3),
+    "D0_ref": (1e4, 1e4),  # widened from 5e3 → 1e4 (see registry comment)
     "alpha_ref": (0.0, 1.0),
     "D_offset_ref": (0.0, 1e3),
-    "D0_sample": (1e4, 5e3),
+    "D0_sample": (1e4, 1e4),  # widened from 5e3 → 1e4 (see registry comment)
     "alpha_sample": (0.0, 1.0),
     "D_offset_sample": (0.0, 1e3),
-    "v0": (1e3, 500.0),
+    "v0": (1e3, 1000.0),  # widened from 500 → 1000 (see registry comment)
     "beta": (0.0, 1.0),
     "v_offset": (0.0, 25.0),
     "f0": (0.5, 0.25),

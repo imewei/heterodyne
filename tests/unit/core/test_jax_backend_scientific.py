@@ -256,7 +256,14 @@ class TestComputeFractionJIT:
     @pytest.mark.unit
     @pytest.mark.requires_jax
     def test_exponential_growth(self) -> None:
-        """Test positive f1 gives exponential increase."""
+        """Test positive f1 gives exponential increase.
+
+        Updated post deep-RCA F8: ``compute_fraction_jit`` now uses
+        ``smooth_clip`` (softplus-based) instead of ``jnp.clip`` to keep the
+        gradient continuous at the [0, 1] boundary.  Interior values (well
+        below 1) are reproduced to ~1e-3 thanks to the smooth approximation;
+        the test loosens the tolerance accordingly.
+        """
         from heterodyne.core.jax_backend import compute_fraction_jit
 
         t = jnp.array([0.0, 1.0, 2.0])
@@ -264,9 +271,13 @@ class TestComputeFractionJIT:
 
         frac = compute_fraction_jit(t, f0, f1, f2, f3)
 
-        # f(t) = 0.1 * exp(0.5 * t) (before clipping)
-        expected = jnp.clip(f0 * jnp.exp(f1 * (t - f2)) + f3, 0.0, 1.0)
-        assert_allclose(frac, expected, rtol=1e-12)
+        # f(t) = 0.1 * exp(0.5 * t) — all values are < 0.3, well inside
+        # [0, 1] so smooth_clip should be near-identity (~1e-4 distortion
+        # at the softplus boundary smear scale 1/sharpness with k=50).
+        raw = f0 * jnp.exp(f1 * (t - f2)) + f3
+        assert_allclose(frac, raw, atol=2e-3)
+        # Monotonic increase preserved
+        assert bool(jnp.all(frac[1:] > frac[:-1]))
 
     @pytest.mark.unit
     @pytest.mark.requires_jax

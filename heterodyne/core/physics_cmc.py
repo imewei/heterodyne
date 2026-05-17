@@ -30,7 +30,9 @@ from heterodyne.core.jax_backend import compute_c2_heterodyne
 from heterodyne.core.physics_utils import (
     compute_transport_rate,
     compute_velocity_rate,
+    safe_exp,
     smooth_abs,
+    smooth_clip,
     trapezoid_cumsum,
 )
 from heterodyne.utils.logging import get_logger
@@ -281,9 +283,15 @@ def compute_c2_elementwise(
     t2_vals = shard_grid.time_grid[shard_grid.idx2]
 
     def _fraction(t_vals: jnp.ndarray) -> jnp.ndarray:
-        exponent = jnp.clip(f1 * (t_vals - f2), -100, 100)
-        f_s = jnp.clip(f0 * jnp.exp(exponent) + f3, 0.0, 1.0)
-        return f_s
+        # ``safe_exp`` caps the exponent with a project-blessed helper, and
+        # ``smooth_clip`` enforces the physical [0, 1] sample fraction range
+        # with a continuous gradient at the boundary so NUTS leapfrog
+        # adaptation does not stall when posterior mass approaches saturation
+        # (CLAUDE.md rule #7 — gradient-safe floors).  ``jnp.clip`` here would
+        # zero the gradient and bias the f0/f1/f2/f3 posteriors toward false
+        # precision (deep-RCA F8).
+        raw_fs = f0 * safe_exp(f1 * (t_vals - f2)) + f3
+        return smooth_clip(raw_fs, 0.0, 1.0)
 
     f_sample_1 = _fraction(t1_vals)
     f_sample_2 = _fraction(t2_vals)

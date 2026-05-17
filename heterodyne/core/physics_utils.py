@@ -180,6 +180,43 @@ def smooth_abs(x: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
     return jnp.sqrt(x**2 + eps)
 
 
+def smooth_clip(
+    x: jnp.ndarray,
+    low: float,
+    high: float,
+    sharpness: float = 50.0,
+) -> jnp.ndarray:
+    """Soft clip to ``[low, high]`` with continuous gradient at the boundaries.
+
+    Acts as the identity in the interior and softplus-smoothed at the
+    boundaries.  Use this for physical bounds (e.g. sample fraction in
+    [0, 1]) where a hard ``jnp.clip`` would zero the gradient and stall
+    NUTS leapfrog integration or NLSQ Jacobian descent (CLAUDE.md rule #7).
+
+    The boundary smear scales as ``1/sharpness`` — at the default value
+    ``sharpness=50`` the boundary lands within ~``(high-low)/50`` of the
+    target (≈2% of the range), with monotonic identity in the interior.
+    Raise ``sharpness`` for a tighter approximation at the cost of
+    gradient magnitude near the boundary; lower it for stronger
+    regularisation.
+
+    Args:
+        x: Input array (any shape).
+        low: Lower physical bound (inclusive in the limit).
+        high: Upper physical bound (inclusive in the limit).
+        sharpness: Softplus sharpness; default 50 gives ~2% boundary smear.
+
+    Returns:
+        Smoothly bounded array, asymptotically in (low, high), with
+        well-defined gradients everywhere.
+    """
+    k = sharpness
+    # Smooth max(x, low): identity for x >> low, → low for x << low
+    x_lo = low + jax.nn.softplus(k * (x - low)) / k
+    # Smooth min(x_lo, high): identity for x_lo << high, → high for x_lo >> high
+    return high - jax.nn.softplus(k * (high - x_lo)) / k
+
+
 def trapezoid_cumsum(f: jnp.ndarray, dt: float | jnp.ndarray) -> jnp.ndarray:
     """Trapezoidal cumulative integral with O(dt²) accuracy.
 

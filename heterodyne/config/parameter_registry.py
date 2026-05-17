@@ -148,8 +148,13 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="reference",
         vary_default=True,
         log_space=True,
+        # prior_std widened from 5e3 → 1e4 (log-space std ≈ 0.69 vs prior 0.40)
+        # so the prior accommodates the ~1 order-of-magnitude span of real XPCS
+        # D0 posteriors; the previous tight prior collapsed the posterior onto
+        # the registry mean and triggered NUTS divergence cascades when NLSQ
+        # warm-start landed > 2σ from the prior centre (see deep-RCA F2).
         prior_mean=1e4,
-        prior_std=5e3,
+        prior_std=1e4,
         is_physical=True,
     )
     params["alpha_ref"] = ParameterInfo(
@@ -190,8 +195,9 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="sample",
         vary_default=True,
         log_space=True,
+        # See D0_ref above: prior_std widened to 1e4 for log-space coverage.
         prior_mean=1e4,
-        prior_std=5e3,
+        prior_std=1e4,
         is_physical=True,
     )
     params["alpha_sample"] = ParameterInfo(
@@ -232,8 +238,13 @@ def _create_default_registry() -> dict[str, ParameterInfo]:
         group="velocity",
         vary_default=True,
         log_space=True,
+        # prior_std widened from 500 → 1000 (log-space std 0.405 → 0.693)
+        # for the same geometric reason as D0: tight log-space priors
+        # collapse the posterior onto the registry centre and trigger NUTS
+        # divergence cascades when NLSQ warm-start lands > 2σ away
+        # (caught by the TestPriorSanity contract test).
         prior_mean=1e3,
-        prior_std=500.0,
+        prior_std=1000.0,
         is_physical=True,
         is_flow=True,
     )

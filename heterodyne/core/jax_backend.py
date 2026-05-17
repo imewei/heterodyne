@@ -28,7 +28,9 @@ from heterodyne.core.physics_utils import (
     compute_transport_rate,
     compute_velocity_rate,
     create_time_integral_matrix,
+    safe_exp,
     smooth_abs,
+    smooth_clip,
     trapezoid_cumsum,
 )
 
@@ -119,9 +121,12 @@ def compute_fraction_jit(
     Returns:
         Fraction array in [0, 1]
     """
-    exponent = jnp.clip(f1 * (t - f2), -100, 100)
-    fraction = f0 * jnp.exp(exponent) + f3
-    return jnp.clip(fraction, 0.0, 1.0)
+    # ``safe_exp`` + ``smooth_clip`` preserve gradient at the [0, 1] boundary
+    # so NLSQ Jacobian descent does not stall when f(t) saturates (CLAUDE.md
+    # rule #7 — gradient-safe floors).  Mirrors physics_cmc.py to keep the
+    # element-wise and meshgrid paths bit-equivalent.
+    fraction = f0 * safe_exp(f1 * (t - f2)) + f3
+    return smooth_clip(fraction, 0.0, 1.0)
 
 
 @jax.jit
@@ -247,9 +252,10 @@ def compute_c2_heterodyne(
     half_tr_ref = jnp.exp(log_half_tr_ref)
     half_tr_sample = jnp.exp(log_half_tr_sample)
 
-    # Sample fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3
-    exponent = jnp.clip(f1 * (t - f2), -100, 100)
-    f_sample = jnp.clip(f0 * jnp.exp(exponent) + f3, 0.0, 1.0)
+    # Sample fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3, smoothly
+    # bounded into [0, 1] so the NLSQ Jacobian retains gradient at
+    # saturation (deep-RCA F8; mirrors physics_cmc.py).
+    f_sample = smooth_clip(f0 * safe_exp(f1 * (t - f2)) + f3, 0.0, 1.0)
     f_ref = 1.0 - f_sample
 
     # Velocity integral matrix via shared cumsum → meshgrid pipeline

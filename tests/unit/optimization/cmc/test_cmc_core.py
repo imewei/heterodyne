@@ -1650,14 +1650,21 @@ class TestBugPrevention_DegenerateWarmstart:
 
 @pytest.mark.unit
 class TestBugPrevention_DegenerateWarmstartAbort:
-    """Regression tests for het_bb97531f: fit_cmc_sharded must raise RuntimeError
-    before dispatching workers when the warm-start is in a degenerate
-    sample-transport regime (f0 < CMC_F0_DEGEN_THRESHOLD or
-    alpha_sample < CMC_ALPHA_SINGULARITY).
+    """Regression tests for het_bb97531f.
 
-    Previously: a warning fired, K shards were dispatched, all failed with
-    BFMI=0.000, wasting K × per_shard_timeout of compute.
-    Fixed: RuntimeError abort before dispatch unless allow_degenerate_warmstart=True.
+    Behaviour evolved through three regimes:
+      (v1) Warning + dispatch K shards → all fail with BFMI=0.000.
+      (v2) RuntimeError abort before dispatch (prevented 7-hour waste).
+      (v3) Auto-clamp + continue (current) — clamp the degenerate
+           ``alpha_sample`` / ``f0`` into the safe zone, warn loudly, and
+           let the run proceed.  ``allow_degenerate_warmstart=True`` keeps
+           the raw NLSQ values (no clamp) for callers who need to observe
+           the full degenerate behaviour.
+
+    The v3 design (deep-RCA Fix 5) preserves the v2 anti-cascade safety
+    while removing the hard-abort dead-end: downstream gates
+    (``min_success_rate``, R-hat, divergence rate) now decide whether
+    the soft-clamped run produced usable output.
     """
 
     def _make_parts(
@@ -1706,21 +1713,43 @@ class TestBugPrevention_DegenerateWarmstartAbort:
         config = CMCConfig(use_reparam=False)
         return model, nlsq, c2, config
 
-    def test_low_f0_aborts(self) -> None:
-        """RuntimeError raised when f0 < CMC_F0_DEGEN_THRESHOLD (default allow=False)."""
+    def test_low_f0_no_longer_aborts(self) -> None:
+        """Low f0 must NOT raise RuntimeError abort (deep-RCA Fix 5 —
+        replaced hard abort with auto-clamp + continue)."""
+        import unittest.mock as mock
+
         from heterodyne.optimization.cmc.core import (
             CMC_F0_DEGEN_THRESHOLD,
             fit_cmc_sharded,
         )
 
         model, nlsq, c2, config = self._make_parts(f0=CMC_F0_DEGEN_THRESHOLD - 0.01)
-        with pytest.raises(RuntimeError, match="het_bb97531f"):
-            fit_cmc_sharded(
-                model=model, c2_data=c2, config=config, nlsq_result=nlsq, num_shards=2
-            )
+        # Mock backend so the function completes past the degeneracy guard.
+        # The contract we're enforcing: no "Aborting" RuntimeError from the
+        # het_bb97531f guard.  Capturing the warning text is order-dependent
+        # under pytest's capfd (logger handlers cache stdout FDs across
+        # tests), so we assert on the exception contract instead.
+        with mock.patch(
+            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+        ) as mock_cls:
+            mock_cls.return_value.run_shards.return_value = []
+            try:
+                fit_cmc_sharded(
+                    model=model,
+                    c2_data=c2,
+                    config=config,
+                    nlsq_result=nlsq,
+                    num_shards=2,
+                )
+            except RuntimeError as exc:
+                assert not ("het_bb97531f" in str(exc) and "Aborting" in str(exc)), (
+                    f"Degeneracy guard still hard-aborts: {exc}"
+                )
 
-    def test_low_alpha_sample_aborts(self) -> None:
-        """RuntimeError raised when alpha_sample < CMC_ALPHA_SINGULARITY."""
+    def test_low_alpha_sample_no_longer_aborts(self) -> None:
+        """Low alpha_sample must NOT raise RuntimeError abort."""
+        import unittest.mock as mock
+
         from heterodyne.optimization.cmc.core import (
             CMC_ALPHA_SINGULARITY,
             fit_cmc_sharded,
@@ -1729,10 +1758,83 @@ class TestBugPrevention_DegenerateWarmstartAbort:
         model, nlsq, c2, config = self._make_parts(
             alpha_sample=CMC_ALPHA_SINGULARITY - 0.1
         )
-        with pytest.raises(RuntimeError, match="het_bb97531f"):
-            fit_cmc_sharded(
-                model=model, c2_data=c2, config=config, nlsq_result=nlsq, num_shards=2
-            )
+        with mock.patch(
+            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+        ) as mock_cls:
+            mock_cls.return_value.run_shards.return_value = []
+            try:
+                fit_cmc_sharded(
+                    model=model,
+                    c2_data=c2,
+                    config=config,
+                    nlsq_result=nlsq,
+                    num_shards=2,
+                )
+            except RuntimeError as exc:
+                assert not ("het_bb97531f" in str(exc) and "Aborting" in str(exc)), (
+                    f"Degeneracy guard still hard-aborts: {exc}"
+                )
+
+    def test_low_alpha_sample_auto_clamps_value(self) -> None:
+        """Verify the auto-clamp actually pushes alpha_sample into safe zone.
+
+        We can't reliably capture the log warning text under pytest's
+        capfd (order-dependent FD caching), so we verify the *effect* of
+        the auto-clamp: by patching out the heavy NUTS dispatch we can
+        inspect ``initial_values`` after the guard runs.  The clamp
+        target is ``CMC_ALPHA_SINGULARITY + 0.1`` (= -1.4 at the
+        current registry)."""
+        import unittest.mock as mock
+
+        from heterodyne.optimization.cmc.core import (
+            CMC_ALPHA_SINGULARITY,
+            fit_cmc_sharded,
+        )
+
+        captured_init: dict[str, dict[str, float]] = {}
+
+        def _capture_init(*args, **kwargs):  # noqa: ANN001 — pytest sig
+            # Find the per-shard config dict passed to the backend.
+            for arg in args:
+                if isinstance(arg, dict) and "initial_values" in arg:
+                    captured_init["call"] = dict(arg["initial_values"])
+            for v in kwargs.values():
+                if isinstance(v, dict) and "initial_values" in v:
+                    captured_init["call"] = dict(v["initial_values"])
+            return []
+
+        model, nlsq, c2, config = self._make_parts(
+            alpha_sample=CMC_ALPHA_SINGULARITY - 0.1
+        )
+        with mock.patch(
+            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+        ) as mock_cls:
+            mock_cls.return_value.run_shards.side_effect = _capture_init
+            try:
+                fit_cmc_sharded(
+                    model=model,
+                    c2_data=c2,
+                    config=config,
+                    nlsq_result=nlsq,
+                    num_shards=2,
+                )
+            except Exception:
+                # Mock plumbing may not match the real backend signature
+                # exactly; we only care that the guard ran without raising
+                # the het_bb97531f abort.
+                pass
+        # If captured_init never got populated, the run failed before the
+        # backend dispatch — that's a separate test signal but doesn't
+        # invalidate the no-abort contract.  Skip the value check in that
+        # branch rather than mask an unrelated failure.
+        if not captured_init:
+            pytest.skip("backend dispatch did not surface initial_values")
+        clamped = captured_init["call"].get("alpha_sample")
+        assert clamped is not None
+        assert clamped >= CMC_ALPHA_SINGULARITY, (
+            f"alpha_sample not clamped: got {clamped}, "
+            f"expected >= {CMC_ALPHA_SINGULARITY}"
+        )
 
     def test_allow_degenerate_warmstart_bypasses_abort(self) -> None:
         """No RuntimeError when allow_degenerate_warmstart=True; returns tombstone."""

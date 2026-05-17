@@ -134,14 +134,19 @@ class CMCConfig:
         Whether to run chains in ``"parallel"`` or ``"sequential"`` order within
         each shard worker.
     num_warmup:
-        Number of NUTS warm-up (burn-in) steps per chain.
+        Number of NUTS warm-up (burn-in) steps per chain.  Default 1500
+        provides ~100 steps per parameter for the 14-parameter heterodyne
+        model when ``dense_mass=True``; lower values leave mass-matrix
+        adaptation incomplete and produce high R-hat / divergence storms.
     num_samples:
         Number of posterior draws per chain after warm-up.
     num_chains:
         Number of independent MCMC chains per shard.
     target_accept_prob:
         Target acceptance probability for the dual-averaging NUTS step-size
-        adaptation (must be in ``[0.5, 0.99]``).
+        adaptation (must be in ``[0.5, 0.99]``).  Default 0.90 keeps step
+        sizes small enough to traverse the (D0, alpha) funnel without
+        divergence cascades; reduce only if you understand the geometry.
     max_tree_depth:
         Maximum binary tree depth for NUTS leapfrog integration.
     seed:
@@ -257,10 +262,10 @@ class CMCConfig:
     # 5. Sampling
     # ------------------------------------------------------------------
 
-    num_warmup: int = 500
+    num_warmup: int = 1500
     num_samples: int = 1500
     num_chains: int = 4
-    target_accept_prob: float = 0.85
+    target_accept_prob: float = 0.90
     max_tree_depth: int = 10
     seed: int = 42
     dense_mass: bool = True

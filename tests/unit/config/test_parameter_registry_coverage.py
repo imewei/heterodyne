@@ -317,3 +317,91 @@ class TestScalingParams:
         assert info.min_bound == 0.5
         assert info.max_bound == 1.5
         assert info.is_scaling is True
+
+
+# ============================================================================
+# Prior-sanity contract (deep-RCA Prevention 1)
+# ============================================================================
+
+
+class TestPriorSanity:
+    """Contract tests that pin the registry priors against the geometric
+    requirements of NUTS sampling.  The deep-RCA finding F2 was that tight
+    log-space priors (D0 prior_std=5e3 → log-space std=0.40) collapse the
+    posterior onto the registry mean and trigger divergence cascades; these
+    tests ensure future edits cannot silently re-tighten the priors below
+    the geometric threshold.
+
+    Two checks per parameter:
+      (a) linear-space prior_std/|prior_mean| > 0.10 — the prior must span
+          at least ±10% of its centre, else it dominates over the data.
+      (b) log-space std > 0.50 — log-scale parameters need ≥ half an
+          e-fold of width to accommodate the empirical NLSQ posterior.
+
+    A parameter passes if EITHER (a) holds in linear space OR (b) holds in
+    log space (log_space=True).  Parameters centred on zero (prior_mean=0)
+    are exempt from (a) and are checked only via their absolute width.
+    """
+
+    @pytest.mark.parametrize(
+        "name",
+        [n for n in DEFAULT_REGISTRY],  # noqa: C416 — registry is iterable, not dict-like
+    )
+    def test_prior_width_is_geometrically_adequate(self, name: str) -> None:
+        import math
+
+        info = DEFAULT_REGISTRY[name]
+        if info.prior_mean is None or info.prior_std is None:
+            pytest.skip(f"{name} has no registry prior")
+        prior_mean = float(info.prior_mean)
+        prior_std = float(info.prior_std)
+        assert prior_std > 0.0, f"{name}: prior_std must be > 0"
+
+        if info.log_space:
+            # log-space std = log(1 + prior_std/prior_mean) for log-normal
+            # approximation; require ≥ 0.5 (≈ half an e-fold)
+            assert prior_mean > 0, (
+                f"{name}: log_space=True but prior_mean={prior_mean} is non-positive"
+            )
+            log_std = math.log1p(prior_std / prior_mean)
+            assert log_std > 0.5, (
+                f"{name}: log-space std = {log_std:.3f} too tight for NUTS "
+                f"(prior_mean={prior_mean:g}, prior_std={prior_std:g}); "
+                "see deep-RCA F2 — D0 with std=5e3/mean=1e4 produced 0.40 "
+                "which collapsed posteriors"
+            )
+        elif prior_mean != 0.0:
+            ratio = prior_std / abs(prior_mean)
+            assert ratio > 0.10, (
+                f"{name}: prior_std/|prior_mean| = {ratio:.3f} too tight; "
+                "registry prior would dominate over data likelihood"
+            )
+        else:
+            # Zero-centred priors: just require nonzero absolute width.
+            # Concrete adequacy depends on the parameter scale and is
+            # enforced by integration tests, not this contract.
+            assert prior_std > 0.0
+
+    def test_dual_prior_specs_in_sync(self) -> None:
+        """CLAUDE.md rule #9 — registry prior_mean/prior_std MUST equal
+        the (loc, scale) tuple in parameter_space._DEFAULT_PRIOR_SPECS for
+        every physical parameter that appears in both.  Drift between the
+        two breaks the dual-prior contract and produces silently
+        inconsistent CMC inference."""
+        from heterodyne.config.parameter_space import _DEFAULT_PRIOR_SPECS
+
+        for name in DEFAULT_REGISTRY:
+            info = DEFAULT_REGISTRY[name]
+            if info.prior_mean is None or info.prior_std is None:
+                continue
+            if name not in _DEFAULT_PRIOR_SPECS:
+                continue
+            spec_loc, spec_scale = _DEFAULT_PRIOR_SPECS[name]
+            assert float(info.prior_mean) == pytest.approx(float(spec_loc)), (
+                f"{name}: registry prior_mean={info.prior_mean!r} != "
+                f"parameter_space loc={spec_loc!r} (CLAUDE.md rule #9)"
+            )
+            assert float(info.prior_std) == pytest.approx(float(spec_scale)), (
+                f"{name}: registry prior_std={info.prior_std!r} != "
+                f"parameter_space scale={spec_scale!r} (CLAUDE.md rule #9)"
+            )
