@@ -19,7 +19,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    TypeVar,
+    cast,
+)  # cast: used by log_calls/log_performance wrappers
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -1121,42 +1126,37 @@ def log_calls(
 
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            assert resolved_logger is not None  # For type narrowing
+            # ``resolved_logger`` is guaranteed non-None: the enclosing
+            # ``decorator`` populates it via ``get_logger`` if the caller
+            # passed ``None``. Use ``cast`` instead of ``assert`` so the
+            # type narrowing survives ``python -O`` (CWE-703, B101).
+            rlog = cast("LoggerType", resolved_logger)
+            log_enabled = rlog.isEnabledFor(level)
 
-            log_enabled = resolved_logger.isEnabledFor(level)
-
+            # Always compute func_name so unbound-var paths can't trip pyright.
+            func_name = f"{func.__module__}.{func.__qualname__}"
             if log_enabled:
-                func_name = f"{func.__module__}.{func.__qualname__}"
                 if include_args:
                     args_str = ", ".join([repr(arg) for arg in args])
                     kwargs_str = ", ".join([f"{k}={v!r}" for k, v in kwargs.items()])
                     all_args = ", ".join(filter(None, [args_str, kwargs_str]))
-                    resolved_logger.log(level, "Calling %s(%s)", func_name, all_args)
+                    rlog.log(level, "Calling %s(%s)", func_name, all_args)
                 else:
-                    resolved_logger.log(level, "Calling %s", func_name)
+                    rlog.log(level, "Calling %s", func_name)
 
             try:
                 result = func(*args, **kwargs)
 
                 if log_enabled:
                     if include_result:
-                        resolved_logger.log(
-                            level, "Completed %s -> %r", func_name, result
-                        )
+                        rlog.log(level, "Completed %s -> %r", func_name, result)
                     else:
-                        resolved_logger.log(level, "Completed %s", func_name)
+                        rlog.log(level, "Completed %s", func_name)
 
                 return result
 
             except Exception as e:
-                exc_func_name = (
-                    func_name
-                    if log_enabled
-                    else f"{func.__module__}.{func.__qualname__}"
-                )
-                resolved_logger.log(
-                    logging.ERROR, "Exception in %s: %s", exc_func_name, e
-                )
+                rlog.log(logging.ERROR, "Exception in %s: %s", func_name, e)
                 raise
 
         return wrapper  # type: ignore[return-value]
@@ -1192,16 +1192,17 @@ def log_performance(
 
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # See log_calls.wrapper for the cast-not-assert rationale.
+            rlog = cast("LoggerType", resolved_logger)
             start_time = time.perf_counter()
             func_name = f"{func.__module__}.{func.__qualname__}"
-            assert resolved_logger is not None  # For type narrowing
 
             try:
                 result = func(*args, **kwargs)
                 duration = time.perf_counter() - start_time
 
                 if duration >= threshold:
-                    resolved_logger.log(
+                    rlog.log(
                         level,
                         "Performance: %s completed in %.3fs",
                         func_name,
@@ -1212,7 +1213,7 @@ def log_performance(
 
             except Exception as e:
                 duration = time.perf_counter() - start_time
-                resolved_logger.log(
+                rlog.log(
                     logging.ERROR,
                     "Performance: %s failed after %.3fs: %s",
                     func_name,

@@ -63,6 +63,20 @@ CMC_F0_DEGEN_THRESHOLD: float = 0.10
 #: singularity at t→0, collapsing NUTS step-size for the sample group.
 CMC_ALPHA_SINGULARITY: float = -1.5
 
+#: Target value for ``f0`` when auto-clamping a degenerate warm-start.
+#: Set to 2× the degeneracy threshold (not just above it) so NUTS leapfrog
+#: steps cannot easily reflect back into the unidentifiable region.
+#: The borderline value ``CMC_F0_DEGEN_THRESHOLD + 0.01 = 0.11`` used in
+#: het_a10cf27e produced 47/47 shard failure even after clamping; this
+#: wider margin is the het_a10cf27e fix.
+CMC_F0_SAFE_ZONE: float = 0.20
+
+#: Target value for ``alpha_sample`` when auto-clamping. Sits 0.5 above the
+#: t^α singularity (vs the previous 0.1 borderline value). The wider margin
+#: keeps NUTS step-size adaptation stable when warm-starting from the
+#: degenerate region.
+CMC_ALPHA_SAFE_ZONE: float = -1.0
+
 
 def _block_until_ready_pytree(tree: Any) -> Any:
     """Block every JAX array leaf in a pytree and return the original object."""
@@ -945,9 +959,9 @@ def fit_cmc_sharded(
             if not config.allow_degenerate_warmstart:
                 _iv_degen_clamped: dict[str, Any] = dict(initial_values)
                 if _alpha_sing:
-                    _iv_degen_clamped["alpha_sample"] = CMC_ALPHA_SINGULARITY + 0.1
+                    _iv_degen_clamped["alpha_sample"] = CMC_ALPHA_SAFE_ZONE
                 if _f0_degen:
-                    _iv_degen_clamped["f0"] = CMC_F0_DEGEN_THRESHOLD + 0.01
+                    _iv_degen_clamped["f0"] = CMC_F0_SAFE_ZONE
                 logger.warning(
                     "[CMC-sharded] Auto-clamping degenerate warm-start to safe "
                     "zone (alpha_sample=%.3f, f0=%.4f) — set "

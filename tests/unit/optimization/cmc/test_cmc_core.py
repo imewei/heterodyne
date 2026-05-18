@@ -1781,9 +1781,10 @@ class TestBugPrevention_DegenerateWarmstartAbort:
         We can't reliably capture the log warning text under pytest's
         capfd (order-dependent FD caching), so we verify the *effect* of
         the auto-clamp: by patching out the heavy NUTS dispatch we can
-        inspect ``initial_values`` after the guard runs.  The clamp
-        target is ``CMC_ALPHA_SINGULARITY + 0.1`` (= -1.4 at the
-        current registry)."""
+        inspect ``initial_values`` after the guard runs. The clamp
+        target is ``CMC_ALPHA_SAFE_ZONE`` (= -1.0 by default; tightened
+        from the het_a10cf27e borderline value of -1.4 to keep NUTS
+        away from the t^α singularity)."""
         import unittest.mock as mock
 
         from heterodyne.optimization.cmc.core import (

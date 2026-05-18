@@ -29,6 +29,16 @@ Examples:
 
   # Run with verbose output
   heterodyne --config analysis.yaml --verbose
+
+Exit codes:
+  0   Analysis completed and the optimizer converged (or no
+      convergence check applies, e.g. plot-only runs).
+  1   Unhandled exception during analysis. See log for traceback.
+  2   Analysis ran but the optimizer did NOT converge — for CMC this
+      typically means every shard failed R-hat / ESS gates (see
+      het_a10cf27e). The output files are still written but the
+      posterior summaries are not trustworthy.
+  130 Interrupted by the user (Ctrl-C).
 """,
     )
 
@@ -130,47 +140,80 @@ Examples:
         "Override initial parameter values (highest precedence)",
     )
     param_group.add_argument(
-        "--initial-D0-ref", type=float, default=None, metavar="VAL",
+        "--initial-D0-ref",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Reference diffusion prefactor D0_ref [Å²/s^α]",
     )
     param_group.add_argument(
-        "--initial-alpha-ref", type=float, default=None, metavar="VAL",
+        "--initial-alpha-ref",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Reference transport exponent alpha_ref",
     )
     param_group.add_argument(
-        "--initial-D-offset-ref", type=float, default=None, metavar="VAL",
+        "--initial-D-offset-ref",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Reference transport offset D_offset_ref [Å²]",
     )
     param_group.add_argument(
-        "--initial-D0-sample", type=float, default=None, metavar="VAL",
+        "--initial-D0-sample",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Sample diffusion prefactor D0_sample [Å²/s^α]",
     )
     param_group.add_argument(
-        "--initial-alpha-sample", type=float, default=None, metavar="VAL",
+        "--initial-alpha-sample",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Sample transport exponent alpha_sample",
     )
     param_group.add_argument(
-        "--initial-D-offset-sample", type=float, default=None, metavar="VAL",
+        "--initial-D-offset-sample",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Sample transport offset D_offset_sample [Å²]",
     )
     param_group.add_argument(
-        "--initial-v0", type=float, default=None, metavar="VAL",
+        "--initial-v0",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Velocity prefactor v0 [Å/s^β]",
     )
     param_group.add_argument(
-        "--initial-beta", type=float, default=None, metavar="VAL",
+        "--initial-beta",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Velocity exponent beta",
     )
     param_group.add_argument(
-        "--initial-v-offset", type=float, default=None, metavar="VAL",
+        "--initial-v-offset",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Velocity offset v_offset [Å/s]",
     )
     param_group.add_argument(
-        "--initial-f0", type=float, default=None, metavar="VAL",
+        "--initial-f0",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Sample fraction amplitude f0",
     )
     param_group.add_argument(
-        "--initial-phi0", type=float, default=None, metavar="VAL",
+        "--initial-phi0",
+        type=float,
+        default=None,
+        metavar="VAL",
         help="Flow angle offset phi0 [degrees]",
     )
 

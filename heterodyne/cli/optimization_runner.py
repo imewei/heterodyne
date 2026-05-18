@@ -18,7 +18,15 @@ from heterodyne.io.nlsq_writers import (
     save_nlsq_npz_file,
 )
 from heterodyne.optimization.cmc import CMCConfig, fit_cmc_jax
-from heterodyne.optimization.cmc.core import fit_cmc_sharded
+from heterodyne.optimization.cmc.core import (
+    CMC_ALPHA_SINGULARITY as _ALPHA_SINGULARITY,
+)
+from heterodyne.optimization.cmc.core import (
+    CMC_F0_DEGEN_THRESHOLD as _F0_DEGEN_THRESHOLD,
+)
+from heterodyne.optimization.cmc.core import (
+    fit_cmc_sharded,
+)
 from heterodyne.optimization.nlsq import NLSQConfig, fit_nlsq_multi_phi
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_phase
@@ -762,12 +770,6 @@ _WARMSTART_LOG_PARAMS = ("D0_ref", "D0_sample", "v0", "alpha_ref", "alpha_sample
 
 # Import thresholds from the authoritative source so the two warning systems
 # stay in sync when a threshold is tuned.
-from heterodyne.optimization.cmc.core import (  # noqa: E402
-    CMC_ALPHA_SINGULARITY as _ALPHA_SINGULARITY,
-)
-from heterodyne.optimization.cmc.core import (
-    CMC_F0_DEGEN_THRESHOLD as _F0_DEGEN_THRESHOLD,
-)
 
 
 def _warn_degenerate_sample_regime(result: NLSQResult) -> None:

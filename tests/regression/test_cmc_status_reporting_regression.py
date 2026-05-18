@@ -287,6 +287,44 @@ class TestStickyFailureStatus:
 
 
 @pytest.mark.regression
+class TestSafeZoneMargins:
+    """Pin the widened auto-clamp safe-zone values from the het_a10cf27e fix.
+
+    Run het_a10cf27e produced 47/47 shard failure across all 3 angles
+    even after auto-clamping alpha_sample → -1.4 (CMC_ALPHA_SINGULARITY+0.1)
+    and f0 → 0.11 (CMC_F0_DEGEN_THRESHOLD+0.01). Those borderline values let
+    NUTS leapfrog steps reflect back into the degenerate region. The safe-
+    zone targets must keep a comfortable margin from the degeneracy
+    boundaries: at least 0.5 above the alpha singularity, and at least 2×
+    above the f0 degeneracy threshold.
+    """
+
+    def test_alpha_safe_zone_margin(self) -> None:
+        from heterodyne.optimization.cmc.core import (
+            CMC_ALPHA_SAFE_ZONE,
+            CMC_ALPHA_SINGULARITY,
+        )
+
+        margin = CMC_ALPHA_SAFE_ZONE - CMC_ALPHA_SINGULARITY
+        assert margin >= 0.5, (
+            f"alpha safe-zone margin {margin:.2f} too tight; "
+            f"het_a10cf27e proved 0.1 margin is insufficient"
+        )
+
+    def test_f0_safe_zone_margin(self) -> None:
+        from heterodyne.optimization.cmc.core import (
+            CMC_F0_DEGEN_THRESHOLD,
+            CMC_F0_SAFE_ZONE,
+        )
+
+        ratio = CMC_F0_SAFE_ZONE / CMC_F0_DEGEN_THRESHOLD
+        assert ratio >= 2.0, (
+            f"f0 safe-zone ratio {ratio:.2f}× too tight; "
+            f"het_a10cf27e proved 1.1× margin is insufficient"
+        )
+
+
+@pytest.mark.regression
 class TestDispatchExitCode:
     """dispatch_command must return non-zero when convergence failed."""
 

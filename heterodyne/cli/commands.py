@@ -36,6 +36,13 @@ def _result_converged(result: Any) -> bool:
     Read whichever attribute the result type provides; do not silently default
     to ``True`` when neither is present, since that masked the het_a10cf27e
     failure mode (47/47 shards failed every angle, reported as "converged").
+
+    Audit note (2026-05-17): a sweep for vulnerable status-aggregation
+    patterns elsewhere in the codebase found no other sites using
+    ``getattr(result, "<status>", True)``. All other status reductions use
+    direct attribute access on NLSQResult (``r.success``) which is type-safe.
+    If a new result class is introduced, route its status check through this
+    helper so the guard continues to apply.
     """
     if hasattr(result, "convergence_passed"):
         return bool(result.convergence_passed)
