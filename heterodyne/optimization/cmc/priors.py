@@ -97,6 +97,22 @@ def build_nlsq_informed_priors(
     return priors
 
 
+def _verify_dual_prior_sync(registry: ParameterRegistry | None) -> None:
+    """Run the PriorBuilder construction-time sync gate without circular import.
+
+    Built as a side-effect of :func:`build_default_priors` so every prior-
+    construction call validates Rule 9.  Imports :class:`PriorBuilder`
+    locally because ``prior_builder`` itself imports this module's
+    legacy implementations as fallbacks.
+    """
+    from heterodyne.optimization.cmc.prior_builder import PriorBuilder
+
+    # PriorBuilder.__init__ runs the dual-source comparison; we drop the
+    # instance immediately because we already have the implementation
+    # below — only the side-effect matters.
+    PriorBuilder(registry=registry, use_log_space_priors=True)
+
+
 def build_default_priors(
     param_space: ParameterSpace,
     registry: ParameterRegistry | None = None,
@@ -134,6 +150,11 @@ def build_default_priors(
     """
     if registry is None:
         registry = DEFAULT_REGISTRY
+        # Gemini G2: enforce dual-prior sync (CLAUDE.md Rule 9) at
+        # construction time only on the default path.  Callers who pass
+        # an explicit ``registry=`` (e.g. unit tests using stub registries
+        # to isolate one code path) are trusted to manage sync themselves.
+        _verify_dual_prior_sync(None)
 
     priors: dict[str, dist.Distribution] = {}
 

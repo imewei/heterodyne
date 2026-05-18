@@ -1524,6 +1524,15 @@ def _combine_shard_posteriors(
         # but NUTS samples were collected — accept the shard on raw-sample basis.
         return sr.r_hat is not None and bool(np.all(np.isnan(sr.r_hat)))
 
+    # Gemini P2-d: expose per-shard failure mask so callers can identify
+    # WHICH shards dropped, not just how many.  Mask is True at index i iff
+    # shard i was rejected by the validity gate (rate-padded failures
+    # included via the np.nan posterior_std set in _create_failed_result).
+    _failure_mask: np.ndarray = np.array(
+        [not _shard_has_valid_samples(sr) for sr in shard_results],
+        dtype=bool,
+    )
+
     successful = [
         sr
         for sr in shard_results
@@ -1586,7 +1595,15 @@ def _combine_shard_posteriors(
             num_samples=shard_results[0].num_samples,
             num_chains=shard_results[0].num_chains,
             wall_time_seconds=None,
-            metadata={"all_shards_failed": True, "n_total_shards": len(shard_results)},
+            metadata={
+                "all_shards_failed": True,
+                "n_total_shards": num_shards,
+                # P2-d: mask length tracks ``len(shard_results)`` (the
+                # padded list the consumer sees) so callers can iterate
+                # the mask in lockstep with ``shard_results`` without
+                # worrying about length skew.
+                "failure_mask": np.full(len(shard_results), True, dtype=bool),
+            },
         )
 
     n_skipped = len(shard_results) - len(successful)
@@ -1845,6 +1862,9 @@ def _combine_shard_posteriors(
             "success_rate": _success_rate,
             "diagnostics_passed": _diagnostics_passed,
             "rate_passed": _rate_passed,
+            # P2-d: per-shard bool mask (True = failed). Length = num_shards;
+            # entry i == True iff shard i was rejected by the validity gate.
+            "failure_mask": _failure_mask,
         },
     )
 

@@ -30,9 +30,7 @@ from heterodyne.core.jax_backend import compute_c2_heterodyne
 from heterodyne.core.physics_utils import (
     compute_transport_rate,
     compute_velocity_rate,
-    safe_exp,
     smooth_abs,
-    smooth_clip,
     trapezoid_cumsum,
 )
 from heterodyne.utils.logging import get_logger
@@ -208,7 +206,6 @@ def compute_velocity_elementwise(
     return cumsum[shard_grid.idx2] - cumsum[shard_grid.idx1]
 
 
-@jax.jit
 def compute_c2_elementwise(
     params: jnp.ndarray,
     shard_grid: ShardGrid,
@@ -218,14 +215,16 @@ def compute_c2_elementwise(
     contrast: float = 1.0,
     offset: float = 1.0,
 ) -> jnp.ndarray:
-    """Element-wise c2 computation for CMC (no N×N matrix allocation).
+    """Element-wise c2 evaluation for CMC (no N×N matrix allocation).
 
-    This is the heterodyne equivalent of homodyne's
-    ``_compute_g1_total_with_precomputed``.  It evaluates:
+    Thin shim around :func:`heterodyne.core.physics_kernel.compute_c2_unified`
+    with ``eval_strategy="elementwise"``.  Codex/Gemini G1: the physics math
+    lives in the unified kernel; this function preserves the legacy import
+    path for ``compute_c2_elementwise`` so worker shard-loops and existing
+    tests remain unchanged.
 
-        c2[k] = offset + contrast × [ref + sample + cross][k] / f²[k]
-
-    at each pre-computed (t1[k], t2[k]) pair from the ShardGrid.
+    The ShardGrid input keeps the O(n_pairs) memory advantage — the unified
+    kernel only allocates the (n_pairs,) output.
 
     Args:
         params: 14-parameter array in canonical order.
@@ -237,89 +236,23 @@ def compute_c2_elementwise(
         offset: Baseline offset.
 
     Returns:
-        Correlation values, shape (n_pairs,).
+        Correlation values, shape ``(n_pairs,)``.
     """
-    # Extract parameters
-    D0_ref, alpha_ref, D_offset_ref = params[0], params[1], params[2]
-    D0_sample, alpha_sample, D_offset_sample = params[3], params[4], params[5]
-    v0, beta, v_offset_param = params[6], params[7], params[8]
-    f0, f1, f2, f3 = params[9], params[10], params[11], params[12]
-    phi0 = params[13]
+    # Local import to break the historical circular reference between
+    # physics_cmc.py and jax_backend.py: physics_kernel.py is the
+    # single-truth-of-math module and depends only on physics_utils.
+    from heterodyne.core.physics_kernel import compute_c2_unified
 
-    # Half-transport at paired indices (no N×N)
-    half_tr_ref = compute_transport_elementwise(
-        shard_grid,
-        D0_ref,
-        alpha_ref,
-        D_offset_ref,
+    return compute_c2_unified(
+        params,
         q,
         dt,
+        phi_angle,
+        contrast,
+        offset,
+        eval_strategy="elementwise",
+        shard_grid=shard_grid,
     )
-    half_tr_sample = compute_transport_elementwise(
-        shard_grid,
-        D0_sample,
-        alpha_sample,
-        D_offset_sample,
-        q,
-        dt,
-    )
-
-    # Velocity integral at paired indices (signed, no N×N)
-    v_integral = compute_velocity_elementwise(
-        shard_grid,
-        v0,
-        beta,
-        v_offset_param,
-        dt,
-    )
-
-    # Phase factor
-    total_phi = phi_angle + phi0
-    phi_rad = jnp.deg2rad(total_phi)
-    phase = q * jnp.cos(phi_rad) * v_integral
-
-    # Sample fraction at paired time points
-    t1_vals = shard_grid.time_grid[shard_grid.idx1]
-    t2_vals = shard_grid.time_grid[shard_grid.idx2]
-
-    def _fraction(t_vals: jnp.ndarray) -> jnp.ndarray:
-        # ``safe_exp`` caps the exponent with a project-blessed helper, and
-        # ``smooth_clip`` enforces the physical [0, 1] sample fraction range
-        # with a continuous gradient at the boundary so NUTS leapfrog
-        # adaptation does not stall when posterior mass approaches saturation
-        # (CLAUDE.md rule #7 — gradient-safe floors).  ``jnp.clip`` here would
-        # zero the gradient and bias the f0/f1/f2/f3 posteriors toward false
-        # precision (deep-RCA F8).
-        raw_fs = f0 * safe_exp(f1 * (t_vals - f2)) + f3
-        return smooth_clip(raw_fs, 0.0, 1.0)
-
-    f_sample_1 = _fraction(t1_vals)
-    f_sample_2 = _fraction(t2_vals)
-    f_ref_1 = 1.0 - f_sample_1
-    f_ref_2 = 1.0 - f_sample_2
-
-    # Fraction products (element-wise)
-    f_ref_prod = f_ref_1 * f_ref_2
-    f_sample_prod = f_sample_1 * f_sample_2
-    f_cross_1 = f_ref_1 * f_sample_1
-    f_cross_2 = f_ref_2 * f_sample_2
-    f_cross_prod = f_cross_1 * f_cross_2
-
-    # Correlation terms
-    ref_term = f_ref_prod**2 * half_tr_ref**2
-    sample_term = f_sample_prod**2 * half_tr_sample**2
-    cross_term = 2.0 * f_cross_prod * half_tr_ref * half_tr_sample * jnp.cos(phase)
-
-    # Normalization: (f_s² + f_r²)_t1 × (f_s² + f_r²)_t2
-    norm_1 = f_sample_1**2 + f_ref_1**2
-    norm_2 = f_sample_2**2 + f_ref_2**2
-    # Use jnp.where to preserve gradients: jnp.maximum zeros the gradient
-    # when normalization < 1e-10, stalling the NUTS leapfrog integrator.
-    _norm_prod = norm_1 * norm_2
-    normalization = jnp.where(_norm_prod > 1e-10, _norm_prod, 1e-10)
-
-    c2 = offset + contrast * (ref_term + sample_term + cross_term) / normalization
-    return c2
 
 
 # ---------------------------------------------------------------------------

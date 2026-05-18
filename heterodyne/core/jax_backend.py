@@ -194,7 +194,6 @@ def compute_transport_integral_matrix(
     return smooth_abs(diff)
 
 
-@jax.jit
 def compute_c2_heterodyne(
     params: jnp.ndarray,
     t: jnp.ndarray,
@@ -204,15 +203,13 @@ def compute_c2_heterodyne(
     contrast: float = 1.0,
     offset: float = 1.0,
 ) -> jnp.ndarray:
-    """JIT-compiled two-time heterodyne correlation computation.
+    """JIT-compiled two-time heterodyne correlation (meshgrid path).
 
-    Computes c2 = offset + contrast × [ref + sample + cross] / f²
-
-    Uses the integral formulation (PNAS Eq. S-95),
-    ``half_tr[i,j] = exp(-½q² × |∫ J_rate(t') dt'|)``.
-
-    Self-terms use half_tr² to recover exp(-q²∫J), and cross-terms
-    multiply half_tr_ref × half_tr_sample.
+    Thin shim around :func:`heterodyne.core.physics_kernel.compute_c2_unified`
+    with ``eval_strategy="meshgrid"``.  Codex/Gemini G1: the physics math
+    lives in the unified kernel; this function preserves the legacy import
+    path for all NLSQ call sites (``compute_residuals``, ``compute_jacobian``,
+    multi-angle stratified fits, etc.) without behavioural change.
 
     Args:
         params: Parameter array of shape ``(14,)`` in canonical order:
@@ -226,77 +223,23 @@ def compute_c2_heterodyne(
         offset: Baseline offset, default 1.0
 
     Returns:
-        Correlation matrix c2, shape (N, N)
+        Correlation matrix c2, shape (N, N).
     """
-    # Extract parameters
-    D0_ref, alpha_ref, D_offset_ref = params[0], params[1], params[2]
-    D0_sample, alpha_sample, D_offset_sample = params[3], params[4], params[5]
-    v0, beta, v_offset = params[6], params[7], params[8]
-    f0, f1, f2, f3 = params[9], params[10], params[11], params[12]
-    phi0 = params[13]
+    # Local import to avoid a cycle: physics_kernel.py imports nothing from
+    # this module, but importing at module load would chain into JAX init
+    # before some downstream test helpers expect it.
+    from heterodyne.core.physics_kernel import compute_c2_unified
 
-    # Transport integral matrices via shared cumsum → meshgrid pipeline
-    # J_integral[i,j] = |∫_{t_i}^{t_j} J_rate(t') dt'|
-    J_ref_rate = compute_transport_rate(t, D0_ref, alpha_ref, D_offset_ref)
-    J_sample_rate = compute_transport_rate(t, D0_sample, alpha_sample, D_offset_sample)
-    ref_cumsum = trapezoid_cumsum(J_ref_rate, dt)
-    sample_cumsum = trapezoid_cumsum(J_sample_rate, dt)
-    J_ref_integral = smooth_abs(create_time_integral_matrix(ref_cumsum))
-    J_sample_integral = smooth_abs(create_time_integral_matrix(sample_cumsum))
-
-    # Half-transport matrices: exp(-½q²∫J) with log-space clipping for
-    # numerical safety — prevents underflow for extreme D0 values
-    q2 = q * q
-    log_half_tr_ref = jnp.clip(-0.5 * q2 * J_ref_integral, -700.0, 0.0)
-    log_half_tr_sample = jnp.clip(-0.5 * q2 * J_sample_integral, -700.0, 0.0)
-    half_tr_ref = jnp.exp(log_half_tr_ref)
-    half_tr_sample = jnp.exp(log_half_tr_sample)
-
-    # Sample fraction: f_s(t) = f0 * exp(f1 * (t - f2)) + f3, smoothly
-    # bounded into [0, 1] so the NLSQ Jacobian retains gradient at
-    # saturation (deep-RCA F8; mirrors physics_cmc.py).
-    f_sample = smooth_clip(f0 * safe_exp(f1 * (t - f2)) + f3, 0.0, 1.0)
-    f_ref = 1.0 - f_sample
-
-    # Velocity integral matrix via shared cumsum → meshgrid pipeline
-    velocity = compute_velocity_rate(t, v0, beta, v_offset)
-    v_cumsum = trapezoid_cumsum(velocity, dt)
-    v_integral = create_time_integral_matrix(v_cumsum)
-
-    # Combined phi angle: phi_angle from detector + phi0 from fit
-    total_phi = phi_angle + phi0
-    phi_rad = jnp.deg2rad(total_phi)
-
-    # Phase factor: q * cos(phi) * velocity_integral
-    phase = q * jnp.cos(phi_rad) * v_integral
-
-    # Fraction matrices
-    f_ref_matrix = f_ref[:, None] * f_ref[None, :]
-    f_sample_matrix = f_sample[:, None] * f_sample[None, :]
-    f_cross_vec = f_ref * f_sample
-    f_cross_matrix = f_cross_vec[:, None] * f_cross_vec[None, :]
-
-    # Reference term: f_ref_matrix² × half_tr_ref² (½×2 gives full q²∫J)
-    ref_term = f_ref_matrix**2 * half_tr_ref**2
-
-    # Sample term: f_sample_matrix² × half_tr_sample²
-    sample_term = f_sample_matrix**2 * half_tr_sample**2
-
-    # Cross term: 2 × f_cross × half_tr_ref × half_tr_sample × cos(phase)
-    cross_term = 2.0 * f_cross_matrix * half_tr_ref * half_tr_sample * jnp.cos(phase)
-
-    # Normalization: f² = (f_s² + f_r²)_t1 * (f_s² + f_r²)_t2
-    norm_1 = f_sample**2 + f_ref**2
-    normalization = norm_1[:, None] * norm_1[None, :]
-
-    # Full correlation: offset + contrast × [terms] / f²
-    # Use jnp.where to preserve gradients: jnp.maximum zeros the gradient
-    # when normalization < 1e-10, which would stall the NLSQ Jacobian.
-    c2 = offset + contrast * (ref_term + sample_term + cross_term) / jnp.where(
-        normalization > 1e-10, normalization, 1e-10
+    return compute_c2_unified(
+        params,
+        q,
+        dt,
+        phi_angle,
+        contrast,
+        offset,
+        eval_strategy="meshgrid",
+        t=t,
     )
-
-    return c2
 
 
 def compute_residuals(

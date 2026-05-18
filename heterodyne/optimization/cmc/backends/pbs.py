@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import contextlib
 import pickle  # Required: NumPyro model callables cannot be serialized as JSON.
+import re
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -57,6 +59,126 @@ _PBS_ACTIVE_STATES: frozenset[str] = frozenset({"Q", "W", "H", "R", "T", "S"})
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Codex W5 — PBS field validators (shell-injection hardening)
+# ---------------------------------------------------------------------------
+#
+# Each user-supplied field is matched against a conservative allowlist
+# before it is interpolated into the generated PBS script.  Shell-execution
+# lines additionally pass values through ``shlex.quote`` (defense-in-depth)
+# but PBS directive lines do NOT — PBS directives are parsed by qsub, not
+# bash, so shell-quoting would break the parse.  The allowlist is therefore
+# the primary protection for directive fields.
+
+# PBS queue name: alphanumeric plus . _ - (site conventions allow these).
+_PBS_QUEUE_PATTERN: re.Pattern[str] = re.compile(r"^[A-Za-z0-9_.\-]+$")
+# Strict HH:MM:SS, accepts up to 999:59:59 for long walltimes.
+_PBS_WALLTIME_PATTERN: re.Pattern[str] = re.compile(r"^\d{1,4}:\d{2}:\d{2}$")
+# PBS memory unit (kb, mb, gb, tb), case-insensitive.
+_PBS_MEMORY_PATTERN: re.Pattern[str] = re.compile(r"^\d+(?:[kmgt]b)$", re.IGNORECASE)
+# Path: alphanumeric + ._-/ (no spaces, no metacharacters).
+# Rationale: HPC python paths must not contain spaces.  If your installation
+# requires one, symlink to a no-space path before configuring PBSConfig.
+# Allowing spaces here would leak unquoted strings into downstream log lines
+# that may later be pasted into a shell.
+_PBS_PATH_PATTERN: re.Pattern[str] = re.compile(r"^[A-Za-z0-9_.\-/]+$")
+
+# Shell metacharacters that must never appear inside an extra_pbs_directives
+# line.  Newlines (\n, \r) would split the line into a fresh shell command;
+# the rest enable command substitution, piping, redirection, or background
+# execution.
+_PBS_DIRECTIVE_BAD_CHARS: tuple[str, ...] = (
+    ";",
+    "$(",
+    "`",
+    "\n",
+    "\r",
+    "\\",
+    "|",
+    "&",
+    ">",
+    "<",
+)
+_PBS_DIRECTIVE_PREFIX_PATTERN: re.Pattern[str] = re.compile(r"^#PBS\s+\S")
+_PBS_DIRECTIVE_MAX_LEN: int = 256
+
+
+def _validate_string_field(name: str, value: str, pattern: re.Pattern[str]) -> None:
+    """Raise :class:`ValueError` when *value* does not match *pattern*."""
+    if not isinstance(value, str):
+        raise ValueError(f"PBSConfig.{name} must be a str, got {type(value).__name__}")
+    if not pattern.fullmatch(value):
+        raise ValueError(
+            f"PBSConfig.{name}={value!r} contains disallowed characters "
+            f"(allowed pattern: {pattern.pattern}). "
+            "Field is interpolated into a generated PBS shell script; "
+            "tightly restricted to prevent shell injection."
+        )
+
+
+def _validate_extra_directives(directives: list[str]) -> None:
+    """Raise :class:`ValueError` if any directive contains shell metacharacters.
+
+    ``extra_pbs_directives`` is a trusted-input field: it is intended for
+    the deployment owner to inject site-specific ``#PBS`` lines.  It must
+    NOT be populated from untrusted user-facing config.  This validator is
+    a defense-in-depth check, not a substitute for that policy.
+    """
+    if not isinstance(directives, list):
+        raise ValueError(
+            "PBSConfig.extra_pbs_directives must be a list[str], got "
+            f"{type(directives).__name__}"
+        )
+    for i, line in enumerate(directives):
+        if not isinstance(line, str):
+            raise ValueError(
+                f"PBSConfig.extra_pbs_directives[{i}] must be str, got "
+                f"{type(line).__name__}"
+            )
+        if len(line) > _PBS_DIRECTIVE_MAX_LEN:
+            raise ValueError(
+                f"PBSConfig.extra_pbs_directives[{i}] exceeds "
+                f"{_PBS_DIRECTIVE_MAX_LEN} characters; rejected as a "
+                "defensive size cap."
+            )
+        if not _PBS_DIRECTIVE_PREFIX_PATTERN.match(line):
+            raise ValueError(
+                f"PBSConfig.extra_pbs_directives[{i}]={line!r} does not start "
+                "with '#PBS ' followed by a directive (e.g. '#PBS -l mem=4gb')."
+            )
+        for bad in _PBS_DIRECTIVE_BAD_CHARS:
+            pos = line.find(bad)
+            if pos >= 0:
+                raise ValueError(
+                    f"PBSConfig.extra_pbs_directives[{i}]={line!r}: "
+                    f"rejected character {bad!r} at position {pos}; "
+                    "shell metacharacters are not permitted in PBS directives."
+                )
+
+
+def _validate_working_dir(value: str | None) -> None:
+    """Reject working_dir values that contain shell metacharacters or .. escapes."""
+    if value is None:
+        return
+    if not isinstance(value, str):
+        raise ValueError(
+            f"PBSConfig.working_dir must be str | None, got {type(value).__name__}"
+        )
+    for bad in (";", "$(", "`", "\n", "\r", "|", "&"):
+        if bad in value:
+            raise ValueError(
+                f"PBSConfig.working_dir={value!r} contains disallowed "
+                f"shell character {bad!r}."
+            )
+
+
+def _validate_int_range(name: str, value: int, lo: int, hi: int) -> None:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"PBSConfig.{name} must be int, got {type(value).__name__}")
+    if not (lo <= value <= hi):
+        raise ValueError(f"PBSConfig.{name}={value} out of range [{lo}, {hi}]")
+
+
 @dataclass
 class PBSConfig:
     """Configuration for PBS/Torque job submission.
@@ -89,6 +211,25 @@ class PBSConfig:
     poll_interval: float = 30.0
     max_retries: int = 2
     cleanup_on_success: bool = True
+
+    def __post_init__(self) -> None:
+        """Codex W5: validate every shell-bound field at construction time.
+
+        Misconfigured PBS jobs fail here (cheap) instead of after a qsub
+        round-trip (expensive) or — worse — after the malformed script
+        runs.  Each validator raises :class:`ValueError` with a message
+        that names the field and the offending characters.
+        """
+        _validate_string_field("queue", self.queue, _PBS_QUEUE_PATTERN)
+        _validate_string_field("walltime", self.walltime, _PBS_WALLTIME_PATTERN)
+        _validate_string_field("memory", self.memory, _PBS_MEMORY_PATTERN)
+        _validate_string_field(
+            "python_executable", self.python_executable, _PBS_PATH_PATTERN
+        )
+        _validate_int_range("nodes", self.nodes, 1, 10_000)
+        _validate_int_range("ppn", self.ppn, 1, 256)
+        _validate_working_dir(self.working_dir)
+        _validate_extra_directives(self.extra_pbs_directives)
 
 
 # ---------------------------------------------------------------------------
@@ -285,7 +426,25 @@ def _build_pbs_script(
     stdout_path: Path,
     stderr_path: Path,
 ) -> str:
-    """Return a complete PBS job script as a string."""
+    """Return a complete PBS job script as a string.
+
+    Codex W5: PBSConfig has already validated every field on construction,
+    but we re-run the relevant validators here as defense-in-depth in case
+    a caller mutates the config dataclass between construction and script
+    generation.  Shell-execution lines additionally pass through
+    :func:`shlex.quote`.  PBS directive lines do NOT go through
+    ``shlex.quote`` because qsub parses those directly — quoting would
+    confuse the directive parser.
+    """
+    # Defense-in-depth: re-validate user-supplied fields used here.
+    _validate_string_field("queue", pbs_cfg.queue, _PBS_QUEUE_PATTERN)
+    _validate_string_field("walltime", pbs_cfg.walltime, _PBS_WALLTIME_PATTERN)
+    _validate_string_field("memory", pbs_cfg.memory, _PBS_MEMORY_PATTERN)
+    _validate_string_field("python_executable", python_exe, _PBS_PATH_PATTERN)
+    _validate_int_range("nodes", pbs_cfg.nodes, 1, 10_000)
+    _validate_int_range("ppn", pbs_cfg.ppn, 1, 256)
+    _validate_extra_directives(pbs_cfg.extra_pbs_directives)
+
     resource_line = (
         f"nodes={pbs_cfg.nodes}:ppn={pbs_cfg.ppn},"
         f"mem={pbs_cfg.memory},"
@@ -300,8 +459,13 @@ def _build_pbs_script(
     import os as _os
 
     _cache_env = _os.environ.get("JAX_COMPILATION_CACHE_DIR", "")
+    # shlex.quote is the right tool here even though _cache_env came from
+    # our own os.environ — an attacker who controls env vars can already do
+    # more damage than this, but quoting keeps the script self-consistent.
     cache_export = (
-        f'export JAX_COMPILATION_CACHE_DIR="{_cache_env}"\n' if _cache_env else ""
+        f"export JAX_COMPILATION_CACHE_DIR={shlex.quote(_cache_env)}\n"
+        if _cache_env
+        else ""
     )
     return (
         "#!/bin/bash\n"
@@ -314,7 +478,10 @@ def _build_pbs_script(
         "cd $PBS_O_WORKDIR\n"
         "export JAX_ENABLE_X64=1\n"
         f"{cache_export}"
-        f"{python_exe} {worker_script_path} {data_path} {result_path}\n"
+        # Shell-execution line: every interpolated value gets shlex.quote
+        # as defense-in-depth on top of the construction-time allowlist.
+        f"{shlex.quote(python_exe)} {shlex.quote(str(worker_script_path))} "
+        f"{shlex.quote(str(data_path))} {shlex.quote(str(result_path))}\n"
     )
 
 

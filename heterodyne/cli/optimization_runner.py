@@ -654,116 +654,17 @@ def _clamp_warmstart_to_interior(
     result: NLSQResult,
     fixed_param_overrides: dict[str, float] | None = None,
 ) -> NLSQResult:
-    """Return a copy of *result* with parameters shifted inward from hard bounds.
+    """CLI wrapper for ``heterodyne.optimization.cmc.warmstart.clamp_to_interior``.
 
-    NUTS step-size collapses when the chain initialises at a TruncatedNormal
-    boundary.  Linear-scale parameters are clamped to
-    ``[min_bound + margin, max_bound - margin]`` where margin is 5% of the
-    bound range.  Log-space parameters (D0, v0) use a geometric margin so a
-    linear fraction of a multi-decade range does not produce an absurd clamp
-    target.  Both ensure the leapfrog step-size adaptation starts well away
-    from the reflecting wall.
-
-    ``fixed_param_overrides`` maps parameter names to values from the current
-    model config's ``fixed_parameters``.  When provided, any NLSQ result value
-    for a fixed parameter is replaced with the config value before bounds
-    clamping.  This prevents a stale ``nlsq_data.npz`` (fitted in a prior run
-    where the parameter was free) from propagating a superseded value into CMC
-    initialisation, which can place the warm-start outside the reparameterised
-    prior support and cause log-prior = −∞ → BFMI = 0 across all shards.
+    P2-a: the implementation now lives in
+    :mod:`heterodyne.optimization.cmc.warmstart` so Python API users
+    (who don't go through the CLI) get the same boundary-clamp
+    protection.  This wrapper exists only to preserve the private
+    CLI-internal symbol used by the rest of this module.
     """
-    import dataclasses
+    from heterodyne.optimization.cmc.warmstart import clamp_to_interior
 
-    try:
-        from heterodyne.config.parameter_registry import ParameterRegistry
-
-        registry = ParameterRegistry()
-    except ImportError:
-        return result
-
-    params = result.parameters.copy()
-    clamped: list[str] = []
-
-    for i, name in enumerate(result.parameter_names):
-        # Apply fixed-parameter overrides before bounds clamping. A stale
-        # nlsq_data.npz (from a run where the parameter was free) can carry a
-        # value that is no longer valid under the current config. Override it
-        # with the model's configured fixed value to keep the warm-start inside
-        # the reparameterised prior support.
-        if fixed_param_overrides and name in fixed_param_overrides:
-            old = float(params[i])
-            new = float(fixed_param_overrides[name])
-            if abs(new - old) > 1e-12:
-                logger.info(
-                    "CMC init override: %s %.4g → %.4g "
-                    "(fixed in current config; stale NLSQ value replaced)",
-                    name,
-                    old,
-                    new,
-                )
-                params[i] = new
-                clamped.append(name)
-            continue
-        try:
-            info = registry[name]
-        except KeyError:
-            continue
-        if info.log_space and info.min_bound > 0:
-            # Geometric margin for log-distributed params: a linear fraction of
-            # [100, 1e6] would clamp D0=100 to ~50 000 (500× off); log-space
-            # margin of 5% gives 100 × (1e6/100)^0.05 ≈ 159 instead.
-            log_range = np.log(info.max_bound / info.min_bound)
-            factor = np.exp(_BOUNDARY_INTERIOR_MARGIN * log_range)
-            lo = info.min_bound * factor
-            hi = info.max_bound / factor
-        else:
-            margin = _BOUNDARY_INTERIOR_MARGIN * (info.max_bound - info.min_bound)
-            lo = info.min_bound + margin
-            hi = info.max_bound - margin
-        if lo >= hi:
-            continue
-        old = float(params[i])
-        new = float(np.clip(old, lo, hi))
-        if new != old:
-            # Distinguish "NLSQ converged exactly on the boundary" from
-            # "NLSQ wandered close but not there".  The former means the true
-            # posterior mode is at or past the boundary — NUTS leapfrog will
-            # hit the reflecting wall on every step, causing high divergence
-            # rates and all-shard consensus failure.
-            _at_lb = abs(old - info.min_bound) < 1e-10 * max(abs(info.min_bound), 1)
-            _at_ub = abs(old - info.max_bound) < 1e-10 * max(abs(info.max_bound), 1)
-            if _at_lb or _at_ub:
-                _side = "lower" if _at_lb else "upper"
-                logger.warning(
-                    "CMC init clamp: %s %.4g → %.4g (bounds [%.4g, %.4g]); "
-                    "NLSQ hit the %s bound exactly — true mode may be outside "
-                    "current bounds; expect high NUTS divergence rate. "
-                    "Consider widening the %s bound in your config.",
-                    name,
-                    old,
-                    new,
-                    info.min_bound,
-                    info.max_bound,
-                    _side,
-                    _side,
-                )
-            else:
-                logger.warning(
-                    "CMC init clamp: %s %.4g → %.4g (bounds [%.4g, %.4g]); "
-                    "NUTS boundary-adjacent start prevented",
-                    name,
-                    old,
-                    new,
-                    info.min_bound,
-                    info.max_bound,
-                )
-            clamped.append(name)
-            params[i] = new
-
-    if not clamped:
-        return result
-
-    return dataclasses.replace(result, parameters=params)
+    return clamp_to_interior(result, fixed_param_overrides)
 
 
 _WARMSTART_LOG_PARAMS = ("D0_ref", "D0_sample", "v0", "alpha_ref", "alpha_sample")
