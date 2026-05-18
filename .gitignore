@@ -224,6 +224,7 @@ __marimo__/
 .agents/
 .claude/
 .claude-progress.md
+.claude-scratch
 .codex/
 .gemini/
 .remember/
