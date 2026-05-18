@@ -18,6 +18,7 @@ import jax.numpy as jnp
 from numpyro.infer import MCMC, NUTS
 from numpyro.infer import initialization as numpyro_init
 
+from heterodyne.optimization.cmc.config import effective_warmup_floor
 from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -200,6 +201,10 @@ class SamplingPlan:
     dense_mass: bool = True
     chain_method: str = "sequential"
     seed: int | None = None
+    #: Rule 12 escape hatch propagated from :class:`CMCConfig.fast_warmup`.
+    #: When True, ``for_shard`` and ``AdaptiveSamplingPlan`` skip the dense-mass
+    #: warmup floor. CI / pytest fast-mode only — not for production posteriors.
+    fast_warmup: bool = False
 
     def __post_init__(self) -> None:
         """Validate hyperparameters."""
@@ -278,6 +283,13 @@ class SamplingPlan:
                 num_samples,
             )
 
+        # Rule 12: dense-mass NUTS requires the configured warmup floor.
+        num_warmup = effective_warmup_floor(
+            num_warmup,
+            dense_mass=config.dense_mass,
+            fast_warmup=getattr(config, "fast_warmup", False),
+        )
+
         return cls(
             num_warmup=num_warmup,
             num_samples=num_samples,
@@ -288,6 +300,7 @@ class SamplingPlan:
             dense_mass=config.dense_mass,
             chain_method=config.chain_method,
             seed=config.seed,
+            fast_warmup=getattr(config, "fast_warmup", False),
         )
 
     def for_shard(self, shard_size: int, full_size: int) -> SamplingPlan:
@@ -322,6 +335,12 @@ class SamplingPlan:
 
         new_warmup = max(min_warmup, int(self.num_warmup * scale))
         new_samples = max(min_samples, int(self.num_samples * scale))
+        # Rule 12: per-shard scaling must not slip below the dense-mass floor.
+        # Honour ``self.fast_warmup`` so CI fast-mode propagated from
+        # CMCConfig.fast_warmup keeps its opt-out.
+        new_warmup = effective_warmup_floor(
+            new_warmup, dense_mass=self.dense_mass, fast_warmup=self.fast_warmup
+        )
 
         # Homodyne CMC parity: shards with very few points cannot amortise
         # the parallel-chain dispatch overhead.  Fall back to sequential
@@ -363,6 +382,7 @@ class SamplingPlan:
             dense_mass=self.dense_mass,
             chain_method=effective_chain_method,
             seed=self.seed,
+            fast_warmup=self.fast_warmup,
         )
 
 
@@ -821,6 +841,12 @@ class AdaptiveSamplingPlan:
 
         new_warmup = max(min_warmup, int(self.base_plan.num_warmup * scale))
         new_samples = max(min_samples, int(self.base_plan.num_samples * scale))
+        # Rule 12: floor=70 here is too low for dense-mass NUTS on 14 params.
+        new_warmup = effective_warmup_floor(
+            new_warmup,
+            dense_mass=self.base_plan.dense_mass,
+            fast_warmup=self.base_plan.fast_warmup,
+        )
 
         logger.debug(
             "AdaptiveSamplingPlan.get_plan: shard_size=%d, n_params=%d, "
@@ -842,6 +868,7 @@ class AdaptiveSamplingPlan:
             dense_mass=self.base_plan.dense_mass,
             chain_method=self.base_plan.chain_method,
             seed=self.base_plan.seed,
+            fast_warmup=self.base_plan.fast_warmup,
         )
 
 

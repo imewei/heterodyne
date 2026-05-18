@@ -33,6 +33,48 @@ _MIN_POINTS_PER_PARAM_DEFAULT: int = 1_500
 #: Reference shard size used for adaptive sample-count scaling (10 K points → full).
 _REFERENCE_SHARD_SIZE: int = 10_000
 
+#: Rule 12: NUTS warmup floor when ``dense_mass=True``. Dense mass-matrix
+#: adaptation needs ≥ 100 steps per dimension; for the 14-parameter heterodyne
+#: model, 1500 warmup steps is the minimum that yields healthy R-hat in regression.
+DENSE_MASS_WARMUP_FLOOR: int = 1500
+
+# Process-once warning gate so the fast_warmup advisory is logged at most once.
+_FAST_WARMUP_WARNED: bool = False
+
+
+def effective_warmup_floor(
+    requested: int, *, dense_mass: bool, fast_warmup: bool = False
+) -> int:
+    """Return the safe warmup count, applying the Rule 12 floor when needed.
+
+    When ``dense_mass=True`` the NUTS dense mass-matrix adaptation requires
+    at least :data:`DENSE_MASS_WARMUP_FLOOR` steps; otherwise the requested
+    value is returned unchanged.  ``fast_warmup=True`` opts out of the floor
+    and emits a one-shot warning — intended for CI fast-mode only.
+
+    Args:
+        requested: Caller-supplied (possibly scaled) warmup count.
+        dense_mass: Whether the sampler is configured with ``dense_mass=True``.
+        fast_warmup: Skip the Rule-12 floor (logs a one-shot warning).
+
+    Returns:
+        Warmup count to use.
+    """
+    global _FAST_WARMUP_WARNED
+    if fast_warmup:
+        if not _FAST_WARMUP_WARNED:
+            logger.warning(
+                "fast_warmup=True bypasses Rule 12 warmup floor "
+                "(DENSE_MASS_WARMUP_FLOOR=%d) — for testing only, not production",
+                DENSE_MASS_WARMUP_FLOOR,
+            )
+            _FAST_WARMUP_WARNED = True
+        return max(1, int(requested))
+    if dense_mass and int(requested) < DENSE_MASS_WARMUP_FLOOR:
+        return DENSE_MASS_WARMUP_FLOOR
+    return max(1, int(requested))
+
+
 # Valid string literals for each enumerated field.
 _VALID_ENABLE: frozenset[str] = frozenset({"auto", "always", "never"})
 _VALID_PER_ANGLE_MODE: frozenset[str] = frozenset(
@@ -273,6 +315,10 @@ class CMCConfig:
     adaptive_sampling: bool = True
     min_warmup: int = 100
     min_samples: int = 200
+    #: Rule 12 escape hatch: skip the dense-mass warmup floor (1500 steps).
+    #: Intended for CI fast-mode and pytest fixtures only; NOT for production.
+    #: When True, all warmup calculations bypass :func:`effective_warmup_floor`.
+    fast_warmup: bool = False
 
     # ------------------------------------------------------------------
     # 6. Validation thresholds
@@ -294,6 +340,15 @@ class CMCConfig:
     use_nlsq_warmstart: bool = True
     use_nlsq_informed_priors: bool = True
     nlsq_prior_width_factor: float = 2.0
+    #: Codex S1: integrate ``build_log_space_priors`` into ``build_default_priors``.
+    #: When True (default), parameters flagged ``log_space=True`` in the parameter
+    #: registry (currently D0_ref, D0_sample, v0) are sampled with LogNormal priors
+    #: instead of TruncatedNormal — better mass-matrix conditioning for prefactors
+    #: that span several orders of magnitude.  When False, the registry's
+    #: ``log_space`` flag is ignored and all parameters use TruncatedNormal.
+    #: The reparameterized path (``use_reparam=True``) is unaffected — it samples
+    #: log_X_at_tref directly and does not reach this code path.
+    use_log_space_priors: bool = True
 
     # ------------------------------------------------------------------
     # 8. Prior tempering
@@ -480,6 +535,20 @@ class CMCConfig:
         # ---- sampling -------------------------------------------------
         if self.num_warmup < 1:
             errors.append(f"num_warmup={self.num_warmup} must be >= 1.")
+
+        # Rule 12 — Dense-mass NUTS needs ≥ DENSE_MASS_WARMUP_FLOOR steps.
+        # Honour fast_warmup as the explicit opt-out for CI / pytest fast mode.
+        if (
+            self.dense_mass
+            and not self.fast_warmup
+            and 1 <= self.num_warmup < DENSE_MASS_WARMUP_FLOOR
+        ):
+            errors.append(
+                f"num_warmup={self.num_warmup} is below the Rule 12 floor "
+                f"({DENSE_MASS_WARMUP_FLOOR}) required when dense_mass=True. "
+                "Either raise num_warmup, set dense_mass=False, or set "
+                "fast_warmup=True for CI fast-mode (not production)."
+            )
 
         if self.num_samples < 1:
             errors.append(f"num_samples={self.num_samples} must be >= 1.")
@@ -824,6 +893,10 @@ class CMCConfig:
 
         warmup = max(min_warmup_for_params, scaled_warmup)
         samples = max(min_samples_for_params, scaled_samples)
+        # Rule 12: respect the dense-mass warmup floor regardless of shard size.
+        warmup = effective_warmup_floor(
+            warmup, dense_mass=self.dense_mass, fast_warmup=self.fast_warmup
+        )
 
         if warmup != self.num_warmup or samples != self.num_samples:
             logger.debug(

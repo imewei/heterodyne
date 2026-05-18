@@ -908,9 +908,13 @@ def estimate_sigma(
         expected_diag = jnp.mean(diag)
         sigma = jnp.std(diag - expected_diag)
         # Floor at 1% of data scale to avoid near-zero sigma for
-        # normalized data where diagonal values are very uniform
-        data_scale = jnp.maximum(jnp.std(c2_data), 1e-6)
-        return jnp.maximum(sigma, 0.01 * data_scale)
+        # normalized data where diagonal values are very uniform.
+        # Rule 7: jnp.where preserves gradients below the floor; jnp.maximum
+        # zeros them, which stalls downstream Jacobians and NUTS leapfrog.
+        _std = jnp.std(c2_data)
+        data_scale = jnp.where(_std > 1e-6, _std, 1e-6)
+        _floor = 0.01 * data_scale
+        return jnp.where(sigma > _floor, sigma, _floor)
 
     elif method == "constant":
         # Use overall standard deviation
@@ -932,9 +936,11 @@ def estimate_sigma(
         if nlsq_result is not None and nlsq_result.residuals is not None:
             residuals = jnp.asarray(nlsq_result.residuals)
             rms = jnp.sqrt(jnp.mean(residuals**2))
-            # Floor at 1 % of data scale for robustness.
-            data_scale = jnp.maximum(jnp.std(c2_data), 1e-6)
-            return jnp.maximum(rms, 0.01 * data_scale)
+            # Floor at 1 % of data scale for robustness. Rule 7: gradient-safe.
+            _std = jnp.std(c2_data)
+            data_scale = jnp.where(_std > 1e-6, _std, 1e-6)
+            _floor = 0.01 * data_scale
+            return jnp.where(rms > _floor, rms, _floor)
         # Fall back gracefully so callers don't need to guard against None.
         return estimate_sigma(c2_data, method="diagonal")
 
@@ -954,9 +960,11 @@ def estimate_sigma(
         sigma_boot = jnp.std(replicate_means)
 
         # Floor at 0.1 % of data scale (bootstrap can give very small values
-        # when the diagonal is extremely uniform).
-        data_scale = jnp.maximum(jnp.std(c2_data), 1e-6)
-        return jnp.maximum(sigma_boot, 0.001 * data_scale)
+        # when the diagonal is extremely uniform). Rule 7: gradient-safe.
+        _std = jnp.std(c2_data)
+        data_scale = jnp.where(_std > 1e-6, _std, 1e-6)
+        _floor = 0.001 * data_scale
+        return jnp.where(sigma_boot > _floor, sigma_boot, _floor)
 
     else:
         raise ValueError(

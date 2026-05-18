@@ -160,6 +160,9 @@ def fit_cmc_jax(
 
     if sigma is None:
         sigma = estimate_sigma(c2_jax, method="diagonal")
+        # estimate_sigma always returns a jnp.ndarray; assertion narrows the
+        # union for pyright so jnp.mean below doesn't reject Optional.
+        assert sigma is not None
         logger.info("[CMC] Estimated sigma = %.4e", float(jnp.mean(sigma)))
 
     sigma_jax = jnp.asarray(sigma) if isinstance(sigma, np.ndarray) else sigma
@@ -213,11 +216,14 @@ def fit_cmc_jax(
             "(success=False); falling back to default initialization"
         )
 
-    reparam_config = None
-    scalings = None
+    reparam_config: ReparamConfig | None = None
+    scalings: dict[str, Any] | None = None
     prior_std_dict: dict[str, float] = {}
 
     if use_reparam:
+        # ``use_reparam`` is only True when nlsq_result is not None and
+        # success=True (see set-up above) — assert narrows for pyright.
+        assert nlsq_result is not None
         t_array = (
             np.asarray(t_override) if t_override is not None else np.asarray(model.t)
         )
@@ -710,7 +716,10 @@ def fit_cmc_sharded(
             nlsq_result, _space, width_factor=config.nlsq_prior_width_factor
         )
     else:
-        base_priors = build_default_priors(_space)
+        base_priors = build_default_priors(
+            _space,
+            use_log_space_priors=getattr(config, "use_log_space_priors", True),
+        )
     _shard_priors = temper_priors(base_priors, num_shards)
     prior_width_mult = math.sqrt(num_shards)
 
@@ -1039,16 +1048,50 @@ def fit_cmc_sharded(
                 f"below {_NO_NLSQ_SHARD_LIMIT} in the CMC config."
             )
 
+    # Codex W2: honour config.backend_name instead of hardcoding MP.
+    # Only the sharded execution backends expose ``run_shards()`` — pjit and
+    # the single-process CPU backend operate on a single chain at a time and
+    # are unsuitable for the K-shard CMC pipeline. We surface a clear error
+    # rather than silently rerouting to MP, so the user sees that their
+    # explicit choice was unsupported in this path.
+    _backend_name = (getattr(config, "backend_name", "auto") or "auto").lower()
+    if _backend_name == "jax":
+        _backend_name = "multiprocessing"  # legacy alias
+    if _backend_name in ("multiprocessing", "auto", "slurm"):
+        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+            MultiprocessingBackend,
+        )
+
+        _backend: Any = MultiprocessingBackend()
+        if _backend_name == "slurm":
+            logger.warning(
+                "[CMC-sharded] backend_name='slurm' has no native sharded "
+                "backend; falling back to MultiprocessingBackend "
+                "(run from inside the SLURM allocation)"
+            )
+    elif _backend_name == "pbs":
+        from heterodyne.optimization.cmc.backends.pbs import PBSBackend
+
+        _backend = PBSBackend()
+    elif _backend_name in ("cpu", "pjit"):
+        raise ValueError(
+            f"backend_name={_backend_name!r} cannot drive the sharded "
+            "CMC pipeline (no run_shards() method). Use "
+            "'multiprocessing' (default), 'pbs', or 'auto'."
+        )
+    else:
+        raise ValueError(
+            f"Unknown backend_name={_backend_name!r}. Valid options for the "
+            "sharded CMC pipeline: 'multiprocessing', 'pbs', 'auto', 'slurm', "
+            "'jax' (legacy alias for 'multiprocessing')."
+        )
     logger.info(
-        "[CMC-sharded] Phase 3/5: dispatching %d shards to MultiprocessingBackend",
+        "[CMC-sharded] Phase 3/5: dispatching %d shards to %s "
+        "(backend_name=%r from CMCConfig)",
         num_shards,
+        type(_backend).__name__,
+        _backend_name,
     )
-
-    from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
-        MultiprocessingBackend,
-    )
-
-    _backend = MultiprocessingBackend()
     raw_results = _backend.run_shards(
         shards=parallel_shards,
         config=config,
@@ -1075,10 +1118,14 @@ def fit_cmc_sharded(
             n_missing,
             num_shards,
         )
+        # Workers report ``param_names = varying_physics_names`` (14 names,
+        # physics only). ``_space.varying_names`` may include the 2 scaling
+        # params, which would create a shape mismatch downstream when the
+        # combined CMCResult is consumed. Fall back to the physics-only list.
         _fallback_names: list[str] = (
             list(raw_results[0]["param_names"])
             if raw_results
-            else list(_space.varying_names)
+            else list(_space.varying_physics_names)
         )
         for _ in range(n_missing):
             shard_results.append(
@@ -1463,7 +1510,14 @@ def _combine_shard_posteriors(
     _max_div_rate = getattr(config, "max_divergence_rate", 0.10)
 
     def _shard_has_valid_samples(sr: CMCResult) -> bool:
-        return sr.posterior_std is not None and bool(np.any(sr.posterior_std > 0))
+        # Per-shard inclusion gate: keep the shard if at least one parameter
+        # has a finite positive std. Per-parameter masking inside the
+        # consensus loops then excludes the specific NaN/zero entries
+        # without dropping the whole shard's contribution (codex W1).
+        if sr.posterior_std is None:
+            return False
+        std = np.asarray(sr.posterior_std)
+        return bool(np.any(np.isfinite(std) & (std > 0)))
 
     def _shard_diagnostics_unknown(sr: CMCResult) -> bool:
         # r_hat all-NaN means ArviZ failed to build InferenceData (e.g. API mismatch)
@@ -1616,12 +1670,22 @@ def _combine_shard_posteriors(
         weight_sum = np.zeros(n_params)
         weighted_mean_sum = np.zeros(n_params)
         for sr in _pool:
-            var_k = sr.posterior_std**2
-            w_k = 1.0 / var_k
+            # Codex W1: per-parameter mask. Non-finite / non-positive std
+            # in one parameter slot must NOT taint the other parameters'
+            # consensus, and must NOT trigger 1/0 RuntimeWarnings. The
+            # nested ``np.where`` shields the divide from evaluating the
+            # true branch on invalid entries (outer where already drops
+            # them from the sum but numpy still evaluates both branches).
+            std_k = np.asarray(sr.posterior_std)
+            valid = np.isfinite(std_k) & (std_k > 0)
+            safe_std = np.where(valid, std_k, 1.0)
+            w_k = np.where(valid, 1.0 / (safe_std**2), 0.0)
             weight_sum += w_k
-            weighted_mean_sum += w_k * sr.posterior_mean
+            weighted_mean_sum += w_k * np.where(valid, sr.posterior_mean, 0.0)
         combined_mean = weighted_mean_sum / np.where(weight_sum > 0, weight_sum, 1.0)
-        combined_var = 1.0 / np.where(weight_sum > 0, weight_sum, 1.0)
+        combined_var = np.where(
+            weight_sum > 0, 1.0 / np.where(weight_sum > 0, weight_sum, 1.0), np.nan
+        )
         combined_std = np.sqrt(combined_var)
     else:
         # Default: inverse-variance weighting (consensus_mc / fallback)
@@ -1629,12 +1693,17 @@ def _combine_shard_posteriors(
         weight_sum = np.zeros(n_params)
         weighted_mean_sum = np.zeros(n_params)
         for sr in successful:
-            var_k = sr.posterior_std**2
-            w_k = 1.0 / var_k  # no clip needed — zero-std shards excluded above
+            # Codex W1: per-parameter mask (see robust_consensus_mc branch).
+            std_k = np.asarray(sr.posterior_std)
+            valid = np.isfinite(std_k) & (std_k > 0)
+            safe_std = np.where(valid, std_k, 1.0)
+            w_k = np.where(valid, 1.0 / (safe_std**2), 0.0)
             weight_sum += w_k
-            weighted_mean_sum += w_k * sr.posterior_mean
+            weighted_mean_sum += w_k * np.where(valid, sr.posterior_mean, 0.0)
         combined_mean = weighted_mean_sum / np.where(weight_sum > 0, weight_sum, 1.0)
-        combined_var = 1.0 / np.where(weight_sum > 0, weight_sum, 1.0)
+        combined_var = np.where(
+            weight_sum > 0, 1.0 / np.where(weight_sum > 0, weight_sum, 1.0), np.nan
+        )
         combined_std = np.sqrt(combined_var)
 
     # --- Worst-case R-hat (conservative) ---
@@ -1703,13 +1772,31 @@ def _combine_shard_posteriors(
     # already excluded; any skipped shard is reflected in n_skipped above).
     r_hat_finite = combined_r_hat[~np.isnan(combined_r_hat)]
     ess_finite = combined_ess_bulk[~np.isnan(combined_ess_bulk)]
-    convergence_passed = bool(
+    # Gate 1: per-shard R-hat / ESS on the survivors.
+    _diagnostics_passed = bool(
         len(successful) > 0
         and len(r_hat_finite) > 0
         and np.all(r_hat_finite < config.max_r_hat)
         and len(ess_finite) > 0
         and np.all(ess_finite > config.min_ess)
     )
+    # Gate 2 (Codex C1 / heterodyne min_success_rate): the *combined* result
+    # cannot be declared "converged" unless enough shards actually contributed.
+    # Previously, a single survivor with clean R-hat could mark the run passed,
+    # even with 46/47 shards timed out.
+    _success_rate = len(successful) / num_shards if num_shards > 0 else 0.0
+    _rate_passed = _success_rate >= float(getattr(config, "min_success_rate", 0.90))
+    convergence_passed = bool(_diagnostics_passed and _rate_passed)
+    if _diagnostics_passed and not _rate_passed:
+        logger.warning(
+            "_combine_shard_posteriors: diagnostics passed but only %d/%d "
+            "shards succeeded (rate=%.2f < min_success_rate=%.2f) — "
+            "marking combined result NOT converged.",
+            len(successful),
+            num_shards,
+            _success_rate,
+            float(getattr(config, "min_success_rate", 0.90)),
+        )
     # BFMI is advisory for combined result (homodyne parity).
     # Low combined BFMI is a useful warning but not a hard gate — the
     # combined R-hat and ESS from pooled shards are the authoritative signal.
@@ -1752,7 +1839,13 @@ def _combine_shard_posteriors(
         num_samples=shard_results[0].num_samples,
         num_chains=shard_results[0].num_chains,
         wall_time_seconds=None,  # caller fills this in
-        metadata={},
+        metadata={
+            "n_total_shards": num_shards,
+            "n_successful_shards": len(successful),
+            "success_rate": _success_rate,
+            "diagnostics_passed": _diagnostics_passed,
+            "rate_passed": _rate_passed,
+        },
     )
 
 

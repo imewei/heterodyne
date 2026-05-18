@@ -100,6 +100,7 @@ def build_nlsq_informed_priors(
 def build_default_priors(
     param_space: ParameterSpace,
     registry: ParameterRegistry | None = None,
+    use_log_space_priors: bool = True,
 ) -> dict[str, dist.Distribution]:
     """Build default priors from the parameter registry.
 
@@ -108,11 +109,24 @@ def build_default_priors(
     All bounded parameters use TruncatedNormal so that ``temper_priors``
     can scale them by ``sqrt(K)`` for Consensus Monte Carlo sharding.
 
+    Codex S1: when ``use_log_space_priors=True`` (default), parameters
+    flagged ``log_space=True`` in the registry (D0_ref, D0_sample, v0)
+    are overridden with LogNormal priors via :func:`build_log_space_priors`.
+    LogNormal mass-matrix conditioning is much better for prefactors that
+    span several orders of magnitude.  Pass ``use_log_space_priors=False``
+    to fall back to TruncatedNormal uniformly.
+
+    The reparameterized path (``CMCConfig.use_reparam=True``) is unaffected:
+    it samples log_X_at_tref directly and never calls this function for
+    those parameters.
+
     Args:
         param_space: Parameter space defining which parameters vary
             and their physical bounds.
         registry: Parameter registry to read metadata from.
             Defaults to :data:`DEFAULT_REGISTRY`.
+        use_log_space_priors: Apply log-space priors to ``log_space=True``
+            parameters from the registry.  Default ``True``.
 
     Returns:
         Dictionary mapping parameter names to NumPyro distributions.
@@ -155,7 +169,22 @@ def build_default_priors(
                 high,
             )
 
-    logger.info("Built %d default priors from registry", len(priors))
+    # Codex S1: overlay LogNormal priors for parameters flagged log_space=True.
+    # build_log_space_priors silently skips parameters that aren't flagged,
+    # so this only touches D0_ref / D0_sample / v0 (or whatever the registry
+    # declares); other parameters keep their TruncatedNormal/Uniform priors.
+    if use_log_space_priors:
+        log_priors = build_log_space_priors(
+            list(param_space.varying_names), registry=registry
+        )
+        for name, prior in log_priors.items():
+            priors[name] = prior
+
+    logger.info(
+        "Built %d default priors from registry (use_log_space_priors=%s)",
+        len(priors),
+        use_log_space_priors,
+    )
     return priors
 
 
