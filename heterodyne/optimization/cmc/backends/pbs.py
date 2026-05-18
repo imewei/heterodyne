@@ -121,14 +121,39 @@ class ShardResult:
 
 _WORKER_SCRIPT_TEMPLATE = '''\
 #!/usr/bin/env python
-"""PBS worker: loads shard data, runs MCMC, saves results."""
+"""PBS worker: loads shard data, runs MCMC, saves results.
+
+Critical: heterodyne Rule 8 — ``JAX_ENABLE_X64`` must be set BEFORE the
+first ``import jax``. The PBS shell prelude sets the env vars; this
+script also re-sets them defensively in case the worker is invoked
+outside that prelude. The persistent compilation-cache config (Rule 8)
+must likewise be applied before any jax.numpy / numpyro import.
+
+The ``pickle.load`` below reads a file the parent process wrote moments
+earlier in this same trusted job working directory — see the
+``# noqa: S301`` marker. No untrusted input is deserialised.
+"""
 from __future__ import annotations
+
+# --- Rule 8: env setup BEFORE first jax import -----------------------------
+import os
+os.environ.setdefault("JAX_ENABLE_X64", "1")
+# ---------------------------------------------------------------------------
+
 import pickle
 import sys
 from pathlib import Path
+
 import jax
-import numpy as np
+# Configure JAX before any downstream numpyro / jax.numpy imports.
+jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_platform_name", "cpu")
+_cache_dir = os.environ.get("JAX_COMPILATION_CACHE_DIR")
+if _cache_dir:
+    jax.config.update("jax_compilation_cache_dir", _cache_dir)
+    jax.config.update("jax_persistent_cache_min_compile_time_secs", 0)
+
+import numpy as np
 from numpyro.infer import MCMC, NUTS
 from numpyro.infer import initialization as numpyro_init
 
@@ -269,6 +294,15 @@ def _build_pbs_script(
     extra_block = ""
     if pbs_cfg.extra_pbs_directives:
         extra_block = "\n" + "\n".join(pbs_cfg.extra_pbs_directives)
+    # Rule 8: worker must set JAX_ENABLE_X64 before first jax import. Forwarding
+    # JAX_COMPILATION_CACHE_DIR from the submit host also lets the spawned
+    # worker pick up the persistent JIT cache configured by jax.config.update.
+    import os as _os
+
+    _cache_env = _os.environ.get("JAX_COMPILATION_CACHE_DIR", "")
+    cache_export = (
+        f'export JAX_COMPILATION_CACHE_DIR="{_cache_env}"\n' if _cache_env else ""
+    )
     return (
         "#!/bin/bash\n"
         f"#PBS -N {job_name}\n"
@@ -278,6 +312,8 @@ def _build_pbs_script(
         f"#PBS -e {stderr_path}\n"
         f"{extra_block}\n"
         "cd $PBS_O_WORKDIR\n"
+        "export JAX_ENABLE_X64=1\n"
+        f"{cache_export}"
         f"{python_exe} {worker_script_path} {data_path} {result_path}\n"
     )
 

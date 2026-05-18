@@ -12,7 +12,10 @@ from typing import TYPE_CHECKING, Any
 from numpyro.infer import MCMC, NUTS
 from numpyro.infer import initialization as numpyro_init
 
-from heterodyne.optimization.cmc.backends.base import BackendCapabilities, CMCBackend
+from heterodyne.optimization.cmc.backends.base import (
+    BackendCapabilities,
+    CMCBackend,
+)
 from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -94,7 +97,7 @@ class CPUBackend(CMCBackend):
             progress_bar=True,
         )
 
-        mcmc.run(rng_key, init_params=init_params, extra_fields=("energy",))
+        mcmc.run(rng_key, init_params=init_params, extra_fields=_NUTS_EXTRA_FIELDS)
 
         samples = mcmc.get_samples()
         logger.info("CPUBackend: sampling complete")

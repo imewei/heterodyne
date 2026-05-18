@@ -43,13 +43,18 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from tqdm import tqdm
 
-from heterodyne.optimization.cmc.backends.base import BackendCapabilities, CMCBackend
+from heterodyne.optimization.cmc.backends.base import (
+    _NUTS_EXTRA_FIELDS,
+    BackendCapabilities,
+    CMCBackend,
+)
 from heterodyne.utils.logging import get_logger, log_exception, with_context
 
 if TYPE_CHECKING:
@@ -71,20 +76,92 @@ _BYTES_PER_FLOAT64: int = 8
 _CPU_MEMORY_OVERHEAD_FACTOR: float = 8.0  # Conservative: 14 params x gradient bufs
 _BYTES_PER_GB: float = 1024.0**3
 
-#: Keys for per-shard numpy arrays stored in packed shared memory.
-#: ``None``-valued arrays are stored as zero-length sentinels.
-#: Element-wise (random) shards use "t1"/"t2"/"time_grid"; contiguous shards
-#: use "t".  Both sets must be listed here so the parent→worker shared-memory
-#: pipeline forwards them; missing keys are silently dropped (None in worker).
-_SHARD_ARRAY_KEYS: tuple[str, ...] = (
-    "c2_data",
-    "sigma",
-    "t",
-    "t1",
-    "t2",
-    "time_grid",
-    "weights",
-)
+
+@dataclass(frozen=True, slots=True)
+class ArraySpec:
+    """Schema for one packed shared-memory array key.
+
+    Attributes:
+        expected_dtype: Documented dtype.  Advisory only — the packer uses
+            the actual array's dtype.  Logged in shape-mismatch errors.
+        allow_none: Whether a caller may pass ``None`` for this key, in
+            which case it is stored as a zero-length sentinel.
+        description: Human-readable label, surfaced in error messages so
+            shape/size mismatches identify the offending physical array
+            (e.g. "two-time correlation matrix", not just "c2_data").
+    """
+
+    expected_dtype: str
+    allow_none: bool
+    description: str
+
+
+#: Self-describing schema for per-shard arrays packed into shared memory.
+#: The per-shard ref dict carries ``shape: tuple[int, ...]`` per key so the
+#: worker reshapes on load (eliminates the het_7221ba99 / het_457cc550 class
+#: of silent shape-loss bugs by construction; codex C2 + gemini G3).
+#:
+#: Element-wise (random) shards use ``t1``/``t2``/``time_grid``; contiguous
+#: shards use ``t``.  Both sets must be listed here so the parent→worker
+#: shared-memory pipeline forwards them; missing keys are silently dropped
+#: (None in worker) — dispatch in the worker is keyed on which keys are
+#: present in the loaded ``shard_data`` dict, not on this schema.
+#:
+#: SCHEMA INVARIANT (must hold across refactors):
+#:
+#:   * ``ArraySpec`` instances live in **code**.  They are re-imported by
+#:     every spawned worker via this module load, so parent and worker
+#:     always agree on the schema even though they don't share memory.
+#:
+#:   * Per-shard **runtime metadata** (``shape``, ``dtype``, ``offset``,
+#:     ``size``, ``shm_name``) lives in the **ref dict** that travels
+#:     parent→worker via the spawn IPC wire format.
+#:
+#:   * Do NOT serialise ``ArraySpec`` (or anything else from
+#:     ``_SHARD_ARRAY_SPECS``) into the ref dict.  That re-introduces a
+#:     wire-format/schema-version coupling that the code-resident schema
+#:     specifically eliminates.  If you need a new per-shard field, add it
+#:     to the ref dict and the unpacker — not to ``ArraySpec``.
+_SHARD_ARRAY_SPECS: dict[str, ArraySpec] = {
+    "c2_data": ArraySpec(
+        expected_dtype="float64",
+        allow_none=False,
+        description="two-time correlation matrix",
+    ),
+    "sigma": ArraySpec(
+        expected_dtype="float64",
+        allow_none=True,
+        description="per-pair measurement uncertainty",
+    ),
+    "t": ArraySpec(
+        expected_dtype="float64",
+        allow_none=True,
+        description="contiguous-shard time axis",
+    ),
+    "t1": ArraySpec(
+        expected_dtype="float64",
+        allow_none=True,
+        description="element-wise shard t1 coordinates",
+    ),
+    "t2": ArraySpec(
+        expected_dtype="float64",
+        allow_none=True,
+        description="element-wise shard t2 coordinates",
+    ),
+    "time_grid": ArraySpec(
+        expected_dtype="float64",
+        allow_none=True,
+        description="element-wise shard cumsum grid",
+    ),
+    "weights": ArraySpec(
+        expected_dtype="float64",
+        allow_none=True,
+        description="per-pair weights",
+    ),
+}
+
+#: Backwards-compat alias: callers that iterate keys still work.
+_SHARD_ARRAY_KEYS: tuple[str, ...] = tuple(_SHARD_ARRAY_SPECS.keys())
 
 # ---------------------------------------------------------------------------
 # SharedDataManager
@@ -207,19 +284,29 @@ class SharedDataManager:
         n_shards = len(shard_data_list)
         key_meta: dict[str, dict[str, Any]] = {}
 
-        for key in _SHARD_ARRAY_KEYS:
+        for key, spec in _SHARD_ARRAY_SPECS.items():
             arrays: list[np.ndarray] = []
             sizes: list[int] = []
+            shapes: list[tuple[int, ...]] = []
             dtypes: list[str] = []
 
             for sd in shard_data_list:
                 raw = sd.get(key)
                 if raw is None:
+                    if not spec.allow_none:
+                        raise ValueError(
+                            f"Shard array {key!r} ({spec.description}) is "
+                            "required but received None; ArraySpec.allow_none=False."
+                        )
                     arr = np.empty(0, dtype=np.float64)
+                    raw_shape: tuple[int, ...] = ()
                 else:
-                    arr = np.ascontiguousarray(np.asarray(raw).ravel())
+                    raw_np = np.asarray(raw)
+                    raw_shape = tuple(raw_np.shape)
+                    arr = np.ascontiguousarray(raw_np.ravel())
                 arrays.append(arr)
                 sizes.append(arr.shape[0])
+                shapes.append(raw_shape)
                 dtypes.append(str(arr.dtype))
 
             # Use dtype from first non-empty array, or float64 fallback
@@ -256,6 +343,7 @@ class SharedDataManager:
                 "dtype": reference_dtype,
                 "offsets": offsets,
                 "sizes": sizes,
+                "shapes": shapes,
             }
 
         shard_refs: list[dict[str, Any]] = []
@@ -263,13 +351,16 @@ class SharedDataManager:
             ref: dict[str, Any] = {
                 "noise_scale": shard_data_list[i].get("noise_scale", 0.1),
             }
-            for key in _SHARD_ARRAY_KEYS:
+            for key in _SHARD_ARRAY_SPECS:
                 meta = key_meta[key]
                 ref[key] = {
                     "shm_name": meta["shm_name"],
                     "dtype": meta["dtype"],
                     "offset": meta["offsets"][i],
                     "size": meta["sizes"][i],
+                    # Required (codex C2 + gemini G3): worker reshapes on load
+                    # to preserve 2-D structure that ``ravel()`` flattened on pack.
+                    "shape": meta["shapes"][i],
                 }
             shard_refs.append(ref)
 
@@ -354,12 +445,34 @@ def _load_shared_shard_data(shard_ref: dict[str, Any]) -> dict[str, Any]:
     """
     shard_data: dict[str, Any] = {"noise_scale": shard_ref["noise_scale"]}
 
-    for key in _SHARD_ARRAY_KEYS:
+    for key, spec in _SHARD_ARRAY_SPECS.items():
         arr_ref = shard_ref[key]
         size = arr_ref["size"]
         if size == 0:
             shard_data[key] = None
             continue
+
+        # Required schema field (codex C2 + gemini G3): the packer always
+        # stores ``shape`` so the worker can reverse the ``ravel()`` that
+        # the packer applies.  Missing key indicates a stale ref dict from
+        # an old code path or a foreign serialiser — fail loud, not silent.
+        if "shape" not in arr_ref:
+            raise KeyError(
+                f"Shard ref for {key!r} ({spec.description}) is missing the "
+                "required 'shape' key.  Ref dict must be produced by "
+                "SharedDataManager.create_shared_shard_arrays — schema is "
+                "not backwards-compatible with pre-Tier-2 packed refs."
+            )
+        shape: tuple[int, ...] = tuple(arr_ref["shape"])
+        expected_elements = int(np.prod(shape)) if shape else 0
+        # Empty shape () represents a scalar; otherwise prod must match size.
+        if shape and expected_elements != size:
+            raise ValueError(
+                f"Shard array {key!r} ({spec.description}, "
+                f"expected_dtype={spec.expected_dtype}): declared shape "
+                f"{shape} (prod={expected_elements}) does not match packed "
+                f"size {size}."
+            )
 
         shm = mp.shared_memory.SharedMemory(name=arr_ref["shm_name"], create=False)
         try:
@@ -370,6 +483,8 @@ def _load_shared_shard_data(shard_ref: dict[str, Any]) -> dict[str, Any]:
             arr = full_arr[offset : offset + size].copy()
         finally:
             shm.close()
+        if shape:
+            arr = arr.reshape(shape)
         shard_data[key] = arr
 
     return shard_data
@@ -917,7 +1032,14 @@ def _run_shard_worker(
                         high=float(_high),
                     )
             else:
-                base_priors_for_temper = _build_default_priors(parameter_space)
+                # Codex S1: parent forwards use_log_space_priors via shared_kwargs;
+                # default True for legacy callers that didn't set it.
+                base_priors_for_temper = _build_default_priors(
+                    parameter_space,
+                    use_log_space_priors=bool(
+                        shard_data.get("use_log_space_priors", True)
+                    ),
+                )
 
             tempered_priors_dict = _temper_priors(
                 base_priors_for_temper, num_shards_est
@@ -953,6 +1075,13 @@ def _run_shard_worker(
             #
             # All variables are closure-captured from the outer scope; ruff F821
             # cannot resolve closures statically.
+            # CONTRACT: when the unpacked shard carries t1/t2/time_grid, the
+            # element-wise path MUST be taken (het_7221ba99 regression guard).
+            # Pinned by tests/regression/test_cmc_shard_shape_roundtrip.py::
+            # TestShardDispatch::test_t1_t2_time_grid_preserved_through_roundtrip
+            # (proxy test — the dispatch happens inside this NumPyro closure
+            # so a direct mock would require >5 lines of fixture scaffolding;
+            # if you refactor this branch, update that proxy test too).
             if _shard_grid is not None:  # noqa: F821
                 c2_model = _compute_c2_elementwise(  # noqa: F821
                     params,
@@ -1019,13 +1148,7 @@ def _run_shard_worker(
         mcmc.run(
             rng_key,
             init_params=init_params,
-            extra_fields=(
-                "energy",
-                "diverging",
-                "accept_prob",
-                "num_steps",
-                "potential_energy",
-            ),
+            extra_fields=_NUTS_EXTRA_FIELDS,
         )
 
         samples_raw: dict[str, Any] = mcmc.get_samples()
@@ -1437,13 +1560,7 @@ class MultiprocessingBackend(CMCBackend):
         mcmc.run(
             rng_key,
             init_params=init_params,
-            extra_fields=(
-                "energy",
-                "diverging",
-                "accept_prob",
-                "num_steps",
-                "potential_energy",
-            ),
+            extra_fields=_NUTS_EXTRA_FIELDS,
         )
         samples = mcmc.get_samples()
         logger.info("MultiprocessingBackend.run: sampling complete")
@@ -1644,6 +1761,9 @@ class MultiprocessingBackend(CMCBackend):
             if nlsq_uncertainties
             else {},
             "nlsq_prior_width_factor": float(nlsq_prior_width_factor),
+            # Codex S1: forward use_log_space_priors so the worker's
+            # tempered-default branch matches the parent's prior factory.
+            "use_log_space_priors": bool(getattr(config, "use_log_space_priors", True)),
         }
 
         # Build per-shard numpy dicts for shared memory packing

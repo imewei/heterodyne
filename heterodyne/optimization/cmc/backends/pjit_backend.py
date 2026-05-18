@@ -37,6 +37,29 @@ _INIT_STRATEGY_MAP: dict[str, Callable[..., Any]] = {
 }
 
 
+def _slice_init_params(
+    init_params: dict[str, jnp.ndarray] | None,
+    start: int,
+    count: int,
+    n_chains_total: int,
+) -> dict[str, jnp.ndarray] | None:
+    """Return per-device init slice for the chain block ``[start, start+count)``.
+
+    Leaves whose leading axis equals ``n_chains_total`` are sliced along
+    axis 0; everything else (scalars, broadcast inits, init_to_median
+    state) is forwarded unchanged so common cases keep working.
+    """
+    if init_params is None or count == n_chains_total:
+        return init_params
+    sliced: dict[str, jnp.ndarray] = {}
+    for name, leaf in init_params.items():
+        if hasattr(leaf, "shape") and leaf.shape and leaf.shape[0] == n_chains_total:
+            sliced[name] = leaf[start : start + count]
+        else:
+            sliced[name] = leaf
+    return sliced
+
+
 class PjitBackend(CMCBackend):
     """Multi-device parallel MCMC backend using JAX sharding.
 
@@ -89,9 +112,18 @@ class PjitBackend(CMCBackend):
             config.num_samples,
         )
 
-        # Determine chains per device
-        chains_per_device = max(1, n_chains // n_devices)
-        remainder = n_chains - chains_per_device * n_devices
+        if n_chains < 1:
+            raise ValueError(f"PjitBackend: num_chains must be >= 1, got {n_chains}")
+        if n_devices < 1:
+            raise RuntimeError("PjitBackend: no JAX devices available")
+
+        # Chains-per-device distribution. The previous ``max(1, n_chains //
+        # n_devices)`` produced spurious extra chains when n_chains < n_devices
+        # (e.g. 2 chains on 8 devices ran 8 chains instead of 2). Allocate
+        # base chains by floor division and spread the remainder over the
+        # first ``remainder`` devices; devices with zero chains are skipped.
+        chains_per_device = n_chains // n_devices
+        remainder = n_chains % n_devices
 
         init_fn = _INIT_STRATEGY_MAP.get(
             config.init_strategy, numpyro_init.init_to_median
@@ -101,9 +133,10 @@ class PjitBackend(CMCBackend):
         rng_keys = jax.random.split(rng_key, n_devices)
 
         shard_results: list[dict[str, Any]] = []
+        chain_cursor = 0  # tracks position in init_params chain axis
 
         for device_idx in range(n_devices):
-            # Last device picks up remainder chains
+            # First ``remainder`` devices pick up one extra chain
             device_chains = chains_per_device + (1 if device_idx < remainder else 0)
             if device_chains == 0:
                 continue
@@ -111,11 +144,24 @@ class PjitBackend(CMCBackend):
             device = devices[device_idx]
             device_rng = rng_keys[device_idx]
 
+            # Slice init_params for this device's chain block if the user
+            # supplied a chain-shaped init (leading axis == n_chains). Leaf-
+            # broadcasted inits (no chain axis, or singleton leading dim) are
+            # forwarded unchanged so init_to_median / scalar inits still work.
+            device_init = _slice_init_params(
+                init_params, chain_cursor, device_chains, n_chains
+            )
+            chain_cursor += device_chains
+
             logger.debug(
-                "PjitBackend: device %d (%s) running %d chain(s)",
+                "PjitBackend: device %d (%s) running %d chain(s) "
+                "[chains %d..%d of %d total]",
                 device_idx,
                 device.platform,
                 device_chains,
+                chain_cursor - device_chains,
+                chain_cursor - 1,
+                n_chains,
             )
 
             # Place computation on specific device
@@ -139,8 +185,8 @@ class PjitBackend(CMCBackend):
 
                 mcmc.run(
                     device_rng,
-                    init_params=init_params,
-                    extra_fields=("energy",),
+                    init_params=device_init,
+                    extra_fields=_NUTS_EXTRA_FIELDS,
                 )
 
                 shard_samples = mcmc.get_samples()

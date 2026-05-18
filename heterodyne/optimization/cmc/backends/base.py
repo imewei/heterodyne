@@ -24,6 +24,19 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+#: Codex S2: NUTS ``extra_fields`` tuple shared across every CMC backend.
+#: Must stay in lockstep with the diagnostics consumers in
+#: ``cmc.diagnostics`` / ``viz.mcmc_diagnostics`` — adding or removing a
+#: field here without updating those consumers will silently drop the
+#: corresponding column from downstream reports.
+_NUTS_EXTRA_FIELDS: tuple[str, ...] = (
+    "energy",
+    "diverging",
+    "accept_prob",
+    "num_steps",
+    "potential_energy",
+)
+
 
 @dataclass(frozen=True)
 class BackendCapabilities:
