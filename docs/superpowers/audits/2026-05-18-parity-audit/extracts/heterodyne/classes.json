@@ -2500,6 +2500,16 @@
       "summary(self) -> str"
     ]
   },
+  "optimization.nlsq.wrapper.NLSQWrapper": {
+    "bases": [],
+    "dataclass_fields": [],
+    "methods": [
+      "fit(self, data: Any, config: Any, initial_params: np.ndarray | None = None, bounds: tuple[np.ndarray, np.ndarray] | None = None, per_angle_scaling: bool = True, diagnostics_enabled: bool = False, per_angle_scaling_initial: dict[str, list[float]] | None = None) -> NLSQResult",
+      "name(self) -> str",
+      "supports_bounds(self) -> bool",
+      "supports_jacobian(self) -> bool"
+    ]
+  },
   "optimization.numerical_validation.NumericalValidator": {
     "bases": [],
     "dataclass_fields": [],

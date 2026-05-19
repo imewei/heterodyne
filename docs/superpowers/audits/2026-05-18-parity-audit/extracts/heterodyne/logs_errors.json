@@ -3430,6 +3430,35 @@
     },
     "raises": []
   },
+  "optimization.nlsq.wrapper": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "NLSQWrapper: building residual_fn from g2 array (%d points)",
+        "NLSQWrapper: using parameter_names from data (%d)",
+        "NLSQWrapper: using pre-built residual_fn from data"
+      ],
+      "error": [
+        "NLSQWrapper: cannot build residual_fn \u2014 data has neither 'residual_fn' nor 'g2' attribute"
+      ],
+      "info": [
+        "NLSQWrapper strategy: %s (%s)",
+        "NLSQWrapper.fit: %d parameters, ~%d data points, loss=%s x_scale=%r diagnostics=%s",
+        "NLSQWrapper.fit: %s in %.2fs (success=%s)"
+      ],
+      "warning": [
+        "NLSQWrapper: no initial_params provided; using zeros for %d params",
+        "NLSQWrapper: no model callable on data; returning zero residuals. Pass a pre-built residual_fn via data.residual_fn for real fits.",
+        "NLSQWrapper: unknown loss %r; falling back to 'soft_l1'"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "per_angle_scaling=False is not supported in heterodyne. Per-angle contrast/offset is physically required."
+      }
+    ]
+  },
   "optimization.numerical_validation": {
     "exit_codes": [],
     "log_messages": {
