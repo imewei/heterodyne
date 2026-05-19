@@ -1,0 +1,2525 @@
+{
+  "cli.config_generator.runtime_keys": [
+    "analysis_mode",
+    "config_version",
+    "experimental_data",
+    "initial_parameters",
+    "optimization",
+    "output"
+  ],
+  "config.parameter_registry.ParameterInfo.default": {
+    "default": "1.0"
+  },
+  "config.parameter_registry.ParameterInfo.description": {
+    "default": null
+  },
+  "config.parameter_registry.ParameterInfo.dtype": {
+    "default": "float"
+  },
+  "config.parameter_registry.ParameterInfo.is_flow": {
+    "default": "False"
+  },
+  "config.parameter_registry.ParameterInfo.is_physical": {
+    "default": "False"
+  },
+  "config.parameter_registry.ParameterInfo.is_scaling": {
+    "default": "False"
+  },
+  "config.parameter_registry.ParameterInfo.log_space": {
+    "default": "False"
+  },
+  "config.parameter_registry.ParameterInfo.lower_bound": {
+    "default": "0.0"
+  },
+  "config.parameter_registry.ParameterInfo.name": {
+    "default": null
+  },
+  "config.parameter_registry.ParameterInfo.prior_mean": {
+    "default": "None"
+  },
+  "config.parameter_registry.ParameterInfo.prior_std": {
+    "default": "None"
+  },
+  "config.parameter_registry.ParameterInfo.units": {
+    "default": "''"
+  },
+  "config.parameter_registry.ParameterInfo.upper_bound": {
+    "default": "float('inf')"
+  },
+  "config.parameter_space.ParameterSpace.bounds": {
+    "default": "field(default_factory=dict)"
+  },
+  "config.parameter_space.ParameterSpace.model_type": {
+    "default": null
+  },
+  "config.parameter_space.ParameterSpace.parameter_names": {
+    "default": "field(default_factory=list)"
+  },
+  "config.parameter_space.ParameterSpace.priors": {
+    "default": "field(default_factory=dict)"
+  },
+  "config.parameter_space.ParameterSpace.units": {
+    "default": "field(default_factory=dict)"
+  },
+  "config.parameter_space.PriorDistribution.alpha": {
+    "default": "None"
+  },
+  "config.parameter_space.PriorDistribution.beta": {
+    "default": "None"
+  },
+  "config.parameter_space.PriorDistribution.dist_type": {
+    "default": null
+  },
+  "config.parameter_space.PriorDistribution.max_val": {
+    "default": "np.inf"
+  },
+  "config.parameter_space.PriorDistribution.min_val": {
+    "default": "-np.inf"
+  },
+  "config.parameter_space.PriorDistribution.mu": {
+    "default": "0.0"
+  },
+  "config.parameter_space.PriorDistribution.sigma": {
+    "default": "1.0"
+  },
+  "config.physics_validators.ConstraintRule.condition": {
+    "default": null
+  },
+  "config.physics_validators.ConstraintRule.message": {
+    "default": null
+  },
+  "config.physics_validators.ConstraintRule.severity": {
+    "default": null
+  },
+  "config.physics_validators.PhysicsViolation.message": {
+    "default": null
+  },
+  "config.physics_validators.PhysicsViolation.param": {
+    "default": null
+  },
+  "config.physics_validators.PhysicsViolation.severity": {
+    "default": null
+  },
+  "config.physics_validators.PhysicsViolation.value": {
+    "default": null
+  },
+  "core.diagonal_correction.runtime_keys": [
+    "estimator",
+    "interpolation_method",
+    "trim_fraction",
+    "window_size"
+  ],
+  "core.fitting.FitResult.analysis_mode": {
+    "default": "'unknown'"
+  },
+  "core.fitting.FitResult.backend": {
+    "default": "'JAX' if JAX_AVAILABLE else 'NumPy'"
+  },
+  "core.fitting.FitResult.chi_squared": {
+    "default": null
+  },
+  "core.fitting.FitResult.computation_time": {
+    "default": "0.0"
+  },
+  "core.fitting.FitResult.contrast": {
+    "default": null
+  },
+  "core.fitting.FitResult.contrast_error": {
+    "default": "None"
+  },
+  "core.fitting.FitResult.converged": {
+    "default": "True"
+  },
+  "core.fitting.FitResult.dataset_size": {
+    "default": "'unknown'"
+  },
+  "core.fitting.FitResult.degrees_of_freedom": {
+    "default": null
+  },
+  "core.fitting.FitResult.fit_iterations": {
+    "default": "0"
+  },
+  "core.fitting.FitResult.max_residual": {
+    "default": "0.0"
+  },
+  "core.fitting.FitResult.offset": {
+    "default": null
+  },
+  "core.fitting.FitResult.offset_error": {
+    "default": "None"
+  },
+  "core.fitting.FitResult.p_value": {
+    "default": null
+  },
+  "core.fitting.FitResult.param_errors": {
+    "default": "None"
+  },
+  "core.fitting.FitResult.params": {
+    "default": null
+  },
+  "core.fitting.FitResult.reduced_chi_squared": {
+    "default": null
+  },
+  "core.fitting.FitResult.residual_std": {
+    "default": "0.0"
+  },
+  "core.fitting.ParameterSpace.D0_bounds": {
+    "default": "(100.0, 100000.0)"
+  },
+  "core.fitting.ParameterSpace.D0_prior": {
+    "default": "(1000.0, 1000.0)"
+  },
+  "core.fitting.ParameterSpace.D_offset_bounds": {
+    "default": "(-100000.0, 100000.0)"
+  },
+  "core.fitting.ParameterSpace.D_offset_prior": {
+    "default": "(10.0, 200.0)"
+  },
+  "core.fitting.ParameterSpace.alpha_bounds": {
+    "default": "(-2.0, 2.0)"
+  },
+  "core.fitting.ParameterSpace.alpha_prior": {
+    "default": "(0.5, 0.5)"
+  },
+  "core.fitting.ParameterSpace.beta_bounds": {
+    "default": "(-2.0, 2.0)"
+  },
+  "core.fitting.ParameterSpace.beta_prior": {
+    "default": "(0.0, 0.5)"
+  },
+  "core.fitting.ParameterSpace.config_manager": {
+    "default": "None"
+  },
+  "core.fitting.ParameterSpace.contrast_bounds": {
+    "default": "(0.0, 1.0)"
+  },
+  "core.fitting.ParameterSpace.contrast_prior": {
+    "default": "(0.5, 0.25)"
+  },
+  "core.fitting.ParameterSpace.fitted_range": {
+    "default": "(0.0, 2.0)"
+  },
+  "core.fitting.ParameterSpace.gamma_dot_t0_bounds": {
+    "default": "(1e-06, 0.5)"
+  },
+  "core.fitting.ParameterSpace.gamma_dot_t0_prior": {
+    "default": "(0.01, 0.1)"
+  },
+  "core.fitting.ParameterSpace.gamma_dot_t_offset_bounds": {
+    "default": "(-0.1, 0.1)"
+  },
+  "core.fitting.ParameterSpace.gamma_dot_t_offset_prior": {
+    "default": "(0.0, 0.02)"
+  },
+  "core.fitting.ParameterSpace.offset_bounds": {
+    "default": "(0.5, 1.5)"
+  },
+  "core.fitting.ParameterSpace.offset_prior": {
+    "default": "(1.0, 0.25)"
+  },
+  "core.fitting.ParameterSpace.phi0_bounds": {
+    "default": "(-10.0, 10.0)"
+  },
+  "core.fitting.ParameterSpace.phi0_prior": {
+    "default": "(0.0, 5.0)"
+  },
+  "core.fitting.ParameterSpace.theory_range": {
+    "default": "(0.0, 1.0)"
+  },
+  "core.homodyne_model.runtime_keys": [
+    "analysis_mode",
+    "analysis_settings",
+    "analyzer_parameters"
+  ],
+  "core.numpy_gradients.DifferentiationConfig.chunk_size": {
+    "default": "1000"
+  },
+  "core.numpy_gradients.DifferentiationConfig.complex_step_threshold": {
+    "default": "1e-12"
+  },
+  "core.numpy_gradients.DifferentiationConfig.error_tolerance": {
+    "default": "1e-08"
+  },
+  "core.numpy_gradients.DifferentiationConfig.max_iterations": {
+    "default": "20"
+  },
+  "core.numpy_gradients.DifferentiationConfig.max_step": {
+    "default": "0.001"
+  },
+  "core.numpy_gradients.DifferentiationConfig.method": {
+    "default": "DifferentiationMethod.ADAPTIVE"
+  },
+  "core.numpy_gradients.DifferentiationConfig.min_step": {
+    "default": "1e-15"
+  },
+  "core.numpy_gradients.DifferentiationConfig.n_workers": {
+    "default": "DEFAULT_N_WORKERS"
+  },
+  "core.numpy_gradients.DifferentiationConfig.relative_step": {
+    "default": "SQRT_EPS"
+  },
+  "core.numpy_gradients.DifferentiationConfig.richardson_terms": {
+    "default": "4"
+  },
+  "core.numpy_gradients.DifferentiationConfig.step_size": {
+    "default": "None"
+  },
+  "core.numpy_gradients.DifferentiationConfig.use_parallel": {
+    "default": "True"
+  },
+  "core.numpy_gradients.GradientResult.computation_time": {
+    "default": "0.0"
+  },
+  "core.numpy_gradients.GradientResult.error_estimate": {
+    "default": "None"
+  },
+  "core.numpy_gradients.GradientResult.function_calls": {
+    "default": "0"
+  },
+  "core.numpy_gradients.GradientResult.gradient": {
+    "default": null
+  },
+  "core.numpy_gradients.GradientResult.method_used": {
+    "default": "'unknown'"
+  },
+  "core.numpy_gradients.GradientResult.step_sizes": {
+    "default": null
+  },
+  "core.numpy_gradients.GradientResult.warnings": {
+    "default": "None"
+  },
+  "core.physics_factors.PhysicsFactors.dt": {
+    "default": null
+  },
+  "core.physics_factors.PhysicsFactors.sinc_prefactor": {
+    "default": null
+  },
+  "core.physics_factors.PhysicsFactors.stator_rotor_gap": {
+    "default": null
+  },
+  "core.physics_factors.PhysicsFactors.wavevector_q": {
+    "default": null
+  },
+  "core.physics_factors.PhysicsFactors.wavevector_q_squared_half_dt": {
+    "default": null
+  },
+  "core.physics_factors.runtime_keys": [
+    "analyzer_parameters"
+  ],
+  "data.angle_filtering.runtime_keys": [
+    "phi_filtering"
+  ],
+  "data.config.ConfigValidationResult.errors": {
+    "default": null
+  },
+  "data.config.ConfigValidationResult.is_valid": {
+    "default": null
+  },
+  "data.config.ConfigValidationResult.missing_optional": {
+    "default": null
+  },
+  "data.config.ConfigValidationResult.warnings": {
+    "default": null
+  },
+  "data.config.runtime_keys": [
+    "analyzer_parameters",
+    "data_filtering",
+    "experimental_data",
+    "v2_features"
+  ],
+  "data.filtering_utils.FilteringResult.errors": {
+    "default": null
+  },
+  "data.filtering_utils.FilteringResult.fallback_used": {
+    "default": null
+  },
+  "data.filtering_utils.FilteringResult.filter_statistics": {
+    "default": null
+  },
+  "data.filtering_utils.FilteringResult.filters_applied": {
+    "default": null
+  },
+  "data.filtering_utils.FilteringResult.selected_indices": {
+    "default": null
+  },
+  "data.filtering_utils.FilteringResult.total_available": {
+    "default": null
+  },
+  "data.filtering_utils.FilteringResult.total_selected": {
+    "default": null
+  },
+  "data.filtering_utils.FilteringResult.warnings": {
+    "default": null
+  },
+  "data.memory_manager.MemoryPool.allocated_count": {
+    "default": "0"
+  },
+  "data.memory_manager.MemoryPool.buffer_size": {
+    "default": null
+  },
+  "data.memory_manager.MemoryPool.buffers": {
+    "default": "field(default_factory=deque)"
+  },
+  "data.memory_manager.MemoryPool.creation_time": {
+    "default": "field(default_factory=time.time)"
+  },
+  "data.memory_manager.MemoryPool.hit_count": {
+    "default": "0"
+  },
+  "data.memory_manager.MemoryPool.last_access_time": {
+    "default": "field(default_factory=time.time)"
+  },
+  "data.memory_manager.MemoryPool.max_buffers": {
+    "default": null
+  },
+  "data.memory_manager.MemoryPool.miss_count": {
+    "default": "0"
+  },
+  "data.memory_manager.MemoryPool.pool_id": {
+    "default": null
+  },
+  "data.memory_manager.MemoryStats.active_pools": {
+    "default": "0"
+  },
+  "data.memory_manager.MemoryStats.allocated_pools": {
+    "default": "0"
+  },
+  "data.memory_manager.MemoryStats.allocation_latency_ms": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.allocation_rate": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.available_memory_gb": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.deallocation_rate": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.fragmentation_ratio": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.gc_collections_per_min": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.memory_pressure": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.memory_throughput_mbps": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.page_faults_per_sec": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.pool_efficiency": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.pool_memory_gb": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.swap_usage_gb": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.total_memory_gb": {
+    "default": "0.0"
+  },
+  "data.memory_manager.MemoryStats.used_memory_gb": {
+    "default": "0.0"
+  },
+  "data.optimization.runtime_keys": [
+    "dataset_info",
+    "performance_metrics"
+  ],
+  "data.performance_engine.ChunkInfo.access_pattern": {
+    "default": null
+  },
+  "data.performance_engine.ChunkInfo.cache_key": {
+    "default": "None"
+  },
+  "data.performance_engine.ChunkInfo.complexity_score": {
+    "default": null
+  },
+  "data.performance_engine.ChunkInfo.dependencies": {
+    "default": "field(default_factory=list)"
+  },
+  "data.performance_engine.ChunkInfo.estimated_processing_time": {
+    "default": null
+  },
+  "data.performance_engine.ChunkInfo.index": {
+    "default": null
+  },
+  "data.performance_engine.ChunkInfo.memory_size_mb": {
+    "default": null
+  },
+  "data.performance_engine.ChunkInfo.priority": {
+    "default": null
+  },
+  "data.performance_engine.ChunkInfo.size": {
+    "default": null
+  },
+  "data.performance_engine.PerformanceMetrics.bottleneck_type": {
+    "default": "None"
+  },
+  "data.performance_engine.PerformanceMetrics.cache_hit_rate": {
+    "default": "0.0"
+  },
+  "data.performance_engine.PerformanceMetrics.chunk_processing_rate": {
+    "default": "0.0"
+  },
+  "data.performance_engine.PerformanceMetrics.cpu_utilization": {
+    "default": "0.0"
+  },
+  "data.performance_engine.PerformanceMetrics.history_size": {
+    "default": "field(default=100, init=False)"
+  },
+  "data.performance_engine.PerformanceMetrics.io_wait_time": {
+    "default": "0.0"
+  },
+  "data.performance_engine.PerformanceMetrics.loading_speed_mbps": {
+    "default": "0.0"
+  },
+  "data.performance_engine.PerformanceMetrics.memory_pressure": {
+    "default": "0.0"
+  },
+  "data.performance_engine.PerformanceMetrics.memory_usage_mb": {
+    "default": "0.0"
+  },
+  "data.performance_engine.PerformanceMetrics.parallel_efficiency": {
+    "default": "0.0"
+  },
+  "data.preprocessing.PreprocessingProvenance.config_hash": {
+    "default": null
+  },
+  "data.preprocessing.PreprocessingProvenance.errors": {
+    "default": "field(default_factory=list)"
+  },
+  "data.preprocessing.PreprocessingProvenance.peak_memory_usage": {
+    "default": "0.0"
+  },
+  "data.preprocessing.PreprocessingProvenance.pipeline_id": {
+    "default": null
+  },
+  "data.preprocessing.PreprocessingProvenance.total_duration": {
+    "default": "0.0"
+  },
+  "data.preprocessing.PreprocessingProvenance.transformations": {
+    "default": "field(default_factory=list)"
+  },
+  "data.preprocessing.PreprocessingProvenance.warnings": {
+    "default": "field(default_factory=list)"
+  },
+  "data.preprocessing.PreprocessingResult.data": {
+    "default": null
+  },
+  "data.preprocessing.PreprocessingResult.provenance": {
+    "default": null
+  },
+  "data.preprocessing.PreprocessingResult.stage_results": {
+    "default": "field(default_factory=dict)"
+  },
+  "data.preprocessing.PreprocessingResult.success": {
+    "default": "True"
+  },
+  "data.preprocessing.TransformationRecord.duration": {
+    "default": null
+  },
+  "data.preprocessing.TransformationRecord.input_shape": {
+    "default": null
+  },
+  "data.preprocessing.TransformationRecord.memory_usage": {
+    "default": "None"
+  },
+  "data.preprocessing.TransformationRecord.method": {
+    "default": null
+  },
+  "data.preprocessing.TransformationRecord.output_shape": {
+    "default": null
+  },
+  "data.preprocessing.TransformationRecord.parameters": {
+    "default": null
+  },
+  "data.preprocessing.TransformationRecord.stage": {
+    "default": null
+  },
+  "data.preprocessing.TransformationRecord.timestamp": {
+    "default": null
+  },
+  "data.preprocessing.TransformationRecord.warnings": {
+    "default": "field(default_factory=list)"
+  },
+  "data.preprocessing.runtime_keys": [
+    "estimator",
+    "interpolation_method",
+    "kernel_size",
+    "method",
+    "noise_variance",
+    "percentile_range",
+    "polyorder",
+    "preprocessing",
+    "sigma",
+    "trim_fraction",
+    "window_length",
+    "window_size"
+  ],
+  "data.quality_controller.QualityControlConfig.auto_repair": {
+    "default": "'conservative'"
+  },
+  "data.quality_controller.QualityControlConfig.cache_validation_results": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.enable_filtering_validation": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.enable_final_validation": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.enable_preprocessing_validation": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.enable_raw_validation": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.enabled": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.excellent_threshold": {
+    "default": "85.0"
+  },
+  "data.quality_controller.QualityControlConfig.export_detailed_reports": {
+    "default": "False"
+  },
+  "data.quality_controller.QualityControlConfig.generate_reports": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.incremental_validation": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.parallel_validation": {
+    "default": "False"
+  },
+  "data.quality_controller.QualityControlConfig.pass_threshold": {
+    "default": "50.0"
+  },
+  "data.quality_controller.QualityControlConfig.repair_format_inconsistencies": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.repair_infinite_values": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.repair_nan_values": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.repair_negative_correlations": {
+    "default": "False"
+  },
+  "data.quality_controller.QualityControlConfig.repair_scaling_issues": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.save_quality_history": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityControlConfig.validation_level": {
+    "default": "'standard'"
+  },
+  "data.quality_controller.QualityControlConfig.warn_threshold": {
+    "default": "70.0"
+  },
+  "data.quality_controller.QualityControlResult.data_modified": {
+    "default": "False"
+  },
+  "data.quality_controller.QualityControlResult.data_shape_after": {
+    "default": "None"
+  },
+  "data.quality_controller.QualityControlResult.data_shape_before": {
+    "default": "None"
+  },
+  "data.quality_controller.QualityControlResult.issues": {
+    "default": "field(default_factory=list)"
+  },
+  "data.quality_controller.QualityControlResult.metrics": {
+    "default": null
+  },
+  "data.quality_controller.QualityControlResult.passed": {
+    "default": null
+  },
+  "data.quality_controller.QualityControlResult.processing_time": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityControlResult.recommendations": {
+    "default": "field(default_factory=list)"
+  },
+  "data.quality_controller.QualityControlResult.repairs_applied": {
+    "default": "field(default_factory=list)"
+  },
+  "data.quality_controller.QualityControlResult.stage": {
+    "default": null
+  },
+  "data.quality_controller.QualityMetrics.correlation_decay": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityMetrics.correlation_validity": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityMetrics.data_range_valid": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityMetrics.filtering_efficiency": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityMetrics.finite_fraction": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityMetrics.issues_detected": {
+    "default": "0"
+  },
+  "data.quality_controller.QualityMetrics.issues_repaired": {
+    "default": "0"
+  },
+  "data.quality_controller.QualityMetrics.overall_score": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityMetrics.preprocessing_success": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityMetrics.q_range_validity": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityMetrics.repair_success_rate": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityMetrics.shape_consistency": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityMetrics.signal_to_noise": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityMetrics.symmetry_score": {
+    "default": "0.0"
+  },
+  "data.quality_controller.QualityMetrics.time_consistency": {
+    "default": "True"
+  },
+  "data.quality_controller.QualityMetrics.transformation_fidelity": {
+    "default": "0.0"
+  },
+  "data.quality_controller.runtime_keys": [
+    "quality_control"
+  ],
+  "data.types.DatasetInfo.category": {
+    "default": null
+  },
+  "data.types.DatasetInfo.compression_ratio": {
+    "default": "None"
+  },
+  "data.types.DatasetInfo.memory_usage_mb": {
+    "default": null
+  },
+  "data.types.DatasetInfo.recommended_batch_size": {
+    "default": null
+  },
+  "data.types.DatasetInfo.recommended_chunk_size": {
+    "default": null
+  },
+  "data.types.DatasetInfo.size": {
+    "default": null
+  },
+  "data.types.DatasetInfo.use_progressive_loading": {
+    "default": null
+  },
+  "data.types.ProcessingStrategy.batch_size": {
+    "default": null
+  },
+  "data.types.ProcessingStrategy.chunk_size": {
+    "default": null
+  },
+  "data.types.ProcessingStrategy.jax_config": {
+    "default": null
+  },
+  "data.types.ProcessingStrategy.memory_limit_mb": {
+    "default": null
+  },
+  "data.types.ProcessingStrategy.parallel_workers": {
+    "default": null
+  },
+  "data.types.ProcessingStrategy.use_caching": {
+    "default": null
+  },
+  "data.types.ProcessingStrategy.use_compression": {
+    "default": null
+  },
+  "data.validation.DataQualityReport.data_statistics": {
+    "default": "field(default_factory=dict)"
+  },
+  "data.validation.DataQualityReport.errors": {
+    "default": "field(default_factory=list)"
+  },
+  "data.validation.DataQualityReport.info": {
+    "default": "field(default_factory=list)"
+  },
+  "data.validation.DataQualityReport.is_valid": {
+    "default": null
+  },
+  "data.validation.DataQualityReport.physics_checks": {
+    "default": "field(default_factory=dict)"
+  },
+  "data.validation.DataQualityReport.quality_score": {
+    "default": "0.0"
+  },
+  "data.validation.DataQualityReport.total_issues": {
+    "default": null
+  },
+  "data.validation.DataQualityReport.validation_level": {
+    "default": null
+  },
+  "data.validation.DataQualityReport.warnings": {
+    "default": "field(default_factory=list)"
+  },
+  "data.validation.IncrementalValidationCache.component_hashes": {
+    "default": "field(default_factory=dict)"
+  },
+  "data.validation.IncrementalValidationCache.data_hash": {
+    "default": null
+  },
+  "data.validation.IncrementalValidationCache.report": {
+    "default": null
+  },
+  "data.validation.IncrementalValidationCache.timestamp": {
+    "default": null
+  },
+  "data.validation.IncrementalValidationCache.validation_level": {
+    "default": null
+  },
+  "data.validation.ValidationIssue.category": {
+    "default": null
+  },
+  "data.validation.ValidationIssue.message": {
+    "default": null
+  },
+  "data.validation.ValidationIssue.parameter": {
+    "default": "None"
+  },
+  "data.validation.ValidationIssue.recommendation": {
+    "default": "None"
+  },
+  "data.validation.ValidationIssue.severity": {
+    "default": null
+  },
+  "data.validation.ValidationIssue.value": {
+    "default": "None"
+  },
+  "data.validation.runtime_keys": [
+    "analyzer_parameters"
+  ],
+  "device.config.HardwareConfig.cluster_type": {
+    "default": null
+  },
+  "device.config.HardwareConfig.cores_per_node": {
+    "default": null
+  },
+  "device.config.HardwareConfig.max_parallel_shards": {
+    "default": null
+  },
+  "device.config.HardwareConfig.memory_per_device_gb": {
+    "default": null
+  },
+  "device.config.HardwareConfig.num_devices": {
+    "default": null
+  },
+  "device.config.HardwareConfig.num_nodes": {
+    "default": null
+  },
+  "device.config.HardwareConfig.platform": {
+    "default": null
+  },
+  "device.config.HardwareConfig.recommended_backend": {
+    "default": null
+  },
+  "device.config.HardwareConfig.total_memory_gb": {
+    "default": null
+  },
+  "optimization.cmc.config.CMCConfig.adaptive_sampling": {
+    "default": "True"
+  },
+  "optimization.cmc.config.CMCConfig.backend_name": {
+    "default": "'auto'"
+  },
+  "optimization.cmc.config.CMCConfig.bimodal_min_separation": {
+    "default": "0.5"
+  },
+  "optimization.cmc.config.CMCConfig.bimodal_min_weight": {
+    "default": "0.2"
+  },
+  "optimization.cmc.config.CMCConfig.chain_method": {
+    "default": "'parallel'"
+  },
+  "optimization.cmc.config.CMCConfig.checkpoint_dir": {
+    "default": "'./checkpoints/cmc'"
+  },
+  "optimization.cmc.config.CMCConfig.combination_method": {
+    "default": "'robust_consensus_mc'"
+  },
+  "optimization.cmc.config.CMCConfig.constant_scaling_threshold": {
+    "default": "3"
+  },
+  "optimization.cmc.config.CMCConfig.dense_mass": {
+    "default": "True"
+  },
+  "optimization.cmc.config.CMCConfig.enable": {
+    "default": "'auto'"
+  },
+  "optimization.cmc.config.CMCConfig.enable_checkpoints": {
+    "default": "True"
+  },
+  "optimization.cmc.config.CMCConfig.enable_jax_profiling": {
+    "default": "False"
+  },
+  "optimization.cmc.config.CMCConfig.heartbeat_timeout": {
+    "default": "600"
+  },
+  "optimization.cmc.config.CMCConfig.heterogeneity_abort": {
+    "default": "True"
+  },
+  "optimization.cmc.config.CMCConfig.jax_profile_dir": {
+    "default": "'./profiles/jax'"
+  },
+  "optimization.cmc.config.CMCConfig.max_divergence_rate": {
+    "default": "0.1"
+  },
+  "optimization.cmc.config.CMCConfig.max_parameter_cv": {
+    "default": "1.0"
+  },
+  "optimization.cmc.config.CMCConfig.max_points_per_shard": {
+    "default": "'auto'"
+  },
+  "optimization.cmc.config.CMCConfig.max_r_hat": {
+    "default": "1.1"
+  },
+  "optimization.cmc.config.CMCConfig.max_tree_depth": {
+    "default": "10"
+  },
+  "optimization.cmc.config.CMCConfig.min_ess": {
+    "default": "400.0"
+  },
+  "optimization.cmc.config.CMCConfig.min_points_for_cmc": {
+    "default": "100000"
+  },
+  "optimization.cmc.config.CMCConfig.min_points_per_param": {
+    "default": "1500"
+  },
+  "optimization.cmc.config.CMCConfig.min_points_per_shard": {
+    "default": "10000"
+  },
+  "optimization.cmc.config.CMCConfig.min_samples": {
+    "default": "200"
+  },
+  "optimization.cmc.config.CMCConfig.min_success_rate": {
+    "default": "0.9"
+  },
+  "optimization.cmc.config.CMCConfig.min_success_rate_warning": {
+    "default": "0.8"
+  },
+  "optimization.cmc.config.CMCConfig.min_warmup": {
+    "default": "100"
+  },
+  "optimization.cmc.config.CMCConfig.nlsq_prior_width_factor": {
+    "default": "2.0"
+  },
+  "optimization.cmc.config.CMCConfig.num_chains": {
+    "default": "4"
+  },
+  "optimization.cmc.config.CMCConfig.num_samples": {
+    "default": "1500"
+  },
+  "optimization.cmc.config.CMCConfig.num_shards": {
+    "default": "'auto'"
+  },
+  "optimization.cmc.config.CMCConfig.num_warmup": {
+    "default": "500"
+  },
+  "optimization.cmc.config.CMCConfig.per_angle_mode": {
+    "default": "'auto'"
+  },
+  "optimization.cmc.config.CMCConfig.per_shard_timeout": {
+    "default": "3600"
+  },
+  "optimization.cmc.config.CMCConfig.prior_tempering": {
+    "default": "True"
+  },
+  "optimization.cmc.config.CMCConfig.reparameterization_d_total": {
+    "default": "True"
+  },
+  "optimization.cmc.config.CMCConfig.reparameterization_log_gamma": {
+    "default": "True"
+  },
+  "optimization.cmc.config.CMCConfig.require_nlsq_warmstart": {
+    "default": "False"
+  },
+  "optimization.cmc.config.CMCConfig.run_id": {
+    "default": "None"
+  },
+  "optimization.cmc.config.CMCConfig.seed": {
+    "default": "42"
+  },
+  "optimization.cmc.config.CMCConfig.sharding_strategy": {
+    "default": "'random'"
+  },
+  "optimization.cmc.config.CMCConfig.target_accept_prob": {
+    "default": "0.85"
+  },
+  "optimization.cmc.config.CMCConfig.use_nlsq_informed_priors": {
+    "default": "True"
+  },
+  "optimization.cmc.data_prep.PreparedData.data": {
+    "default": null
+  },
+  "optimization.cmc.data_prep.PreparedData.n_phi": {
+    "default": null
+  },
+  "optimization.cmc.data_prep.PreparedData.n_total": {
+    "default": null
+  },
+  "optimization.cmc.data_prep.PreparedData.noise_scale": {
+    "default": null
+  },
+  "optimization.cmc.data_prep.PreparedData.phi": {
+    "default": null
+  },
+  "optimization.cmc.data_prep.PreparedData.phi_indices": {
+    "default": null
+  },
+  "optimization.cmc.data_prep.PreparedData.phi_unique": {
+    "default": null
+  },
+  "optimization.cmc.data_prep.PreparedData.t1": {
+    "default": null
+  },
+  "optimization.cmc.data_prep.PreparedData.t2": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.BimodalConsensusResult.co_occurrence": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.BimodalConsensusResult.modal_params": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.BimodalConsensusResult.modes": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.BimodalResult.is_bimodal": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.BimodalResult.means": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.BimodalResult.relative_separation": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.BimodalResult.separation": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.BimodalResult.stds": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.BimodalResult.weights": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.ModeCluster.mean": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.ModeCluster.n_shards": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.ModeCluster.samples": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.ModeCluster.std": {
+    "default": null
+  },
+  "optimization.cmc.diagnostics.ModeCluster.weight": {
+    "default": null
+  },
+  "optimization.cmc.reparameterization.ReparamConfig.enable_d_ref": {
+    "default": "True"
+  },
+  "optimization.cmc.reparameterization.ReparamConfig.enable_gamma_ref": {
+    "default": "True"
+  },
+  "optimization.cmc.reparameterization.ReparamConfig.t_ref": {
+    "default": "1.0"
+  },
+  "optimization.cmc.results.CMCResult.analysis_mode": {
+    "default": "'static'"
+  },
+  "optimization.cmc.results.CMCResult.chi_squared": {
+    "default": "0.0"
+  },
+  "optimization.cmc.results.CMCResult.convergence_status": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.covariance": {
+    "default": "field(default_factory=lambda: np.array([]))"
+  },
+  "optimization.cmc.results.CMCResult.device_info": {
+    "default": "field(default_factory=dict)"
+  },
+  "optimization.cmc.results.CMCResult.divergences": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.ess_bulk": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.ess_tail": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.execution_time": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.inference_data": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.mean_contrast": {
+    "default": "None"
+  },
+  "optimization.cmc.results.CMCResult.mean_offset": {
+    "default": "None"
+  },
+  "optimization.cmc.results.CMCResult.mean_params": {
+    "default": "field(default_factory=lambda: ParameterStats([], []))"
+  },
+  "optimization.cmc.results.CMCResult.n_chains": {
+    "default": "4"
+  },
+  "optimization.cmc.results.CMCResult.n_samples": {
+    "default": "2000"
+  },
+  "optimization.cmc.results.CMCResult.n_warmup": {
+    "default": "500"
+  },
+  "optimization.cmc.results.CMCResult.num_shards": {
+    "default": "1"
+  },
+  "optimization.cmc.results.CMCResult.param_names": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.parameters": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.per_angle_mode": {
+    "default": "'auto'"
+  },
+  "optimization.cmc.results.CMCResult.quality_flag": {
+    "default": "'good'"
+  },
+  "optimization.cmc.results.CMCResult.r_hat": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.recovery_actions": {
+    "default": "field(default_factory=list)"
+  },
+  "optimization.cmc.results.CMCResult.reduced_chi_squared": {
+    "default": "0.0"
+  },
+  "optimization.cmc.results.CMCResult.samples": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.std_contrast": {
+    "default": "None"
+  },
+  "optimization.cmc.results.CMCResult.std_offset": {
+    "default": "None"
+  },
+  "optimization.cmc.results.CMCResult.std_params": {
+    "default": "field(default_factory=lambda: ParameterStats([], []))"
+  },
+  "optimization.cmc.results.CMCResult.uncertainties": {
+    "default": null
+  },
+  "optimization.cmc.results.CMCResult.warmup_time": {
+    "default": null
+  },
+  "optimization.cmc.sampler.MCMCSamples.bimodal_consensus": {
+    "default": "None"
+  },
+  "optimization.cmc.sampler.MCMCSamples.extra_fields": {
+    "default": "field(default_factory=dict)"
+  },
+  "optimization.cmc.sampler.MCMCSamples.n_chains": {
+    "default": null
+  },
+  "optimization.cmc.sampler.MCMCSamples.n_samples": {
+    "default": null
+  },
+  "optimization.cmc.sampler.MCMCSamples.num_shards": {
+    "default": "1"
+  },
+  "optimization.cmc.sampler.MCMCSamples.param_names": {
+    "default": null
+  },
+  "optimization.cmc.sampler.MCMCSamples.samples": {
+    "default": null
+  },
+  "optimization.cmc.sampler.MCMCSamples.shard_adapted_n_warmup": {
+    "default": "None"
+  },
+  "optimization.cmc.sampler.SamplingPlan.n_chains": {
+    "default": null
+  },
+  "optimization.cmc.sampler.SamplingPlan.n_params": {
+    "default": null
+  },
+  "optimization.cmc.sampler.SamplingPlan.n_samples": {
+    "default": null
+  },
+  "optimization.cmc.sampler.SamplingPlan.n_warmup": {
+    "default": null
+  },
+  "optimization.cmc.sampler.SamplingPlan.shard_size": {
+    "default": null
+  },
+  "optimization.cmc.sampler.SamplingPlan.was_adapted": {
+    "default": null
+  },
+  "optimization.cmc.sampler.SamplingStats.accept_prob": {
+    "default": "0.0"
+  },
+  "optimization.cmc.sampler.SamplingStats.inverse_mass_matrix_summary": {
+    "default": "None"
+  },
+  "optimization.cmc.sampler.SamplingStats.num_divergent": {
+    "default": "0"
+  },
+  "optimization.cmc.sampler.SamplingStats.plan": {
+    "default": "None"
+  },
+  "optimization.cmc.sampler.SamplingStats.sampling_time": {
+    "default": "0.0"
+  },
+  "optimization.cmc.sampler.SamplingStats.step_size": {
+    "default": "0.0"
+  },
+  "optimization.cmc.sampler.SamplingStats.step_size_max": {
+    "default": "None"
+  },
+  "optimization.cmc.sampler.SamplingStats.step_size_min": {
+    "default": "None"
+  },
+  "optimization.cmc.sampler.SamplingStats.total_time": {
+    "default": "0.0"
+  },
+  "optimization.cmc.sampler.SamplingStats.tree_depth": {
+    "default": "0.0"
+  },
+  "optimization.cmc.sampler.SamplingStats.warmup_time": {
+    "default": "0.0"
+  },
+  "optimization.cmc.scaling.ParameterScaling.center": {
+    "default": null
+  },
+  "optimization.cmc.scaling.ParameterScaling.high": {
+    "default": null
+  },
+  "optimization.cmc.scaling.ParameterScaling.low": {
+    "default": null
+  },
+  "optimization.cmc.scaling.ParameterScaling.name": {
+    "default": null
+  },
+  "optimization.cmc.scaling.ParameterScaling.scale": {
+    "default": null
+  },
+  "optimization.nlsq.adapter.AdapterConfig.enable_cache": {
+    "default": "True"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.enable_jit": {
+    "default": "True"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.enable_recovery": {
+    "default": "True"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.enable_stability": {
+    "default": "True"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.goal": {
+    "default": "'quality'"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.workflow": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.adapter.CachedModel.created_at": {
+    "default": "field(default_factory=time.time)"
+  },
+  "optimization.nlsq.adapter.CachedModel.model": {
+    "default": null
+  },
+  "optimization.nlsq.adapter.CachedModel.model_func": {
+    "default": null
+  },
+  "optimization.nlsq.adapter.CachedModel.n_hits": {
+    "default": "0"
+  },
+  "optimization.nlsq.adapter.ModelCacheKey.analysis_mode": {
+    "default": null
+  },
+  "optimization.nlsq.adapter.ModelCacheKey.per_angle_scaling": {
+    "default": null
+  },
+  "optimization.nlsq.adapter.ModelCacheKey.phi_angles": {
+    "default": null
+  },
+  "optimization.nlsq.adapter.ModelCacheKey.q": {
+    "default": null
+  },
+  "optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.auto_tune_lambda": {
+    "default": "True"
+  },
+  "optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.group_indices": {
+    "default": "None"
+  },
+  "optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.lambda_base": {
+    "default": "1.0"
+  },
+  "optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.max_cv": {
+    "default": "0.2"
+  },
+  "optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.mode": {
+    "default": "'relative'"
+  },
+  "optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.target_contribution": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.target_cv": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.constant_scaling_threshold": {
+    "default": "3"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.fourier_auto_threshold": {
+    "default": "6"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.fourier_order": {
+    "default": "2"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_consecutive_triggers": {
+    "default": "5"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_monitoring_enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_ratio_threshold": {
+    "default": "0.01"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_response_mode": {
+    "default": "'hierarchical'"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_max_outer_iterations": {
+    "default": "5"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_outer_tolerance": {
+    "default": "1e-06"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_per_angle_max_iterations": {
+    "default": "50"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_physical_max_iterations": {
+    "default": "100"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.per_angle_mode": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_lambda": {
+    "default": "1.0"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_max_cv": {
+    "default": "0.2"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_mode": {
+    "default": "'relative'"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_target_contribution": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_target_cv": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_alpha": {
+    "default": "1.0"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_min_weight": {
+    "default": "0.3"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_normalize": {
+    "default": "True"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_update_frequency": {
+    "default": "1"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.config": {
+    "default": null
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.fourier": {
+    "default": "None"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.hierarchical": {
+    "default": "None"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.mapper": {
+    "default": "None"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.monitor": {
+    "default": "None"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_phi": {
+    "default": null
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_physical": {
+    "default": null
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.per_angle_mode_actual": {
+    "default": "'disabled'"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.phi_angles": {
+    "default": null
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.regularizer": {
+    "default": "None"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.shear_weighter": {
+    "default": "None"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.covariance": {
+    "default": null
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.diagnostics": {
+    "default": "field(default_factory=dict)"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.message": {
+    "default": "''"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.method_used": {
+    "default": "'cmaes'"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.nlsq_refined": {
+    "default": "False"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.parameters": {
+    "default": null
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.success": {
+    "default": null
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.auto_memory": {
+    "default": "True"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.data_chunk_size": {
+    "default": "None"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.max_generations": {
+    "default": "None"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.max_restarts": {
+    "default": "9"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.memory_limit_gb": {
+    "default": "8.0"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.normalization_epsilon": {
+    "default": "1e-12"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.normalize": {
+    "default": "True"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.popsize": {
+    "default": "None"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.population_batch_size": {
+    "default": "None"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.preset": {
+    "default": "'cmaes'"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refine_with_nlsq": {
+    "default": "True"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_ftol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_gtol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_loss": {
+    "default": "'linear'"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_max_nfev": {
+    "default": "500"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_workflow": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_xtol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.restart_strategy": {
+    "default": "'bipop'"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma": {
+    "default": "0.5"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma_warmstart": {
+    "default": "0.05"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_fun": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_x": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.config.HybridRecoveryConfig.lambda_growth": {
+    "default": "2.0"
+  },
+  "optimization.nlsq.config.HybridRecoveryConfig.log_retries": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.HybridRecoveryConfig.lr_decay": {
+    "default": "0.5"
+  },
+  "optimization.nlsq.config.HybridRecoveryConfig.max_retries": {
+    "default": "3"
+  },
+  "optimization.nlsq.config.HybridRecoveryConfig.trust_decay": {
+    "default": "0.5"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_auto_select": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_data_chunk_size": {
+    "default": "None"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_max_generations": {
+    "default": "None"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_max_restarts": {
+    "default": "9"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_memory_limit_gb": {
+    "default": "8.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_normalization_epsilon": {
+    "default": "1e-12"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_normalize": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_popsize": {
+    "default": "None"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_population_batch_size": {
+    "default": "None"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_preset": {
+    "default": "'cmaes'"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refine_with_nlsq": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_ftol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_gtol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_loss": {
+    "default": "'linear'"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_max_nfev": {
+    "default": "500"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_workflow": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_xtol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_restart_strategy": {
+    "default": "'bipop'"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_scale_threshold": {
+    "default": "1000.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_sigma": {
+    "default": "0.5"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_sigma_warmstart": {
+    "default": "0.05"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_tol_fun": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_tol_x": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_warmstart_auto_skip": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_warmstart_skip_threshold": {
+    "default": "5.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.constant_scaling_threshold": {
+    "default": "3"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_cmaes": {
+    "default": "False"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_diagnostics": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_gradient_monitoring": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_hierarchical": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_hybrid_streaming": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_multi_start": {
+    "default": "False"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_progress_bar": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_quality_validation": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_recovery": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_stratified": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_streaming": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.fourier_auto_threshold": {
+    "default": "6"
+  },
+  "optimization.nlsq.config.NLSQConfig.fourier_order": {
+    "default": "2"
+  },
+  "optimization.nlsq.config.NLSQConfig.ftol": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.config.NLSQConfig.goal": {
+    "default": "'quality'"
+  },
+  "optimization.nlsq.config.NLSQConfig.gradient_collapse_response": {
+    "default": "'hierarchical'"
+  },
+  "optimization.nlsq.config.NLSQConfig.gradient_consecutive_triggers": {
+    "default": "5"
+  },
+  "optimization.nlsq.config.NLSQConfig.gradient_ratio_threshold": {
+    "default": "0.01"
+  },
+  "optimization.nlsq.config.NLSQConfig.group_variance_lambda": {
+    "default": "1.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.gtol": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.config.NLSQConfig.hierarchical_max_outer_iterations": {
+    "default": "5"
+  },
+  "optimization.nlsq.config.NLSQConfig.hierarchical_outer_tolerance": {
+    "default": "1e-06"
+  },
+  "optimization.nlsq.config.NLSQConfig.hierarchical_per_angle_max_iterations": {
+    "default": "50"
+  },
+  "optimization.nlsq.config.NLSQConfig.hierarchical_physical_max_iterations": {
+    "default": "100"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_checkpoint_frequency": {
+    "default": "100"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_chunk_size": {
+    "default": "10000"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_cost_increase_tolerance": {
+    "default": "0.05"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_adaptive_warmup_lr": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_checkpoints": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_cost_guard": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_step_clipping": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_warm_start_detection": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_max_iterations": {
+    "default": "100"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_tol": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_iterations": {
+    "default": "500"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_step_size": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_normalization_strategy": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_normalize": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_regularization_factor": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_trust_region_initial": {
+    "default": "1.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_validate_numerics": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warm_start_threshold": {
+    "default": "0.01"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warmup_iterations": {
+    "default": "200"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warmup_learning_rate": {
+    "default": "0.001"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_careful": {
+    "default": "1e-05"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_refinement": {
+    "default": "1e-06"
+  },
+  "optimization.nlsq.config.NLSQConfig.log_iteration_interval": {
+    "default": "10"
+  },
+  "optimization.nlsq.config.NLSQConfig.loss": {
+    "default": "'soft_l1'"
+  },
+  "optimization.nlsq.config.NLSQConfig.max_iterations": {
+    "default": "1000"
+  },
+  "optimization.nlsq.config.NLSQConfig.max_recovery_attempts": {
+    "default": "3"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_degeneracy_threshold": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_n_starts": {
+    "default": "10"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_n_workers": {
+    "default": "0"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_refine_top_k": {
+    "default": "3"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_refinement_ftol": {
+    "default": "1e-12"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_sampling_strategy": {
+    "default": "'latin_hypercube'"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_screen_keep_fraction": {
+    "default": "0.5"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_seed": {
+    "default": "42"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_use_screening": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.per_angle_mode": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.config.NLSQConfig.quality_bounds_tolerance": {
+    "default": "1e-09"
+  },
+  "optimization.nlsq.config.NLSQConfig.quality_reduced_chi_squared_threshold": {
+    "default": "10.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.quality_warn_on_bounds_hit": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.quality_warn_on_convergence_failure": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.quality_warn_on_max_restarts": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.regularization_auto_tune_lambda": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.regularization_max_cv": {
+    "default": "0.2"
+  },
+  "optimization.nlsq.config.NLSQConfig.regularization_mode": {
+    "default": "'relative'"
+  },
+  "optimization.nlsq.config.NLSQConfig.regularization_target_contribution": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.config.NLSQConfig.regularization_target_cv": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.config.NLSQConfig.streaming_chunk_size": {
+    "default": "50000"
+  },
+  "optimization.nlsq.config.NLSQConfig.target_chunk_size": {
+    "default": "100000"
+  },
+  "optimization.nlsq.config.NLSQConfig.trust_region_scale": {
+    "default": "1.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.verbose": {
+    "default": "1"
+  },
+  "optimization.nlsq.config.NLSQConfig.workflow": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.config.NLSQConfig.x_scale": {
+    "default": "'jac'"
+  },
+  "optimization.nlsq.config.NLSQConfig.x_scale_map": {
+    "default": "None"
+  },
+  "optimization.nlsq.config.NLSQConfig.xtol": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.data_prep.ExpandedParameters.bounds": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.ExpandedParameters.n_angles": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.ExpandedParameters.n_params": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.ExpandedParameters.n_physical": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.ExpandedParameters.params": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.n_data": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.n_phi": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.phi_unique": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.xdata": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.ydata": {
+    "default": null
+  },
+  "optimization.nlsq.fourier_reparam.FourierReparamConfig.auto_threshold": {
+    "default": "6"
+  },
+  "optimization.nlsq.fourier_reparam.FourierReparamConfig.c0_bounds": {
+    "default": "(0.1, 0.8)"
+  },
+  "optimization.nlsq.fourier_reparam.FourierReparamConfig.ck_bounds": {
+    "default": "(-0.2, 0.2)"
+  },
+  "optimization.nlsq.fourier_reparam.FourierReparamConfig.fourier_order": {
+    "default": "2"
+  },
+  "optimization.nlsq.fourier_reparam.FourierReparamConfig.mode": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.fourier_reparam.FourierReparamConfig.o0_bounds": {
+    "default": "(0.5, 1.5)"
+  },
+  "optimization.nlsq.fourier_reparam.FourierReparamConfig.ok_bounds": {
+    "default": "(-0.3, 0.3)"
+  },
+  "optimization.nlsq.gradient_monitor.CollapseEvent.iteration": {
+    "default": null
+  },
+  "optimization.nlsq.gradient_monitor.CollapseEvent.per_angle_grad_norm": {
+    "default": null
+  },
+  "optimization.nlsq.gradient_monitor.CollapseEvent.physical_grad_norm": {
+    "default": null
+  },
+  "optimization.nlsq.gradient_monitor.CollapseEvent.ratio": {
+    "default": null
+  },
+  "optimization.nlsq.gradient_monitor.CollapseEvent.response_mode": {
+    "default": null
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.check_interval": {
+    "default": "1"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.consecutive_triggers": {
+    "default": "5"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.lambda_multiplier_on_collapse": {
+    "default": "10.0"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.ratio_threshold": {
+    "default": "0.01"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.reset_per_angle_to_mean": {
+    "default": "True"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.response_mode": {
+    "default": "'hierarchical'"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.watch_consecutive_triggers": {
+    "default": "3"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.watch_min_iteration": {
+    "default": "5"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.watch_parameters": {
+    "default": "None"
+  },
+  "optimization.nlsq.gradient_monitor.GradientMonitorConfig.watch_threshold": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalConfig.enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalConfig.log_stage_transitions": {
+    "default": "True"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalConfig.max_outer_iterations": {
+    "default": "5"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalConfig.outer_tolerance": {
+    "default": "1e-06"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalConfig.per_angle_ftol": {
+    "default": "1e-06"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalConfig.per_angle_max_iterations": {
+    "default": "50"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalConfig.physical_ftol": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalConfig.physical_max_iterations": {
+    "default": "100"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalConfig.save_intermediate_results": {
+    "default": "False"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalResult.fun": {
+    "default": null
+  },
+  "optimization.nlsq.hierarchical.HierarchicalResult.history": {
+    "default": "field(default_factory=list)"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalResult.message": {
+    "default": "''"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalResult.n_outer_iterations": {
+    "default": null
+  },
+  "optimization.nlsq.hierarchical.HierarchicalResult.success": {
+    "default": null
+  },
+  "optimization.nlsq.hierarchical.HierarchicalResult.total_time": {
+    "default": "0.0"
+  },
+  "optimization.nlsq.hierarchical.HierarchicalResult.x": {
+    "default": null
+  },
+  "optimization.nlsq.memory.StrategyDecision.index_memory_gb": {
+    "default": null
+  },
+  "optimization.nlsq.memory.StrategyDecision.peak_memory_gb": {
+    "default": null
+  },
+  "optimization.nlsq.memory.StrategyDecision.reason": {
+    "default": null
+  },
+  "optimization.nlsq.memory.StrategyDecision.strategy": {
+    "default": null
+  },
+  "optimization.nlsq.memory.StrategyDecision.threshold_gb": {
+    "default": null
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.custom_starts": {
+    "default": "None"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.degeneracy_threshold": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.enable": {
+    "default": "False"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.n_starts": {
+    "default": "10"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.n_workers": {
+    "default": "0"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.refine_top_k": {
+    "default": "3"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.refinement_ftol": {
+    "default": "1e-12"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.sampling_strategy": {
+    "default": "'latin_hypercube'"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.screen_keep_fraction": {
+    "default": "0.5"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.seed": {
+    "default": "42"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.use_screening": {
+    "default": "True"
+  },
+  "optimization.nlsq.multistart.MultiStartResult.all_results": {
+    "default": null
+  },
+  "optimization.nlsq.multistart.MultiStartResult.basin_labels": {
+    "default": "None"
+  },
+  "optimization.nlsq.multistart.MultiStartResult.best": {
+    "default": null
+  },
+  "optimization.nlsq.multistart.MultiStartResult.config": {
+    "default": null
+  },
+  "optimization.nlsq.multistart.MultiStartResult.degeneracy_detected": {
+    "default": "False"
+  },
+  "optimization.nlsq.multistart.MultiStartResult.n_successful": {
+    "default": "0"
+  },
+  "optimization.nlsq.multistart.MultiStartResult.n_unique_basins": {
+    "default": "1"
+  },
+  "optimization.nlsq.multistart.MultiStartResult.screening_costs": {
+    "default": "None"
+  },
+  "optimization.nlsq.multistart.MultiStartResult.strategy_used": {
+    "default": null
+  },
+  "optimization.nlsq.multistart.MultiStartResult.total_wall_time": {
+    "default": "0.0"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.multistart.SingleStartResult.covariance": {
+    "default": "None"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.final_params": {
+    "default": null
+  },
+  "optimization.nlsq.multistart.SingleStartResult.hessian": {
+    "default": "None"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.initial_params": {
+    "default": null
+  },
+  "optimization.nlsq.multistart.SingleStartResult.jacobian": {
+    "default": "None"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.message": {
+    "default": "''"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.n_fev": {
+    "default": "0"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.n_iterations": {
+    "default": "0"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.reduced_chi_squared": {
+    "default": "float('inf')"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.start_idx": {
+    "default": null
+  },
+  "optimization.nlsq.multistart.SingleStartResult.status": {
+    "default": "0"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.success": {
+    "default": "False"
+  },
+  "optimization.nlsq.multistart.SingleStartResult.wall_time": {
+    "default": "0.0"
+  },
+  "optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.fourier": {
+    "default": "None"
+  },
+  "optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.n_phi": {
+    "default": null
+  },
+  "optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.n_physical": {
+    "default": null
+  },
+  "optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.use_constant": {
+    "default": "False"
+  },
+  "optimization.nlsq.progress.ProgressConfig.description": {
+    "default": "'NLSQ Fitting'"
+  },
+  "optimization.nlsq.progress.ProgressConfig.enable_progress_bar": {
+    "default": "True"
+  },
+  "optimization.nlsq.progress.ProgressConfig.log_interval": {
+    "default": "10"
+  },
+  "optimization.nlsq.progress.ProgressConfig.max_nfev": {
+    "default": "1000"
+  },
+  "optimization.nlsq.progress.ProgressConfig.verbose": {
+    "default": "1"
+  },
+  "optimization.nlsq.result_builder.QualityMetrics.chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.result_builder.QualityMetrics.n_at_bounds": {
+    "default": "0"
+  },
+  "optimization.nlsq.result_builder.QualityMetrics.quality_flag": {
+    "default": null
+  },
+  "optimization.nlsq.result_builder.QualityMetrics.reduced_chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.covariance": {
+    "default": "None"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.info": {
+    "default": "field(default_factory=dict)"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.n_data": {
+    "default": "0"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.nlsq_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.parameters": {
+    "default": "None"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.recovery_actions": {
+    "default": "field(default_factory=list)"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.start_time": {
+    "default": "field(default_factory=time.time)"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.stratification_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.FallbackInfo.adapter_error": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.FallbackInfo.adapter_used": {
+    "default": null
+  },
+  "optimization.nlsq.results.FallbackInfo.fallback_occurred": {
+    "default": null
+  },
+  "optimization.nlsq.results.FallbackInfo.wrapper_error": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.FunctionEvaluationCounter.count": {
+    "default": "0"
+  },
+  "optimization.nlsq.results.FunctionEvaluationCounter.fn": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.convergence_status": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.covariance": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.device_info": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.execution_time": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.iterations": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.nlsq_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.OptimizationResult.parameters": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.quality_flag": {
+    "default": "'good'"
+  },
+  "optimization.nlsq.results.OptimizationResult.recovery_actions": {
+    "default": "field(default_factory=list)"
+  },
+  "optimization.nlsq.results.OptimizationResult.reduced_chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.sigma_is_default": {
+    "default": "False"
+  },
+  "optimization.nlsq.results.OptimizationResult.stratification_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.OptimizationResult.streaming_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.OptimizationResult.uncertainties": {
+    "default": null
+  },
+  "optimization.nlsq.results.UseSequentialOptimization.data": {
+    "default": null
+  },
+  "optimization.nlsq.results.UseSequentialOptimization.reason": {
+    "default": null
+  },
+  "optimization.nlsq.shear_weighting.ShearWeightingConfig.alpha": {
+    "default": "1.0"
+  },
+  "optimization.nlsq.shear_weighting.ShearWeightingConfig.enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.shear_weighting.ShearWeightingConfig.initial_phi0": {
+    "default": "None"
+  },
+  "optimization.nlsq.shear_weighting.ShearWeightingConfig.min_weight": {
+    "default": "0.3"
+  },
+  "optimization.nlsq.shear_weighting.ShearWeightingConfig.normalize": {
+    "default": "True"
+  },
+  "optimization.nlsq.shear_weighting.ShearWeightingConfig.update_frequency": {
+    "default": "1"
+  },
+  "optimization.nlsq.shear_weighting.runtime_keys": [
+    "shear_weighting"
+  ],
+  "optimization.nlsq.strategies.chunking.AngleDistributionStats.counts": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.AngleDistributionStats.fractions": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.AngleDistributionStats.imbalance_ratio": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.AngleDistributionStats.is_balanced": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.AngleDistributionStats.max_angle": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.AngleDistributionStats.min_angle": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.AngleDistributionStats.n_angles": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.AngleDistributionStats.unique_angles": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.angle_coverage": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.angles_per_chunk": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.chunk_balance": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.chunk_sizes": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.execution_time_ms": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.memory_efficiency": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.memory_overhead_mb": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.n_chunks": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.throughput_points_per_sec": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratificationDiagnostics.use_index_based": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratifiedIndexIterator.chunk_sizes": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.chunking.StratifiedIndexIterator.indices": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.executors.ExecutionResult.convergence_status": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.executors.ExecutionResult.info": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.executors.ExecutionResult.pcov": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.executors.ExecutionResult.popt": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.executors.ExecutionResult.recovery_actions": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.AngleSubset.g2_exp": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.AngleSubset.n_points": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.AngleSubset.phi": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.AngleSubset.phi_angle": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.AngleSubset.phi_indices": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.AngleSubset.t1": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.AngleSubset.t2": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.SequentialResult.combined_covariance": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.SequentialResult.combined_parameters": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.SequentialResult.final_jacobian_norms": {
+    "default": "None"
+  },
+  "optimization.nlsq.strategies.sequential.SequentialResult.initial_jacobian_norms": {
+    "default": "None"
+  },
+  "optimization.nlsq.strategies.sequential.SequentialResult.n_angles_failed": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.SequentialResult.n_angles_optimized": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.SequentialResult.per_angle_results": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.SequentialResult.success_rate": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.sequential.SequentialResult.total_cost": {
+    "default": null
+  },
+  "optimization.nlsq.strategies.stratified_ls.runtime_keys": [
+    "ftol",
+    "gtol",
+    "max_iterations",
+    "tolerance",
+    "xtol"
+  ],
+  "optimization.nlsq.transforms.runtime_keys": [
+    "beta_reference",
+    "enable_beta_centering",
+    "enable_gamma_dot_log"
+  ],
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.bounds_tolerance": {
+    "default": "1e-09"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.chi2_acceptable_threshold": {
+    "default": "5.0"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.chi2_good_threshold": {
+    "default": "2.0"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.max_condition_number": {
+    "default": "1000000000000.0"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.min_parameter_significance": {
+    "default": "2.0"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.reduced_chi_squared_threshold": {
+    "default": "10.0"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.warn_on_bounds_hit": {
+    "default": "True"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.warn_on_convergence_failure": {
+    "default": "True"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityConfig.warn_on_max_restarts": {
+    "default": "True"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityReport.checks_performed": {
+    "default": "field(default_factory=dict)"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityReport.passed": {
+    "default": "True"
+  },
+  "optimization.nlsq.validation.fit_quality.FitQualityReport.warnings": {
+    "default": "field(default_factory=list)"
+  },
+  "runtime.utils.system_validator.ValidationResult.details": {
+    "default": "None"
+  },
+  "runtime.utils.system_validator.ValidationResult.error_code": {
+    "default": "None"
+  },
+  "runtime.utils.system_validator.ValidationResult.execution_time": {
+    "default": "0.0"
+  },
+  "runtime.utils.system_validator.ValidationResult.message": {
+    "default": null
+  },
+  "runtime.utils.system_validator.ValidationResult.name": {
+    "default": null
+  },
+  "runtime.utils.system_validator.ValidationResult.remediation": {
+    "default": "None"
+  },
+  "runtime.utils.system_validator.ValidationResult.severity": {
+    "default": "'info'"
+  },
+  "runtime.utils.system_validator.ValidationResult.success": {
+    "default": null
+  },
+  "runtime.utils.system_validator.ValidationResult.warnings": {
+    "default": "None"
+  },
+  "utils.logging.LogConfiguration.console_colors": {
+    "default": "False"
+  },
+  "utils.logging.LogConfiguration.console_format": {
+    "default": "'simple'"
+  },
+  "utils.logging.LogConfiguration.console_level": {
+    "default": "'INFO'"
+  },
+  "utils.logging.LogConfiguration.file_backup_count": {
+    "default": "5"
+  },
+  "utils.logging.LogConfiguration.file_enabled": {
+    "default": "True"
+  },
+  "utils.logging.LogConfiguration.file_format": {
+    "default": "'detailed'"
+  },
+  "utils.logging.LogConfiguration.file_level": {
+    "default": "'DEBUG'"
+  },
+  "utils.logging.LogConfiguration.file_path": {
+    "default": "None"
+  },
+  "utils.logging.LogConfiguration.file_rotation_mb": {
+    "default": "10"
+  },
+  "utils.logging.LogConfiguration.module_overrides": {
+    "default": "field(default_factory=dict)"
+  },
+  "utils.logging.PhaseContext.duration": {
+    "default": "0.0"
+  },
+  "utils.logging.PhaseContext.memory_delta_gb": {
+    "default": "None"
+  },
+  "utils.logging.PhaseContext.memory_peak_gb": {
+    "default": "None"
+  },
+  "utils.logging.PhaseContext.name": {
+    "default": null
+  },
+  "utils.logging.runtime_keys": [
+    "console_colors",
+    "console_format",
+    "console_level",
+    "file_backup_count",
+    "file_enabled",
+    "file_format",
+    "file_level",
+    "file_path",
+    "file_rotation_mb",
+    "module_overrides"
+  ],
+  "viz.diagnostics.DiagonalOverlayResult.phi_index": {
+    "default": null
+  },
+  "viz.diagnostics.DiagonalOverlayResult.posthoc_diagonal": {
+    "default": null
+  },
+  "viz.diagnostics.DiagonalOverlayResult.posthoc_rmse": {
+    "default": null
+  },
+  "viz.diagnostics.DiagonalOverlayResult.posthoc_variance": {
+    "default": null
+  },
+  "viz.diagnostics.DiagonalOverlayResult.raw_diagonal": {
+    "default": null
+  },
+  "viz.diagnostics.DiagonalOverlayResult.raw_variance": {
+    "default": null
+  },
+  "viz.diagnostics.DiagonalOverlayResult.solver_diagonal": {
+    "default": null
+  },
+  "viz.diagnostics.DiagonalOverlayResult.solver_rmse": {
+    "default": null
+  },
+  "viz.diagnostics.DiagonalOverlayResult.solver_variance": {
+    "default": null
+  },
+  "viz.nlsq_plots.runtime_keys": [
+    "analysis_mode",
+    "analyzer_parameters",
+    "initial_parameters"
+  ]
+}

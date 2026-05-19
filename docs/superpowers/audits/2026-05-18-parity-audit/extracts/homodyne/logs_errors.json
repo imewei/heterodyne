@@ -1,0 +1,3243 @@
+{
+  "__init__": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "AttributeError",
+        "message": ""
+      },
+      {
+        "exception": "AttributeError",
+        "message": ""
+      }
+    ]
+  },
+  "cli.commands": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "MCMC will use mid-point defaults (no initial_parameters.values in config)",
+        "Using NLSQ native large dataset handling"
+      ],
+      "info": [
+        "Generating ArviZ diagnostic plots...",
+        "Loading data from configuration",
+        "Loading experimental data...",
+        "NLSQ results saved, proceeding to CMC...",
+        "Phase 1/2: NLSQ optimization...",
+        "Phase 2/2: CMC optimization with NLSQ warm-start...",
+        "Running sequential NLSQ -> CMC pipeline...",
+        "[CLI] Analysis completed successfully",
+        "[CLI] Plotting experimental data only (skipping optimization)",
+        "[CLI] Plotting simulated data only (skipping data loading and optimization)"
+      ],
+      "warning": [
+        "Cannot generate ArviZ diagnostic plots: inference_data not available",
+        "No diagnostic plots were generated",
+        "No inference_data available in result - skipping ArviZ diagnostic plots"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "XPCSDataLoader not available"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "XPCSDataLoader not available. Please ensure homodyne.data module is properly installed"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "CMC WARM-START REQUIRED: laminar_flow mode requires NLSQ warm-start when require_nlsq_warmstart=True. Remove --no-nlsq-warmstart flag or set validation.require_nlsq_warmstart=false in CMC config."
+      },
+      {
+        "exception": "ValueError",
+        "message": "No configuration loaded"
+      },
+      {
+        "exception": "ValueError",
+        "message": "No data file specified in configuration.\nConfig must have either:\n  experimental_data:\n    data_folder_path: ./path/to/data/\n    data_file_name: experiment.hdf\nOr:\n  experimental_data:\n    file_path: ./path/to/data/experiment.hdf\nOr use: --data-file path/to/data.hdf"
+      }
+    ]
+  },
+  "cli.config_generator": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "FileExistsError",
+        "message": ""
+      },
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      }
+    ]
+  },
+  "cli.config_handling": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Configuration file not found, using defaults",
+        "Configuring computational device..."
+      ],
+      "warning": [
+        "Device configuration failed, using defaults"
+      ]
+    },
+    "raises": []
+  },
+  "cli.data_pipeline": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Phi filtering not enabled, using all angles for optimization",
+        "Skipping t=0 exclusion: arrays too small to slice",
+        "Skipping t=0 exclusion: missing t1, t2, or c2_exp arrays"
+      ],
+      "info": [
+        "Normalized phi angles to [-180, 180] deg range (flow direction at 0 deg)"
+      ],
+      "warning": [
+        "Multiple shards requested but backend is 'auto/jax'; defaulting to multiprocessing. Use --cmc-backend to override explicitly.",
+        "No angles matched phi_filtering criteria, using all angles",
+        "No phi angles or C2 data available, cannot apply filtering",
+        "Phi filtering enabled but no target_ranges specified, using all angles"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Missing phi_angles_list in filtered_data"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Missing t1 or t2 arrays in filtered_data"
+      }
+    ]
+  },
+  "cli.main": {
+    "exit_codes": [
+      0,
+      1,
+      130
+    ],
+    "log_messages": {
+      "info": [
+        "Analysis completed successfully",
+        "Analysis interrupted by user",
+        "Starting homodyne analysis..."
+      ]
+    },
+    "raises": []
+  },
+  "cli.optimization_runner": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Running NLSQ optimization for CMC warm-start..."
+      ],
+      "warning": [
+        "NLSQ warm-start disabled (--no-nlsq-warmstart). CMC may have higher divergence rates without warm-start."
+      ]
+    },
+    "raises": []
+  },
+  "cli.plot_dispatch": {
+    "exit_codes": [],
+    "log_messages": {
+      "error": [
+        "Configuration required for simulated data plotting"
+      ],
+      "info": [
+        "Generating plots..."
+      ],
+      "warning": [
+        "Plotting requested but matplotlib not installed. Install with: pip install matplotlib"
+      ]
+    },
+    "raises": []
+  },
+  "cli.result_saving": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Analysis results saving error:",
+        "Could not stat fitted data file",
+        "Could not stat samples file",
+        "Diagnostics saving error:",
+        "Extracting metadata (L, dt, q)",
+        "Inferred n_angles=%s for _prepare_parameter_data (mode=%s, params=%s)",
+        "Parameter saving error:",
+        "Plot error details:",
+        "Samples saving error:",
+        "Shard diagnostics saving error:",
+        "Using L from experimental_data.geometry",
+        "Using time arrays in seconds (already converted by data loader)",
+        "Waiting for background result writes to complete..."
+      ],
+      "info": [
+        "  - 3 JSON files (parameters, analysis results, convergence metrics)",
+        "  - NPZ and plots skipped (theoretical fits unavailable)",
+        "Computing theoretical C2 with posterior means:",
+        "Computing theoretical fits with per-angle scaling",
+        "Generating comparison heatmap plots",
+        "Generating heatmap plots",
+        "Saving JSON files (parameters, analysis, convergence)",
+        "Saving NPZ file with all arrays",
+        "Saving legacy results summary for backward compatibility",
+        "Using comprehensive CMC result saving (async)",
+        "Using comprehensive NLSQ result saving (async)",
+        "Using per-angle least squares estimation for contrast/offset (fixes CMC sharding aggregation issue)"
+      ],
+      "warning": [
+        "Background save errors (%d): %s",
+        "Cannot cleanly infer n_angles: parameter count %d - n_physical %d = %d (odd). Falling back to n_angles=1.",
+        "Empty wavevector_q_list",
+        "Failed to save diagnostics.json (%s). Payload keys: %s",
+        "Recorded scalar_per_angle_expansion=true in diagnostics (scalar contrast/offset replicated per angle).",
+        "dt not found in config - may need manual specification"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "config.manager": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Applying default CMC configuration values",
+        "Applying default configuration values (fallback)",
+        "CMC configuration validation passed",
+        "Configuration validation completed",
+        "No CMC configuration found, using defaults",
+        "Skipping normalization: data_folder_path or data_file_name is None"
+      ],
+      "info": [
+        "Configuration loaded from override data",
+        "No initial_parameters section in config, using mid-point defaults",
+        "No parameter_names in initial_parameters, using active parameters from mode",
+        "Using default configuration..."
+      ],
+      "warning": [
+        "Configuration file '%s' is empty or null; using defaults",
+        "Configuration is empty",
+        "Deprecated sharding key 'optimal_shard_size' detected. Use 'max_points_per_shard' instead.",
+        "No configuration loaded, using empty initial parameters",
+        "Unknown top-level config keys (possible typo): %s",
+        "force_stratified_ls=True enabled. This uses full Jacobian (high memory) - ensure sufficient RAM.",
+        "hierarchical.enable=False for laminar_flow may cause gradient cancellation issues with many phi angles.",
+        "memory_fraction=%s outside valid range (0, 1); should be between 0 and 1",
+        "optimization.angle_filtering must be a dict, ignoring (got %s)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Configuration file path cannot be None"
+      },
+      {
+        "exception": "ValueError",
+        "message": "initial_parameters.values is null and use_midpoint_defaults is False"
+      }
+    ]
+  },
+  "config.parameter_manager": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Returning cached active parameters"
+      ],
+      "warning": [
+        "fixed_parameters must be a dict, ignoring",
+        "parameter_space.bounds must be a list, ignoring"
+      ]
+    },
+    "raises": []
+  },
+  "config.parameter_names": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "config.parameter_registry": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "config.parameter_space": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Converted %s prior to BetaScaled on [%s, %s] (alpha=%.3f, beta=%.3f)"
+      ],
+      "warning": [
+        "parameter_space.bounds must be a list, using package defaults"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "BetaScaled concentration parameters must be positive"
+      },
+      {
+        "exception": "ValueError",
+        "message": "BetaScaled priors require finite, positive interval width"
+      }
+    ]
+  },
+  "core.diagonal_correction": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "JAX not available, falling back to NumPy"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "NotImplementedError",
+        "message": "Cubic diagonal correction is not yet implemented. Use method='linear'."
+      }
+    ]
+  },
+  "core.fitting": {
+    "exit_codes": [],
+    "log_messages": {
+      "error": [
+        "Could not import core modules - fitting engine disabled"
+      ],
+      "info": [
+        "  - Balanced iteration counts and memory usage",
+        "  - Conservative iteration counts to manage memory",
+        "  - Distributed processing with intelligent chunking",
+        "  - Efficient batching with VI+JAX/MCMC+JAX",
+        "  - Full JAX acceleration without chunking",
+        "  - Higher iteration counts for better convergence",
+        "  - In-memory VI+JAX processing for instant fits",
+        "  - Moderate chunking for memory efficiency",
+        "  - Progressive loading and compression",
+        "Large dataset optimization:",
+        "Medium dataset optimization:",
+        "Small dataset optimization:"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "All uncertainties must be positive"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data and sigma must have same shape"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data array is empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data contains non-finite values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Sigma contains non-finite values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "q and L must be positive"
+      }
+    ]
+  },
+  "core.homodyne_model": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "HomodyneModel initialized successfully",
+        "Initializing HomodyneModel with hybrid architecture"
+      ],
+      "warning": [
+        "Data was saved successfully, continuing...",
+        "matplotlib not available, skipping plots"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "core.model_mixins": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Benchmarking gradient computation performance...",
+        "Gradient accuracy validation completed",
+        "Gradient performance benchmark completed",
+        "Validating gradient accuracy..."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": ""
+      },
+      {
+        "exception": "ImportError",
+        "message": ""
+      }
+    ]
+  },
+  "core.models": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "CombinedModel.compute_g1: calling compute_g1_diffusion with params.shape=%s",
+        "CombinedModel.compute_g1: calling compute_g1_total with params.shape=%s, t1.shape=%s, t2.shape=%s, phi.shape=%s, q=%s, L=%s, dt=%s"
+      ],
+      "error": [
+        "CombinedModel.compute_g1: traceback:"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "TypeError",
+        "message": "dt parameter is required and cannot be None. Pass dt explicitly from configuration."
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "core.numpy_gradients": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Numeric step-size computation failed for param %d, using initial step",
+        "Step-size estimation failed in Hessian computation, using default step"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "NumericalStabilityError",
+        "message": ""
+      },
+      {
+        "exception": "NumericalStabilityError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "core.physics_factors": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Computed sinc_prefactor is not finite. Check q, L, and dt values."
+      },
+      {
+        "exception": "ValueError",
+        "message": "Computed wavevector_q_squared_half_dt is not finite. Check q and dt values."
+      }
+    ]
+  },
+  "data.__init__": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": ""
+      },
+      {
+        "exception": "ImportError",
+        "message": ""
+      },
+      {
+        "exception": "ImportError",
+        "message": ""
+      }
+    ]
+  },
+  "data.angle_filtering": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "No config available for angle filtering, plotting all angles",
+        "Phi filtering not enabled, plotting all angles",
+        "Phi filtering not enabled, using all angles for optimization"
+      ],
+      "info": [
+        "Normalized phi angles to [-180, 180] deg range (flow direction at 0 deg)"
+      ],
+      "warning": [
+        "No angles matched phi_filtering criteria, using all angles",
+        "No angles matched target ranges, plotting all angles",
+        "No phi angles or C2 data available, cannot apply filtering",
+        "Phi filtering enabled but no target_ranges specified, plotting all angles",
+        "Phi filtering enabled but no target_ranges specified, using all angles"
+      ]
+    },
+    "raises": []
+  },
+  "data.config": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Consider migrating to YAML format for improved readability",
+        "Migrated JSON configuration to YAML format"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": "PyYAML required for YAML configuration files"
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": "PyYAML required to save YAML configuration files"
+      }
+    ]
+  },
+  "data.filtering_utils": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Data filtering disabled - returning all indices",
+        "No filtering criteria specified - returning all indices"
+      ],
+      "warning": [
+        "Falling back to all indices due to empty filter result",
+        "Falling back to all indices due to filtering error",
+        "Filtering resulted in no selected data points"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "DataFilteringError",
+        "message": ""
+      },
+      {
+        "exception": "DataFilteringError",
+        "message": ""
+      },
+      {
+        "exception": "DataFilteringError",
+        "message": ""
+      },
+      {
+        "exception": "DataFilteringError",
+        "message": "Duplicate indices in filtering result"
+      },
+      {
+        "exception": "DataFilteringError",
+        "message": "Inconsistent selected index count"
+      },
+      {
+        "exception": "DataFilteringError",
+        "message": "Indices exceed available data range"
+      },
+      {
+        "exception": "DataFilteringError",
+        "message": "Negative indices in filtering result"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "data.memory_manager": {
+    "exit_codes": [],
+    "log_messages": {
+      "critical": [
+        "Critical memory pressure - performing emergency cleanup"
+      ],
+      "debug": [
+        "Cleared JAX compilation cache",
+        "JAX clear_caches() not available (older JAX version)",
+        "Skipping GC - previous calls freed 0 objects (memory likely in JAX/NumPy arrays)"
+      ],
+      "info": [
+        "Advanced memory manager initialized",
+        "Advanced memory manager shutdown complete",
+        "Memory pressure monitoring started",
+        "Memory pressure monitoring stopped",
+        "Memory pressure recovered - restoring normal operation",
+        "Shutting down advanced memory manager"
+      ],
+      "warning": [
+        "Memory allocation succeeded after emergency cleanup",
+        "Memory monitoring already active",
+        "Memory pressure warning - triggering optimization",
+        "Performing emergency memory cleanup",
+        "Zero-size virtual memory allocation requested"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "AllocationError",
+        "message": ""
+      },
+      {
+        "exception": "AllocationError",
+        "message": "Virtual memory allocation failed"
+      }
+    ]
+  },
+  "data.optimization": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Scheduling background optimization for potential CMC follow-up",
+        "Set JAX env var %s=%s (may be ignored if JAX already imported)"
+      ],
+      "info": [
+        "Advanced dataset optimizer cleanup complete",
+        "Advanced dataset optimizer initialized with performance engine integration",
+        "Advanced memory manager initialized",
+        "Cleaning up advanced dataset optimizer",
+        "Dataset analysis complete:",
+        "Dataset optimizer initialized:",
+        "Performance engine initialized"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "data.performance_engine": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Background processing started",
+        "Performance monitoring started"
+      ],
+      "info": [
+        "All memory mappings closed",
+        "Performance engine initialized with advanced optimizations",
+        "Performance engine shutdown complete",
+        "Shutting down performance engine"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "PerformanceEngineError",
+        "message": ""
+      },
+      {
+        "exception": "PerformanceEngineError",
+        "message": "Cannot determine HDF5 correlation matrix location"
+      },
+      {
+        "exception": "PerformanceEngineError",
+        "message": "Cannot determine HDF5 correlation matrix location"
+      },
+      {
+        "exception": "PerformanceEngineError",
+        "message": "h5py required for memory-mapped access"
+      }
+    ]
+  },
+  "data.phi_filtering": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Angle filtering disabled, returning all angles"
+      ],
+      "warning": [
+        "Falling back to using all angles for optimization"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "data.preprocessing": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Output validation completed",
+        "Standardizing data format",
+        "Validating output data integrity"
+      ],
+      "warning": [
+        "Scipy not available for Savitzky-Golay filtering, falling back to median",
+        "Scipy not available for Wiener filtering, falling back to gaussian",
+        "Scipy not available for gaussian filtering, skipping",
+        "Scipy not available for median filtering, skipping",
+        "t1 array is not monotonically increasing"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "PreprocessingConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "PreprocessingConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "PreprocessingConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "PreprocessingConfigurationError",
+        "message": "preprocessing configuration must be a dictionary"
+      },
+      {
+        "exception": "PreprocessingError",
+        "message": ""
+      },
+      {
+        "exception": "PreprocessingError",
+        "message": ""
+      },
+      {
+        "exception": "PreprocessingError",
+        "message": ""
+      }
+    ]
+  },
+  "data.quality_controller": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Quality control disabled - creating minimal result",
+        "Re-validating data after auto-repair",
+        "Validating filtered data stage",
+        "Validating final data stage",
+        "Validating preprocessed data stage",
+        "Validating raw data stage",
+        "Validation cache cleared"
+      ],
+      "info": [
+        "Generating comprehensive quality assessment report"
+      ],
+      "warning": [
+        "Could not compare data sizes before/after filtering",
+        "Could not perform advanced data quality checks",
+        "Could not perform basic data quality checks",
+        "Could not perform data consistency checks"
+      ]
+    },
+    "raises": []
+  },
+  "data.validation": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "No data changes detected - using cached results",
+        "Performing incremental validation",
+        "Using cached validation result",
+        "Validation cache cleared"
+      ],
+      "info": [
+        "Validation disabled - skipping all checks"
+      ]
+    },
+    "raises": []
+  },
+  "data.xpcs_loader": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Applying comprehensive data filtering",
+        "Applying mandatory diagonal correction to correlation matrices",
+        "Applying phi-only filtering (no quality filtering)",
+        "Auto-selecting JAX format (available)",
+        "Auto-selecting numpy format (JAX not available)",
+        "Converting arrays to JAX format",
+        "Data filtering disabled in configuration",
+        "Legacy phi filtering not enabled",
+        "No frame slicing needed - using full range",
+        "Phi filtering already applied in main filtering system",
+        "Phi filtering system not available - using original selection",
+        "Preprocessing pipeline disabled in configuration",
+        "Quality control disabled in configuration",
+        "Quality filtering enabled - running metadata-only pre-filter",
+        "Selecting optimal q-vector for caching",
+        "Starting HDF5 format detection",
+        "Transformed flat config structure to nested structure"
+      ],
+      "error": [
+        "Correlation data contains non-finite values (NaN or Inf)",
+        "Preprocessing pipeline failed"
+      ],
+      "info": [
+        "Advanced dataset optimizer initialized",
+        "Advanced memory manager initialized",
+        "Applying preprocessing pipeline to loaded data",
+        "Consider migrating to YAML format for better readability",
+        "Data quality validation completed",
+        "Falling back to basic optimization",
+        "File will be checked again during data loading",
+        "Filtering statistics:",
+        "Initializing data quality control system",
+        "Performance engine disabled in configuration",
+        "Performance engine initialized",
+        "Performing comprehensive data quality analysis...",
+        "Physics validation completed",
+        "Preprocessing pipeline completed successfully",
+        "Raw data was modified by quality control auto-repair"
+      ],
+      "warning": [
+        "Cache template uses deprecated {var} format; auto-migrated to ${var}. Update your YAML config: %r -> %r",
+        "Correlation data contains negative values",
+        "Falling back to no filtering due to error",
+        "Falling back to original data after preprocessing error",
+        "Falling back to original data after preprocessing failure",
+        "Filtering used fallback - all data points included",
+        "Loading legacy cache without selective q-vector optimization",
+        "No data filtering criteria matched - returning all angles. Check filter configuration if this is unexpected.",
+        "No valid indices found, using first available entry as fallback",
+        "Performance engine not available - falling back to basic optimization",
+        "Physics validation requested but v2 physics module not available"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "DataFilteringError",
+        "message": ""
+      },
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "JAX is required for JAX diagonal correction"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "NumPy is required for cache saving"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "NumPy is required for diagonal correction"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "NumPy is required for diagonal correction"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "NumPy is required for matrix reconstruction"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "NumPy is required for wavevector selection"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Cannot provide both config_path as dict and config_dict parameter"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Must provide either config_path or config_dict"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Provide either config_path or config_dict, not both"
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSDataFormatError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSDataFormatError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSDataFormatError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSDataFormatError",
+        "message": "No valid (q,phi) pairs found from processed_bins mapping"
+      },
+      {
+        "exception": "XPCSDataFormatError",
+        "message": "Preprocessing pipeline failed and fallback disabled"
+      },
+      {
+        "exception": "XPCSDependencyError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSDependencyError",
+        "message": "PyYAML required for YAML configuration files"
+      }
+    ]
+  },
+  "device.__init__": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Configuring CPU optimization...",
+        "Configuring optimal CPU device for homodyne analysis",
+        "Running CPU benchmark...",
+        "[OK] Basic CPU configuration completed"
+      ]
+    },
+    "raises": []
+  },
+  "device.config": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "PBS_JOBID present but PBS_NODEFILE not found"
+      ],
+      "info": [
+        "Detecting hardware configuration for CMC...",
+        "Standalone system detected (no cluster scheduler)"
+      ],
+      "warning": [
+        "Failed to parse SLURM_JOB_NUM_NODES",
+        "psutil not available. Assuming 32 GB system memory",
+        "psutil not available. Using multiprocessing for CPU count"
+      ]
+    },
+    "raises": []
+  },
+  "device.cpu": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "NUMA detection via lscpu failed: %s"
+      ],
+      "info": [
+        "Configuring CPU optimization for HPC environment",
+        "Intel oneDNN enabled (experimental for XPCS workloads). Benchmark to verify performance improvements.",
+        "JAX CPU configuration completed successfully"
+      ],
+      "warning": [
+        "oneDNN requested but CPU is not Intel. Skipping oneDNN."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      }
+    ]
+  },
+  "io.nlsq_writers": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "OSError",
+        "message": ""
+      },
+      {
+        "exception": "OSError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.__init__": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "Could not import CMC optimization: %s",
+        "Could not import NLSQ optimization: %s"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.checkpoint_manager": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "No valid checkpoint found for recovery"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "NLSQCheckpointError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQCheckpointError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQCheckpointError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQCheckpointError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQCheckpointError",
+        "message": "Checkpoint checksum mismatch. File may be corrupted."
+      }
+    ]
+  },
+  "optimization.cmc.backends.base": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "CMC backend 'jax' is deprecated; mapping to 'multiprocessing' for parallel execution. Set backend_config.name to 'multiprocessing' or 'auto' instead.",
+        "PBS backend not available, falling back to multiprocessing",
+        "pjit backend not available, falling back to multiprocessing"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.backends.multiprocessing": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Per-shard spawn: %d shards < 3, pool not beneficial"
+      ],
+      "error": [
+        "ParameterSpace._config_dict is absent and no 'config_dict' in model_kwargs. Workers will reconstruct ParameterSpace from an empty dict (default bounds). This may produce unconstrained or incorrect NUTS proposals. Ensure ParameterSpace exposes _config_dict or pass config_dict in model_kwargs."
+      ],
+      "info": [
+        "No shards reported adapted n_warmup; CMCResult will use config default",
+        "Running single-shard MCMC (no parallelization)",
+        "WorkerPool dispatched %d shards to %d persistent workers"
+      ],
+      "warning": [
+        "Interrupted - terminating all active processes",
+        "WorkerPool creation failed (%s), falling back to per-shard spawn",
+        "WorkerPool stall detected: no result for %.0fs (per_shard_timeout=%.0fs). Shutting down pool.",
+        "parameter_space is None - bounds-aware CV disabled; heterogeneity detection may produce false positives for near-zero parameters"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.backends.pbs": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "PBSBackend: All jobs completed successfully",
+        "PBSBackend: PBS scheduler detected"
+      ],
+      "warning": [
+        "PBSBackend: qstat not found. PBS commands may not be available.",
+        "PBSBackend: qstat timed out"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "FileNotFoundError",
+        "message": "qstat not found"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "PBSBackend requires sharded data"
+      }
+    ]
+  },
+  "optimization.cmc.backends.pjit": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "PjitBackend: Running single MCMC (no sharding)"
+      ],
+      "warning": [
+        "PjitBackend: Only 1 device available. Consider using multiprocessing backend for better parallelism."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "No data provided for MCMC sampling"
+      },
+      {
+        "exception": "ValueError",
+        "message": "analysis_mode must be explicitly set ('static' or 'laminar_flow'); got None. Pass analysis_mode to PjitBackend.run()."
+      }
+    ]
+  },
+  "optimization.cmc.backends.worker_pool": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "detect_cpu_info unavailable, falling back to os.cpu_count"
+      ],
+      "info": [
+        "WorkerPool shut down",
+        "WorkerPool started: %d/%d workers ready"
+      ],
+      "warning": [
+        "Worker %d did not exit gracefully, terminating",
+        "Worker startup timed out after %.0fs (%d/%d ready)"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.cmc.config": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Note: CLI applies base mcmc settings to per_shard_mcmc. If using CLI, ensure base mcmc and per_shard_mcmc are aligned."
+      ],
+      "info": [
+        "CMC per-angle mode: auto -> constant_averaged (NLSQ warm-start present, fixing scaling for stability)"
+      ],
+      "warning": [
+        "CMC backend 'jax' is deprecated; mapping to 'multiprocessing' for parallel execution. Set backend_config.name to 'multiprocessing' or 'auto' instead."
+      ]
+    },
+    "raises": []
+  },
+  "optimization.cmc.core": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "  -> Actual runtime much faster than expected - estimate may be conservative",
+        "  -> Consider reducing num_samples or num_chains for faster runs",
+        "No initial values provided, using midpoint defaults",
+        "[CMC] Reference time: t_ref=1.0 (fallback)"
+      ],
+      "warning": [
+        "CMC WARM-START ADVISORY: Running laminar_flow without NLSQ warm-start. This is strongly discouraged for production use because:\n  1. 7 parameters span 6+ orders of magnitude (D0~1e4, gamma_dot_t0~1e-3)\n  2. NUTS adaptation may waste warmup exploring implausible regions\n  3. Higher divergence rates and inflated posterior uncertainty expected\nRecommendation: Run NLSQ first and pass nlsq_result to fit_mcmc_jax()\nTo enforce this, set validation.require_nlsq_warmstart=true in CMC config.",
+        "No positive time differences found; falling back to dt=1.0",
+        "Overriding sharding_strategy='stratified' -> 'random' for multi-angle data. Stratified sharding violates Consensus MC assumptions for global parameters.",
+        "SamplingPlan invariant violated: stats without plan. Using config defaults."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "CMC WARM-START REQUIRED: laminar_flow mode requires NLSQ warm-start when require_nlsq_warmstart=True. Run NLSQ first and pass nlsq_result to fit_mcmc_jax(), or set require_nlsq_warmstart=False in CMC config."
+      },
+      {
+        "exception": "ValueError",
+        "message": "NaN detected in per-angle contrast estimates. Check data quality for angles with insufficient points."
+      },
+      {
+        "exception": "ValueError",
+        "message": "NaN detected in per-angle offset estimates. Check data quality for angles with insufficient points."
+      }
+    ]
+  },
+  "optimization.cmc.data_prep": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Single angle detected - falling back to random sharding"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Time coordinates must be non-negative"
+      }
+    ]
+  },
+  "optimization.cmc.diagnostics": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "sklearn not available, skipping bimodality detection"
+      ],
+      "info": [
+        "CMC ANALYSIS SUMMARY",
+        "RECOMMENDATIONS:",
+        "Status: CONVERGED"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "Arviz is required for full ESS computation"
+      }
+    ]
+  },
+  "optimization.cmc.io": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.model": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "CMC: Using auto mode model (sampled averaged scaling, 10 params)",
+        "CMC: Using constant mode model (fixed per-angle scaling, 8 params)",
+        "CMC: Using constant_averaged mode model (fixed averaged scaling, 8 params, NLSQ parity)",
+        "CMC: Using individual mode model (sampled per-angle scaling)",
+        "CMC: Using reparameterized auto mode model (log_D_ref + log_gamma_ref sampling)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "xpcs_model_constant requires fixed_contrast and fixed_offset arrays. These should be estimated from quantile analysis before calling."
+      },
+      {
+        "exception": "ValueError",
+        "message": "xpcs_model_constant_averaged requires fixed_contrast and fixed_offset arrays. These should be estimated from quantile analysis before calling."
+      }
+    ]
+  },
+  "optimization.cmc.plotting": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "Arviz is required for diagnostic plots"
+      }
+    ]
+  },
+  "optimization.cmc.priors": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "Ambiguous n_params=9: could be static-individual (3 angles) or laminar_flow auto_averaged. Defaulting to laminar_flow. Pass analysis_mode_hint to disambiguate."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.reparameterization": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.results": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "ArviZ is required to create InferenceData"
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.sampler": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Using init_to_median (no initial values)"
+      ],
+      "info": [
+        "Extracting samples + extra_fields...",
+        "NUTS phase: JIT compile + sampling started (may take minutes)..."
+      ],
+      "warning": [
+        "CRITICAL: Acceptance rate is essentially 0% - all proposals rejected! This indicates severe sampling problems. Possible causes:\n  1. Initial values are outside prior support or at boundaries\n  2. Likelihood returns -inf due to numerical issues (NaN/overflow)\n  3. Prior is too narrow for the data\n  4. Step size adaptation failed during warmup\nConsider: checking initial values, widening priors, or running NLSQ first."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "Preflight detected non-finite log density/log_prob at initialization. This typically leads to 0% NUTS acceptance; check bounds, initial values, and numerical stability of the physics model."
+      }
+    ]
+  },
+  "optimization.cmc.scaling": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Parameter scaling factors for gradient balancing:"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.gradient_diagnostics": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "\nGradient Norms (SSE):",
+        "\nThis can cause:",
+        "\nTo apply these fixes:",
+        "  - Missing fine-scale features (oscillations)",
+        "  - Poor fit quality despite low chi-squared",
+        "  - Premature convergence",
+        "  1. Add x_scale_map to your configuration file",
+        "  2. Re-run optimization with updated config",
+        "  3. Verify improved convergence and fit quality",
+        "GRADIENT DIAGNOSTIC REPORT",
+        "No significant gradient imbalance",
+        "RECOMMENDATIONS"
+      ],
+      "warning": [
+        "GRADIENT IMBALANCE DETECTED",
+        "data.dt is missing or None; using dt=1.0 for gradient diagnostics. Gradient norms will be correct only if the true frame interval is 1.0 s."
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.adapter": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Injected anti-degeneracy callbacks: %s",
+        "JIT flag enabled; actual JIT applied by underlying model or NLSQ",
+        "LRU eviction: removed oldest cached model",
+        "Model cache hit: mode=%s, n_phi=%d, q=%.6g, hits=%d",
+        "Model cache miss: mode=%s, n_phi=%d, q=%.6g",
+        "Model cache stats: hits=%d, misses=%d, size=%d",
+        "Model created in %.3fs (JIT=%s)",
+        "NLSQAdapter initialized: cache=%s, recovery=%s, stability=%s, goal=%s",
+        "Selected workflow: %s"
+      ],
+      "error": [
+        "NLSQ optimization failed: %s"
+      ],
+      "info": [
+        "Cleared model cache: %d models removed",
+        "NLSQAdapter.fit completed: chi2=%.6g, reduced_chi2=%.6g, status=%s, time=%.2fs",
+        "NLSQAdapter.fit: n_data=%d, n_params=%d, n_phi=%d, mode=%s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "NLSQ CurveFit class not available. Please install NLSQ >= 0.4.0: pip install nlsq>=0.4.0"
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data must contain 'g2' or 'c2_exp'"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data must contain 'phi' or 'phi_angles_list'"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data must contain 'phi' or 'phi_angles_list'"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data must contain 't1'/'t1_2d' and 't2'/'t2_2d'"
+      },
+      {
+        "exception": "ValueError",
+        "message": "initial_params must be provided for NLSQAdapter.fit()"
+      },
+      {
+        "exception": "ValueError",
+        "message": "per_angle_scaling=False is deprecated and removed. Use per_angle_scaling=True (default) for physically correct behavior."
+      },
+      {
+        "exception": "ValueError",
+        "message": "phi_angles cannot be empty"
+      }
+    ]
+  },
+  "optimization.nlsq.adapter_base": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Input arrays cannot be empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "g2 contains NaN or Inf values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "phi contains NaN or Inf values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "t1 contains NaN or Inf values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "t2 contains NaN or Inf values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "weights contains NaN or Inf values"
+      },
+      {
+        "exception": "error",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.adaptive_regularization": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Adaptive Regularization Summary:",
+        "Adaptive regularization: DISABLED"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.anti_degeneracy_controller": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "  Behavior: Quantile estimates -> AVERAGED -> OPTIMIZED",
+        "  Behavior: Quantile estimates -> per-angle values FIXED (NOT optimized)",
+        "  Enabled: True",
+        "  Parameters: 7 physical + 2 averaged scaling = 9 total",
+        "  Parameters: 7 physical only (scaling FIXED from quantiles)",
+        "ANTI-DEGENERACY: Auto-selected 'auto_averaged' mode",
+        "ANTI-DEGENERACY: Auto-selected 'individual' mode",
+        "ANTI-DEGENERACY: Layer 1 - Fourier Reparameterization",
+        "ANTI-DEGENERACY: Layer 2 - Hierarchical Optimization",
+        "ANTI-DEGENERACY: Layer 3 - Adaptive Regularization",
+        "ANTI-DEGENERACY: Layer 4 - Gradient Collapse Monitor",
+        "ANTI-DEGENERACY: Layer 5 - Shear-Sensitivity Weighting",
+        "ANTI-DEGENERACY: Using explicit 'constant' mode -> fixed_constant",
+        "CONSTANT MODE: Computing fixed per-angle scaling from quantiles"
+      ],
+      "warning": [
+        "compute_fixed_per_angle_scaling called but not in constant mode; estimates will be stored but may not be used"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "get_group_variance_indices called but neither mapper nor fourier is initialized. This can occur with per_angle_mode='constant' where group variance is not applicable."
+      }
+    ]
+  },
+  "optimization.nlsq.cmaes_wrapper": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "[CMA-ES] Parameter bounds (canonical order): lower=%s, upper=%s",
+        "[CMA-ES] Parameters denormalized from [0,1] to physical space",
+        "[CMA-ES] Post-refinement disabled, using global search result"
+      ],
+      "info": [
+        "[CMA-ES] Global search phase starting...",
+        "[CMA-ES] Method unavailable: evosax not installed. Install with: pip install nlsq[evosax]",
+        "[CMA-ES] Warm-start: overriding restart_strategy='bipop' -> 'none' (BIPOP large-population restarts are incoherent with small sigma_warmstart)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "CMA-ES requires NLSQ 0.6.4+ with evosax backend. Install with: pip install nlsq[evosax]"
+      },
+      {
+        "exception": "ImportError",
+        "message": "CMA-ES requires NLSQ 0.6.4+ with evosax backend. Install with: pip install nlsq[evosax]"
+      }
+    ]
+  },
+  "optimization.nlsq.config": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.core": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Attempting optimization with NLSQAdapter",
+        "Attempting optimization with NLSQWrapper",
+        "No global optimization enabled, using local optimization",
+        "Using NLSQAdapter (CurveFit class) for optimization"
+      ],
+      "error": [
+        "Both NLSQAdapter and NLSQWrapper failed: adapter=%s, wrapper=%s"
+      ],
+      "info": [
+        "  Averaged to: 1 contrast + 1 offset (OPTIMIZED)",
+        "  Per-angle values: FIXED (not optimized)",
+        "  Physical parameters:",
+        "  Total parameters: 7 physical + 2 averaged scaling = 9",
+        "  Total parameters: 7 physical only",
+        "ANTI-DEGENERACY: Enabled for CMA-ES (Auto Averaged Mode)",
+        "ANTI-DEGENERACY: Enabled for CMA-ES (Fixed Constant Mode)",
+        "CMA-ES GLOBAL OPTIMIZATION",
+        "CMA-ES OPTIMIZATION COMPLETE",
+        "CMA-ES enabled, delegating to fit_nlsq_cmaes",
+        "CONSTANT MODE: Computing per-angle scaling from quantiles",
+        "Fitted parameters:",
+        "Fixed constant mode: per-angle scaling will be FIXED",
+        "Including user-specified initial parameters as custom start point",
+        "Loaded initial parameters from configuration for multi-start optimization",
+        "Multi-start enabled, delegating to fit_nlsq_multistart",
+        "NLSQ OPTIMIZATION",
+        "NLSQ OPTIMIZATION COMPLETE",
+        "NLSQAdapter optimization succeeded",
+        "NLSQWrapper fallback optimization succeeded",
+        "NLSQWrapper optimization succeeded",
+        "Using default initial parameters",
+        "Using initial parameters from configuration",
+        "[CMA-ES] NLSQ warm-start did not improve fit, using original starting point",
+        "[CMA-ES] Phase 1: Running NLSQ warm-start...",
+        "[CMA-ES] Phase 2: Running CMA-ES global optimization..."
+      ],
+      "warning": [
+        "Could not estimate contrast/offset: no 'g2' or 'c2_exp' in data. Using generic defaults (0.5, 1.0)",
+        "Initial parameters in config missing 'parameter_names' or 'values'",
+        "NLSQAdapter failed, falling back to NLSQWrapper: %s",
+        "NLSQAdapter requested but not available, falling back to NLSQWrapper",
+        "[CMA-ES] Enabled in config but not available (evosax not installed). Install with: pip install nlsq[evosax]. Falling back to multi-start or local optimization.",
+        "[Multi-Start] Enabled in config but not available. Falling back to local optimization.",
+        "per_angle_scaling in initial_parameters must provide equal-length contrast/offset arrays; ignoring overrides"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "CMA-ES requires NLSQ 0.6.4+ with evosax backend. Install with: pip install nlsq[evosax]"
+      },
+      {
+        "exception": "ImportError",
+        "message": "Multi-start optimization requires homodyne.optimization.nlsq.multistart. Ensure the multistart module is properly installed."
+      },
+      {
+        "exception": "ImportError",
+        "message": "NLSQWrapper is required for NLSQ optimization. Ensure homodyne.optimization.nlsq_wrapper is available."
+      },
+      {
+        "exception": "ImportError",
+        "message": "NLSQWrapper is required for multi-start optimization"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "CMA-ES optimization is not enabled. Set optimization.nlsq.cmaes.enable: true in config."
+      },
+      {
+        "exception": "ValueError",
+        "message": "Empty experimental data"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Multi-start optimization is not enabled. Set optimization.nlsq.multi_start.enable: true in config."
+      },
+      {
+        "exception": "ValueError",
+        "message": "sigma values must be finite"
+      },
+      {
+        "exception": "ValueError",
+        "message": "sigma values must be strictly positive"
+      }
+    ]
+  },
+  "optimization.nlsq.data_prep": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Expanding scaling parameters for per-angle scaling:"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.fallback_chain": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "NLSQ Result Analysis:",
+        "Using NLSQ AdaptiveHybridStreamingOptimizer for large datasets..."
+      ],
+      "warning": [
+        "No pcov attribute in result object. Using identity matrix.",
+        "Optimization failure: Parameters unchanged from initial guess!\n   This suggests curve_fit returned immediately without optimizing.\n   Possible causes: (1) Already at optimum, (2) Singular Jacobian, (3) Bounds too tight"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "AttributeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.fit_computation": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Unable to infer analysis_mode from params=%s angles=%s; defaulting to static"
+      ],
+      "info": [
+        "Note: lstsq contrast/offset values may differ from NLSQ-optimized values. lstsq re-fits scaling to raw theory (contrast=1, offset=1) post-hoc; NLSQ values are authoritative as they are jointly optimized with physical parameters."
+      ],
+      "warning": [
+        "Solver returned scalar contrast/offset (parameter count %d). Expanding scalars across %d filtered angles for result saving."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "dt (frame exposure time) is required for compute_theoretical_fits() but was not found in metadata. Pass metadata with a valid 'dt' key."
+      },
+      {
+        "exception": "ValueError",
+        "message": "q (wavevector) is required but was not found"
+      }
+    ]
+  },
+  "optimization.nlsq.fourier_reparam": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.gradient_monitor": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "  Status: No collapse detected",
+        "Gradient Collapse Monitor Summary:",
+        "Gradient monitoring: DISABLED",
+        "Gradient monitoring: No checks performed"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.hierarchical": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "HIERARCHICAL OPTIMIZATION",
+        "HIERARCHICAL OPTIMIZATION COMPLETE"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.memory": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "psutil not available, trying os.sysconf fallback"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.multistart": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Screening disabled, proceeding with all starting points"
+      ],
+      "error": [
+        "All multi-start optimizations failed!"
+      ],
+      "info": [
+        "Falling back to sequential execution",
+        "MULTI-START NLSQ OPTIMIZATION",
+        "MULTI-START OPTIMIZATION COMPLETE",
+        "PHASE 1: Generating starting points",
+        "PHASE 2: Screening starting points",
+        "PHASE 3: Running optimizations",
+        "PHASE 4: Analyzing results",
+        "Strategy: FULL (all starting points run complete optimization)"
+      ],
+      "warning": [
+        "Parameter bounds have zero volume (all lower == upper). Falling back to single-start at bounds center."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "NLSQ GlobalOptimizationConfig not available. Please install NLSQ >= 0.4.0: pip install nlsq>=0.4.0"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Cannot determine dataset size: no 'g2', 'c2_exp', or 'phi' found"
+      }
+    ]
+  },
+  "optimization.nlsq.parallel_accumulator": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "OOCComputePool shut down",
+        "OOCComputePool started: %d workers, %d chunks"
+      ],
+      "warning": [
+        "Parallel chunk accumulation failed (%s), falling back to sequential"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "Cannot accumulate empty chunks list"
+      },
+      {
+        "exception": "ValueError",
+        "message": "No partitions produced results"
+      }
+    ]
+  },
+  "optimization.nlsq.parameter_index_mapper": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Cannot use both Fourier reparameterization and constant scaling mode. Choose one: set use_constant=False or fourier=None."
+      }
+    ]
+  },
+  "optimization.nlsq.progress": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "NLSQ ProgressBar not available"
+      ],
+      "warning": [
+        "tqdm not available for progress bar display. Install with: pip install tqdm"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.recovery": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Using curve_fit_large with NLSQ automatic memory management"
+      ],
+      "error": [
+        "Optimization returned unchanged parameters after all retries. This may indicate a bug in NLSQ or an intractable problem."
+      ],
+      "info": [
+        "  bounds=None (unbounded)",
+        "NLSQ curve_fit RESULT DIAGNOSTICS",
+        "Retrying with perturbed parameters..."
+      ],
+      "warning": [
+        "   Affected parameters were likely NOT optimized by NLSQ.",
+        "   This indicates singular/ill-conditioned Jacobian matrix!"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "Optimization failed: exhausted all retry attempts"
+      }
+    ]
+  },
+  "optimization.nlsq.result_builder": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "No pcov attribute in result object. Using identity matrix."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "AttributeError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Parameters must be set before building result"
+      }
+    ]
+  },
+  "optimization.nlsq.shear_weighting": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Shear-sensitivity weighting disabled by config",
+        "phi0 not in physical params -- shear weighting disabled"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.strategies.chunking": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Single phi angle detected, no stratification needed"
+      ],
+      "warning": [
+        "psutil not available and os.sysconf failed, using conservative default of 16 GB",
+        "psutil not available, cannot check memory safety"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.strategies.executors": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Using curve_fit_large for memory-efficient optimization",
+        "Using standard curve_fit"
+      ],
+      "info": [
+        "Using NLSQ AdaptiveHybridStreamingOptimizer for large dataset..."
+      ],
+      "warning": [
+        "OptimizeResult has no pcov attribute - using identity matrix as covariance placeholder. Uncertainties will be unreliable.",
+        "Streaming optimizer result has no 'pcov' key - using identity matrix as covariance placeholder. Uncertainties will be unreliable."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "AdaptiveHybridStreamingOptimizer not available. Upgrade NLSQ to >= 0.3.2"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.strategies.hybrid_streaming": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Fixed-constant mode: No per-angle regularization (scaling is fixed)"
+      ],
+      "info": [
+        "  4-Layer Defense Strategy (NLSQ 0.3.6):",
+        "  Behavior: Quantile estimates -> AVERAGED -> OPTIMIZED",
+        "  Behavior: Quantile estimates -> per-angle values FIXED (NOT optimized)",
+        "  Covariance expanded: per-angle=0 (fixed), physical=preserved",
+        "  Covariance transformed from Fourier to per-angle space",
+        "  Covariance transformed from constant to per-angle space",
+        "  Fixed scaling mode: skipping group variance regularization (no per-angle params)",
+        "  Group Variance Regularization (NLSQ 0.3.8):",
+        "  Initial values: averaged from per-angle quantile estimates",
+        "  Method: Quantile estimates -> averaged -> OPTIMIZED",
+        "  Method: Quantile-based per-angle scaling (FIXED, not optimized)",
+        "  Parameters: 7 physical + 2 averaged (contrast, offset) = 9 total",
+        "  Parameters: 7 physical only (scaling FIXED from quantiles)",
+        "  Per-angle contrast/offset will be estimated from c2 data quantiles",
+        "  Reason: Only 2 per-angle DoF (vs 46), no need for hierarchical alternation",
+        "  Residual Weighting (Shear-Sensitivity):",
+        "  Shear weighting: WILL BE APPLIED via hierarchical loss function",
+        "  Skipped: constant scaling mode already prevents per-angle absorption",
+        "  These values are FIXED (not optimized) during fitting",
+        "  These will be OPTIMIZED along with 7 physical params (9 total)",
+        "  Using Fourier-wrapped model function",
+        "  Using parameter-based averaged initial values (OPTIMIZED)",
+        "  Using quantile-based averaged initial values (OPTIMIZED)",
+        "ANTI-DEGENERACY DEFENSE: Auto-selected 'auto_averaged' mode",
+        "ANTI-DEGENERACY DEFENSE: Auto-selected 'individual' mode",
+        "ANTI-DEGENERACY DEFENSE: Explicit 'constant' mode -> fixed_constant",
+        "ANTI-DEGENERACY DEFENSE: Layer 1 - Auto Averaged Mode (v2.18.0)",
+        "ANTI-DEGENERACY DEFENSE: Layer 1 - Fixed Constant Mode (v2.18.0)",
+        "ANTI-DEGENERACY DEFENSE: Layer 1 - Fourier Reparameterization",
+        "ANTI-DEGENERACY DEFENSE: Layer 2 - Hierarchical Optimization",
+        "ANTI-DEGENERACY DEFENSE: Layer 3 - Adaptive Regularization",
+        "ANTI-DEGENERACY DEFENSE: Layer 4 - Gradient Collapse Monitor",
+        "ANTI-DEGENERACY DEFENSE: Layer 5 - Shear-Sensitivity Weighting",
+        "ANTI-DEGENERACY EXECUTION: Auto Averaged Scaling Mode",
+        "ANTI-DEGENERACY EXECUTION: Fixed Per-Angle Scaling (v2.17.0)",
+        "ANTI-DEGENERACY EXECUTION: Fourier Reparameterization",
+        "ANTI-DEGENERACY EXECUTION: Hierarchical Two-Stage Optimization",
+        "ANTI-DEGENERACY EXECUTION: Inverse Auto Averaged Transform",
+        "ANTI-DEGENERACY EXECUTION: Inverse Fixed Scaling Transform (v2.17.0)",
+        "ANTI-DEGENERACY EXECUTION: Inverse Fourier Transform",
+        "Averaged scaling computed (initial values for optimization):",
+        "Computing quantile-based per-angle scaling estimates...",
+        "Fixed per-angle scaling computed (FIXED, not optimized):",
+        "Fixes: 1) Shear-term gradients, 2) Convergence, 3) Covariance",
+        "HYBRID STREAMING OPTIMIZATION COMPLETE",
+        "Hybrid streaming config:",
+        "Hybrid streaming optimization completed successfully",
+        "Initializing NLSQ AdaptiveHybridStreamingOptimizer...",
+        "Note: StreamingOptimizer was removed in NLSQ 0.4.0. Using AdaptiveHybridStreamingOptimizer instead.",
+        "Preparing hybrid streaming data...",
+        "Starting hybrid optimization (L-BFGS + Gauss-Newton)..."
+      ],
+      "warning": [
+        "",
+        "  - Check if gamma_dot_t0 ~ 0 means shear contribution is missing",
+        "  - Check reduced chi-squared: if worse than expected, re-run optimization",
+        "  - Consider static_isotropic mode if shear is truly absent",
+        "  - Enable multi-start optimization to explore parameter basins",
+        "  - Enable phi_filtering to use only angles near 0 and 90 deg for laminar flow",
+        "  - Use multi-start optimization to explore multiple parameter basins",
+        "  - Verify per-angle contrast/offset are not varying excessively",
+        "  1. Per-angle contrast/offset absorbed the shear signal",
+        "  1. The optimizer cannot find gradient information for these parameters",
+        "  2. Inconsistent initialization of per-angle vs physical params",
+        "  2. The initial guess was already at or near the bounds",
+        "  3. Physical parameters at bounds with weak gradient signal",
+        "  3. The model is insensitive to these parameters with this data coverage",
+        "  4. The data may genuinely have no measurable shear",
+        "  Auto-enabling hierarchical optimization to apply shear weights.",
+        "  Without this, gradient cancellation will collapse gamma_dot_t0.",
+        "ANTI-DEGENERACY: Shear weighting enabled but hierarchical disabled!",
+        "Failed to compute quantile-based scaling, falling back to standard constant mode (optimizing 2 params)",
+        "GRADIENT COLLAPSE WAS DETECTED DURING OPTIMIZATION",
+        "PARAMETER BOUNDS WARNING",
+        "POSSIBLE CAUSES:",
+        "RECOMMENDED ACTIONS:",
+        "SHEAR COLLAPSE WARNING",
+        "Singular Hessian in hierarchical path, using pseudo-inverse",
+        "The following parameters are stuck at bounds with zero uncertainty:",
+        "The model has effectively collapsed to static_isotropic mode.",
+        "This may indicate:",
+        "This means the shear contribution to g1 is negligible."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "NLSQOptimizationError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "AdaptiveHybridStreamingOptimizer not available. Please upgrade NLSQ to version >= 0.3.2: pip install --upgrade nlsq"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "AdaptiveHybridStreamingOptimizer not available. Please upgrade NLSQ to version >= 0.3.2: pip install --upgrade nlsq"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "Non-stratified StreamingOptimizer was removed in NLSQ 0.4.0. Use the stratified optimization path with per_angle_scaling=True, which automatically switches to AdaptiveHybridStreamingOptimizer for memory-constrained datasets. See CLAUDE.md section 'NLSQ Adaptive Hybrid Streaming Mode' for details."
+      }
+    ]
+  },
+  "optimization.nlsq.strategies.out_of_core": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Sequential chunk reduction: %d chunks"
+      ],
+      "info": [
+        "Initializing Out-of-Core Global Stratified Optimization (Full Physics)...",
+        "No per-point sigma available - using unit weighting for OOC",
+        "Parallel OOC compute: %d chunks across %d workers",
+        "Parallel chunk reduction: %d chunks"
+      ],
+      "warning": [
+        "Could not find better step. Stopping.",
+        "Gradient/Hessian contains NaNs/Infs. Checking params.",
+        "Parallel OOC pool creation failed (%s), using sequential",
+        "Singular J^T J in OOC - using pseudo-inverse for covariance",
+        "_fit_with_stratified_least_squares (OOC): dt not found in data or config; using dt=0.001 s as fallback."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "Initial parameters produced invalid gradients."
+      }
+    ]
+  },
+  "optimization.nlsq.strategies.residual": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Inline chunk structure validation passed"
+      ],
+      "info": [
+        "Chunk structure validation passed",
+        "Chunk structure validation passed (cached -- validated during build)"
+      ],
+      "warning": [
+        "StratifiedResidualFunction: dt not set (chunk_dt is None); using dt=0.001 s as fallback. Physics factors may be incorrect."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "_call_jax_chunked is unavailable: per-chunk data was freed after concatenation. Use _call_jax_vectorized instead."
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "_compute_chunk_residuals_raw is deprecated. Use _call_jax_vectorized."
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "stratified_data.chunks is empty"
+      }
+    ]
+  },
+  "optimization.nlsq.strategies.residual_jit": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "CONSTANT MODE: Using fixed per-angle scaling from quantiles. Parameter vector contains ONLY physical parameters.",
+        "Chunk structure validation passed: all chunks angle-complete",
+        "JIT-compiling residual function...",
+        "Stratified Residual Function Diagnostics:"
+      ],
+      "warning": [
+        "StratifiedResidualFunctionJIT: dt is None; using dt=0.001 s as fallback. Physics factors may be incorrect."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Inconsistent L values across chunks"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Inconsistent q values across chunks"
+      },
+      {
+        "exception": "ValueError",
+        "message": "stratified_data.chunks is empty"
+      }
+    ]
+  },
+  "optimization.nlsq.strategies.sequential": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Angle %.2f deg dtype check: init=%s%s lower=%s%s upper=%s%s",
+        "Sequential least_squares kwargs sanitized: %s"
+      ],
+      "warning": [
+        "%s mapping key '%s' not found in parameter_names; ignoring",
+        "Dropping non-numeric %s due to %s; reverting to default",
+        "Dropping non-numeric max_nfev due to %s; reverting to default",
+        "Dropping non-numeric x_scale due to %s; reverting to default",
+        "Singular J^T J - used pinv fallback for covariance"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Initial parameters and bounds must be finite float64 values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "No Jacobian available"
+      },
+      {
+        "exception": "ValueError",
+        "message": "No angles converged - cannot combine results"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Sequential optimizer requires strict lower < upper bounds for all parameters. Fixed parameters (lower == upper) should be removed before sequential optimization."
+      }
+    ]
+  },
+  "optimization.nlsq.strategies.stratified_ls": {
+    "exit_codes": [],
+    "log_messages": {
+      "error": [
+        "",
+        "  - Optimization will fail with 0 iterations",
+        "  - Parameter initialization issue (likely wrong parameter count)",
+        "  - Residual function not sensitive to parameter changes",
+        "Diagnostic information:",
+        "GRADIENT SANITY CHECK FAILED",
+        "This indicates:"
+      ],
+      "info": [
+        "ANTI-DEGENERACY DEFENSE: Enabled for Stratified LS",
+        "AUTO_AVERAGED MODE: Computing averaged scaling initial values",
+        "Auto averaged mode: parameter transformation deferred to quantile-based averaged scaling computation",
+        "Computing covariance matrix from Jacobian...",
+        "Creating JIT-compatible stratified residual function...",
+        "FIXED_CONSTANT MODE: Computing fixed per-angle scaling from quantiles",
+        "Fixed constant mode: parameter transformation deferred to quantile-based fixed scaling computation",
+        "GRADIENT SANITY CHECK",
+        "OPTIMIZATION RESULTS",
+        "STRATIFIED LEAST-SQUARES OPTIMIZATION",
+        "Starting NLSQ least_squares() optimization...",
+        "Using NLSQ's least_squares() with angle-stratified chunks",
+        "Using covariance matrix from NLSQ result",
+        "Validating chunk structure..."
+      ],
+      "warning": [
+        "  - Insufficient constraints (consider constrained optimizer)",
+        "  - Optimizer exploring unphysical parameter space",
+        "  - Poor initial conditions (check config initial_parameters.values)",
+        "BOUNDS VIOLATION DETECTED",
+        "Failed to compute fixed per-angle scaling, falling back to standard mode",
+        "Failed to compute per-angle scaling estimates, falling back to mean of initial per-angle values",
+        "Fixed constant mode but no fixed scaling available. Unexpected state - results may be unreliable.",
+        "One or more parameters violated physical bounds.",
+        "Parameters have been clipped to valid ranges.",
+        "Proceeding with optimization, but this may fail",
+        "RECOMMENDED: Use phi_filtering for angles near 0 and 90 deg",
+        "SHEAR COLLAPSE WARNING",
+        "Singular Jacobian, using pseudo-inverse for covariance",
+        "The model has effectively collapsed to static_isotropic mode.",
+        "This may indicate:"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.transforms": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "gamma_dot_t0 bounds must be > 0 when enable_gamma_dot_log is true"
+      },
+      {
+        "exception": "ValueError",
+        "message": "gamma_dot_t0 must be > 0 when enable_gamma_dot_log is true"
+      }
+    ]
+  },
+  "optimization.nlsq.validation.fit_quality": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "[FitQuality] All quality checks passed",
+        "[FitQuality] Chi-squared quality: acceptable (%.4g <= %.4g)",
+        "[FitQuality] Chi-squared quality: good (%.4g <= %.4g)"
+      ],
+      "warning": [
+        "[FitQuality] Chi-squared quality: poor (%.4g > %.4g)"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.validation.input_validator": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "xdata is empty",
+        "ydata is empty"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.validation.result_validator": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.wrapper": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Empty 2D t1 array converted to empty 1D array",
+        "Empty 2D t2 array converted to empty 1D array",
+        "Iteration count not available from NLSQ (curve_fit_large does not return this info)",
+        "Sequential bounds dtype: lower=%s upper=%s",
+        "Sequential bounds values: lower=%s upper=%s",
+        "Sequential residual call: params_shape=%s, phi_unique=%d"
+      ],
+      "error": [
+        "Legacy scalar contrast/offset mode (per_angle_scaling=False) is no longer supported. Single contrast/offset parameters are not physically meaningful as each scattering angle has different optical properties and detector responses. Per-angle scaling is required for physically correct NLSQ optimization.",
+        "Streaming mode requested but AdaptiveHybridStreamingOptimizer not available. Upgrade NLSQ to >= 0.3.2. Falling back to stratified least-squares."
+      ],
+      "info": [
+        "ADAPTIVE HYBRID STREAMING MODE (Preferred)",
+        "Computing consistent per-angle initialization for laminar_flow mode...",
+        "Diagnostics enabled: loss=%s, x_scale=%s, sample_size=%d",
+        "Diagnostics: nfev reported=%s actual=%s",
+        "Expanded scalar contrast/offset to per-angle layout for sequential solver (%d angles)",
+        "Expanding scaling parameters for per-angle scaling:",
+        "Final Jacobian column norms: %s",
+        "HYBRID STREAMING MODE (Strategy Re-check)",
+        "HYBRID STREAMING OPTIMIZATION COMPLETE",
+        "Initial Jacobian column norms: %s",
+        "Loaded parameter bounds from config",
+        "OUT-OF-CORE ACCUMULATION MODE (Re-check)",
+        "SEQUENTIAL OPTIMIZATION COMPLETE",
+        "SEQUENTIAL PER-ANGLE OPTIMIZATION",
+        "STRATIFIED LEAST-SQUARES COMPLETE",
+        "STRATIFIED LEAST-SQUARES PATH ACTIVATED (v2.2.1)",
+        "Sequential per-angle fallback forced via configuration",
+        "Solving double-chunking problem with NLSQ's least_squares()",
+        "Stratification disabled via configuration",
+        "Using NLSQ AdaptiveHybridStreamingOptimizer for better convergence and parameter estimation",
+        "Using chunk-wise J^T J accumulation for memory efficiency",
+        "Using full-copy stratification",
+        "Using index-based stratification (zero-copy)"
+      ],
+      "warning": [
+        "Diagnostics: parameters at bounds -> %s",
+        "Invalid per-angle contrast override; ignoring",
+        "Invalid per-angle offset override; ignoring",
+        "Invalid sequential per-angle contrast override; ignoring",
+        "Invalid sequential per-angle offset override; ignoring",
+        "Per-angle scaling requested but parameter vector has %d entries (expected %d); sequential solver will operate with scalar scaling",
+        "Sequential per-angle contrast override has %d entries (expected %d); ignoring override",
+        "Sequential per-angle offset override has %d entries (expected %d); ignoring override",
+        "per_angle_scaling contrast override has %d entries (expected %d); ignoring override",
+        "per_angle_scaling offset override has %d entries (expected %d); ignoring override"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "AttributeError",
+        "message": ""
+      },
+      {
+        "exception": "MemoryError",
+        "message": ""
+      },
+      {
+        "exception": "MemoryError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "AdaptiveHybridStreamingOptimizer not available. Please upgrade NLSQ to version >= 0.3.2: pip install --upgrade nlsq"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data arrays cannot be empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data must have 'phi', 't1', 't2', and 'g2' attributes"
+      },
+      {
+        "exception": "ValueError",
+        "message": "initial_params must be provided"
+      },
+      {
+        "exception": "ValueError",
+        "message": "initial_params must be provided (auto-loading not yet implemented)"
+      },
+      {
+        "exception": "ValueError",
+        "message": "initial_params required for out-of-core optimization"
+      },
+      {
+        "exception": "ValueError",
+        "message": "per_angle_scaling=False is deprecated and removed. Use per_angle_scaling=True (default) for physically correct behavior."
+      },
+      {
+        "exception": "ValueError",
+        "message": "sigma values must be finite; received NaN/inf entries"
+      }
+    ]
+  },
+  "optimization.numerical_validation": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      }
+    ]
+  },
+  "runtime.shell.__init__": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "runtime.utils.system_validator": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Shell alias validation failed; continuing without alias checks",
+        "Version parsing for hybrid streaming optimizer failed: %s"
+      ]
+    },
+    "raises": []
+  },
+  "utils.async_io": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Background write traceback:"
+      ],
+      "error": [
+        "Failed to write JSON: %s",
+        "Failed to write NPZ: %s"
+      ],
+      "info": [
+        "Background write still in progress after %.0fs (will complete during shutdown)"
+      ],
+      "warning": [
+        "Background write failed (%s): %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "Prefetch thread did not complete within 120s timeout"
+      },
+      {
+        "exception": "StopIteration",
+        "message": ""
+      }
+    ]
+  },
+  "utils.path_validation": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PermissionError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "viz.__init__": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "Datashader-based plotting requires the 'datashader' dependency. Install with `pip install datashader xarray colorcet`."
+      }
+    ]
+  },
+  "viz.datashader_backend": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Cannot rasterize: all coordinate values are NaN"
+      }
+    ]
+  },
+  "viz.diagnostics": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "c2_solver array is required for diagonal overlay diagnostics"
+      }
+    ]
+  },
+  "viz.experimental_plots": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Time arrays not available, using frame indices"
+      ],
+      "info": [
+        "Generated basic fit comparison plot"
+      ],
+      "warning": [
+        "No experimental data to plot",
+        "phi_angles_list not found in data, using indices"
+      ]
+    },
+    "raises": []
+  },
+  "viz.mcmc_arviz": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "ArviZ not available. Cannot create pair plots.",
+        "ArviZ not available. Cannot create posterior plots.",
+        "ArviZ not available. Falling back to custom trace plots.",
+        "No parameter samples available for pair plots",
+        "No parameter samples available for posterior plots",
+        "No parameter samples available for trace plots"
+      ]
+    },
+    "raises": []
+  },
+  "viz.mcmc_comparison": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "Per-shard diagnostics not available"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Posterior comparison is only available for CMC results"
+      }
+    ]
+  },
+  "viz.mcmc_dashboard": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "Summary dashboard is only available for CMC results"
+      }
+    ]
+  },
+  "viz.mcmc_diagnostics": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "No parameter samples available for trace plots"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "KL divergence matrix is only available for CMC results"
+      },
+      {
+        "exception": "ValueError",
+        "message": "KL divergence matrix not found in CMC diagnostics"
+      }
+    ]
+  },
+  "viz.mcmc_report": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "BFMI: potential_energy not available in result"
+      ],
+      "info": [
+        "    %20s: %.1f %s",
+        "    %20s: %.4f %s",
+        "  %20s: %12.4f +/- %8.4f",
+        "  %20s: %12.4f +/- %8.4f  [%.4f, %.4f]",
+        "  - Combination Method: %s",
+        "  - Number of Shards: %s",
+        "  BFMI (target >= 0.3):",
+        "  ESS (target > 400):",
+        "  R-hat (target < 1.1):",
+        "Analysis Mode: %s",
+        "CMC Information:",
+        "Computation Time: %.2fs",
+        "Converged: %s",
+        "Convergence Diagnostics",
+        "MCMC Results Summary",
+        "Parameter Estimates (95%% CI)",
+        "Sampler: %s"
+      ]
+    },
+    "raises": []
+  },
+  "viz.nlsq_plots": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Falling back to matplotlib backend (publication quality)",
+        "Falling back to sequential plotting...",
+        "Generated diagonal plot: simulated_data_diagonal.png",
+        "Generating fitted C2 simulations...",
+        "Simulated data plots generated successfully",
+        "Using Datashader backend (preview mode, fast rendering)",
+        "Using matplotlib backend (publication quality)"
+      ],
+      "warning": [
+        "Cannot extract fitted parameters from result",
+        "Missing experimental data structure (phi_angles_list, t1, t2)",
+        "Preview mode (Datashader) requested but Datashader not available. Install with: pip install datashader xarray colorcet",
+        "Theoretical plots using potentially filtered phi angles from experimental data. To use all angles, disable phi_filtering in config or provide --phi-angles explicitly."
+      ]
+    },
+    "raises": []
+  }
+}

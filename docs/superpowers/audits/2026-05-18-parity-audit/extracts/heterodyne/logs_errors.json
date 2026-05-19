@@ -1,0 +1,3805 @@
+{
+  "__init__": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "AttributeError",
+        "message": ""
+      }
+    ]
+  },
+  "cli.__init__": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "AttributeError",
+        "message": ""
+      }
+    ]
+  },
+  "cli.args_parser": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      }
+    ]
+  },
+  "cli.commands": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Loaded data: c2 shape=%s, %d phi angles",
+        "Saved KL divergence matrix for %s",
+        "Saved convergence diagnostics for %s",
+        "[CLI] Resolved arguments: %s"
+      ],
+      "exception": [
+        "Failed to generate KL divergence plot for %s",
+        "Failed to generate convergence plot for %s"
+      ],
+      "info": [
+        "--plot-experimental-data: plotting data and exiting",
+        "--plot-only: generating plots without optimization",
+        "--plot-simulated-data: plotting simulated data and exiting",
+        "--simulate-only: saving simulated data and exiting",
+        "CMC-only mode: loaded NLSQ warm-start from disk (chi2=%.4g, success=%s)",
+        "Output directory: %s",
+        "Plotting both experimental and simulated data and exiting",
+        "Simulated data saved to %s",
+        "[CLI] Analysis completed successfully",
+        "[CLI] Analysis interrupted by user",
+        "[CLI] Analysis log saved to: %s",
+        "[CLI] Dispatching heterodyne analysis command (run_id=%s)",
+        "[CLI] Log file created: %s"
+      ],
+      "warning": [
+        "CMC-only mode: no NLSQ warm-start found. Run NLSQ first (optimizer: nlsq) and re-run CMC, or use optimizer: both to run NLSQ\u2192CMC in one pass.",
+        "Could not import mcmc_diagnostics \u2014 skipping CMC diagnostic plots",
+        "[CLI] Exiting with code 2 \u2014 optimization did not converge (status=%s; see analysis summary above)."
+      ]
+    },
+    "raises": []
+  },
+  "cli.config_generator": {
+    "exit_codes": [],
+    "log_messages": {
+      "error": [
+        "Structural validation failed: %s"
+      ],
+      "info": [
+        "Generated configuration: %s (mode=%s)",
+        "Interactive config built successfully"
+      ],
+      "warning": [
+        "Placeholder '%s' not found in template"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "FileExistsError",
+        "message": ""
+      },
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
+      {
+        "exception": "SystemExit",
+        "message": ""
+      },
+      {
+        "exception": "SystemExit",
+        "message": ""
+      },
+      {
+        "exception": "SystemExit",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "cli.config_handling": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Assembled MCMC runtime kwargs: %s",
+        "Built default config (no YAML): dt=%s, q=%s",
+        "CLI override: NLSQ warm-start disabled",
+        "CLI override: cmc_backend=%s",
+        "CLI override: multistart enabled (n=%s)",
+        "CLI override: num_chains=%d",
+        "CLI override: num_samples=%d",
+        "CLI override: output_dir=%s",
+        "Device auto-configuration unavailable: %s"
+      ],
+      "info": [
+        "CLI override: %s = %.6g",
+        "CLI override: %s = %.6g (was %.6g)",
+        "Device configured: type=%s, n_threads=%d, auto=%s",
+        "Loading configuration from %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "cli.data_pipeline": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "No phi angle source; defaulting to [0.0]",
+        "Normalized phi angles: %s",
+        "Phi angles from CLI: %s",
+        "Phi angles from config scattering.phi_angles: %s",
+        "Phi angles from phi_filtering: %s",
+        "Prepared CMC data: %d angles, c2 shape=%s",
+        "Raw phi angles before normalization: %s",
+        "phi_filtering disabled; defaulting to [0.0]",
+        "phi_filtering matched nothing; defaulting to [0.0]",
+        "phi_filtering matched nothing; falling back to all %d angles"
+      ],
+      "error": [
+        "Data validation error: %s"
+      ],
+      "info": [
+        "Analyzing phi angles: %s",
+        "Applied mandatory diagonal correction to C2 data",
+        "Loaded XPCS data: c2 shape=%s, %d phi angles",
+        "Loading data from %s",
+        "Loading data from %s (frames %d\u2013%d)"
+      ],
+      "warning": [
+        "Data validation warning: %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "SystemExit",
+        "message": ""
+      }
+    ]
+  },
+  "cli.main": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Analysis completed in %.1f seconds",
+        "Analysis interrupted by user"
+      ]
+    },
+    "raises": []
+  },
+  "cli.optimization_runner": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "No NLSQ warm-start available; CMC will use config initial values",
+        "No warmstart path specified; checking default location %s",
+        "Warm-start convergence: OK",
+        "Warm-start reduced chi\u00b2 = %.3f (threshold %.1f)"
+      ],
+      "error": [
+        "[CMC] All shards failed for phi=%s\u00b0 \u2014 aborting remaining %d angle(s). The warm-start parameters are degenerate or the model is unidentifiable for this dataset; running additional angles will produce identical empty results. Fixes: freeze degenerate params in YAML (optimization.cmc.fixed_params), tighten NLSQ bounds, or use allow_degenerate_warmstart: true to override."
+      ],
+      "info": [
+        "\n%s\nCMC Results for phi=%s\u00b0\n%s",
+        "CMC analysis complete",
+        "CMC for phi=%s\u00b0 (%d/%d)",
+        "CMC phi=%s\u00b0 completed in %.2fs",
+        "CMC phi=%s\u00b0: using sharded Consensus Monte Carlo (num_shards=%d, n_points=%d, strategy=%s)",
+        "Excluded first time point for NLSQ analysis: C2 shape %s -> %s",
+        "Loaded NLSQ warm-start from %s",
+        "NLSQ Results for phi=%s\u00b0 (%d/%d)\n%s\n%s",
+        "NLSQ analysis complete",
+        "NLSQ multi-angle optimization completed in %.2fs for %d phi angles",
+        "NLSQ warm-start accepted (reduced chi\u00b2=%s). Using as CMC initial values.",
+        "Overriding CMC num_chains from CLI: %s",
+        "Overriding CMC num_samples from CLI: %s",
+        "Saved CMC results \u2192 %s (prefix=%s)",
+        "Saved NLSQ %s: %s",
+        "Saved NLSQ data: %s",
+        "Selected data slice %d (phi=%.2f\u00b0) for CMC phi=%.2f\u00b0",
+        "Selected data slice %d (phi=%.2f\u00b0) for fitting phi=%.2f\u00b0",
+        "Starting CMC analysis",
+        "Starting NLSQ analysis",
+        "Warm-start params: %s"
+      ],
+      "warning": [
+        "%d parameter(s) saturated at bounds or degenerate: %s. Consider tightening bounds, adjusting initial values, or fixing these parameters before running CMC.",
+        "Could not load NLSQ warm-start from %s: %s",
+        "Degenerate NLSQ warm-start (het_bb97531f failure mode) \u2014 CMC likely to fail for ALL shards:\n  %s\nFixes:\n  \u2022 Freeze degenerate params in YAML \u2192 optimization.cmc.fixed_params: {alpha_sample: %.3f, D0_sample: %.3g}\n  \u2022 Or increase num_warmup to \u22652000\n  \u2022 If f0 < 0.05, consider fixing f0=0 (reference-only model)",
+        "NLSQ bound saturation: %s = %.4g \u00b1 0%s \u2014 posterior will be unreliable; CMC chains may freeze",
+        "Warm-start NLSQ did not converge: %s",
+        "Warm-start param %s = %.4e outside bounds [%.4e, %.4e]",
+        "Warm-start quality below threshold for phi=%s\u00b0; using anyway",
+        "Warm-start reduced chi\u00b2 = %.3f exceeds threshold %.1f"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "Cannot combine empty NLSQ result list"
+      }
+    ]
+  },
+  "cli.plot_dispatch": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Generating fitted simulations for phi=%s (result %d/%d)"
+      ],
+      "exception": [
+        "Failed to generate CMC plots",
+        "Failed to generate CMC posterior for phi=%s",
+        "Failed to generate CMC trace for phi=%s",
+        "Failed to generate KL divergence plot for phi=%s",
+        "Failed to generate NLSQ fit plot for phi=%s",
+        "Failed to generate convergence plot for phi=%s",
+        "Failed to generate experimental data plots",
+        "Failed to generate experimental plots",
+        "Failed to generate fit comparison plot",
+        "Failed to generate fitted simulations for phi=%s",
+        "Failed to generate g1 component plots",
+        "Failed to generate residual map for phi=%s",
+        "Failed to generate simulated data plots",
+        "Failed to generate simulated plots"
+      ],
+      "info": [
+        "Generating plots in %s (mode=%s)",
+        "Plots generated"
+      ],
+      "warning": [
+        "No output directory specified; skipping plot generation"
+      ]
+    },
+    "raises": []
+  },
+  "cli.result_saving": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Computed theoretical g1 from posterior means.",
+        "No model provided; skipping theoretical g1 computation."
+      ],
+      "info": [
+        "Saved %d CMC result files to %s",
+        "Saved %d NLSQ result files to %s",
+        "Saved results manifest to %s",
+        "Saved unified results summary to %s (%d NLSQ, %d CMC files)"
+      ],
+      "warning": [
+        "Failed to compute theoretical g1 from posterior means.",
+        "Model does not expose compute_g1(); cannot compute theoretical g1."
+      ]
+    },
+    "raises": []
+  },
+  "config.manager": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Normalized CMC key '%s' -> '%s'",
+        "Normalized parameter key '%s' -> '%s'"
+      ],
+      "info": [
+        "Migrating legacy 'temporal'/'scattering' sections into 'analyzer_parameters'"
+      ],
+      "warning": [
+        "Config version %s does not match package version %s. Some settings may have changed.",
+        "Configuration has no 'optimization' section; defaults will be used (method='nlsq')"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "ConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "ConfigurationError",
+        "message": ""
+      }
+    ]
+  },
+  "config.parameter_manager": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Config overrides bounds for %s: [%.4g, %.4g] -> [%.4g, %.4g]",
+        "Returning cached active parameters",
+        "Returning cached bounds for %d parameters"
+      ],
+      "warning": [
+        "Unknown parameter '%s', using default bounds [0.0, 1.0]"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "config.parameter_names": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      }
+    ]
+  },
+  "config.parameter_registry": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      }
+    ]
+  },
+  "config.parameter_space": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Config overrides %s bounds: [%.4g, %.4g] -> [%.4g, %.4g]",
+        "Config overrides %s value: %.6g -> %.6g",
+        "Config overrides %s vary: %s -> %s",
+        "Converted %s prior: TruncatedNormal(loc=%.4g, scale=%.4g) -> BetaScaled(conc1=%.4g, conc2=%.4g) on [%.4g, %.4g]",
+        "Single-angle stabilization: contrast bounds [%.4g, %.4g] -> [%.4g, %.4g]",
+        "Single-angle stabilization: offset bounds [%.4g, %.4g] -> [%.4g, %.4g]",
+        "initial_parameters: active_parameters set %d params to vary",
+        "initial_parameters: set %s = %.6g (flat-format override)"
+      ],
+      "warning": [
+        "initial_parameters: parameter_names (%d) and values (%d) length mismatch; skipping flat-format override",
+        "initial_parameters: unknown parameter '%s', skipping"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "core.backend_api": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "JAX availability check: %s"
+      ],
+      "info": [
+        "Configured JAX backend: JAX_ENABLE_X64=%s, JAX_PLATFORMS=%s",
+        "Configured NumPy-only backend (no JAX)."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "JAX backend requested but JAX is not available. Install JAX or use Backend.NUMPY."
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "core.diagonal_correction": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Detected backend: %s for array type %s"
+      ],
+      "warning": [
+        "JAX backend only supports 'basic' diagonal correction, got %r. Using 'basic' method.",
+        "Unknown estimator %r, using median"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "NotImplementedError",
+        "message": "Cubic diagonal correction is not yet implemented. Use method='linear'."
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "core.fitting": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Scaling parameters: contrast=%.4f, offset=%.4f"
+      ],
+      "info": [
+        "Dataset size: %s points (%s)",
+        "Estimated memory: %.1f MB",
+        "JAX acceleration: %s",
+        "Loaded %d parameter bounds from config_manager",
+        "Parameter count: %d physical + 2 scaling",
+        "Unified heterodyne engine initialized"
+      ],
+      "warning": [
+        "Failed to use config_manager for bounds: %s, using registry defaults",
+        "Likelihood computation failed: %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "All uncertainties must be positive"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data array is empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Data contains non-finite values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Sigma contains non-finite values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "q must be positive"
+      }
+    ]
+  },
+  "core.heterodyne_model": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "Model time axis not initialized; call from_config first"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Physics factors not initialized"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Physics factors not initialized"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Physics factors not initialized"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Time array not initialized"
+      }
+    ]
+  },
+  "core.models": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "core.numpy_gradients": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Adaptive gradient did not converge for param %d after %d halvings",
+        "Adaptive gradient: n_params=%d, n_evals=%d, max_err=%.2e, elapsed=%.4fs",
+        "Computed chunked Jacobian: shape=(%d, %d), chunk_size=%d",
+        "Computed finite-difference Hessian: shape=(%d, %d), n_function_evals=%d",
+        "Computed finite-difference Jacobian: shape=(%d, %d)",
+        "Computed finite-difference gradient: n_params=%d, max_step=%.2e",
+        "Gradient validation PASSED: max_abs_error=%.2e, max_rel_error=%.2e",
+        "Parallel gradient: n_params=%d, n_workers=%d, elapsed=%.4fs"
+      ],
+      "warning": [
+        "Gradient validation FAILED at param %d: max_abs_error=%.2e, max_rel_error=%.2e (rtol=%.1e, atol=%.1e)",
+        "compute_hessian_finite_diff called with n_params=%d; cost scales as O(n\u00b2) function evaluations (%d evals)."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "core.physics_factors": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Physics factors: n_times=%d, dt=%.4e, q=%.4f, t_start=%.4e"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "core.physics_kernel": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "compute_c2_unified(eval_strategy='elementwise', ...) requires shard_grid"
+      },
+      {
+        "exception": "ValueError",
+        "message": "compute_c2_unified(eval_strategy='meshgrid', ...) requires t"
+      }
+    ]
+  },
+  "core.scaling_utils": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Angle %d: estimated contrast=%.4f, offset=%.4f from %d data points"
+      ],
+      "info": [
+        "All %d angles have insufficient data, using midpoint defaults",
+        "Averaged scaling for constant mode: contrast=%.4f [%.4f, %.4f], offset=%.4f [%.4f, %.4f]"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "data.angle_filtering": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Angle range [%.1f, %.1f]: selected %d/%d angles",
+        "Nearest angle to %.2f: index %d (%.2f, delta=%.2f)",
+        "Phi filtering not enabled for plot, using all %d angles"
+      ],
+      "info": [
+        "Angle filtering for plot: %d/%d angles selected: %s"
+      ],
+      "warning": [
+        "Angle filtering matched no angles; returning all %d angles"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "IndexError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "phi_angles is empty"
+      }
+    ]
+  },
+  "data.config": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Loading JSON config from %s",
+        "Loading YAML config from %s",
+        "Saving YAML config to %s",
+        "Writing example YAML config to %s"
+      ],
+      "info": [
+        "Migrating JSON config %s -> YAML %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
+      {
+        "exception": "ImportError",
+        "message": "PyYAML is required to load YAML config files. Install it with: pip install pyyaml"
+      },
+      {
+        "exception": "ImportError",
+        "message": "PyYAML is required to save YAML config files. Install it with: pip install pyyaml"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      },
+      {
+        "exception": "XPCSConfigurationError",
+        "message": ""
+      }
+    ]
+  },
+  "data.filtering_utils": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Combined %d conditions: %d/%d elements pass (%.1f%%)",
+        "Q range [%.4g, %.4g]: kept %d/%d q values",
+        "Time window [%.4g, %.4g]: kept %d/%d time points"
+      ],
+      "info": [
+        "Sigma clip (%.1f sigma): removed %d/%d values (%.2f%%)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "At least one condition mask is required"
+      }
+    ]
+  },
+  "data.memory_manager": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "AdaptiveChunker initialised (safety_factor=%.2f)",
+        "AdaptiveChunker: %d chunks of ~%d elements (remaining=%d bytes, safety=%.2f)",
+        "Allocated '%s': %d bytes (%d/%d used)",
+        "Closing HDF5 handle: %s",
+        "MemoryMapManager initialised (max_resident=%d bytes)",
+        "MemoryPressureMonitor initialised (poll_interval=%.1fs)",
+        "MemoryPressureMonitor: %.1f%% used \u2192 %s",
+        "Opening HDF5 handle: %s",
+        "Released '%s': %d bytes (%d/%d used)",
+        "psutil unavailable; using fallback memory figures"
+      ],
+      "info": [
+        "Auto-detected available memory: %d bytes",
+        "MemoryManager initialised with budget %d bytes",
+        "psutil unavailable; using default budget of %d bytes"
+      ],
+      "warning": [
+        "Allocation '%s' denied: %d bytes requested, %d/%d bytes used",
+        "Dataset '%s' estimated size %d bytes exceeds max_resident %d bytes; consider read_slice() for partial access"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "h5py is required for MemoryMapManager; install it via 'uv add h5py'"
+      },
+      {
+        "exception": "ValueError",
+        "message": "budget_bytes must be positive"
+      },
+      {
+        "exception": "ValueError",
+        "message": "element_bytes must be positive"
+      },
+      {
+        "exception": "ValueError",
+        "message": "n_bytes must be non-negative"
+      },
+      {
+        "exception": "ValueError",
+        "message": "poll_interval_seconds must be positive"
+      },
+      {
+        "exception": "ValueError",
+        "message": "safety_factor must be in (0, 1]"
+      },
+      {
+        "exception": "ValueError",
+        "message": "total_elements must be positive"
+      }
+    ]
+  },
+  "data.optimization": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "psutil unavailable; assuming %d bytes available memory"
+      ],
+      "info": [
+        "Dataset categorized as '%s': %d bytes, %d elements, chunk_size=%d",
+        "Loading plan for '%s': category=%s strategy=%s chunk_size=%d use_mmap=%s estimated_load_time=%.2fs",
+        "Optimal time range: [%.4g, %.4g] (lags %d-%d above SNR=%.1f)",
+        "Processing %d chunks with %d workers (chunk_size=%d)",
+        "Recommended strategy: %s"
+      ],
+      "warning": [
+        "Dataset contains no finite values",
+        "No lag region exceeds SNR threshold %.2f; returning full range",
+        "SVD failed during effective rank computation",
+        "Subsampling ACTIVE: reducing %d points to %d using method='%s' (seed=%s). This is an explicit opt-in operation.",
+        "Subsampling requested but data size (%d) <= max_points (%d); returning original data unchanged"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "data.performance_engine": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Cached '%s' (%d bytes)",
+        "Cleared cache (%d entries)",
+        "Evicted '%s' (%d bytes) to make room",
+        "Invalidated '%s' (%d bytes)",
+        "TieredCache L1 hit for '%s'",
+        "TieredCache L2 hit for '%s'; promoted to L1",
+        "TieredCache miss for '%s'",
+        "TieredCache: cleared %d disk entries",
+        "TieredCache: disk cache enabled at %s (max %d bytes)",
+        "TieredCache: removed disk entry for '%s'",
+        "TieredCache: wrote disk entry '%s' (%d bytes)"
+      ],
+      "warning": [
+        "Array for '%s' (%d bytes) exceeds max cache size (%d bytes); not caching",
+        "TieredCache: could not remove disk entry for '%s'",
+        "TieredCache: failed to load disk cache for '%s'; treating as miss",
+        "TieredCache: failed to write disk cache to '%s'"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "max_cache_bytes must be positive"
+      }
+    ]
+  },
+  "data.phi_filtering": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "No angle within %.1f\u00b0 of target %.1f\u00b0. Closest: %.1f\u00b0"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Phi angles not set."
+      },
+      {
+        "exception": "ValueError",
+        "message": "Phi angles not set. Call set_available_angles first."
+      }
+    ]
+  },
+  "data.preprocessing": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Applying: %s",
+        "Processing chunk [%d:%d] of %d",
+        "Starting pipeline %s (config_hash=%s, steps=%d)"
+      ],
+      "info": [
+        "Removed %d outliers (%.2f%%)"
+      ],
+      "warning": [
+        "Min-max normalization: range is zero, returning zeros",
+        "Robust normalization: IQR is zero, returning (c2 - median)",
+        "Wavelet noise reduction is not yet implemented; returning data unchanged.",
+        "Wiener filter: input contains %d NaN(s); these may propagate into the output. Consider interpolating NaNs first.",
+        "Z-score normalization: std is zero, returning (c2 - mean)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "data.quality_controller": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Adaptive thresholds: relaxed nan_threshold from %.3f to %.3f (%.2f%% NaNs detected)",
+        "Adaptive thresholds: relaxed snr_threshold from %.1f to %.1f (high noise: std/mean=%.2f)"
+      ],
+      "info": [
+        "4-stage pipeline complete: quality %.2f -> %.2f (%d total corrections applied)",
+        "Auto-repair: clipped %d outliers (%.1f sigma)",
+        "Auto-repair: interpolated %d NaN values",
+        "Quality assessment: %s",
+        "Quality history started at stage %s (score=%.2f)",
+        "Quality trend: %s -> %s (%.2f -> %.2f, %+.2f %s)",
+        "Stage %s quality score: %.2f (%d metrics)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "data.validation": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Validation cache hit for hash %s"
+      ]
+    },
+    "raises": []
+  },
+  "data.xpcs_loader": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "APS old loader: time from '%s'",
+        "APS-U loader: skipping invalid bin index %d (key %s)",
+        "APS-U loader: time from '%s'",
+        "Batch load [%d/%d]: OK %s",
+        "Cache hit: %s",
+        "Data validation passed",
+        "Exchange group: loaded c2 from 'exchange/%s'",
+        "Exchange group: loaded time from 'exchange/%s'",
+        "HDF5 format detected: aps_old",
+        "HDF5 format detected: aps_u",
+        "HDF5 format detected: exchange",
+        "HDF5 format detected: flat",
+        "Half-matrix reconstruction: lower triangle -> full matrix",
+        "Half-matrix reconstruction: upper triangle -> full matrix"
+      ],
+      "error": [
+        "Batch load [%d/%d]: FAILED %s - %s"
+      ],
+      "info": [
+        "APS old loader: loaded %d q-bins, %d frames",
+        "APS-U loader: loaded %d bins, %d frames, q in [%.4g, %.4g] \u00c5\u207b\u00b9",
+        "Batch load complete: %d/%d files loaded successfully",
+        "Cache written: %s (compressed=%s)",
+        "Frame slicing: frames %d\u2013%d (0-based %d:%d), %d \u2192 %d frames",
+        "HDF5 structure: %d datasets, %d groups in %s",
+        "Loading XPCS data from %s",
+        "Q selection: target=%.6g \u00c5\u207b\u00b9, selected %d bin(s) (min deviation=%.4g \u00c5\u207b\u00b9)"
+      ],
+      "warning": [
+        "APS old loader: time dataset not found, using frame indices",
+        "APS-U loader: index out of range (q_idx=%d/%d, phi_idx=%d/%d) for key %s, skipping",
+        "APS-U loader: time dataset not found, using frame indices",
+        "Cache read failed for %s (%s), reloading from source",
+        "Cache template uses deprecated {var} format; auto-migrated to ${var}. Update your YAML config: %r -> %r",
+        "Could not write cache %s: %s",
+        "Data validation warning: %s",
+        "Exchange group: time array not found, using indices",
+        "Time key '%s' not found, using indices",
+        "frame_range end %d exceeds n_frames %d, clamping to %d",
+        "frame_range start %d < 1, clamping to 1"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "DataValidationError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "APS old HDF5 file: exchange/C2T_all group is empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "APS-U HDF5 file contains no valid correlation matrices"
+      },
+      {
+        "exception": "ValueError",
+        "message": "q_values is empty"
+      }
+    ]
+  },
+  "device.cpu": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "io.json_utils": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.batch_statistics": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Batch statistics: %d/%d successful, mean chi2=%.4f",
+        "Identified %d outlier fit(s) at indices %s"
+      ],
+      "warning": [
+        "No successful fits in batch of %d"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.checkpoint_manager": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Found valid checkpoint: %s",
+        "Loaded checkpoint: %s (version=%s)",
+        "No checkpoints found in %s",
+        "Removed old checkpoint: %s",
+        "Saved checkpoint: %s"
+      ],
+      "warning": [
+        "Checkpoint integrity check failed for %s \u2014 stored checksum does not match recomputed value",
+        "Skipping corrupted checkpoint: %s",
+        "Skipping unreadable checkpoint %s: %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": "keep must be >= 0"
+      },
+      {
+        "exception": "ValueError",
+        "message": "max_checkpoints must be >= 1"
+      }
+    ]
+  },
+  "optimization.cmc.backends.base": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Auto: multiple CPU devices (%d), selecting PjitBackend",
+        "Auto: selecting CPUBackend (single device, n_chains=%d)",
+        "Auto: selecting MultiprocessingBackend (n_chains=%d, est_workers=%d)",
+        "Selecting CPUBackend (explicit config)",
+        "Selecting MultiprocessingBackend (explicit config)",
+        "Selecting PBSBackend (explicit config)",
+        "Selecting PjitBackend (explicit config)",
+        "combine_shard_samples: combined %d shards (method=%s) \u2192 %d params",
+        "combine_shard_samples_bimodal: only one mode populated; falling back to single-mode combination",
+        "combine_shard_samples_bimodal: split %d shards into mode_low=%d, mode_high=%d on parameter '%s'",
+        "combine_shard_samples_bimodal: too few finite shards (%d) for bimodal clustering on '%s'; falling back to single-mode combination",
+        "consensus_mc: combined %d shards \u2192 %d params",
+        "robust_consensus_mc: combined %d shards (%d outliers downweighted) \u2192 %d params"
+      ],
+      "warning": [
+        "Combined precision matrix is singular, using pseudo-inverse",
+        "Shard %d has singular covariance, using pseudo-inverse",
+        "backend_name='slurm' has no native backend; falling back to MultiprocessingBackend (run from inside the SLURM allocation)",
+        "combine_shard_samples: %d degenerate shard(s) for '%s' (var < 1e-6 \u00d7 median); excluding",
+        "combine_shard_samples: %d non-finite shards excluded for '%s'",
+        "combine_shard_samples: all shards excluded for '%s'",
+        "robust_consensus_mc: %d/%d shards flagged as outliers (ids=%s)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "combine_shard_samples requires at least one shard"
+      },
+      {
+        "exception": "ValueError",
+        "message": "combine_shard_samples_bimodal requires at least one shard"
+      },
+      {
+        "exception": "ValueError",
+        "message": "consensus_mc requires at least 1 shard posterior"
+      }
+    ]
+  },
+  "optimization.cmc.backends.cpu_backend": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "CPUBackend._configure_threading: XLA_FLAGS already configured, skipping",
+        "CPUBackend._configure_threading: set XLA_FLAGS += %s (n_threads=%d)",
+        "CPUBackend.cleanup: nothing to release",
+        "CPUBackend.validate_resources: %d CPU device(s) found"
+      ],
+      "info": [
+        "CPUBackend: sampling complete"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "CPUBackend: no JAX CPU devices found. Ensure JAX is installed correctly."
+      }
+    ]
+  },
+  "optimization.cmc.backends.multiprocessing_backend": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Ignoring duplicate result for shard %d",
+        "Ignoring unexpected queue message: %s",
+        "LPT dispatch order: %s",
+        "MultiprocessingBackend.cleanup: complete",
+        "MultiprocessingBackend.validate_resources: %d CPU device(s), n_workers=%d",
+        "MultiprocessingBackend: n_workers=%d, spawn_method=%s",
+        "ParameterSpace._config_dict absent; serialized via to_config() (%d varying params)",
+        "Pre-generated %d PRNG keys (seed=%d)",
+        "Shard %d: %d physics params vary: %s",
+        "Shard timing: n=%d, min=%.1fs, max=%.1fs, median=%.1fs",
+        "Shared memory allocated: %d blocks",
+        "Terminating shard %d (pid=%s)"
+      ],
+      "error": [
+        "All %d shards failed. Error categories: %s. Returning empty result list \u2014 caller will produce a degenerate CMCResult. Most likely cause: no NLSQ warm-start provided for a large dataset. Fix: run NLSQ first (optimizer: nlsq) then re-run CMC.",
+        "CMC shard success rate %.1f%% is below the configured minimum %.1f%%. Failed shards \u2014 %s. Suggested fixes: %s. Proceeding with %d/%d successful shards \u2014 result will be degenerate.",
+        "EARLY ABORT: %.1f%% failure rate in first %d shards exceeds %.0f%% threshold. Failure breakdown: %s"
+      ],
+      "info": [
+        "CMC status: %d/%d complete; active=%d; launched=%d; heartbeats=%s",
+        "MultiprocessingBackend.run: sampling complete",
+        "MultiprocessingBackend.run: single-shard sequential mode, %d chains (%d warmup, %d samples)",
+        "Per-shard timeout: %ds, heartbeat timeout: %ds",
+        "Shard %d completed in %.2fs: %d samples/chain x %d chains%s",
+        "Shard %d starting: %d points",
+        "Terminating shard %d (early abort)",
+        "run_shards complete: %d/%d shards succeeded",
+        "run_shards: %d shards, %d workers, %d threads/worker"
+      ],
+      "warning": [
+        "Cleaning up orphan process for shard %d",
+        "Interrupted \u2014 terminating all active processes",
+        "ParameterSpace not provided; workers will use default parameter bounds (may produce unconstrained proposals)",
+        "ParameterSpace.from_config failed (%s); falling back to defaults. Worker priors/bounds may differ from parent config.",
+        "Queue read error: %s",
+        "Shard %d exceeded runtime limit: %.0fs (limit: %ds), terminating (pid=%s)",
+        "Shard %d had %d divergent transitions",
+        "Shard %d unresponsive for %.0fs (heartbeat timeout: %ds), terminating (pid=%s)",
+        "Shard %s failed [%s]: %s",
+        "Shard %s validation failed: %s",
+        "Success rate %.1f%% below warning threshold %.1f%% \u2014 consider investigating failed shards"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "MultiprocessingBackend: no JAX CPU devices found."
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "MultiprocessingBackend does not support spawn_method='fork'. JAX cannot be safely shared across forked processes. Use spawn_method='spawn' (default)."
+      },
+      {
+        "exception": "ValueError",
+        "message": "Worker result contains no samples dict"
+      },
+      {
+        "exception": "ValueError",
+        "message": "run_shards: shards list must be non-empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "shard_costs must be non-empty"
+      }
+    ]
+  },
+  "optimization.cmc.backends.pbs": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "PBSBackend.cleanup: cancelling job %s",
+        "PBSBackend.cleanup: removed %d temporary path(s)",
+        "PBSBackend.validate_resources: qsub found",
+        "PBSBackend: shard %d (job %s) state=%s"
+      ],
+      "error": [
+        "PBSBackend: shard %d (job %s) failed: %s"
+      ],
+      "info": [
+        "PBSBackend.run_shards: shard %d submitted as job %s",
+        "PBSBackend: combined %d shard(s), %d parameter(s)",
+        "PBSBackend: shard %d (job %s) completed",
+        "PBSBackend: shard %d submitted as job %s",
+        "PBSBackend: submitting %d shard job(s) to queue '%s'",
+        "PBSBackend: waiting for %d job(s) (poll_interval=%.0fs)"
+      ],
+      "warning": [
+        "qstat -f %s exited %d: %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "PBSBackend: 'qsub' not found on PATH. Ensure PBS Professional or Torque is installed and the scheduler tools are in your shell PATH."
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "qsub returned an empty job ID"
+      },
+      {
+        "exception": "TimeoutError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.backends.pjit_backend": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "PjitBackend: cleanup (no-op for JAX-managed devices)",
+        "PjitBackend: device %d (%s) running %d chain(s) [chains %d..%d of %d total]",
+        "combine_shard_samples: combined %d shards \u2192 %d parameters"
+      ],
+      "info": [
+        "PjitBackend: %d devices available (%s)",
+        "PjitBackend: distributing %d chains across %d device(s) (%d warmup, %d samples each)",
+        "PjitBackend: sampling complete \u2014 %d total samples across %d device(s)"
+      ],
+      "warning": [
+        "PjitBackend: only 1 device detected (%s); sharding will not provide parallelism. Consider using CPUBackend instead."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "PjitBackend: no JAX devices available"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "PjitBackend: no JAX devices available"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "combine_shard_samples requires at least 1 shard result"
+      }
+    ]
+  },
+  "optimization.cmc.backends.worker_pool": {
+    "exit_codes": [],
+    "log_messages": {
+      "error": [
+        "PersistentWorkerPool worker %d init_fn raised: %s"
+      ],
+      "info": [
+        "PersistentWorkerPool shut down",
+        "PersistentWorkerPool started: %d/%d workers ready",
+        "WorkerPoolBackend: combined %d chains",
+        "WorkerPoolBackend: dispatching %d chains across %d workers"
+      ],
+      "warning": [
+        "PersistentWorkerPool startup timed out after %.0fs (%d/%d ready)",
+        "PersistentWorkerPool: worker %d did not exit cleanly; terminating"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.cmc.config": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Adaptive sampling: shard_size=%d (scale=%.3f, n_params=%d) \u2192 warmup=%d (was %d), samples=%d (was %d).",
+        "Auto num_shards: n_points=%d n_phi=%d n_params=%d \u2192 K=%d (k_from_phi=%d k_max_size=%d k_max_params=%d k_min_cap=%d).",
+        "CMC auto-enabled: n_points=%d >= min_points_for_cmc=%d.",
+        "CMC disabled unconditionally (enable=%r).",
+        "CMC enabled unconditionally (enable=%r).",
+        "CMCConfig constructed: enable=%s num_shards=%s backend=%s",
+        "CMCConfig.from_dict: constructed with %d kwargs from %d input keys.",
+        "Per-angle mode auto-resolved to %r (n_phi=%d threshold=%d).",
+        "Per-angle mode auto-resolved to %r from NLSQ warm-start.",
+        "Per-angle mode fixed to %r (not auto).",
+        "Using explicit num_shards=%d."
+      ],
+      "info": [
+        "CMC auto-disabled: n_points=%d < min_points_for_cmc=%d."
+      ],
+      "warning": [
+        "CMCConfig validation found %d error(s): %s",
+        "fast_warmup=True bypasses Rule 12 warmup floor (DENSE_MASS_WARMUP_FLOOR=%d) \u2014 for testing only, not production",
+        "get_num_shards called with n_points=%d; returning K=1.",
+        "min_success_rate_warning=%.2f > min_success_rate=%.2f \u2014 the warning threshold will never trigger (abort fires first)."
+      ]
+    },
+    "raises": []
+  },
+  "optimization.cmc.core": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Shard: BFMI unavailable (az.bfmi failed); convergence determined by R-hat and ESS only",
+        "[CMC-sharded] ParameterSpace has scaling params active (%s); workers will use varying_physics_names (physics-only) for NUTS.",
+        "[CMC] BFMI unavailable (az.bfmi computation failed); convergence determined by R-hat and ESS only",
+        "[CMC] Input validation passed: shape=%s, n_varying=%d"
+      ],
+      "error": [
+        "[CMC] MCMC sampling failed: %s",
+        "_combine_shard_posteriors: all %d shards failed (no_samples=%d, high_divergence[>%.0f%%]=%d, bad_convergence=%d, mean_divergence_rate=%.1f%%) \u2014 if divergence is high, a warm-start parameter may be at a hard bound; returning degenerate result"
+      ],
+      "info": [
+        "Runtime estimate: %s total (%d shards / %d workers, ~%s/shard)",
+        "[CMC-sharded] Complete in %.1fs, convergence: %s, failed shards: %d/%d",
+        "[CMC-sharded] Consensus combination: %d/%d shards converged (%d skipped/failed), worst_rhat=%.3f, combined_ess_min=%.0f",
+        "[CMC-sharded] Estimated sigma = %.4e",
+        "[CMC-sharded] Phase 1/5: data preparation",
+        "[CMC-sharded] Phase 2/5: creating %d shards",
+        "[CMC-sharded] Phase 3/5: dispatching %d shards to %s (backend_name=%r from CMCConfig)",
+        "[CMC-sharded] Phase 4/5: combining shard posteriors (consensus)",
+        "[CMC-sharded] Phase 5/5: finalizing (total wall time=%.1fs)",
+        "[CMC-sharded] Reparameterization enabled: t_ref=%.4e (d_ref=%s, d_sample=%s, v_ref=%s)",
+        "[CMC-sharded] Shards created: sizes=%s",
+        "[CMC-sharded] Starting: %d shards, strategy=%s, chains=%d, samples=%d",
+        "[CMC] Complete in %.1fs, convergence: %s",
+        "[CMC] Elevating target_accept_prob %.2f \u2192 %.2f (reparam active)",
+        "[CMC] Estimated sigma = %.4e",
+        "[CMC] NUTS sampling complete: collected %d posterior draws",
+        "[CMC] Phase 1/4: data preparation",
+        "[CMC] Phase 2/4: model construction",
+        "[CMC] Phase 3/4: NUTS sampling",
+        "[CMC] Phase 4/4: diagnostics and result construction",
+        "[CMC] Reference-time reparameterization: t_ref=%.4e (d_ref=%s, d_sample=%s, v_ref=%s)",
+        "[CMC] Sampling %d parameters: %s",
+        "[CMC] Starting analysis: chains=%d, samples=%d, warmup=%d",
+        "[CMC] Using NLSQ result for chain initialization",
+        "[CMC] Using contrast=%.4f, offset=%.4f from model scaling",
+        "[CMC] priors_override provided; disabling reparameterization so the caller-supplied distributions are sampled directly."
+      ],
+      "warning": [
+        "ArviZ summary failed for shard result: %s",
+        "Could not compute BFMI: %s",
+        "Shard: low BFMI=%.3f < %.2f (advisory; not a convergence gate). Chains may be near a parameter boundary.",
+        "[CMC-sharded] %d/%d shards failed convergence. First failing shard: max_r_hat=%.3f (threshold=%.2f), min_ess=%.0f (threshold=%d), min_bfmi=%.3f. Run with log_level: DEBUG (or --debug) to see per-shard details.",
+        "[CMC-sharded] %d/%d shards failed or timed out",
+        "[CMC-sharded] Auto-clamping degenerate warm-start to safe zone (alpha_sample=%.3f, f0=%.4f) \u2014 set allow_degenerate_warmstart: true to keep raw NLSQ values.",
+        "[CMC-sharded] Bimodal posteriors detected for %d parameters: %s. Gaussian consensus approximation may be inaccurate.",
+        "[CMC-sharded] D_total_%s = D0_%s + D_offset_%s = %.3g \u2264 0 \u2014 reparameterised prior requires D_total > 0 (log-prior = \u2212\u221e at warm-start \u2192 BFMI=0 on all shards). Clamping D_offset_%s %.3g \u2192 %.3g. Root cause: stale NLSQ warm-start with degenerate parameter combination; re-run NLSQ with current config bounds.",
+        "[CMC-sharded] Degenerate warm-start detected (het_bb97531f failure mode) \u2014 convergence is unlikely without intervention:\n  %s\nRecommended fixes:\n  1. Freeze the unidentifiable parameters in your YAML config:\n       optimization:\n         cmc:\n           fixed_params:\n             alpha_sample: %.3f\n             D0_sample: %.3g\n  2. Increase num_warmup to \u22652000 (default 1500 may be insufficient\n     when warm-start is far from per-shard posterior mode).\n  3. If f0 < 0.05, consider disabling the sample component\n     entirely (fix f0=0) and running a reference-only model.",
+        "[CMC-sharded] Estimated per-shard time (%.0fs = %.1fh) exceeds per_shard_timeout=%ds. Shards will likely timeout. avg_points_per_shard=%d exceeds the ~100K NUTS limit. Use num_shards='auto' or reduce max_points_per_shard.",
+        "[CMC-sharded] No NLSQ result object provided; using model-configured initial values as fallback warm-start (%d varying params). Priors are registry-based (not NLSQ-informed) \u2014 warmup may be slower.",
+        "[CMC-sharded] backend_name='slurm' has no native sharded backend; falling back to MultiprocessingBackend (run from inside the SLURM allocation)",
+        "[CMC] Low BFMI=%.3f < %.2f \u2014 poor HMC energy exploration (advisory only; does not affect convergence gate)",
+        "[CMC] NLSQ warm-start is enabled (use_nlsq_warmstart=True) but no nlsq_result was provided. Chains will initialize at the prior, which is typically 5-10\u03c3 from the true posterior for the 14-parameter heterodyne model. This produces R-hat >> 1 and ESS \u2248 n_chains \u2014 effectively a failed run after hours of sampling. Pass nlsq_result= or use optimizer: both in the CLI config.",
+        "[CMC] NLSQ warm-start requested but result is not converged (success=False); falling back to default initialization",
+        "[CMC] Single-shard data has %d points (> %d). NUTS is O(n) per leapfrog step \u2014 consider fit_cmc_sharded for large datasets.",
+        "_combine_shard_posteriors: %d/%d accepted shards have unknown convergence (ArviZ diagnostics unavailable); combining on raw-sample basis",
+        "_combine_shard_posteriors: %s",
+        "_combine_shard_posteriors: diagnostics passed but only %d/%d shards succeeded (rate=%.2f < min_success_rate=%.2f) \u2014 marking combined result NOT converged.",
+        "_combine_shard_posteriors: low combined BFMI=%.3f < %.2f (advisory; does not override R-hat/ESS convergence gate). Consider reparameterization or wider parameter bounds.",
+        "_combine_shard_posteriors: robust_consensus_mc excluded %d/%d outlier shards (z-score > 3)",
+        "_combine_shard_posteriors: skipping %d failed/high-divergence shards (%d/%d successful remain)",
+        "_combine_shard_posteriors: unknown combination_method %r; falling back to inverse-variance (consensus_mc)."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Parameter space has no varying parameters; at least one parameter must be free for CMC"
+      },
+      {
+        "exception": "ValueError",
+        "message": "shard_results must be non-empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "sigma array must be strictly positive everywhere"
+      }
+    ]
+  },
+  "optimization.cmc.data_prep": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Shard memory estimate: raw=%d B, estimated=%d B (factor=%d)",
+        "Shard validation passed: n=%d, n_angles=%d, n_times=%d"
+      ],
+      "info": [
+        "1-D correlation data: length=%d",
+        "2-D correlation matrix: shape=%s",
+        "Angle-balanced split: %d points -> %d shards; angle coverage: min=%.0f%%, mean=%.0f%%",
+        "Applied mask: %d elements excluded (%.1f%%)",
+        "Contiguous split: %d points -> %d shards (~%d points each)",
+        "Converting c2_data from %s to float64",
+        "Random split (seed=%d): %d points -> %d shards (~%d points each)",
+        "Stratified split: %d points -> %d shards (time strata)",
+        "angle_balanced_split: single angle detected, falling back to random split",
+        "prepare_data: shape=(%d, %d, %d), n_angles=%d, n_times=%d, q=%.4f, dt=%.6f, noise_scale=%.4f"
+      ],
+      "warning": [
+        "Stratified split: stratum %d is empty"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Shard contains zero data points"
+      },
+      {
+        "exception": "ValueError",
+        "message": "Shard weights contain negative values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "shard_results must be non-empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "sigma array must be strictly positive everywhere"
+      },
+      {
+        "exception": "ValueError",
+        "message": "time_array contains non-finite values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "time_array must be strictly monotonically increasing"
+      },
+      {
+        "exception": "ValueError",
+        "message": "weights must be non-negative"
+      },
+      {
+        "exception": "ValueError",
+        "message": "weights must be non-negative"
+      }
+    ]
+  },
+  "optimization.cmc.diagnostics": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Bimodal candidate %s suppressed: minor_weight=%.3f < min_weight=%.3f",
+        "Bimodal candidate %s suppressed: separation=%.2f std < min_separation=%.2f",
+        "Bimodal split for %s has low significance (%.3f < %.3f); may not be meaningful.",
+        "NLSQ comparison for %s: mean=%.4e, std=%.4e, nlsq=%.4e, z=%.2f, within_hdi=%s",
+        "Precision for %s: mean=%.4e, std=%.4e, cv=%.4f, hdi_width=%.4e",
+        "Unimodal posterior for %s: delta_BIC=%.2f (threshold=%.1f)",
+        "compute_pair_correlations: fewer than 2 parameters; returning empty dict.",
+        "detect_bimodal: degenerate (constant) samples for %s \u2014 returning unimodal."
+      ],
+      "info": [
+        "CMC ANALYSIS SUMMARY",
+        "Computed %dx%d parameter correlation matrix.",
+        "Divergence analysis: %d/%d (%.1f%%) \u2014 %s",
+        "RECOMMENDATIONS:",
+        "Sharded convergence: %d shards, passed=%s, worst_r_hat=%s, min_ess=%s, min_bfmi=%s",
+        "Status: CONVERGED",
+        "check_shard_bimodality: %d params x %d shards; %d bimodal detections.",
+        "cluster_shard_modes: %d shards in cluster 0, %d in cluster 1 (modal params: %s).",
+        "compute_nlsq_comparison_metrics: %d / %d parameters compared.",
+        "compute_precision_analysis: computed metrics for %d parameters.",
+        "summarize_cross_shard_bimodality: %d total detections across %d params, %d shards."
+      ],
+      "warning": [
+        "Bimodal posterior detected for %s: delta_BIC=%.2f, means=(%.4e, %.4e), weights=(%.3f, %.3f)",
+        "High parameter correlation: %s <-> %s (r=%.3f). Possible degeneracy.",
+        "cluster_shard_modes: no modal params or < 2 shards; returning all shards in cluster 0."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "scikit-learn is required for bimodality detection. Install it with: uv add scikit-learn"
+      }
+    ]
+  },
+  "optimization.cmc.io": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Found %d shards in %s"
+      ],
+      "info": [
+        "Loaded InferenceData from %s",
+        "Loaded shard %d (%d params) from %s",
+        "Saved InferenceData to %s",
+        "Saved diagnostics.json: %s",
+        "Saved fitted_data.npz: %s shape=%s",
+        "Saved parameters.json: %s (%d params)",
+        "Saved samples.npz: %s %s",
+        "Saved shard %d (%d params) to %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
+      {
+        "exception": "ImportError",
+        "message": "arviz is required for InferenceData I/O.  Install it with: uv add arviz"
+      },
+      {
+        "exception": "ImportError",
+        "message": "arviz is required for InferenceData I/O.  Install it with: uv add arviz"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.model": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "get_model_param_count: n_physics=%d, n_per_angle=%d (mode=%s, n_phi=%d) -> %d"
+      ],
+      "warning": [
+        "validate_model_output: C2 range [%.4e, %.4e] exceeds physical bounds [-1.0, 10.0] (params=%s)",
+        "validate_model_output: NaN detected in C2 theory (params=%s)",
+        "validate_model_output: inf detected in C2 theory (params=%s)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.plotting": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Saved ESS plot: %s",
+        "Saved autocorr plot: %s",
+        "Saved energy plot: %s",
+        "Saved forest plot: %s",
+        "Saved rank plot: %s"
+      ],
+      "warning": [
+        "generate_diagnostic_plots: %s plot failed (%s)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "arviz is required for CMC diagnostic plots.  Install it with: uv add arviz"
+      }
+    ]
+  },
+  "optimization.cmc.prior_builder": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "PriorBuilder: registry/spec sync verified (%d parameters)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.priors": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Default prior for %s: TruncatedNormal(loc=%.4e, scale=%.4e)",
+        "Default prior for %s: Uniform(%.4e, %.4e)",
+        "Log-space prior for %s: LogNormal(loc=%.4f, scale=%.4f) [median=%.4e]",
+        "NLSQ-informed prior for %s: TruncatedNormal(loc=%.4e, scale=%.4e, low=%.4e, high=%.4e)",
+        "estimate_contrast_offset_from_data: insufficient data (%d pts), returning midpoints contrast=%.3f offset=%.3f",
+        "estimate_contrast_offset_from_data: offset=%.4f contrast=%.4f",
+        "estimate_per_angle_scaling: cannot convert key '%s' to array: %s",
+        "estimate_per_angle_scaling: key '%s' dict has no 'g2' entry.",
+        "estimate_per_angle_scaling: key='%s', contrast=%.4e, offset=%.4e",
+        "extract_nlsq_values_for_cmc: skipping %s uncertainty (non-finite: %s)",
+        "extract_nlsq_values_for_cmc: skipping %s value (non-finite: %s)",
+        "get_param_names_in_order: %d varying parameters selected.",
+        "temper_priors: %s LogNormal scale %.4e -> %.4e (x%.2f)",
+        "temper_priors: %s TruncatedNormal scale %.4e -> %.4e (x%.2f)",
+        "temper_priors: %s Uniform \u2014 left unchanged.",
+        "temper_priors: num_shards=1, returning priors unchanged.",
+        "validate_initial_value_bounds: all %d values within bounds."
+      ],
+      "info": [
+        "Built %d NLSQ-informed priors (width_factor=%s)",
+        "Built %d default priors from registry (use_log_space_priors=%s)",
+        "Built %d log-space priors from %d candidates",
+        "Tempered %d priors for %d shards (scale factor=%.4f).",
+        "build_init_values_dict: built %d initial values (nlsq=%d, fallback=%r).",
+        "estimate_per_angle_scaling: estimated scaling for %d / %d angles.",
+        "extract_nlsq_values_for_cmc: extracted %d values, %s uncertainties (%d non-finite skipped)",
+        "validate_priors: all %d priors passed validation."
+      ],
+      "warning": [
+        "Skipping log-space prior for %s: prior_mean=%s, default=%s (both non-positive)",
+        "build_init_values_dict: %s initial value %.4e clamped to [%.4e, %.4e] -> %.4e",
+        "estimate_per_angle_scaling: key '%s' not found in data_dict.",
+        "temper_priors: %s has TransformedDistribution (e.g. BetaScaled) \u2014 left unchanged. Consider using TruncatedNormal for tempered CMC.",
+        "temper_priors: %s has unsupported type %s \u2014 left unchanged. Consider using TruncatedNormal or LogNormal for proper tempering.",
+        "validate_initial_value_bounds: %s \u2014 %s",
+        "validate_initial_value_bounds: unknown parameter '%s', not in registry or param_specs \u2014 skipping bounds check.",
+        "validate_priors: %d issue(s) found:\n  %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.reparameterization": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "Negative prefactor %s=%s, clamping to 1e-10"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.results": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "ArviZ is required for cmc_result_to_arviz. Install it with: uv add arviz"
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "CMCResult.samples is None or empty; cannot build InferenceData."
+      },
+      {
+        "exception": "ValueError",
+        "message": "shard_results must be non-empty."
+      }
+    ]
+  },
+  "optimization.cmc.sampler": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "AdaptiveSamplingPlan.get_plan: shard_size=%d, n_params=%d, scale=%.3f, num_warmup=%d, num_samples=%d",
+        "SamplingPlan.for_shard: shard_size=%d, full_size=%d, scale=%.3f, num_warmup=%d->%d, num_samples=%d->%d, chain_method=%s",
+        "SamplingPlan.from_config: n_data=%d, scale=%.3f, num_warmup=%d, num_samples=%d",
+        "_validate_init_log_density: log_density=%.4g (finite)",
+        "_validate_init_log_density: model not available on kernel, skipping",
+        "_validate_init_log_density: probe failed (%s), skipping",
+        "get_divergence_stats: divergence_rate=%.4f, mean_tree_depth=%.2f, max_depth_fraction=%.4f"
+      ],
+      "info": [
+        "Adapted step sizes (per chain): %s",
+        "Inverse mass matrix: %s",
+        "NUTSSampler created: %d chains, %d warmup, %d samples, target_accept=%s, chain_method=%s",
+        "NUTSSampler.run_with_init_values: warm-starting from %d NLSQ parameters",
+        "NUTSSampler: sampling complete",
+        "NUTSSampler: starting sampling (seed=%d)",
+        "SamplingPlan.for_shard: shard_size=%d < %d; switching chain_method from 'parallel' to 'sequential' for amortised JIT cost.",
+        "run_nuts_with_retry attempt %d/%d: divergence_rate=%.4f, mean_accept_prob=%.4f, wall_time=%.1fs"
+      ],
+      "warning": [
+        "compute_mcmc_safe_initial_values: %s pathology \u2014 scaling %s %.4g -> %.4g, %s %.4g -> %.4g for MCMC stability",
+        "run_nuts_with_retry: 'step_size_factor' is deprecated and its original direction was inverted; mapped to target_accept_increment=%.4f",
+        "run_nuts_with_retry: divergence_rate=%.4f > %.2f; retrying with target_accept=%.4f (attempt %d/%d)",
+        "run_nuts_with_retry: exhausted %d retries; returning best result with divergence_rate=%.4f"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "Cannot extract adapter diagnostics before calling run()"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "Cannot extract diagnostics before calling run()"
+      },
+      {
+        "exception": "RuntimeError",
+        "message": "Cannot extract divergence stats before calling run()"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.cmc.scaling": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "  %s: center=%s, scale=%s, bounds=[%s, %s]"
+      ],
+      "info": [
+        "Scaling factors for %d parameters:"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.cmc.warmstart": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "CMC init override: %s %.4g \u2192 %.4g (fixed in current config; stale NLSQ value replaced)"
+      ],
+      "warning": [
+        "CMC init clamp: %s %.4g \u2192 %.4g (bounds [%.4g, %.4g]); NLSQ hit the %s bound exactly \u2014 true mode may be outside current bounds; expect high NUTS divergence rate. Consider widening the %s bound in your config.",
+        "CMC init clamp: %s %.4g \u2192 %.4g (bounds [%.4g, %.4g]); NUTS boundary-adjacent start prevented"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.gradient_diagnostics": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Parameter %s gradient %.3e is %.1fx above baseline",
+        "Parameter %s gradient %.3e is %.1fx below baseline"
+      ],
+      "warning": [
+        "  - %s",
+        "Gradient diagnostics detected %d issue(s)",
+        "Gradient imbalance detected: max/min ratio = %.1f (threshold %.1f)"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.adapter": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "CurveFit cache eviction: removing oldest entry %s",
+        "CurveFit cache hit for shape (%d, %d)",
+        "CurveFit cache hit: n_data=%d n_params=%d phi=%s scaling=%s",
+        "fit_jax: optimizer did not expose final residuals; re-evaluating residual function"
+      ],
+      "error": [
+        "NLSQAdapter.fit failed: %s",
+        "NLSQAdapter.fit_jax failed: %s",
+        "NLSQWrapper: %s",
+        "NLSQWrapper: residual probe failed: %s"
+      ],
+      "info": [
+        "NLSQAdapter settings: method=%s loss=%s gtol=%.2e max_nfev=%s x_scale=%s",
+        "NLSQAdapter.fit: %d parameters",
+        "NLSQAdapter.fit_jax settings: method=%s loss=%s gtol=%.2e max_nfev=%s x_scale=%s",
+        "NLSQAdapter.fit_jax: %d parameters, %d data points",
+        "NLSQWrapper settings: method=%s ftol=%.2e xtol=%.2e gtol=%.2e max_nfev=%s x_scale=%r (loss=%r not applied; STREAMING tier ignores tolerances)",
+        "NLSQWrapper strategy: %s (%s)",
+        "NLSQWrapper: tier %s succeeded on attempt %d/%d"
+      ],
+      "warning": [
+        "Method 'dogbox' not supported by CurveFit; using 'trf'",
+        "Method 'dogbox' unsupported by nlsq; using 'trf'",
+        "NLSQAdapter convergence check failed: %s",
+        "NLSQWrapper: tier %s attempt %d/%d failed: %s",
+        "NLSQWrapper: tier %s convergence check failed: %s",
+        "fit_jax convergence check failed: %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "AdaptiveHybridStreamingOptimizer not available in this nlsq build"
+      }
+    ]
+  },
+  "optimization.nlsq.adaptive_regularization": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Cost decreased (%.3e -> %.3e), lambda: %.2e -> %.2e",
+        "Cost increased (%.3e -> %.3e), lambda: %.2e -> %.2e",
+        "Covariance positive definite at lambda=%.2e",
+        "Regularized step: lambda=%.2e, ||step||=%.3e, ||residual||=%.3e"
+      ],
+      "warning": [
+        "Could not regularize covariance up to lambda_max=%.2e",
+        "Covariance still not positive definite at lambda=%.2e, using larger regularization",
+        "Singular matrix at lambda=%.2e, increasing regularization"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.anti_degeneracy_controller": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "GradientCollapseDetector: Frobenius norm = %.4e",
+        "compute_effective_lambda: iter=%d, base=%.4e, decay=%.4f \u2192 lambda=%.4e",
+        "suggest_regularization: %d degenerate checks \u2192 lambda=%.4e"
+      ],
+      "info": [
+        "detect_hierarchical_trigger: degeneracy + cost plateau detected (last 3 costs: %s) \u2014 hierarchical fitting recommended"
+      ],
+      "warning": [
+        "Degeneracy detected: %s",
+        "GradientCollapseDetector: Jacobian Frobenius norm has been below %.2e for %d consecutive calls \u2014 gradient collapse detected"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "bound_tolerance must be non-negative"
+      },
+      {
+        "exception": "ValueError",
+        "message": "correlation_threshold must be in (0, 1]"
+      },
+      {
+        "exception": "ValueError",
+        "message": "threshold must be positive"
+      },
+      {
+        "exception": "ValueError",
+        "message": "window must be >= 1"
+      }
+    ]
+  },
+  "optimization.nlsq.cmaes_wrapper": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Adaptive CMA-ES: scale_ratio=%.1f, popsize=%d, max_generations=%d"
+      ],
+      "info": [
+        "CMA-ES BIPOP: max_restarts=%d",
+        "CMA-ES finished: strategy=%s, cost=%.6e, evals=%d, iters=%d, wall=%.2fs",
+        "Starting CMA-ES: sigma0=%.3g, maxiter=%d, n_params=%d"
+      ],
+      "warning": [
+        "adjust_covariance_for_bounds: result is not PSD (min eigenvalue=%.2e). Downstream consumers may need to apply a PSD projection."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "CMA-ES requires the 'cma' package. Install it with: uv add cma"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "max_restarts must be >= 0"
+      },
+      {
+        "exception": "ValueError",
+        "message": "maxiter must be >= 1"
+      },
+      {
+        "exception": "ValueError",
+        "message": "popsize must be >= 2 when specified"
+      },
+      {
+        "exception": "ValueError",
+        "message": "sigma0 must be positive"
+      }
+    ]
+  },
+  "optimization.nlsq.config": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "NLSQConfig: max_nfev=None \u2014 nlsq defaults to 100\u00d7n_params (e.g. 1400 for 14 params). Set explicitly to override."
+      ],
+      "warning": [
+        "NLSQConfig.from_dict: 'anti_degeneracy' must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: 'cmaes' must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: 'recovery' must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: 'validation' must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: anti_degeneracy.gradient_monitoring must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: anti_degeneracy.hierarchical must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: anti_degeneracy.regularization must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: unrecognised key %r \u2014 ignoring",
+        "NLSQConfig.from_dict: x_scale_map must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig: gtol=%.2e is very tight for loss=%r. Robust loss landscapes are harder \u2014 consider gtol >= 1e-6 to avoid premature max_nfev exhaustion.",
+        "safe_float: could not convert %r to float, using default %s",
+        "safe_int: could not convert %r to int, using default %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "cmaes_max_restarts must be >= 0"
+      },
+      {
+        "exception": "ValueError",
+        "message": "cmaes_sigma0 must be > 0"
+      },
+      {
+        "exception": "ValueError",
+        "message": "cmaes_warmstart_skip_threshold must be > 0"
+      },
+      {
+        "exception": "ValueError",
+        "message": "gradient_consecutive_triggers must be >= 1"
+      },
+      {
+        "exception": "ValueError",
+        "message": "hierarchical_max_outer_iterations must be >= 1"
+      },
+      {
+        "exception": "ValueError",
+        "message": "hybrid_warmup_fraction must be in (0, 1)"
+      },
+      {
+        "exception": "ValueError",
+        "message": "loss_scale must be positive"
+      },
+      {
+        "exception": "ValueError",
+        "message": "max_iterations must be >= 1"
+      },
+      {
+        "exception": "ValueError",
+        "message": "max_recovery_attempts must be >= 0"
+      },
+      {
+        "exception": "ValueError",
+        "message": "multistart_n must be >= 1"
+      },
+      {
+        "exception": "ValueError",
+        "message": "refine_top_k must be >= 1"
+      },
+      {
+        "exception": "ValueError",
+        "message": "screen_keep_fraction must be in (0, 1]"
+      },
+      {
+        "exception": "ValueError",
+        "message": "streaming_chunk_size must be >= 1"
+      },
+      {
+        "exception": "ValueError",
+        "message": "target_chunk_size must be >= 1"
+      },
+      {
+        "exception": "ValueError",
+        "message": "tolerance must be positive"
+      }
+    ]
+  },
+  "optimization.nlsq.core": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Attempting optimization with NLSQAdapter (JAX)",
+        "Attempting optimization with NLSQWrapper",
+        "[CMA-ES] Warm-start active: overriding restart_strategy='bipop' -> 'none' (BIPOP large-population restarts are incoherent with small sigma_warmstart)",
+        "chi2 correction: \u03c3\u00b2_noise=%.4e  n_valid=%d  SSR=%.4e  raw_chi2=%.4g \u2192 chi2_corrected=%.4f"
+      ],
+      "error": [
+        "Both adapter and wrapper failed: adapter=%s, wrapper=%s"
+      ],
+      "info": [
+        "  %s: %.6g",
+        "  %s: %.6g \u00b1 %.3g",
+        "AUTO AVERAGED SCALING: Computing per-angle scaling from quantiles",
+        "Analysis mode: %s",
+        "Anti-degeneracy scaling mode: %s%s",
+        "CMA-ES GLOBAL OPTIMIZATION",
+        "CMA-ES Phase 1: NLSQ warm-start refinement",
+        "CMA-ES Phase 2: global search (warm-started)",
+        "CMA-ES enabled, delegating to fit_with_cmaes",
+        "CMA-ES enabled, delegating to joint multi-angle CMA-ES",
+        "Constant averaged scaling selected: mode=%s, n_phi=%d, threshold=%d",
+        "Final cost: %.6e",
+        "Fitting %d parameters: %s",
+        "Fitting phi angle %d/%d: %s\u00b0",
+        "Fitting phi angle %d/%d: %s\u00b0 (warm-start from angle %s\u00b0)",
+        "Joint auto averaged fit complete: success=%s, cost=%.6f, n_evals=%d, wall_time=%.2fs, %d angles",
+        "Joint auto averaged fit: %d physical + 2 averaged scaling = %d total params, %d angles",
+        "Joint multi-angle fit complete: success=%s, cost=%.6f, n_evals=%d, wall_time=%.2fs, %d angles",
+        "Joint multi-angle fit: %d physics + %d Fourier = %d total params, %d angles",
+        "Message: %s",
+        "Multi-start enabled, delegating to multi-start optimizer",
+        "NLSQ OPTIMIZATION",
+        "NLSQ OPTIMIZATION COMPLETE",
+        "NLSQ warm-start succeeded: cost=%.6e, chi2_red=%.4f",
+        "NLSQAdapter optimization succeeded",
+        "NLSQWrapper fallback succeeded",
+        "NLSQWrapper optimization succeeded",
+        "Phase 3: CMA-ES wins (cost=%.6e vs NLSQ=%.6e)",
+        "Phase 3: NLSQ wins (cost=%.6e vs CMA-ES=%.6e)",
+        "Reduced \u03c7\u00b2: %.4f",
+        "Status: %s",
+        "Wall time: %.2f s",
+        "[CMA-ES] Auto-skip: NLSQ warm-start reduced chi2=%.4f < threshold=%.1f. Skipping CMA-ES global search.",
+        "[CMA-ES] CMA-ES result is better: CMA-ES cost=%.4e <= NLSQ cost=%.4e",
+        "[CMA-ES] NLSQ warm-start result is better: NLSQ cost=%.4e < CMA-ES cost=%.4e. Using NLSQ solution.",
+        "[CMA-ES] NLSQ warm-start succeeded: cost=%.4e, reduced chi2=%.4f",
+        "[CMA-ES] Phase 2: Running CMA-ES global optimization...",
+        "phi=%s\u00b0, method=%s"
+      ],
+      "warning": [
+        "CMA-ES enabled in config but not available (cma not installed). Install with: uv add cma. Falling back.",
+        "Estimated peak memory (%.2f GB) exceeds threshold (%.2f GB). Fit may fail with OOM.",
+        "Joint NLSQAdapter failed, falling back to NLSQWrapper: %s",
+        "Joint auto averaged NLSQAdapter failed, falling back to NLSQWrapper: %s",
+        "Multi-start enabled in config but multistart module not available. Falling back to local optimization.",
+        "NLSQ warm-start failed (%s), using raw initial params for CMA-ES",
+        "NLSQ warm-start raised %s: %s \u2014 proceeding with raw p0",
+        "NLSQAdapter failed, falling back to wrapper: %s",
+        "chi2 noise estimate near-zero (\u03c3\u00b2=%.2e); reporting uncorrected MSE chi2",
+        "fourier_reparam not available, falling back to sequential fits",
+        "nlsq library not available, falling back to NLSQWrapper"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ImportError",
+        "message": "No NLSQ adapter available"
+      },
+      {
+        "exception": "ImportError",
+        "message": "No NLSQ backend available for joint auto averaged multi-angle fit."
+      },
+      {
+        "exception": "ImportError",
+        "message": "No NLSQ backend available for joint multi-angle fit. Ensure heterodyne.optimization.nlsq.adapter is importable."
+      },
+      {
+        "exception": "ImportError",
+        "message": "No NLSQ optimization backend available. Ensure heterodyne.optimization.nlsq.adapter is importable."
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.data_prep": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Prepared fit data: %d points (%d non-zero weight) from (%d, %d) matrix"
+      ],
+      "warning": [
+        "Underdetermined system: %d data points, %d parameters"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "sigma required for inverse_variance weighting"
+      }
+    ]
+  },
+  "optimization.nlsq.fallback_chain": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "No pcov attribute in result object (type=%s)",
+        "Normalized (popt, pcov) tuple",
+        "Normalized (popt, pcov, info) tuple",
+        "Normalized StreamingOptimizer dict result",
+        "Normalized object result (type=%s)",
+        "_run_strategy: routing to NLSQAdapter (STANDARD)",
+        "_run_strategy: routing to NLSQWrapper (%s)"
+      ],
+      "info": [
+        "Auto-selected strategy: %s (%s)",
+        "Fallback chain: %s succeeded (cost=%s)",
+        "Fallback chain: attempting %s strategy",
+        "Memory error detected; skipping to STREAMING strategy"
+      ],
+      "warning": [
+        "Fallback chain: %s raised %s: %s",
+        "Info object is not a dict (type=%s); wrapping as 'raw_info'"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.fit_computation": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Batch lstsq - contrasts: mean=%.4f, offsets: mean=%.4f",
+        "Unable to infer analysis_mode from params=%s angles=%s; defaulting to two_component"
+      ],
+      "info": [
+        "Computed theoretical fits for %d angles",
+        "Per-angle scaling: %d angles, mode=%s",
+        "Physics-only parameters (%d). Using default scaling."
+      ],
+      "warning": [
+        "Scalar contrast/offset (param count %d). Expanding to %d angles."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "dt (time step) is required for compute_theoretical_fits() but was not found in metadata."
+      },
+      {
+        "exception": "ValueError",
+        "message": "q (wavevector) is required but was not found"
+      }
+    ]
+  },
+  "optimization.nlsq.fourier_reparam": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Auto mode: using Fourier (n_phi=%d > threshold=%d)",
+        "Auto mode: using independent (n_phi=%d <= threshold=%d)",
+        "Fourier fit residual (contrast): %.4f",
+        "Fourier fit residual (offset): %.4f"
+      ],
+      "info": [
+        "Fourier reparameterization enabled: %d coefficients for %d angles (order=%d, rcond=%.2e)",
+        "Independent per-angle mode: %d parameters for %d angles"
+      ],
+      "warning": [
+        "Fourier mode requested but n_phi=%d < min_angles=%d. Falling back to independent mode."
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.gradient_monitor": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "Gradient contains NaN/Inf at iteration %d (norm=%.3e)"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.hierarchical": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Hierarchical fit complete: %d/%d stages successful",
+        "Stage %d/%d ('%s'): %s \u2014 varying %d params: %s",
+        "Stage %d/%d ('%s'): no varying params, skipping",
+        "Stage '%s' converged: cost=%.4e, %d iterations",
+        "Starting hierarchical fit with %d stages (%d user-varying params)"
+      ],
+      "warning": [
+        "Stage '%s' failed: %s",
+        "Stopping hierarchical fit due to stage failure"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.jacobian": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "analyze_parameter_sensitivity: norms min=%.3e max=%.3e",
+        "compute_jacobian_condition_number: LinAlgError; returning inf",
+        "estimate_gradient_noise: mean_ratio=%.3e max_ratio=%.3e noisy_frac=%.3f"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.memory": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Selecting STANDARD: %s",
+        "Strategy analysis: n_points=%s, n_params=%d, index=%.2f GB, peak=%.2f GB, threshold=%.2f GB",
+        "System memory: %.1f GB, threshold: %.1f GB (%.0f%%)",
+        "os.sysconf memory detection failed: %s",
+        "psutil memory detection failed: %s",
+        "psutil not available, trying os.sysconf fallback"
+      ],
+      "info": [
+        "Auto-selecting LARGE: %s",
+        "Auto-selecting STREAMING: %s"
+      ],
+      "warning": [
+        "Could not detect system memory; using fallback threshold %.1f GB",
+        "Invalid %s=%r, using default=%.2f"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.multistart": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "  Start %d/%d: cost=%.4e (%.2fs)",
+        "  Start %d/%d: new best cost=%.4e (%.2fs)",
+        "  Worker %d/%d done: cost=%.4e (%.2fs)",
+        "  Worker %d/%d done: new best cost=%.4e (%.2fs)",
+        "Start %d/%d",
+        "check_zero_volume_bounds: %d fixed dimension(s) detected: %s",
+        "generate_lhs_starts: generated %d starts across %d free / %d fixed dims (seed=%d)"
+      ],
+      "info": [
+        "Multi-start complete: %d/%d successful, best cost=%.4e, total time=%.1fs",
+        "Multi-start: %d starts, parallel=%s",
+        "Parallel multi-start: %d starts, %d workers, timeout=%.0fs"
+      ],
+      "warning": [
+        "Global as_completed timeout reached after %.0fs \u2014 proceeding with %d completed workers",
+        "Parallel multi-start requested but JAX closures cannot be transmitted across process boundaries. Falling back to sequential execution.",
+        "Worker %d/%d failed: %s \u2014 skipping",
+        "Worker %d/%d timed out after %.0fs \u2014 skipping",
+        "generate_lhs_starts: all %d dimensions are fixed \u2014 all starts are identical"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "All parallel workers failed or timed out. Consider using sequential execution."
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.parallel_accumulator": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Created OOC kernels for %d-parameter model",
+        "Parallel accumulation: %d chunks, %d workers, %d total points",
+        "Sequential accumulation: %d chunks, %d total points, cost=%.4e"
+      ],
+      "warning": [
+        "Chunk %d failed during accumulation: %s (skipping)",
+        "Parallel accumulation failed (%s); falling back to sequential",
+        "Parallel chunk %d failed: %s (skipping)"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.parameter_index_mapper": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Built ParameterIndexMapper: %d varying out of %d total"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "IndexError",
+        "message": ""
+      },
+      {
+        "exception": "IndexError",
+        "message": ""
+      },
+      {
+        "exception": "IndexError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.parameter_utils": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.recovery": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Recovery attempt %d: perturbing parameters (scale=%.3f)",
+        "Recovery attempt %d: relaxing tolerances by 10x",
+        "Recovery attempt %d: switching method to %s",
+        "Recovery succeeded on attempt %d (%s)"
+      ],
+      "warning": [
+        "%d/%d parameters have undefined uncertainty (negative or zero variance)",
+        "Covariance shape %s doesn't match n_params=%d; returning inf",
+        "No covariance matrix; returning inf uncertainties",
+        "Recovery attempt %d (%s) did not converge: %s",
+        "Recovery attempt %d (%s) failed: %s [%s]"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.result_builder": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Built result: success=%s, n_iter=%d, n_fev=%d, chi2=%.4f, status=%d",
+        "Normalized (popt, pcov) tuple",
+        "Normalized (popt, pcov, info) tuple",
+        "Normalized StreamingOptimizer dict result",
+        "Normalized object result (type: %s)"
+      ],
+      "warning": [
+        "Failed to compute covariance: singular J^T J",
+        "Info object is not a dict: %s. Wrapping as raw_info.",
+        "J^T J condition number %.2e; adding Tikhonov regularization",
+        "NLSQ failed: %s",
+        "No pcov attribute in result object"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.results": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "KeyError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.strategies.base": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Using residual strategy (small dataset: %d points)"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.strategies.chunked": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "chunk_size=%d  (n_data=%d, n_params=%d, memory_limit=%.1f GB, fraction=%.0f%%)"
+      ],
+      "info": [
+        "ChunkedStrategy: %d data points \u2192 %d chunks (chunk_size=%d, n_params=%d)"
+      ],
+      "warning": [
+        "ChunkedStrategy: %d chunk(s) failed during evaluation (chunks: %s). Fit quality may be degraded.",
+        "ChunkedStrategy: 'dogbox' is not supported by curve_fit_large; coercing to 'trf'.",
+        "ChunkedStrategy: full residual evaluation failed: %s. Returning zeros.",
+        "Could not compute covariance from Jacobian (pinv failed)",
+        "Negative diagonal entries in covariance matrix \u2014 uncertainties may be unreliable",
+        "Singular J^T J \u2014 used pinv fallback for covariance estimation"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.nlsq.strategies.executors": {
+    "exit_codes": [],
+    "log_messages": {
+      "error": [
+        "All execution attempts failed after %d tries: %s"
+      ],
+      "info": [
+        "Executor diagnostics: strategy=%s success=%s cost=%.4e time=%.2fs chunks=%d peak_mem=%.1fMB",
+        "Executor: running strategy '%s'",
+        "Falling back from '%s' to ResidualStrategy"
+      ],
+      "warning": [
+        "Strategy '%s' failed (attempt %d/%d): %s",
+        "Unknown strategy name '%s'; falling back to auto-selection"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.strategies.hybrid_streaming": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "HybridStreaming: optimizer complete (success=%s)",
+        "HybridStreaming: using AdaptiveHybridStreamingOptimizer (warmup=%d iters, gn_max=%d iters)"
+      ],
+      "warning": [
+        "HybridStreaming: AdaptiveHybridStreamingOptimizer unavailable; falling back to nlsq.curve_fit_large"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.strategies.jit_strategy": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "JITStrategy: cache hit for key %s",
+        "JITStrategy: cache miss \u2014 compiling for key %s",
+        "JITStrategy: method=%s, use_analytic_jac=%s, max_nfev=%d"
+      ],
+      "info": [
+        "JITStrategy: %d params, %d data points (phi=%.2f\u00b0)",
+        "JITStrategy: %s | cost=%.4e | nfev=%d | compile=%.2f s | exec=%.2f s",
+        "JITStrategy: cleared %d cached compilation(s)",
+        "JITStrategy: compiled and warmed up in %.2f s (cache_key=%s)"
+      ],
+      "warning": [
+        "JITStrategy: 'dogbox' is not supported by CurveFit; coercing to 'trf'.",
+        "JITStrategy: compilation/warmup failed (%s); falling back to non-JIT ResidualStrategy.",
+        "JITStrategy: could not compute covariance (pinv failed)",
+        "JITStrategy: negative diagonal in covariance \u2014 uncertainties may be unreliable",
+        "JITStrategy: singular J^T J \u2014 used pinv fallback for covariance"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.strategies.out_of_core": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "OutOfCoreStrategy: %d data points -> %d chunks (chunk_size=%d, workers=%d)"
+      ],
+      "warning": [
+        "OutOfCore: singular J^T J",
+        "OutOfCoreStrategy: 'dogbox' is not supported by curve_fit_large; coercing to 'trf'."
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.strategies.residual": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "ResidualStrategy: method=%s, use_analytic_jac=%s, max_nfev=%d"
+      ],
+      "info": [
+        "ResidualStrategy: %s | cost=%.4e | nfev=%d | %.2f s",
+        "ResidualStrategy: fitting %d params over %d data points (phi=%.2f\u00b0)"
+      ],
+      "warning": [
+        "ResidualStrategy: 'dogbox' is not supported by CurveFit; coercing to 'trf'.",
+        "ResidualStrategy: could not compute covariance (pinv also failed)",
+        "ResidualStrategy: negative diagonal in covariance \u2014 uncertainties may be unreliable",
+        "ResidualStrategy: singular J^T J \u2014 used pinv fallback for covariance"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.strategies.residual_jit": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "ResidualJIT: warming up JIT compilation"
+      ],
+      "info": [
+        "ResidualJIT: fitting %d params, %d data points (finite-difference Jacobian)"
+      ],
+      "warning": [
+        "ResidualJIT: singular J^T J",
+        "ResidualJITStrategy: 'dogbox' is not supported by CurveFit; coercing to 'trf'."
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.strategies.sequential": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Combined parameters (first 4): %s ...",
+        "Jacobian norm for angle_index=%d (\u03c6=%.2f\u00b0): %.6g",
+        "SequentialStrategy.fit: delegating to %s (phi=%.2f\u00b0)",
+        "SequentialStrategy: could not read scaling for angle %d: %s",
+        "SequentialStrategy: warm-start updated (first 4 values: %s ...)"
+      ],
+      "error": [
+        "SequentialStrategy: inner strategy raised for angle_index=%d (\u03c6=%.2f\u00b0): %s"
+      ],
+      "info": [
+        "Combining %d/%d successful angle results (weighting='%s')",
+        "SequentialStrategy.fit_multi_angle complete: %d/%d converged (%.0f%%)",
+        "SequentialStrategy.fit_multi_angle: %d angles, inner='%s'",
+        "SequentialStrategy: angle %d/%d: \u03c6=%.2f\u00b0%s",
+        "Total combined cost: %.4e"
+      ],
+      "warning": [
+        "SequentialStrategy: angle %d (\u03c6=%.2f\u00b0) did not converge: %s",
+        "SequentialStrategy: unknown inner_strategy_name=%r; falling back to JITStrategy"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "combine_angle_results: no angles converged \u2014 cannot combine results"
+      }
+    ]
+  },
+  "optimization.nlsq.strategies.stratified_ls": {
+    "exit_codes": [],
+    "log_messages": {
+      "warning": [
+        "StratifiedLS: singular J^T J",
+        "StratifiedLSStrategy: 'dogbox' is not supported by curve_fit_large; coercing to 'trf'."
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.transforms": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Log-space transform active for %d parameters: %s"
+      ]
+    },
+    "raises": []
+  },
+  "optimization.nlsq.validation.result_validator": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "validate_result: %d error(s), %d warning(s), passed=%s"
+      ],
+      "warning": [
+        "validate_result: optimization failure, skipping detailed checks."
+      ]
+    },
+    "raises": []
+  },
+  "optimization.numerical_validation": {
+    "exit_codes": [],
+    "log_messages": {
+      "error": [
+        "Non-finite gradients detected: %d / %d elements",
+        "Non-finite loss detected: %s",
+        "Non-finite parameter detected: %s",
+        "Non-finite parameters detected: %d / %d elements",
+        "Parameter %s violates bounds [%g, %g]"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "BoundsError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NLSQNumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NumericalError",
+        "message": ""
+      },
+      {
+        "exception": "NumericalError",
+        "message": "NaN/Inf detected in computation result"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "optimization.recovery_strategies": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Iteration limit (%d) reached; suggesting retry with %d",
+        "Suggesting simplification: fix %s"
+      ],
+      "warning": [
+        "Jacobian condition number %.3e exceeds threshold",
+        "NaN detected in fitted parameters"
+      ]
+    },
+    "raises": []
+  },
+  "runtime.shell.__init__": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "utils.async_io": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "AsyncWriter shut down (wait=%s)",
+        "AsyncWriter wrote json: %s",
+        "AsyncWriter wrote npz: %s",
+        "PrefetchLoader producer raised %s: %s"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": "AsyncWriter has been shut down and cannot accept new writes."
+      },
+      {
+        "exception": "StopIteration",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "exc",
+        "message": ""
+      }
+    ]
+  },
+  "utils.logging": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Converged: %s at iteration %d | final_loss=%.6e",
+        "[%s] %s: %.4f (threshold: %.4f)"
+      ],
+      "warning": [
+        "Cannot create log directory %s: %s. File logging disabled."
+      ]
+    },
+    "raises": []
+  },
+  "utils.path_validation": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      },
+      {
+        "exception": "PathValidationError",
+        "message": ""
+      }
+    ]
+  },
+  "viz.datashader_backend": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "viz.diagnostics": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
+  "viz.experimental_plots": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "  Saved: %s",
+        "Plotted experimental data with shape %s",
+        "Time arrays not available, using frame indices",
+        "Using time extent: t1=[%.3f, %.3f], t2=[%.3f, %.3f] seconds"
+      ],
+      "info": [
+        "Generated %d individual C2 heatmaps",
+        "Generated basic fit comparison plot",
+        "Generating individual C2 heatmaps for %d phi angles...",
+        "Plotting %d angles after filtering: %s"
+      ],
+      "warning": [
+        "No experimental data to plot",
+        "Unsupported data dimensionality: %dD",
+        "phi_angles_list not found in data, using indices"
+      ]
+    },
+    "raises": []
+  },
+  "viz.mcmc_arviz": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Saved ArviZ pair plot to %s",
+        "Saved ArviZ posterior plot to %s",
+        "Saved ArviZ trace plot to %s"
+      ],
+      "warning": [
+        "ArviZ not installed; falling back to basic posterior plot",
+        "ArviZ not installed; falling back to basic trace plot",
+        "ArviZ not installed; skipping pair plot"
+      ]
+    },
+    "raises": []
+  },
+  "viz.mcmc_comparison": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Saved NLSQ vs CMC comparison to %s",
+        "Saved multi-angle comparison to %s"
+      ],
+      "warning": [
+        "No common parameters between NLSQ and CMC results"
+      ]
+    },
+    "raises": []
+  },
+  "viz.mcmc_dashboard": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "CMC summary dashboard saved to %s"
+      ],
+      "warning": [
+        "Could not save CMC summary dashboard: %s"
+      ]
+    },
+    "raises": []
+  },
+  "viz.mcmc_diagnostics": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Saved ESS evolution plot to %s",
+        "Saved KL divergence matrix to %s",
+        "Saved adaptation summary to %s",
+        "Saved convergence diagnostics to %s",
+        "Saved divergence scatter to %s"
+      ]
+    },
+    "raises": []
+  },
+  "viz.mcmc_plots": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Figure saved to %s"
+      ],
+      "warning": [
+        "plot_rank_histogram: '%s' is 1-D; rank plot requires multiple chains (n_chains, n_samples)"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "rhat_dict must be non-empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "shard_results must be non-empty"
+      }
+    ]
+  },
+  "viz.mcmc_report": {
+    "exit_codes": [],
+    "log_messages": {
+      "info": [
+        "Generated analysis report: %s"
+      ]
+    },
+    "raises": []
+  },
+  "viz.nlsq_plots": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Fitted C2 percentile color scale [%.4f, %.4f]",
+        "Simulated C2 range [%.4f, %.4f] -> color scale [%.4f, %.4f]"
+      ],
+      "exception": [
+        "Cannot create model from config \u2014 skipping simulated plots",
+        "Cannot create model \u2014 skipping fitted simulation plots",
+        "Failed to save fitted simulation NPZ"
+      ],
+      "info": [
+        "Figure saved to %s",
+        "Generated diagonal plot: simulated_data_diagonal.png",
+        "Saved %d 3-panel heatmap(s) to %s",
+        "Saved %d fitted simulation(s) to %s",
+        "Saved %d simulated C2 heatmaps + diagonal",
+        "Using fitted parameters: contrast=%.4f, offset=%.4f"
+      ],
+      "warning": [
+        "Angle filtering failed; using unfiltered data",
+        "Forward model failed for phi=%.1f",
+        "Forward model failed for phi=%.1f; using zeros",
+        "Heterodyne strip pattern is Nyquist-aliased: max phase/dt \u2248 %.2f rad (> \u03c0). With v(t\u2080)\u2248%.0f \u00c5/s, q=%.4f \u00c5\u207b\u00b9, dt=%.4f s, strips are sub-pixel at the first time point and may be invisible in the plot. Consider using a finer time grid (smaller dt) to resolve the strips.",
+        "No fitted parameters found in result \u2014 skipping"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "history must be non-empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "param_names must be non-empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "results must be non-empty"
+      }
+    ]
+  }
+}

@@ -1,0 +1,7687 @@
+{
+  "_templates/autosummary/module.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [
+      "{{"
+    ],
+    "headings": [
+      "Submodules"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "api/cli.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [
+      "homodyne.cli.args_parser",
+      "homodyne.cli.commands",
+      "homodyne.cli.config_generator",
+      "homodyne.cli.config_handling",
+      "homodyne.cli.data_pipeline",
+      "homodyne.cli.main",
+      "homodyne.cli.optimization_runner",
+      "homodyne.cli.plot_dispatch",
+      "homodyne.cli.result_saving",
+      "homodyne.cli.xla_config"
+    ],
+    "headings": [
+      "homodyne CLI",
+      "homodyne",
+      "Arguments",
+      "Usage Examples",
+      "Shell Aliases",
+      "homodyne-config",
+      "Arguments",
+      "Usage Examples",
+      "Shell Aliases",
+      "homodyne-config-xla",
+      "Arguments",
+      "Usage Examples",
+      "Shell Alias",
+      "homodyne-post-install",
+      "Arguments",
+      "Usage Example",
+      "Shell Alias",
+      "homodyne-cleanup",
+      "Arguments",
+      "Usage Example",
+      "Shell Alias",
+      "Shell Completion System",
+      "Internal CLI Modules"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "api/cmc.rst": {
+    "autoclass": [
+      "homodyne.optimization.cmc.config.CMCConfig",
+      "homodyne.optimization.cmc.results.CMCResult"
+    ],
+    "autofunction": [
+      "homodyne.optimization.cmc.core.fit_mcmc_jax"
+    ],
+    "automodule": [
+      "homodyne.optimization.cmc.core"
+    ],
+    "headings": [
+      "homodyne.optimization.cmc",
+      "fit\\_mcmc\\_jax",
+      "Shard Size Selection",
+      "CMCConfig",
+      "CMCResult",
+      "Per-Angle Mode",
+      "YAML Configuration Reference",
+      "Quality Filtering",
+      "Usage Examples",
+      "Standard NLSQ \u2192 CMC workflow",
+      "CMC without warm-start (exploratory)",
+      "Accessing diagnostics"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "optimization"
+      },
+      {
+        "role": "math",
+        "target": "O(n)"
+      },
+      {
+        "role": "math",
+        "target": "O(n)"
+      }
+    ]
+  },
+  "api/cmc_backends.rst": {
+    "autoclass": [
+      "homodyne.optimization.cmc.backends.base.CMCBackend",
+      "homodyne.optimization.cmc.backends.multiprocessing.MultiprocessingBackend",
+      "homodyne.optimization.cmc.backends.multiprocessing.SharedDataManager",
+      "homodyne.optimization.cmc.backends.worker_pool.WorkerPool"
+    ],
+    "autofunction": [
+      "homodyne.optimization.cmc.backends.base.combine_shard_samples",
+      "homodyne.optimization.cmc.backends.worker_pool.should_use_pool"
+    ],
+    "automodule": [
+      "homodyne.optimization.cmc.backends.multiprocessing"
+    ],
+    "headings": [
+      "homodyne.optimization.cmc.backends",
+      "Multiprocessing Backend",
+      "SharedDataManager",
+      "Chain Execution Methods",
+      "XLA Device Setup",
+      "Heterogeneity Detection",
+      "Worker Pool",
+      "Base Backend and Combination Utilities",
+      "Usage Examples",
+      "Selecting the multiprocessing backend explicitly",
+      "Inspecting worker count",
+      "Manually running a backend"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0 \\sim 10^{-3}"
+      }
+    ]
+  },
+  "api/cmc_reparameterization.rst": {
+    "autoclass": [
+      "homodyne.optimization.cmc.reparameterization.ReparamConfig"
+    ],
+    "autofunction": [
+      "homodyne.optimization.cmc.reparameterization.compute_t_ref",
+      "homodyne.optimization.cmc.reparameterization.transform_nlsq_to_reparam_space",
+      "homodyne.optimization.cmc.reparameterization.transform_to_physics_space",
+      "homodyne.optimization.cmc.reparameterization.transform_to_sampling_space"
+    ],
+    "automodule": [
+      "homodyne.optimization.cmc.reparameterization"
+    ],
+    "headings": [
+      "homodyne.optimization.cmc.reparameterization",
+      "ReparamConfig",
+      "Parameter Transformations",
+      "compute\\_t\\_ref",
+      "transform\\_nlsq\\_to\\_reparam\\_space",
+      "transform\\_to\\_sampling\\_space",
+      "transform\\_to\\_physics\\_space",
+      "Usage Examples",
+      "NLSQ warm-start to reparameterized priors",
+      "Converting MCMC samples back to physics"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "api/cmc_sampler.rst": {
+    "autoclass": [
+      "homodyne.optimization.cmc.sampler.MCMCSamples",
+      "homodyne.optimization.cmc.sampler.SamplingPlan"
+    ],
+    "autofunction": [
+      "homodyne.optimization.cmc.sampler.run_nuts_sampling"
+    ],
+    "automodule": [
+      "homodyne.optimization.cmc.sampler"
+    ],
+    "headings": [
+      "homodyne.optimization.cmc.sampler",
+      "Divergence Rate Constants",
+      "SamplingPlan",
+      "SamplingPlan.from\\_config",
+      "Adaptive Sampling Behaviour",
+      "run\\_nuts\\_sampling",
+      "MCMCSamples",
+      "NUTS Configuration",
+      "JAX Profiling",
+      "Usage Examples",
+      "Checking adaptive scaling",
+      "Inspecting divergence constants"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "sup",
+        "target": "10"
+      }
+    ]
+  },
+  "api/config.rst": {
+    "autoclass": [
+      "homodyne.config.manager.ConfigManager",
+      "homodyne.config.parameter_registry.ParameterInfo",
+      "homodyne.config.parameter_registry.ParameterRegistry",
+      "homodyne.config.parameter_space.ParameterSpace"
+    ],
+    "autofunction": [
+      "homodyne.config.parameter_registry.get_all_param_names",
+      "homodyne.config.parameter_registry.get_bounds",
+      "homodyne.config.parameter_registry.get_defaults",
+      "homodyne.config.parameter_registry.get_param_names",
+      "homodyne.config.parameter_registry.get_registry"
+    ],
+    "automodule": [
+      "homodyne.config.manager",
+      "homodyne.config.parameter_space"
+    ],
+    "headings": [
+      "homodyne.config",
+      "ConfigManager",
+      "Usage Example",
+      "ParameterSpace",
+      "Usage Example",
+      "YAML Configuration Schema",
+      "Default Parameter Values",
+      "ParameterRegistry"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "sup",
+        "target": "-1"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_\\text{offset}"
+      },
+      {
+        "role": "sup",
+        "target": "-1"
+      },
+      {
+        "role": "math",
+        "target": "\\varphi_0"
+      }
+    ]
+  },
+  "api/core.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [
+      "homodyne.core.physics",
+      "homodyne.core.physics_utils",
+      "homodyne.core.scaling_utils"
+    ],
+    "headings": [
+      "homodyne.core",
+      "homodyne.core.physics",
+      "homodyne.core.physics\\_utils",
+      "Usage Example",
+      "homodyne.core.scaling\\_utils",
+      "Usage Example"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "../theory/index"
+      },
+      {
+        "role": "math",
+        "target": "D(t) = D_0 \\cdot t^\\alpha + D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma(t) = \\dot\\gamma_0 \\cdot t^\\beta + \\dot\\gamma_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "g_1^2 \\to 0"
+      },
+      {
+        "role": "math",
+        "target": "C_2 \\to \\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "g_1^2 \\approx 1"
+      },
+      {
+        "role": "math",
+        "target": "C_2 \\approx \\text{contrast} + \\text{offset}"
+      }
+    ]
+  },
+  "api/data.rst": {
+    "autoclass": [
+      "homodyne.data.xpcs_loader.XPCSDataLoader"
+    ],
+    "autofunction": [],
+    "automodule": [
+      "homodyne.data.xpcs_loader"
+    ],
+    "headings": [
+      "homodyne.data",
+      "XPCSDataLoader",
+      "HDF5 Format Requirements",
+      "NPZ Caching",
+      "Data Validation",
+      "Output Data Structure",
+      "Usage Examples",
+      "From a YAML config file",
+      "From a ConfigManager",
+      "Using the convenience function",
+      "Supplementary Modules"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "sup",
+        "target": "-1"
+      }
+    ]
+  },
+  "api/device.rst": {
+    "autoclass": [],
+    "autofunction": [
+      "homodyne.device.benchmark_device_performance",
+      "homodyne.device.configure_optimal_device",
+      "homodyne.device.get_device_status"
+    ],
+    "automodule": [
+      "homodyne.device",
+      "homodyne.device.config",
+      "homodyne.device.cpu"
+    ],
+    "headings": [
+      "Device Module",
+      "Overview",
+      "Module Contents",
+      "Primary Functions",
+      "Device Configuration",
+      "Usage Example",
+      "Configuration Result",
+      "Device Status",
+      "Usage Example",
+      "Status Information",
+      "Performance Estimates",
+      "Performance Benchmarking",
+      "Usage Example",
+      "Benchmark Metrics",
+      "CPU Module",
+      "CPU-Specific Functions",
+      "HPC Configuration",
+      "CPU Information",
+      "Optimal Batch Size",
+      "Configuration Module",
+      "Environment Variables",
+      "JAX Configuration",
+      "HPC Optimization",
+      "HPC Best Practices",
+      "Troubleshooting",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "mod",
+        "target": "homodyne.device"
+      },
+      {
+        "role": "func",
+        "target": "configure_optimal_device"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.core"
+      }
+    ]
+  },
+  "api/homodyne_model.rst": {
+    "autoclass": [
+      "homodyne.core.homodyne_model.HomodyneModel"
+    ],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "homodyne.core.homodyne\\_model",
+      "HomodyneModel",
+      "Architecture",
+      "Key Attributes",
+      "Usage Examples",
+      "Computing correlation matrices",
+      "Generating simulated data"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "theory_engine"
+      }
+    ]
+  },
+  "api/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "API Reference",
+      "Module Overview",
+      "Quick Navigation"
+    ],
+    "toctree": [
+      "core",
+      "homodyne_model",
+      "jax_backend",
+      "models",
+      "theory_engine",
+      "optimization",
+      "optimization_guide",
+      "nlsq_adapter",
+      "nlsq_wrapper",
+      "cmc",
+      "cmc_sampler",
+      "cmc_reparameterization",
+      "cmc_backends",
+      "data",
+      "config",
+      "cli",
+      "device",
+      "io",
+      "viz",
+      "utils"
+    ],
+    "xrefs": [
+      {
+        "role": "func",
+        "target": "homodyne.optimization.nlsq.core.fit_nlsq_jax"
+      },
+      {
+        "role": "func",
+        "target": "homodyne.optimization.cmc.core.fit_mcmc_jax"
+      },
+      {
+        "role": "doc",
+        "target": "nlsq_adapter"
+      },
+      {
+        "role": "doc",
+        "target": "core"
+      },
+      {
+        "role": "doc",
+        "target": "homodyne_model"
+      },
+      {
+        "role": "doc",
+        "target": "jax_backend"
+      },
+      {
+        "role": "doc",
+        "target": "models"
+      },
+      {
+        "role": "doc",
+        "target": "theory_engine"
+      },
+      {
+        "role": "doc",
+        "target": "optimization"
+      },
+      {
+        "role": "doc",
+        "target": "nlsq_adapter"
+      },
+      {
+        "role": "doc",
+        "target": "nlsq_wrapper"
+      },
+      {
+        "role": "doc",
+        "target": "cmc"
+      },
+      {
+        "role": "doc",
+        "target": "cmc_sampler"
+      },
+      {
+        "role": "doc",
+        "target": "cmc_reparameterization"
+      },
+      {
+        "role": "doc",
+        "target": "cmc_backends"
+      },
+      {
+        "role": "doc",
+        "target": "data"
+      },
+      {
+        "role": "doc",
+        "target": "config"
+      },
+      {
+        "role": "doc",
+        "target": "cli"
+      },
+      {
+        "role": "doc",
+        "target": "device"
+      },
+      {
+        "role": "doc",
+        "target": "io"
+      },
+      {
+        "role": "doc",
+        "target": "viz"
+      },
+      {
+        "role": "doc",
+        "target": "utils"
+      },
+      {
+        "role": "doc",
+        "target": "core"
+      },
+      {
+        "role": "doc",
+        "target": "homodyne_model"
+      },
+      {
+        "role": "doc",
+        "target": "jax_backend"
+      },
+      {
+        "role": "ref",
+        "target": "api-models-base"
+      },
+      {
+        "role": "ref",
+        "target": "api-diffusion-model"
+      },
+      {
+        "role": "ref",
+        "target": "api-shear-model"
+      },
+      {
+        "role": "ref",
+        "target": "api-combined-model"
+      },
+      {
+        "role": "ref",
+        "target": "api-fit-nlsq"
+      },
+      {
+        "role": "ref",
+        "target": "api-nlsq-adapter"
+      },
+      {
+        "role": "ref",
+        "target": "api-nlsq-wrapper"
+      },
+      {
+        "role": "ref",
+        "target": "api-fit-mcmc"
+      },
+      {
+        "role": "ref",
+        "target": "api-cmc-config"
+      },
+      {
+        "role": "ref",
+        "target": "api-sampling-plan"
+      },
+      {
+        "role": "ref",
+        "target": "api-reparam-config"
+      },
+      {
+        "role": "ref",
+        "target": "api-xpcs-loader"
+      },
+      {
+        "role": "ref",
+        "target": "api-config-manager"
+      },
+      {
+        "role": "doc",
+        "target": "cli"
+      },
+      {
+        "role": "doc",
+        "target": "utils"
+      }
+    ]
+  },
+  "api/io.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [
+      "homodyne.io",
+      "homodyne.io.json_utils",
+      "homodyne.io.mcmc_writers",
+      "homodyne.io.nlsq_writers"
+    ],
+    "headings": [
+      "I/O Module",
+      "Overview",
+      "Module Contents",
+      "Primary Functions",
+      "NLSQ Writers",
+      "Output Files",
+      "MCMC Writers",
+      "Output Structure",
+      "JSON Utilities",
+      "Supported Types",
+      "Usage Examples",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "mod",
+        "target": "homodyne.io"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.viz"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.config"
+      }
+    ]
+  },
+  "api/jax_backend.rst": {
+    "autoclass": [],
+    "autofunction": [
+      "homodyne.core.jax_backend.batch_chi_squared",
+      "homodyne.core.jax_backend.clear_meshgrid_cache",
+      "homodyne.core.jax_backend.compute_chi_squared",
+      "homodyne.core.jax_backend.compute_g1_diffusion",
+      "homodyne.core.jax_backend.compute_g1_shear",
+      "homodyne.core.jax_backend.compute_g1_total",
+      "homodyne.core.jax_backend.compute_g2_scaled",
+      "homodyne.core.jax_backend.compute_g2_scaled_with_factors",
+      "homodyne.core.jax_backend.get_cache_stats",
+      "homodyne.core.jax_backend.get_cached_meshgrid",
+      "homodyne.core.jax_backend.get_device_info",
+      "homodyne.core.jax_backend.get_performance_summary",
+      "homodyne.core.jax_backend.reset_cache_stats",
+      "homodyne.core.jax_backend.validate_backend",
+      "homodyne.core.jax_backend.vectorized_g2_computation"
+    ],
+    "automodule": [],
+    "headings": [
+      "homodyne.core.jax\\_backend",
+      "Backend Availability",
+      "g\u2081 Correlation Functions",
+      "compute\\_g1\\_diffusion",
+      "compute\\_g1\\_shear",
+      "compute\\_g1\\_total",
+      "g\u2082 Correlation Functions",
+      "compute\\_g2\\_scaled",
+      "compute\\_g2\\_scaled\\_with\\_factors",
+      "Chi-Squared",
+      "compute\\_chi\\_squared",
+      "Batched Computations",
+      "vectorized\\_g2\\_computation",
+      "batch\\_chi\\_squared",
+      "Automatic Differentiation",
+      "Meshgrid Cache",
+      "Diagnostics",
+      "validate\\_backend",
+      "get\\_device\\_info",
+      "get\\_performance\\_summary",
+      "Usage Examples",
+      "Computing g\u2082 for a single angle",
+      "Computing gradients for optimization",
+      "Cache management"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "/theory/anti_degeneracy_defense"
+      },
+      {
+        "role": "class",
+        "target": "~homodyne.core.homodyne_model.HomodyneModel"
+      }
+    ]
+  },
+  "api/models.rst": {
+    "autoclass": [
+      "homodyne.core.models.CombinedModel",
+      "homodyne.core.models.DiffusionModel",
+      "homodyne.core.models.PhysicsModelBase",
+      "homodyne.core.models.ShearModel"
+    ],
+    "autofunction": [
+      "homodyne.core.models.create_model"
+    ],
+    "automodule": [
+      "homodyne.core.models"
+    ],
+    "headings": [
+      "homodyne.core.models",
+      "Physical Model Summary",
+      "| Mode             | Parameters                                                        | Count |",
+      "| ``static``       | :math:`D_0, \\alpha, D_\\text{offset}`                              | 3     |",
+      "|                  | :math:`\\dot\\gamma_\\text{offset}, \\varphi_0`                       |       |",
+      "PhysicsModelBase",
+      "DiffusionModel",
+      "Usage Example",
+      "ShearModel",
+      "CombinedModel",
+      "Usage Example",
+      "Module-level factory"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "class",
+        "target": "PhysicsModelBase"
+      },
+      {
+        "role": "math",
+        "target": "g_1"
+      },
+      {
+        "role": "math",
+        "target": "g_2"
+      },
+      {
+        "role": "doc",
+        "target": "../theory/index"
+      },
+      {
+        "role": "math",
+        "target": "D_0, \\alpha, D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "D_0, \\alpha, D_\\text{offset}, \\dot\\gamma_0, \\beta,"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_\\text{offset}, \\varphi_0"
+      },
+      {
+        "role": "math",
+        "target": "g_1"
+      },
+      {
+        "role": "math",
+        "target": "g_1"
+      },
+      {
+        "role": "math",
+        "target": "\\Phi = \\frac{1}{2\\pi} q L \\cos(\\varphi_0 - \\varphi) \\int_{|t_2-t_1|} \\dot\\gamma(t') \\, dt'"
+      }
+    ]
+  },
+  "api/nlsq_adapter.rst": {
+    "autoclass": [
+      "homodyne.optimization.nlsq.adapter.AdapterConfig",
+      "homodyne.optimization.nlsq.adapter.NLSQAdapter",
+      "homodyne.optimization.nlsq.results.OptimizationResult"
+    ],
+    "autofunction": [
+      "homodyne.optimization.nlsq.core.fit_nlsq_jax"
+    ],
+    "automodule": [
+      "homodyne.optimization.nlsq.adapter"
+    ],
+    "headings": [
+      "homodyne.optimization.nlsq \u2014 Adapter",
+      "When to Use NLSQAdapter vs NLSQWrapper",
+      "fit\\_nlsq\\_jax",
+      "NLSQAdapter",
+      "AdapterConfig",
+      "Usage Examples",
+      "Basic static mode",
+      "Laminar flow with per-angle scaling",
+      "Direct NLSQAdapter usage",
+      "Multi-start optimisation",
+      "CMA-ES for multi-scale problems",
+      "Return Type"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "class",
+        "target": "~homodyne.optimization.nlsq.wrapper.NLSQWrapper"
+      },
+      {
+        "role": "func",
+        "target": "~homodyne.optimization.nlsq.core.fit_nlsq_jax"
+      },
+      {
+        "role": "math",
+        "target": "D_0 \\sim 10^4"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0 \\sim 10^{-3}"
+      },
+      {
+        "role": "math",
+        "target": "10^6"
+      }
+    ]
+  },
+  "api/nlsq_wrapper.rst": {
+    "autoclass": [
+      "homodyne.optimization.nlsq.config.HybridRecoveryConfig",
+      "homodyne.optimization.nlsq.config.NLSQConfig",
+      "homodyne.optimization.nlsq.wrapper.NLSQWrapper"
+    ],
+    "autofunction": [
+      "homodyne.optimization.nlsq.config.safe_float",
+      "homodyne.optimization.nlsq.config.safe_int"
+    ],
+    "automodule": [
+      "homodyne.optimization.nlsq.fallback_chain",
+      "homodyne.optimization.nlsq.recovery",
+      "homodyne.optimization.nlsq.strategies.hybrid_streaming",
+      "homodyne.optimization.nlsq.strategies.out_of_core",
+      "homodyne.optimization.nlsq.strategies.stratified_ls",
+      "homodyne.optimization.nlsq.wrapper"
+    ],
+    "headings": [
+      "homodyne.optimization.nlsq \u2014 Wrapper",
+      "Key Differences from NLSQAdapter",
+      "Out-of-Core Routing",
+      "NLSQWrapper",
+      "NLSQConfig",
+      "HybridRecoveryConfig",
+      "Safe type conversion utilities",
+      "Usage Examples",
+      "Direct usage of NLSQWrapper",
+      "Large dataset (>100 M points) with streaming",
+      "laminar_flow with many phi angles and full anti-degeneracy",
+      "3-attempt error recovery",
+      "Extracted Strategy Modules",
+      "Fallback Chain",
+      "Error Recovery",
+      "Stratified Least Squares",
+      "Hybrid Streaming",
+      "Out-of-Core Accumulation"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "class",
+        "target": "~homodyne.optimization.nlsq.adapter.NLSQAdapter"
+      },
+      {
+        "role": "func",
+        "target": "~homodyne.optimization.nlsq.core.fit_nlsq_jax"
+      }
+    ]
+  },
+  "api/optimization.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "homodyne.optimization",
+      "Choosing Between NLSQ and CMC",
+      "Common Workflow Patterns",
+      "Pattern 1: NLSQ only (fast, no uncertainties)",
+      "Pattern 2: NLSQ warm-start \u2192 CMC (recommended for publications)",
+      "Pattern 3: CLI workflow (two-step)",
+      "Package Structure"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "nlsq_adapter"
+      },
+      {
+        "role": "doc",
+        "target": "nlsq_wrapper"
+      },
+      {
+        "role": "doc",
+        "target": "cmc"
+      }
+    ]
+  },
+  "api/optimization_guide.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [
+      "homodyne.core.scaling_utils",
+      "homodyne.optimization",
+      "homodyne.optimization.batch_statistics",
+      "homodyne.optimization.checkpoint_manager",
+      "homodyne.optimization.cmc.backends",
+      "homodyne.optimization.cmc.backends.base",
+      "homodyne.optimization.cmc.backends.multiprocessing",
+      "homodyne.optimization.cmc.backends.pbs",
+      "homodyne.optimization.cmc.backends.pjit",
+      "homodyne.optimization.cmc.config",
+      "homodyne.optimization.cmc.core",
+      "homodyne.optimization.cmc.data_prep",
+      "homodyne.optimization.cmc.diagnostics",
+      "homodyne.optimization.cmc.io",
+      "homodyne.optimization.cmc.model",
+      "homodyne.optimization.cmc.plotting",
+      "homodyne.optimization.cmc.priors",
+      "homodyne.optimization.cmc.results",
+      "homodyne.optimization.cmc.sampler",
+      "homodyne.optimization.cmc.scaling",
+      "homodyne.optimization.exceptions",
+      "homodyne.optimization.gradient_diagnostics",
+      "homodyne.optimization.nlsq.adapter",
+      "homodyne.optimization.nlsq.adapter_base",
+      "homodyne.optimization.nlsq.adaptive_regularization",
+      "homodyne.optimization.nlsq.anti_degeneracy_controller",
+      "homodyne.optimization.nlsq.cmaes_wrapper",
+      "homodyne.optimization.nlsq.config",
+      "homodyne.optimization.nlsq.core",
+      "homodyne.optimization.nlsq.data_prep",
+      "homodyne.optimization.nlsq.fit_computation",
+      "homodyne.optimization.nlsq.fourier_reparam",
+      "homodyne.optimization.nlsq.gradient_monitor",
+      "homodyne.optimization.nlsq.hierarchical",
+      "homodyne.optimization.nlsq.jacobian",
+      "homodyne.optimization.nlsq.memory",
+      "homodyne.optimization.nlsq.multistart",
+      "homodyne.optimization.nlsq.parameter_index_mapper",
+      "homodyne.optimization.nlsq.parameter_utils",
+      "homodyne.optimization.nlsq.progress",
+      "homodyne.optimization.nlsq.result_builder",
+      "homodyne.optimization.nlsq.results",
+      "homodyne.optimization.nlsq.shear_weighting",
+      "homodyne.optimization.nlsq.strategies",
+      "homodyne.optimization.nlsq.strategies.chunking",
+      "homodyne.optimization.nlsq.strategies.executors",
+      "homodyne.optimization.nlsq.strategies.residual",
+      "homodyne.optimization.nlsq.strategies.residual_jit",
+      "homodyne.optimization.nlsq.strategies.sequential",
+      "homodyne.optimization.nlsq.transforms",
+      "homodyne.optimization.nlsq.validation.fit_quality",
+      "homodyne.optimization.nlsq.validation.input_validator",
+      "homodyne.optimization.nlsq.validation.result_validator",
+      "homodyne.optimization.nlsq.wrapper",
+      "homodyne.optimization.numerical_validation",
+      "homodyne.optimization.recovery_strategies"
+    ],
+    "headings": [
+      "Optimization Module",
+      "Overview",
+      "Module Contents",
+      "Primary Functions",
+      "NLSQ: Non-Linear Least Squares",
+      "Core Module",
+      "Wrapper (Legacy)",
+      "Key Features",
+      "NLSQAdapter",
+      "Key Classes",
+      "Key Features",
+      "Configuration",
+      "Cache Management",
+      "When to Use Which Adapter",
+      "Memory Management",
+      "Parameter Utilities",
+      "Parameter Index Mapper",
+      "Key Classes",
+      "Usage Example",
+      "Jacobian Utilities",
+      "Progress Tracking",
+      "Key Classes",
+      "Parameter Transforms",
+      "Results",
+      "Data Preparation",
+      "Key Classes",
+      "Fit Computation",
+      "Result Builder",
+      "Key Classes",
+      "Optimization Strategies",
+      "Chunking Strategy",
+      "Residual Functions",
+      "JIT-Compiled Residual Functions",
+      "Key Classes",
+      "Key Features",
+      "Sequential Optimization",
+      "Strategy Executors",
+      "Key Classes",
+      "Multi-Start Optimization",
+      "Key Classes",
+      "Configuration",
+      "Key Features",
+      "Determining n_starts",
+      "CLI Integration",
+      "CMA-ES Global Optimization",
+      "Key Classes",
+      "When to Use CMA-ES",
+      "Two-Phase Architecture",
+      "Configuration",
+      "Usage Example",
+      "CMA-ES vs Multi-Start vs Local",
+      "Streaming Optimizer for Large Datasets",
+      "Memory-Based Auto-Selection",
+      "Configuration",
+      "Performance Characteristics",
+      "Implementation Details",
+      "CMC: Consensus Monte Carlo",
+      "Core Module",
+      "Configuration",
+      "CMC vs Single-Shard MCMC Decision Logic",
+      "Sharding Strategy (Detailed)",
+      "Shard Size Selection Algorithm",
+      "Sharding Strategies",
+      "Memory Scalability",
+      "Runtime Estimation",
+      "Configuration Reference",
+      "Practical Guidelines",
+      "Model Definition",
+      "CMC Per-Angle Modes",
+      "Key Functions",
+      "CMC Convergence and Precision Fixes",
+      "Angle-Aware Shard Sizing",
+      "Angle-Balanced Sharding",
+      "NLSQ Warm-Start Priors",
+      "Constant-Averaged Per-Angle Mode",
+      "Early Abort Mechanism",
+      "NUTS Convergence Improvements",
+      "Precision Diagnostics",
+      "Configuration Reference",
+      "Shared Scaling Utilities",
+      "Priors",
+      "Prior Specifications",
+      "Data Preparation",
+      "Sampler",
+      "Parameter Scaling (Gradient Balancing)",
+      "Results",
+      "Diagnostics",
+      "Key Functions",
+      "Convergence Thresholds",
+      "I/O Operations",
+      "Plotting",
+      "Backends",
+      "Backend Selection",
+      "Per-Shard Sampling Behavior",
+      "Base Backend",
+      "Multiprocessing Backend",
+      "PJIT Backend",
+      "PBS Backend",
+      "Anti-Degeneracy Defense System",
+      "Fourier Reparameterization (Layer 1)",
+      "Key Classes",
+      "Hierarchical Optimization (Layer 2)",
+      "Key Classes",
+      "Adaptive Regularization (Layer 3)",
+      "Key Classes",
+      "Gradient Collapse Monitor (Layer 4)",
+      "Key Classes",
+      "Shear-Sensitivity Weighting (Layer 5)",
+      "Key Classes",
+      "Anti-Degeneracy Controller",
+      "Key Classes",
+      "NLSQ Configuration",
+      "Key Classes",
+      "Configuration Entry Point",
+      "Configuration Utilities (Deprecated)",
+      "NLSQAdapterBase",
+      "Key Classes",
+      "Shared Methods",
+      "Input and Result Validation",
+      "Input Validator",
+      "Key Functions",
+      "Result Validator",
+      "Key Functions",
+      "Fit Quality Validator",
+      "Key Classes",
+      "Quality Checks",
+      "Usage Example",
+      "Supporting Modules",
+      "Checkpoint Manager",
+      "Gradient Diagnostics",
+      "Exceptions",
+      "Recovery Strategies",
+      "Batch Statistics",
+      "Numerical Validation",
+      "Usage Examples",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "mod",
+        "target": "homodyne.optimization"
+      },
+      {
+        "role": "ref",
+        "target": "cmc-sharding-strategy"
+      },
+      {
+        "role": "doc",
+        "target": "/theory/anti_degeneracy_defense"
+      },
+      {
+        "role": "func",
+        "target": "~homodyne.optimization.nlsq.config.safe_float"
+      },
+      {
+        "role": "func",
+        "target": "~homodyne.optimization.nlsq.config.safe_int"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.core"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.config"
+      }
+    ]
+  },
+  "api/theory_engine.rst": {
+    "autoclass": [
+      "homodyne.core.theory.TheoryEngine"
+    ],
+    "autofunction": [],
+    "automodule": [
+      "homodyne.core.theory"
+    ],
+    "headings": [
+      "homodyne.core.theory",
+      "TheoryEngine",
+      "compute\\_g1",
+      "compute\\_g2",
+      "Usage Examples",
+      "Static mode",
+      "Laminar-flow mode (multi-angle)",
+      "Checking backend availability"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "func",
+        "target": "~homodyne.optimization.nlsq.core.fit_nlsq_jax"
+      },
+      {
+        "role": "func",
+        "target": "~homodyne.optimization.cmc.core.fit_mcmc_jax"
+      },
+      {
+        "role": "doc",
+        "target": "../theory/index"
+      }
+    ]
+  },
+  "api/utils.rst": {
+    "autoclass": [],
+    "autofunction": [
+      "homodyne.device.cpu.detect_cpu_info"
+    ],
+    "automodule": [
+      "homodyne.device.cpu",
+      "homodyne.utils.async_io",
+      "homodyne.utils.logging",
+      "homodyne.utils.path_validation"
+    ],
+    "headings": [
+      "Utilities",
+      "homodyne.utils.logging",
+      "Usage Examples",
+      "Basic logger",
+      "Phase timing",
+      "Performance decorator",
+      "Contextual logging (CMC shard)",
+      "Exception logging",
+      "CLI log configuration",
+      "homodyne.device",
+      "detect\\_cpu\\_info",
+      "Usage Example",
+      "homodyne.utils.path\\_validation",
+      "homodyne.utils.async\\_io"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "api/viz.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [
+      "homodyne.viz",
+      "homodyne.viz.datashader_backend",
+      "homodyne.viz.diagnostics",
+      "homodyne.viz.experimental_plots",
+      "homodyne.viz.mcmc_arviz",
+      "homodyne.viz.mcmc_comparison",
+      "homodyne.viz.mcmc_dashboard",
+      "homodyne.viz.mcmc_diagnostics",
+      "homodyne.viz.mcmc_plots",
+      "homodyne.viz.mcmc_report",
+      "homodyne.viz.nlsq_plots"
+    ],
+    "headings": [
+      "Visualization Module",
+      "Overview",
+      "Module Contents",
+      "Experimental Data Plots",
+      "Key Functions",
+      "C2 Heatmap Plotting",
+      "Usage Example",
+      "NLSQ Optimization Plots",
+      "Plot Generation",
+      "Usage Example",
+      "MCMC Diagnostic Plots",
+      "Diagnostic Functions",
+      "Trace Plots",
+      "Convergence Diagnostics",
+      "Posterior Distributions",
+      "CMC Summary Dashboard",
+      "KL Divergence Matrix",
+      "Datashader Backend (Optional)",
+      "Fast Plotting",
+      "Usage Example",
+      "Visualization Diagnostics",
+      "Diagonal Overlay Stats",
+      "Usage Example",
+      "Publication-Quality Figures",
+      "Color Maps",
+      "Best Practices",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "mod",
+        "target": "homodyne.viz"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.data"
+      }
+    ]
+  },
+  "architecture/cmc-fitting-architecture.md": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Homodyne CMC (Consensus Monte Carlo) Fitting Architecture",
+      "Table of Contents",
+      "High-Level Architecture",
+      "1. Entry Point & Orchestration",
+      "fit_mcmc_jax() Signature",
+      "Orchestration Flow",
+      "2. Data Preparation & Sharding",
+      "Data Validation (prepare_mcmc_data)",
+      "Sharding Strategies",
+      "3. Auto Shard Size Selection",
+      "Critical Design Principles (v2.20.0)",
+      "Angle-Aware Scaling",
+      "Decision Logic by Mode",
+      "Memory Capping",
+      "4. Time Grid Construction",
+      "5. Physics Model",
+      "Five Model Variants (v2.22.2)",
+      "Per-Angle Mode Selection (v2.22.2)",
+      "xpcs_model_scaled() Structure",
+      "xpcs_model_constant() Structure (v2.18.0)",
+      "Estimate per-angle contrast/offset from raw C2 data",
+      "Returns: {\"contrast_0\": 0.4, \"offset_0\": 0.95, ...}",
+      "For AUTO mode: average the estimates",
+      "xpcs_model_averaged() Structure (v2.22.2)",
+      "xpcs_model_constant_averaged() Structure (v2.22.2)",
+      "xpcs_model_reparameterized() Structure (v2.23.0)",
+      "Physics Computation",
+      "Compute g1 using exact same physics as NLSQ",
+      "g1_all_phi shape: (n_phi, n_points)",
+      "Map per-point g1 using phi indices",
+      "Apply per-angle scaling",
+      "Likelihood",
+      "6. Gradient Balancing (Z-Space)",
+      "The Problem",
+      "The Solution: Non-Centered Reparameterization",
+      "7. NUTS Sampling",
+      "run_nuts_sampling() Workflow",
+      "Key Dataclasses",
+      "8. Backend Execution",
+      "Backend Selection",
+      "MultiprocessingBackend (Primary)",
+      "WorkerPool Manager",
+      "Chain Parallelism (chain_method)",
+      "Config field in per_shard_mcmc:",
+      "9. Sample Combination",
+      "Hierarchical Combination",
+      "Combination Methods",
+      "10. Result Creation & Diagnostics",
+      "CMCResult Structure",
+      "CMCResult.from_mcmc_samples() Workflow",
+      "Additional Diagnostics Functions",
+      "Posterior quality vs NLSQ baseline",
+      "Returns: per-parameter {diff_pct, z_score, status} table",
+      "Flags parameters exceeding tolerance (default 3\u03c3)",
+      "Posterior uncertainty contraction (CMC vs prior)",
+      "Values near 1.0 = strong data constraint; near 0.0 = prior-dominated",
+      "Precision analysis for parameter absorption detection",
+      "End-of-run structured log summary",
+      "Emits: shard count, divergence rate, R-hat table, NLSQ comparison (if provided)",
+      "Convergence Status Determination",
+      "Complete Data Flow",
+      "Quick Reference Tables",
+      "Auto Shard Size Selection (v2.20.0)",
+      "Laminar Flow Mode (with n_phi \u2264 3, angle_factor = 0.6)",
+      "Static Mode",
+      "Dynamic max_shards by Dataset Size",
+      "Mode-Specific Parameters",
+      "CMC Configuration Defaults (v2.22.2)",
+      "Key Files Reference",
+      "Critical Features & Fixes",
+      "v2.14.2: Diagonal Point Filtering",
+      "v2.12.0: Correct Consensus MC",
+      "December 2025: Smooth Bounding",
+      "December 2025: Proper Time Grid Construction",
+      "Dense Mass Matrix",
+      "January 2026: Quality Filtering & Warm-Start (v2.19.0)",
+      "January 2026: CMC Divergence & Precision Loss Fix (v2.20.0)",
+      "CMCConfig Fields Added in v2.20.0",
+      "February 2026: Mode-Aware Consensus MC (v2.22.0)",
+      "January 2026: Heterogeneity Prevention (v2.21.0)",
+      "February 2026: NLSQ-Informed Priors & Prior Tempering (v2.22.2)",
+      "February 2026: Adaptive Sampling & SamplingPlan (v2.22.2)",
+      "February 2026: JAX Profiling Support (v2.22.2)",
+      "February 2026: Constant-Averaged Mode & NLSQ Parity (v2.22.2)"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "architecture/data-handler-architecture.md": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Homodyne Data Handler Architecture",
+      "Table of Contents",
+      "High-Level Architecture",
+      "1. Configuration System",
+      "ConfigManager",
+      "YAML Configuration Schema",
+      "Top-level sections",
+      "ConfigManager Key Methods",
+      "ParameterManager",
+      "JSON Configuration Support",
+      "Load JSON config (same structure as YAML)",
+      "Migrate legacy JSON config to modern nested YAML structure",
+      "Apply default values to partially-specified config dict",
+      "Validate config structure, return result with issues list",
+      "Generate a complete example YAML config (for homodyne-config)",
+      "ParameterSpace (for CMC)",
+      "ParameterRegistry (Singleton)",
+      "\u2192 [\"D0\", \"alpha\", \"D_offset\", \"gamma_dot_t0\", \"beta\", \"gamma_dot_t_offset\", \"phi0\"]",
+      "\u2192 [\"contrast_0\", ..., \"contrast_22\", \"offset_0\", ..., \"offset_22\", \"D0\", ...]",
+      "Parameter Name Constants",
+      "config/parameter_names.py",
+      "2. Data Loading",
+      "XPCSDataLoader",
+      "load_experimental_data() Flow",
+      "Convenience Function: load_xpcs_data()",
+      "Module-level convenience wrapper \u2014 avoids constructing XPCSDataLoader directly",
+      "Equivalent to: XPCSDataLoader(...).load_experimental_data()",
+      "Preferred for one-shot scripts; XPCSDataLoader for repeated loads (caches state)",
+      "Return Data Structure",
+      "Returns:",
+      "3. HDF5 Format Detection & Loading",
+      "Format Detection",
+      "Half-Triangle Reconstruction",
+      "Diagonal Correction",
+      "Q-Vector Selection",
+      "4. Data Filtering",
+      "Filtering Pipeline",
+      "Validators",
+      "data/validators.py - Input validation at I/O boundaries",
+      "Supports wrapped phi ranges (min > max)",
+      "5. Preprocessing Pipeline",
+      "PreprocessingPipeline",
+      "Provenance Tracking",
+      "6. Quality Control",
+      "DataQualityController",
+      "Quality Control Result",
+      "QualityLevel Enum",
+      "7. Caching & Performance",
+      "Multi-Level Cache",
+      "AdaptiveChunker",
+      "Async I/O Utilities",
+      "Cache NPZ Format",
+      "Saved via _save_to_cache() [xpcs_loader.py]",
+      "Note: q_vector_hash and dt are NOT stored in the cache NPZ.",
+      "8. Memory Management",
+      "AdvancedMemoryManager",
+      "AdvancedDatasetOptimizer",
+      "9. Result Writing (NLSQ)",
+      "save_nlsq_json_files()",
+      "save_nlsq_npz_file()",
+      "10. Result Writing (CMC)",
+      "mcmc_writers.py (High-Level Dictionaries)",
+      "CMC JSON Output Files",
+      "cmc/io.py (Lower-Level CMC I/O)",
+      "JSON Serialization Safety",
+      "11. CLI Orchestration",
+      "Result Saving Flow",
+      "T=0 Exclusion",
+      "Metadata Extraction",
+      "Output Directory Structure",
+      "Complete Data Flow",
+      "Quick Reference Tables",
+      "Data Shapes at Each Stage",
+      "Configuration Defaults",
+      "Error Types",
+      "JSON Output Summary",
+      "Key Files Reference",
+      "Data Loading (`homodyne/data/`)",
+      "Configuration (`homodyne/config/`)",
+      "Result Writing (`homodyne/io/`)",
+      "CMC-Specific I/O (`homodyne/optimization/cmc/`)"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "architecture/homodyne-architecture-overview.md": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Homodyne Architecture Overview",
+      "Table of Contents",
+      "System Overview",
+      "Design Principles",
+      "1. Package Structure",
+      "Size Distribution",
+      "2. Initialization & Environment",
+      "Package Import Sequence",
+      "Environment Variables",
+      "Lazy Import System",
+      "3. CLI Layer",
+      "Console Scripts",
+      "CLI Dispatch Flow",
+      "Argument Groups (`args_parser.py`)",
+      "4. Configuration System",
+      "Configuration Pipeline",
+      "Key Classes",
+      "Parameter Flow by Analysis Mode",
+      "5. Data Loading Pipeline",
+      "Pipeline Stages",
+      "Key Output Arrays",
+      "6. Physical Model Layer",
+      "Model Hierarchy",
+      "Shadow-Copy Architecture (5 Parallel Implementations)",
+      "Numerical Stability",
+      "7. NLSQ Optimization",
+      "Entry Points",
+      "Recommended: NLSQAdapter with auto-fallback",
+      "Full features: NLSQWrapper",
+      "Optimization Pipeline",
+      "Memory-Aware Routing",
+      "8. CMC Bayesian Inference",
+      "Entry Point",
+      "Always NLSQ first for warm-start",
+      "CMC Pipeline",
+      "Backend Comparison",
+      "9. IO & Result Serialization",
+      "NLSQ Output",
+      "CMC Output",
+      "NaN-Safe JSON Serialization",
+      "10. Visualization",
+      "Plot Types",
+      "Rendering Strategy",
+      "11. Device & HPC Configuration",
+      "CPU Topology Detection",
+      "XLA Configuration",
+      "12. Utilities",
+      "Structured Logging (`utils/logging.py`, 1,145 lines)",
+      "Path Security (`utils/path_validation.py`, 299 lines)",
+      "13. Runtime & Deployment",
+      "System Validator (`runtime/utils/system_validator.py`, 1,470 lines)",
+      "Shell Completion System",
+      "14. Fault Tolerance & Recovery",
+      "Checkpoint Manager (`checkpoint_manager.py`, 507 lines)",
+      "Exception Hierarchy (`exceptions.py`, 352 lines)",
+      "Recovery Strategies (`recovery_strategies.py`, 209 lines)",
+      "Numerical Validation (`numerical_validation.py`, 254 lines)",
+      "Gradient Diagnostics (`gradient_diagnostics.py`, 437 lines)",
+      "15. Cross-Cutting Concerns",
+      "NLSQ \u2192 CMC Integration",
+      "Per-Angle Scaling (Cross-System)",
+      "Float64 Enforcement",
+      "JIT Compilation Cache",
+      "In each CMC worker process (after importing JAX):",
+      "Complete End-to-End Flow",
+      "Module Size & Dependency Matrix",
+      "Internal Dependency Flow",
+      "Cross-Module Hub Nodes",
+      "External Dependencies",
+      "Test Coverage",
+      "Architecture Decision Records",
+      "ADR-1: CPU-Only Architecture",
+      "ADR-2: Shadow-Copy Physics Implementation",
+      "ADR-3: Lazy Import System",
+      "ADR-4: NLSQ-First Workflow",
+      "ADR-5: Per-Angle Scaling System",
+      "ADR-6: Gradient-Safe Floors",
+      "ADR-7: JIT Cache via Config API",
+      "Companion Documents",
+      "Navigation Guide"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "architecture/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Architecture Deep Dives"
+    ],
+    "toctree": [
+      "homodyne-architecture-overview",
+      "physical-model-architecture",
+      "nlsq-fitting-architecture",
+      "cmc-fitting-architecture",
+      "data-handler-architecture"
+    ],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "../developer/architecture"
+      },
+      {
+        "role": "doc",
+        "target": "../developer/adrs/index"
+      },
+      {
+        "role": "doc",
+        "target": "homodyne-architecture-overview"
+      },
+      {
+        "role": "doc",
+        "target": "physical-model-architecture"
+      },
+      {
+        "role": "doc",
+        "target": "nlsq-fitting-architecture"
+      },
+      {
+        "role": "doc",
+        "target": "cmc-fitting-architecture"
+      },
+      {
+        "role": "doc",
+        "target": "data-handler-architecture"
+      }
+    ]
+  },
+  "architecture/nlsq-fitting-architecture.md": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Homodyne NLSQ Fitting Architecture",
+      "Table of Contents",
+      "High-Level Architecture",
+      "1. Setup Phase",
+      "Input Validation & Conversion",
+      "Parameter Initialization",
+      "2. Global Optimization Selection",
+      "Decision Flow",
+      "Scale Ratio Computation",
+      "CMAESWrapper.compute_scale_ratio()",
+      "Example: laminar_flow mode",
+      "Global Optimization Comparison",
+      "3. CMA-ES Global Optimization",
+      "When to Use CMA-ES",
+      "Architecture",
+      "CMA-ES vs NLSQ Internal Refinement",
+      "Configuration",
+      "Usage Example",
+      "Create wrapper with custom config",
+      "Check if CMA-ES is appropriate for this problem",
+      "4. Adapter Selection",
+      "Adapter Comparison",
+      "5. Memory & Strategy Selection",
+      "Memory Estimation",
+      "Adaptive Threshold",
+      "Strategy Decision Tree",
+      "Strategy to Executor Mapping",
+      "6. Stratification Decision",
+      "Decision Logic",
+      "Angle-Stratified Chunking",
+      "7. Residual Function Setup",
+      "Comparison",
+      "Residual Computation Flow",
+      "Optimizations",
+      "8. Anti-Degeneracy Defense System",
+      "Root Problem: Structural Degeneracy",
+      "Layer 1: Fourier Reparameterization",
+      "Layer 2: Hierarchical Optimization",
+      "Layer 3: Adaptive CV Regularization",
+      "Layer 4: Gradient Collapse Monitor",
+      "Layer 5: Shear-Sensitivity Weighting",
+      "9. Strategy Execution",
+      "STANDARD Strategy (StandardExecutor)",
+      "OUT_OF_CORE Strategy (LargeDatasetExecutor)",
+      "HYBRID_STREAMING Strategy (StreamingExecutor)",
+      "Parallel Chunk Accumulation",
+      "Shared Memory Layout (OOCSharedArrays)",
+      "OOCComputePool \u2014 Persistent Worker Pool",
+      "JIT Kernel Factory (create_ooc_kernels)",
+      "Parallel Reduction (accumulate_chunks_parallel)",
+      "10. Error Recovery",
+      "3-Attempt Recovery System",
+      "11. Result Building",
+      "OptimizationResult Structure",
+      "Alias used in some contexts (same type)",
+      "Related Dataclasses",
+      "ResultBuilder Fluent Interface",
+      "Quality Flag Determination",
+      "Quick Reference Tables",
+      "Strategy Selection",
+      "Mode-Specific Parameters",
+      "Jacobian Overhead Factor Evolution",
+      "Key Files Reference",
+      "NLSQ as CMC Warm-Start Provider (v2.20.0)",
+      "The Problem: Cold-Start CMC Divergence",
+      "Automatic Warm-Start via CLI (v2.20.0)",
+      "API Usage",
+      "Step 1: Run NLSQ first",
+      "Step 2: Pass NLSQ result to CMC for warm-start",
+      "Benefits of NLSQ Warm-Start",
+      "NLSQ and Bimodal CMC Posteriors (v2.22.0)"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "architecture/physical-model-architecture.md": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Homodyne Physical Model Architecture",
+      "Table of Contents",
+      "High-Level Architecture",
+      "1. Mathematical Foundation",
+      "The Homodyne XPCS Model",
+      "Time-Dependent Coefficients",
+      "Correlation Functions",
+      "Integration Method",
+      "2. Physical Constants & Validation",
+      "PhysicsConstants",
+      "Parameter Bounds",
+      "Validation Functions",
+      "ValidationResult Dataclass",
+      "3. Model Hierarchy",
+      "Class Hierarchy",
+      "PhysicsModelBase (ABC)",
+      "DiffusionModel",
+      "ShearModel",
+      "CombinedModel (Primary Model)",
+      "Factory Functions",
+      "4. Physics Factors Pre-Computation",
+      "PhysicsFactors Dataclass",
+      "5. JIT-Compiled Computation Kernels",
+      "Meshgrid Caching",
+      "Core Kernel: g1 Diffusion",
+      "Core Kernel: g1 Shear",
+      "Core Kernel: g1 Total",
+      "Broadcast and multiply",
+      "Gradient-safe lower floor",
+      "Core Kernel: g2 Scaled",
+      "Public Wrapper Functions",
+      "Automatic Differentiation (Module-Level)",
+      "Vectorization (Module-Level)",
+      "6. Shadow-Copy Architecture",
+      "Shadow-Copy Registry",
+      "Why Shadow Copies Exist",
+      "NLSQ-Specific Path",
+      "Public API",
+      "CMC-Specific Path",
+      "ShardGrid (NamedTuple)",
+      "Shared Utilities",
+      "Consistency Invariants (Verified Across All 5 Paths)",
+      "7. Per-Angle Scaling System",
+      "Overview",
+      "Quantile-Based Estimation Algorithm",
+      "Functions",
+      "The 4 Per-Angle Modes",
+      "8. Numerical Stability Techniques",
+      "Log-Space Computation",
+      "Instead of: g1 = exp(-wq_dt * D_integral)   \u2192 underflow for large D_integral",
+      "Use:",
+      "Gradient-Safe Floors (CLAUDE.md Rule 7)",
+      "CORRECT: preserves gradients (d/dx = 1 for x < eps)",
+      "INCORRECT: zeros gradients (d/dx = 0 for x < eps)",
+      "Smooth Absolute Value",
+      "For integral matrices: need |cumsum[i] - cumsum[j]|",
+      "Taylor Expansion for sinc",
+      "Singularity Floor for Power Laws",
+      "D(t) = D0 * t^alpha \u2192 undefined at t=0 when alpha < 0",
+      "Float64 Requirement",
+      "9. Automatic Differentiation & Fallback",
+      "JAX Automatic Differentiation (Primary)",
+      "NumPy Numerical Differentiation (Fallback)",
+      "Model Mixins (Gradient Dispatch)",
+      "10. HomodyneModel Unified Interface",
+      "Design Pattern",
+      "Construction",
+      "Key Methods",
+      "Analysis Mode Detection",
+      "11. TheoryEngine High-Level API",
+      "Purpose",
+      "Methods",
+      "Convenience Functions",
+      "12. Fitting Infrastructure",
+      "ParameterSpace",
+      "FitResult",
+      "JIT-Compiled Least Squares Solvers",
+      "Diagonal Correction",
+      "UnifiedHomodyneEngine",
+      "Complete Computation Flow",
+      "Static Mode (3 Parameters)",
+      "Laminar Flow Mode (7 Parameters)",
+      "CMC Shard Computation",
+      "Quick Reference Tables",
+      "Parameter Summary",
+      "Memory Layout",
+      "JIT Compilation Points",
+      "Numerical Constants",
+      "Key Files Reference",
+      "Core Physics Model (~9,100 lines)",
+      "Integration Points"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "configuration/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Configuration",
+      "Overview",
+      "Configuration Sections",
+      "Quick Links",
+      "Working with Configurations",
+      "Interactive Configuration Builder",
+      "Validating Configurations",
+      "Running Analysis with Configuration",
+      "Analysis Modes",
+      "Static Mode (3 physical parameters)",
+      "Laminar Flow Mode (7 physical parameters)",
+      "Per-Angle Scaling",
+      "Configuration Features",
+      "Data Filtering and Caching",
+      "Optimization Configuration",
+      "Performance Tuning",
+      "Output Configuration",
+      "Validation and Quality Control",
+      "Configuration Examples",
+      "Version Information",
+      "Environment Validation",
+      "For Questions"
+    ],
+    "toctree": [
+      "templates",
+      "options"
+    ],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "templates"
+      },
+      {
+        "role": "doc",
+        "target": "options"
+      },
+      {
+        "role": "doc",
+        "target": "/developer/index"
+      },
+      {
+        "role": "doc",
+        "target": "templates"
+      },
+      {
+        "role": "doc",
+        "target": "options"
+      },
+      {
+        "role": "doc",
+        "target": "options"
+      },
+      {
+        "role": "doc",
+        "target": "templates"
+      },
+      {
+        "role": "doc",
+        "target": "/configuration/options"
+      },
+      {
+        "role": "doc",
+        "target": "/developer/index"
+      }
+    ]
+  },
+  "configuration/options.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Configuration Options Reference",
+      "Configuration Structure",
+      "Metadata Section",
+      "Analysis Mode",
+      "Analyzer Parameters Section",
+      "Experimental Data Section",
+      "Phi Angle Filtering Section",
+      "Initial Parameters Section",
+      "Parameter Space Section",
+      "Static Mode Bounds",
+      "Laminar Flow Mode Bounds",
+      "Optimization Section",
+      "NLSQ Configuration",
+      "CMA-ES Configuration",
+      "Stratification Configuration",
+      "Sequential Optimization",
+      "Anti-Degeneracy Configuration",
+      "MCMC Configuration",
+      "Sharding Configuration (CMC)",
+      "Initial Values Configuration",
+      "Backend Configuration",
+      "Subposterior Combination",
+      "Per-Shard MCMC",
+      "Adaptive Sampling",
+      "JAX Profiling",
+      "Convergence Validation",
+      "Quality Filtering",
+      "Performance Section",
+      "Logging Section",
+      "Output Section",
+      "Plotting Section",
+      "Validation Section",
+      "Quick Reference Table",
+      "Common Configuration Patterns",
+      "For Examples",
+      "For Validation"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "/theory/anti_degeneracy_defense"
+      },
+      {
+        "role": "doc",
+        "target": "templates"
+      }
+    ]
+  },
+  "configuration/templates.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Configuration Templates",
+      "Template Overview",
+      "Getting Started",
+      "Static Mode Template",
+      "Laminar Flow Mode Template",
+      "Workflow Guidance",
+      "NLSQ \u2192 MCMC Workflow",
+      "Per-Angle Scaling Details",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "D(t,\\phi) = D_0 \\cdot t^\\alpha + D_{\\text{offset}}"
+      },
+      {
+        "role": "math",
+        "target": "D(t,\\phi) = D_0 \\cdot t^\\alpha + D_{\\text{offset}} + \\text{shear effects}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}(t) = \\dot{\\gamma}_0 \\cdot t^\\beta + \\dot{\\gamma}_{\\text{offset}}"
+      },
+      {
+        "role": "doc",
+        "target": "/configuration/options"
+      },
+      {
+        "role": "doc",
+        "target": "/developer/index"
+      }
+    ]
+  },
+  "contributing.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Contributing to Homodyne",
+      "Quick Links",
+      "How to Contribute",
+      "Code of Conduct"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "developer/index"
+      },
+      {
+        "role": "doc",
+        "target": "developer/contributing_guide"
+      },
+      {
+        "role": "doc",
+        "target": "developer/testing_guide"
+      },
+      {
+        "role": "doc",
+        "target": "developer/architecture"
+      }
+    ]
+  },
+  "developer/adrs/adr_001_jax_cpu_only.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-001: JAX CPU-Only Backend",
+      "Context",
+      "Decision",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "N_t^2 \\times N_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "1000^2 \\times 23 \\approx 23 \\times 10^6"
+      },
+      {
+        "role": "math",
+        "target": "\\sim 10^8"
+      },
+      {
+        "role": "ref",
+        "target": "adr_no_consumer_gpu"
+      },
+      {
+        "role": "ref",
+        "target": "developer_architecture"
+      },
+      {
+        "role": "ref",
+        "target": "adr_nlsq_primary"
+      },
+      {
+        "role": "ref",
+        "target": "adr_cmc_consensus"
+      }
+    ]
+  },
+  "developer/adrs/adr_002_nlsq_cmc_split.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-002: NLSQ / CMC Architectural Split",
+      "Context",
+      "Decision",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\hat{\\theta}_\\mathrm{MLE}"
+      },
+      {
+        "role": "math",
+        "target": "\\{\\theta^{(k)}\\}"
+      },
+      {
+        "role": "math",
+        "target": "c_2(t_i, t_j)"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "(D_0, \\dot{\\gamma}_0)"
+      },
+      {
+        "role": "math",
+        "target": "(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "\\partial r_{ij} / \\partial\\theta"
+      },
+      {
+        "role": "math",
+        "target": "\\theta"
+      },
+      {
+        "role": "math",
+        "target": "(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "\\Sigma_\\mathrm{NLSQ} = (J^\\top W J)^{-1}"
+      },
+      {
+        "role": "ref",
+        "target": "developer_architecture"
+      },
+      {
+        "role": "ref",
+        "target": "adr_cmc_consensus"
+      },
+      {
+        "role": "ref",
+        "target": "theory_computational_methods"
+      }
+    ]
+  },
+  "developer/adrs/adr_003_anti_degeneracy.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-003: Anti-Degeneracy Layer for Laminar Flow",
+      "Context",
+      "Decision",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\phi_k"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "c_\\mathrm{offset}(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "2 \\times 23 = 46"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "D_0 \\approx 0"
+      },
+      {
+        "role": "class",
+        "target": "~homodyne.optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController"
+      },
+      {
+        "role": "math",
+        "target": "(\\bar{\\beta}, \\bar{c}_\\mathrm{offset})"
+      },
+      {
+        "role": "math",
+        "target": "\\phi = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "(D_0, \\dot{\\gamma}_0)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "math",
+        "target": "c_2 = 1 + \\beta |c_1|^2"
+      },
+      {
+        "role": "math",
+        "target": "|c_1|^2 \\to |c_1|^2 / k"
+      },
+      {
+        "role": "math",
+        "target": "\\beta \\to k\\beta"
+      },
+      {
+        "role": "math",
+        "target": "c_1"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "math",
+        "target": "D_0 \\approx 0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k) = \\beta_\\mathrm{fixed}"
+      },
+      {
+        "role": "math",
+        "target": "\\lambda \\sum_k (\\beta_k - \\bar{\\beta})^2"
+      },
+      {
+        "role": "math",
+        "target": "\\lambda"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "\\beta_k \\sim \\mathcal{N}(\\mu_\\beta, \\sigma_\\beta)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.anti_degeneracy_controller"
+      },
+      {
+        "role": "ref",
+        "target": "adr_nlsq_primary"
+      }
+    ]
+  },
+  "developer/adrs/adr_004_consensus_monte_carlo.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-004: Consensus Monte Carlo for Bayesian Inference",
+      "Context",
+      "Decision",
+      "Shard Size Selection",
+      "Chain Execution Method",
+      "Worker Environment",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "10^8"
+      },
+      {
+        "role": "math",
+        "target": "c_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "O(n)"
+      },
+      {
+        "role": "math",
+        "target": "n"
+      },
+      {
+        "role": "math",
+        "target": "10^8"
+      },
+      {
+        "role": "math",
+        "target": "10^{10}"
+      },
+      {
+        "role": "math",
+        "target": "n"
+      },
+      {
+        "role": "math",
+        "target": "M"
+      },
+      {
+        "role": "math",
+        "target": "n_s \\approx n/M"
+      },
+      {
+        "role": "math",
+        "target": "K"
+      },
+      {
+        "role": "math",
+        "target": "\\{\\theta^{(k)}_s\\}"
+      },
+      {
+        "role": "math",
+        "target": "p_s(\\theta | \\mathcal{D}_s)"
+      },
+      {
+        "role": "math",
+        "target": "M"
+      },
+      {
+        "role": "math",
+        "target": "p(\\theta | \\mathcal{D})"
+      },
+      {
+        "role": "math",
+        "target": "N_\\mathrm{workers} = \\lfloor N_\\mathrm{cores}/2\\rfloor - 1"
+      },
+      {
+        "role": "math",
+        "target": "n_s"
+      },
+      {
+        "role": "math",
+        "target": "O(n_s)"
+      },
+      {
+        "role": "math",
+        "target": "n_s"
+      },
+      {
+        "role": "math",
+        "target": "(t_1, t_2, \\phi)"
+      },
+      {
+        "role": "math",
+        "target": "M"
+      },
+      {
+        "role": "math",
+        "target": "P"
+      },
+      {
+        "role": "math",
+        "target": "O(n_s \\cdot L)"
+      },
+      {
+        "role": "math",
+        "target": "O(n \\cdot L)"
+      },
+      {
+        "role": "math",
+        "target": "O(M \\cdot K)"
+      },
+      {
+        "role": "math",
+        "target": "O(n / (P \\cdot n_s))"
+      },
+      {
+        "role": "math",
+        "target": "1/P"
+      },
+      {
+        "role": "math",
+        "target": "O(n_s)"
+      },
+      {
+        "role": "math",
+        "target": "\\hat{R}"
+      },
+      {
+        "role": "math",
+        "target": "O(n)"
+      },
+      {
+        "role": "math",
+        "target": "O(\\text{epochs} \\cdot n_\\mathrm{minibatch})"
+      },
+      {
+        "role": "math",
+        "target": "(D_0, \\dot{\\gamma}_0)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_citations"
+      },
+      {
+        "role": "ref",
+        "target": "theory_computational_methods"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.cmc.backends.multiprocessing"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.cmc.sampler"
+      }
+    ]
+  },
+  "developer/adrs/adr_005_per_angle_scaling.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-005: Per-Angle Scaling Modes",
+      "Context",
+      "Decision",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "ref",
+        "target": "adr_anti_degeneracy"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "c_\\mathrm{offset}(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "K"
+      },
+      {
+        "role": "math",
+        "target": "K=2"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k) \\sim \\mathcal{N}(\\mu_\\beta, \\sigma_\\beta^2)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "ref",
+        "target": "adr_anti_degeneracy"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.anti_degeneracy_controller"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.fourier_reparam"
+      }
+    ]
+  },
+  "developer/adrs/adr_006_no_consumer_gpu.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-006: No GPU Acceleration on Consumer Hardware",
+      "Context",
+      "Decision",
+      "Rationale",
+      "Consequences",
+      "When to Revisit"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "ref",
+        "target": "adr_jax_cpu_only"
+      },
+      {
+        "role": "math",
+        "target": "D_0 \\sim 10^4"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0 \\sim 10^{-3}"
+      },
+      {
+        "role": "math",
+        "target": "\\sim 1.2 \\times 10^{-7}"
+      },
+      {
+        "role": "math",
+        "target": "(23, 1000, 1000, 7)"
+      },
+      {
+        "role": "math",
+        "target": "\\geq"
+      },
+      {
+        "role": "ref",
+        "target": "adr_jax_cpu_only"
+      },
+      {
+        "role": "ref",
+        "target": "adr_cmc_consensus"
+      },
+      {
+        "role": "ref",
+        "target": "adr_nlsq_primary"
+      }
+    ]
+  },
+  "developer/adrs/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Architecture Decision Records"
+    ],
+    "toctree": [
+      "adr_001_jax_cpu_only",
+      "adr_002_nlsq_cmc_split",
+      "adr_003_anti_degeneracy",
+      "adr_004_consensus_monte_carlo",
+      "adr_005_per_angle_scaling",
+      "adr_006_no_consumer_gpu"
+    ],
+    "xrefs": []
+  },
+  "developer/architecture.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "System Architecture",
+      "Component Overview",
+      "Data Flow",
+      "Core Module Map",
+      "NLSQ Module Map",
+      "CMC Module Map",
+      "CLI Module Map",
+      "Visualization Module Map",
+      "Key Design Decisions",
+      "Module Dependency Map"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "c_2(t_i, t_j)"
+      },
+      {
+        "role": "math",
+        "target": "(i,j)"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "(t_1, t_2)"
+      },
+      {
+        "role": "ref",
+        "target": "adr_jax_cpu_only"
+      },
+      {
+        "role": "ref",
+        "target": "adr_nlsq_primary"
+      },
+      {
+        "role": "ref",
+        "target": "developer_contributing"
+      },
+      {
+        "role": "ref",
+        "target": "developer_testing"
+      },
+      {
+        "role": "ref",
+        "target": "adr_jax_cpu_only"
+      },
+      {
+        "role": "ref",
+        "target": "adr_nlsq_primary"
+      },
+      {
+        "role": "ref",
+        "target": "adr_cmc_consensus"
+      },
+      {
+        "role": "ref",
+        "target": "adr_anti_degeneracy"
+      }
+    ]
+  },
+  "developer/contributing_guide.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Contributing to Homodyne",
+      "Development Setup with uv",
+      "Installing Development Environment",
+      "Verifying Installation",
+      "Code Quality Standards",
+      "Black - Code Formatting",
+      "Ruff - Linting",
+      "MyPy - Type Checking",
+      "Complete Quality Check",
+      "Before Committing",
+      "Testing with Pytest",
+      "Test Organization",
+      "Running Tests",
+      "Writing Tests",
+      "Code Coverage Requirements",
+      "JAX and CPU Debugging",
+      "Common JAX Debugging Commands",
+      "CPU Performance Tips",
+      "Pull Request Guidelines",
+      "Before Submitting",
+      "PR Description Template",
+      "Commit Message Guidelines",
+      "Standard Commit Prefixes",
+      "Reference Material",
+      "Getting Help"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "/developer/testing_guide"
+      },
+      {
+        "role": "doc",
+        "target": "/configuration/index"
+      }
+    ]
+  },
+  "developer/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Developer Guide",
+      "Quick Reference",
+      "Architecture Overview"
+    ],
+    "toctree": [
+      "contributing_guide",
+      "testing_guide",
+      "architecture",
+      "adrs/index",
+      "parameter_bounds_verification"
+    ],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "architecture"
+      },
+      {
+        "role": "doc",
+        "target": "adrs/index"
+      },
+      {
+        "role": "doc",
+        "target": "../architecture/index"
+      }
+    ]
+  },
+  "developer/parameter_bounds_verification.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Parameter Bounds Codebase Verification",
+      "Verified Source Files",
+      "Verified Bounds (All Sources Consistent)",
+      "Registry Defaults and Priors",
+      "YAML Template Prior Overrides",
+      "NLSQ Bounds Flow",
+      "CMC Prior Construction",
+      "Physics Validators (Soft Constraints)",
+      "Mode Selection Logic",
+      "Documentation Corrections Applied (2026-03-03)"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "developer/testing_guide.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Testing Guide",
+      "Test Organization",
+      "Unit Tests",
+      "Integration Tests",
+      "Performance Tests",
+      "MCMC Tests",
+      "Running Tests",
+      "Quick Test Commands",
+      "Test-Specific Commands",
+      "Advanced Pytest Options",
+      "Code Coverage",
+      "Measuring Coverage",
+      "Coverage Requirements",
+      "Improving Coverage",
+      "JAX Debugging",
+      "Understanding JAX Compilation",
+      "Profiling JAX Code",
+      "JAX Device Configuration",
+      "Common JAX Debugging Issues",
+      "Environment Variables",
+      "Continuous Integration",
+      "Troubleshooting Tests",
+      "Test Failures",
+      "Flaky Tests",
+      "Reference Commands",
+      "Quick Reference Table",
+      "For Development"
+    ],
+    "toctree": [],
+    "xrefs": []
+  },
+  "examples/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Examples",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "/user_guide/index"
+      },
+      {
+        "role": "doc",
+        "target": "/user_guide/02_data_and_fitting/data_loading"
+      },
+      {
+        "role": "doc",
+        "target": "/api/index"
+      }
+    ]
+  },
+  "index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Homodyne",
+      "At a Glance",
+      "Key Features",
+      "Quick Start",
+      "Documentation",
+      "Citation",
+      "Community and Support"
+    ],
+    "toctree": [
+      "user_guide/index",
+      "theory/index",
+      "configuration/index",
+      "api/index",
+      "examples/index",
+      "developer/index",
+      "architecture/index",
+      "installation",
+      "quickstart",
+      "contributing"
+    ],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\geq"
+      },
+      {
+        "role": "math",
+        "target": "\\geq"
+      },
+      {
+        "role": "doc",
+        "target": "quickstart"
+      },
+      {
+        "role": "doc",
+        "target": "user_guide/index"
+      },
+      {
+        "role": "doc",
+        "target": "theory/index"
+      },
+      {
+        "role": "doc",
+        "target": "configuration/index"
+      },
+      {
+        "role": "doc",
+        "target": "api/index"
+      },
+      {
+        "role": "doc",
+        "target": "examples/index"
+      },
+      {
+        "role": "doc",
+        "target": "developer/index"
+      },
+      {
+        "role": "doc",
+        "target": "architecture/index"
+      }
+    ]
+  },
+  "installation.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Installation",
+      "Requirements",
+      "Install with pip",
+      "Install with uv (Recommended)",
+      "Development Install",
+      "Verify Installation",
+      "Shell Completion Setup",
+      "Exit Codes",
+      "Environment Variables",
+      "CPU Optimization Notes",
+      "Uninstall"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "user_guide/04_practical_guides/performance_tuning"
+      }
+    ]
+  },
+  "quickstart.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Quick Start \u2014 5 Minutes to First Analysis",
+      "Step 1: Install",
+      "Step 2: Generate a Configuration File",
+      "Step 3: Load Data",
+      "Step 4: Run Static NLSQ Analysis",
+      "Step 5: Run from the Command Line",
+      "Interpreting Results",
+      "Next Steps"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "installation"
+      },
+      {
+        "role": "doc",
+        "target": "user_guide/04_practical_guides/configuration"
+      },
+      {
+        "role": "doc",
+        "target": "user_guide/index"
+      },
+      {
+        "role": "doc",
+        "target": "user_guide/02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "user_guide/03_advanced_topics/bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "user_guide/03_advanced_topics/laminar_flow"
+      },
+      {
+        "role": "doc",
+        "target": "theory/index"
+      },
+      {
+        "role": "doc",
+        "target": "api/index"
+      }
+    ]
+  },
+  "theory/analysis_modes.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Analysis Modes",
+      "Mode Overview",
+      "Static Mode",
+      "Physical Parameters (3)",
+      "Parameter Bounds (Static Mode)",
+      "Diffusion Integral",
+      "Laminar Flow Mode",
+      "Physical Parameters (7)",
+      "Parameter Bounds (Laminar Flow Mode)",
+      "Shear Integral",
+      "Parameter Bounds and Priors (NLSQ & CMC)",
+      "Example YAML snippet",
+      "Per-Angle Scaling",
+      "Scaling Parameters (Per Angle)",
+      "Total Parameter Count",
+      "Parameter Ordering",
+      "Mode Selection Guidelines",
+      "When to Use Static Mode",
+      "When to Use Laminar Flow Mode",
+      "Physical Constraints",
+      "Configuration Example"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha = 0"
+      },
+      {
+        "role": "sup",
+        "target": "2"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha = 0"
+      },
+      {
+        "role": "math",
+        "target": "0"
+      },
+      {
+        "role": "math",
+        "target": "D_{\\text{offset}}"
+      },
+      {
+        "role": "sup",
+        "target": "2"
+      },
+      {
+        "role": "math",
+        "target": "[t_1, t_2]"
+      },
+      {
+        "role": "doc",
+        "target": "computational_methods"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_{\\text{offset}}"
+      },
+      {
+        "role": "sup",
+        "target": "2"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_{\\text{offset}}"
+      },
+      {
+        "role": "sup",
+        "target": "-1"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "[t_1, t_2]"
+      },
+      {
+        "role": "doc",
+        "target": "computational_methods"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.config.parameter_space"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.cmc.priors"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_i"
+      },
+      {
+        "role": "math",
+        "target": "\\beta_i"
+      },
+      {
+        "role": "math",
+        "target": "c_{0,i}"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "3 + 2 \\times 3 = 9"
+      },
+      {
+        "role": "math",
+        "target": "7 + 2 \\times 3 = 13"
+      },
+      {
+        "role": "math",
+        "target": "7 + 2 \\times 5 = 17"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0 \\geq 0"
+      },
+      {
+        "role": "math",
+        "target": "\\text{contrast}_i \\in [0, 1]"
+      },
+      {
+        "role": "math",
+        "target": "|\\alpha| \\leq 2"
+      },
+      {
+        "role": "math",
+        "target": "|\\beta| \\leq 2"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0 \\in [-10^\\circ, 10^\\circ]"
+      },
+      {
+        "role": "doc",
+        "target": "../configuration/templates"
+      }
+    ]
+  },
+  "theory/anti_degeneracy.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Per-Angle Scaling and Anti-Degeneracy",
+      "The Parameter Absorption Degeneracy",
+      "Per-Angle Modes",
+      "Mathematical Formulation",
+      "Parameter Count Summary",
+      "When to Use Each Mode",
+      "Implementation Reference"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi)"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_k"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "D_0 \\to D_0 + \\delta"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k) \\to \\beta(\\phi_k) \\cdot e^{q^2\\delta t_\\mathrm{ref}}"
+      },
+      {
+        "role": "math",
+        "target": "k"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "k"
+      },
+      {
+        "role": "math",
+        "target": "D_0 \\approx 0"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "c_\\mathrm{offset}(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "\\hat{\\beta}"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "2 N_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "N_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "N_\\phi = 23"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "K = 2"
+      },
+      {
+        "role": "math",
+        "target": "2K + 1 = 5"
+      },
+      {
+        "role": "math",
+        "target": "K=2"
+      },
+      {
+        "role": "math",
+        "target": "2N_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "7 + 2K + 2 = 7 + 2K + \\text{offsets}"
+      },
+      {
+        "role": "math",
+        "target": "K=2"
+      },
+      {
+        "role": "math",
+        "target": "N_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "N_\\phi \\geq 3"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "\\bar{\\beta}"
+      },
+      {
+        "role": "math",
+        "target": "\\bar{c}_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "3"
+      },
+      {
+        "role": "math",
+        "target": "2N_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\hat{\\mu}_k"
+      },
+      {
+        "role": "math",
+        "target": "\\hat{\\sigma}_k"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_k"
+      },
+      {
+        "role": "math",
+        "target": "\\theta = (D_0, \\alpha, D_\\mathrm{offset}, \\dot{\\gamma}_0, \\beta_\\gamma, \\dot{\\gamma}_\\mathrm{offset}, \\phi_0)"
+      },
+      {
+        "role": "math",
+        "target": "(\\bar{\\beta}, \\bar{c}_\\mathrm{offset})"
+      },
+      {
+        "role": "math",
+        "target": "K=2"
+      },
+      {
+        "role": "math",
+        "target": "N_\\phi \\geq 3"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.anti_degeneracy_controller"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.fourier_reparam"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.hierarchical"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.adaptive_regularization"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.gradient_monitor"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.shear_weighting"
+      },
+      {
+        "role": "math",
+        "target": "\\phi = 0"
+      },
+      {
+        "role": "ref",
+        "target": "adr_anti_degeneracy"
+      },
+      {
+        "role": "ref",
+        "target": "theory_homodyne_scattering"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "ref",
+        "target": "adr_anti_degeneracy"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.anti_degeneracy_controller"
+      }
+    ]
+  },
+  "theory/anti_degeneracy_defense.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [
+      "homodyne.optimization.nlsq.adaptive_regularization",
+      "homodyne.optimization.nlsq.fourier_reparam",
+      "homodyne.optimization.nlsq.gradient_monitor",
+      "homodyne.optimization.nlsq.hierarchical",
+      "homodyne.optimization.nlsq.parameter_index_mapper",
+      "homodyne.optimization.nlsq.parameter_utils",
+      "homodyne.optimization.nlsq.shear_weighting"
+    ],
+    "headings": [
+      "Anti-Degeneracy Defense System",
+      "Introduction",
+      "Theoretical Background",
+      "Understanding the Root Causes",
+      "Root Cause 1: Gradient Cancellation",
+      "Root Cause 2: Structural Degeneracy",
+      "Root Cause 3: Ineffective Regularization",
+      "Layer 1: Fourier Reparameterization",
+      "Mathematical Foundation",
+      "Per-Angle Mode Selection Guide",
+      "Mode Comparison",
+      "Decision Flowchart",
+      "Parameter Count Reduction",
+      "Quantile-Based Scaling Estimation",
+      "Why Constant Mode Works Best",
+      "Why Fourier Mode is Still Useful",
+      "Implementation",
+      "Basis Matrix Computation",
+      "Covariance Transformation",
+      "ParameterIndexMapper Reference",
+      "Layer 2: Hierarchical Optimization",
+      "Algorithmic Approach",
+      "Why This Works",
+      "Implementation",
+      "Layer 3: Adaptive CV Regularization",
+      "From Absolute to Relative Regularization",
+      "Auto-Tuned Lambda",
+      "Why CV-Based Regularization",
+      "Implementation",
+      "Layer 4: Gradient Collapse Detection",
+      "Runtime Monitoring",
+      "Response Actions",
+      "Implementation",
+      "Layer 5: Shear-Sensitivity Weighting",
+      "Mathematical Foundation",
+      "Why This Works",
+      "Data Flow",
+      "Dynamic Weight Updates",
+      "Implementation",
+      "Cross-Path Uniformity",
+      "Configuration Reference",
+      "YAML Configuration",
+      "Configuration Options Summary",
+      "Usage Tutorial",
+      "Basic Usage",
+      "Advanced Usage: Fine-Tuning",
+      "Diagnosing Problems",
+      "When to Disable",
+      "API Reference",
+      "Parameter Utilities",
+      "Fourier Reparameterization",
+      "Hierarchical Optimization",
+      "Adaptive Regularization",
+      "Gradient Monitoring",
+      "Shear-Sensitivity Weighting",
+      "Parameter Index Mapper",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\Gamma(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "\\cos(\\phi_0 - \\phi)"
+      },
+      {
+        "role": "math",
+        "target": "c_1"
+      },
+      {
+        "role": "math",
+        "target": "J = \\frac{\\partial (\\text{per-angle})}{\\partial (\\text{Fourier})}"
+      },
+      {
+        "role": "math",
+        "target": "|\\cos(\\phi_0 - \\phi)|"
+      },
+      {
+        "role": "math",
+        "target": "\\phi \\approx \\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi \\approx \\phi_0 + \\pi"
+      },
+      {
+        "role": "math",
+        "target": "\\phi \\approx \\phi_0 \\pm \\pi/2"
+      },
+      {
+        "role": "math",
+        "target": "w_{\\min}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\partial L / \\partial \\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "doc",
+        "target": "computational_methods"
+      },
+      {
+        "role": "doc",
+        "target": "theoretical_framework"
+      },
+      {
+        "role": "doc",
+        "target": "/api/optimization_guide"
+      },
+      {
+        "role": "doc",
+        "target": "/configuration/options"
+      }
+    ]
+  },
+  "theory/citations.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "References and Citations",
+      "Primary References",
+      "XPCS Methodology",
+      "Stochastic Processes",
+      "Bayesian Methods",
+      "Optimization",
+      "JAX and Scientific Stack",
+      "Rheology",
+      "Citing Homodyne",
+      "Acknowledgments",
+      "Contact"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "c_2(\\mathbf{q}, t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "t^{1/3}"
+      }
+    ]
+  },
+  "theory/classical_processes.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Classical Langevin Processes",
+      "The Langevin Equation",
+      "Wiener Process (Standard Diffusion)",
+      "Ornstein-Uhlenbeck Process (Inertial Brownian Motion)",
+      "Brownian Oscillator (Underdamped)",
+      "Brownian Oscillator (Overdamped)",
+      "Comparison Table",
+      "Non-Gaussian Corrections"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "m"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "\\text{s}^{-1}"
+      },
+      {
+        "role": "math",
+        "target": "\\eta(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\langle\\eta(t)\\rangle = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\langle\\eta(t)\\eta(t')\\rangle = 2m^2\\gamma k_B T\\,\\delta(t-t')"
+      },
+      {
+        "role": "math",
+        "target": "F_\\mathrm{ex}(t)"
+      },
+      {
+        "role": "math",
+        "target": "m\\gamma \\tau_B \\gg 1"
+      },
+      {
+        "role": "math",
+        "target": "\\tau_B = m/\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "m\\ddot{x}"
+      },
+      {
+        "role": "math",
+        "target": "\\mu = 1/(m\\gamma)"
+      },
+      {
+        "role": "math",
+        "target": "D = k_B T\\mu"
+      },
+      {
+        "role": "math",
+        "target": "\\xi(t)"
+      },
+      {
+        "role": "math",
+        "target": "F_\\mathrm{ex} = 0"
+      },
+      {
+        "role": "eq",
+        "target": "langevin_overdamped"
+      },
+      {
+        "role": "math",
+        "target": "g_2"
+      },
+      {
+        "role": "math",
+        "target": "\\Gamma = Dq^2"
+      },
+      {
+        "role": "math",
+        "target": "g_2(q,\\tau) = 1 + \\beta\\,e^{-2Dq^2\\tau}"
+      },
+      {
+        "role": "math",
+        "target": "D = k_BT/(6\\pi\\eta R)"
+      },
+      {
+        "role": "math",
+        "target": "R"
+      },
+      {
+        "role": "math",
+        "target": "\\eta"
+      },
+      {
+        "role": "math",
+        "target": "m"
+      },
+      {
+        "role": "eq",
+        "target": "langevin_full"
+      },
+      {
+        "role": "math",
+        "target": "F_\\mathrm{ex} = 0"
+      },
+      {
+        "role": "math",
+        "target": "v(t) = \\dot{x}(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma"
+      },
+      {
+        "role": "eq",
+        "target": "langevin_full"
+      },
+      {
+        "role": "math",
+        "target": "\\tau_B = 1/\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "x(t) = \\int_0^t v(t')\\,dt'"
+      },
+      {
+        "role": "math",
+        "target": "v(0) = 0"
+      },
+      {
+        "role": "eq",
+        "target": "J_greenkubo"
+      },
+      {
+        "role": "math",
+        "target": "t \\ll 1/\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "J \\approx 2D\\gamma^2 t^2"
+      },
+      {
+        "role": "math",
+        "target": "t^3"
+      },
+      {
+        "role": "math",
+        "target": "t \\gg 1/\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "J \\to 2D"
+      },
+      {
+        "role": "math",
+        "target": "\\tau_B = 1/\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "\\tau_B \\sim 10^{-9}"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma \\to \\infty"
+      },
+      {
+        "role": "math",
+        "target": "D"
+      },
+      {
+        "role": "math",
+        "target": "J \\to 2D"
+      },
+      {
+        "role": "math",
+        "target": "\\omega_0 \\to 0"
+      },
+      {
+        "role": "math",
+        "target": "2\\omega_0"
+      },
+      {
+        "role": "math",
+        "target": "\\omega_s = \\sqrt{\\omega_0^2 - \\gamma^2/4}"
+      },
+      {
+        "role": "math",
+        "target": "\\omega_s"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "J_\\mathrm{max} = 2D\\gamma^2/\\omega_s^2"
+      },
+      {
+        "role": "math",
+        "target": "\\tau = \\pi/(2\\omega_s)"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma_s = \\sqrt{\\gamma^2 - 4\\omega_0^2}"
+      },
+      {
+        "role": "math",
+        "target": "J \\to 0"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "2D"
+      },
+      {
+        "role": "math",
+        "target": "2D"
+      },
+      {
+        "role": "math",
+        "target": "2D\\left(1-e^{-\\gamma\\tau}\\right)^2"
+      },
+      {
+        "role": "math",
+        "target": "2D"
+      },
+      {
+        "role": "math",
+        "target": "t \\sim \\tau_B"
+      },
+      {
+        "role": "math",
+        "target": "\\frac{2D\\gamma^2}{\\omega_s^2}e^{-\\gamma\\tau}\\sin^2(\\omega_s\\tau)"
+      },
+      {
+        "role": "math",
+        "target": "\\frac{8D\\gamma^2}{\\gamma_s^2}e^{-\\gamma\\tau}\\sinh^2(\\frac{\\gamma_s\\tau}{2})"
+      },
+      {
+        "role": "math",
+        "target": "\\mathrm{Var}[x(t_2)-x(t_1)] = \\int_{t_1}^{t_2} J(t')dt'"
+      },
+      {
+        "role": "math",
+        "target": "\\mathrm{Var}[x(t_2)-x(t_1)]"
+      },
+      {
+        "role": "math",
+        "target": "2D\\tau"
+      },
+      {
+        "role": "math",
+        "target": "2D\\!\\left[\\tau - \\frac{2}{\\gamma}(1-e^{-\\gamma\\tau}) + \\frac{1}{2\\gamma}(1-e^{-2\\gamma\\tau})\\right]"
+      },
+      {
+        "role": "math",
+        "target": "\\frac{D\\gamma^2}{\\omega_s^2\\omega_0^2}\\left[2\\omega_0^2\\tau - 2\\gamma(1-e^{-\\gamma\\tau}) + \\frac{\\gamma^2+\\omega_s^2}{\\omega_s}\\sin(2\\omega_s\\tau)e^{-\\gamma\\tau} + \\cdots\\right]"
+      },
+      {
+        "role": "math",
+        "target": "\\sinh"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha_2 \\approx 0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha_2 \\gg 0"
+      },
+      {
+        "role": "ref",
+        "target": "theory_transport_coefficient"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_heterodyne_scattering"
+      },
+      {
+        "role": "ref",
+        "target": "theory_yielding_dynamics"
+      }
+    ]
+  },
+  "theory/computational_methods.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Computational Methods",
+      "Non-Linear Least Squares (NLSQ)",
+      "Levenberg-Marquardt Algorithm",
+      "Cumulative Trapezoid Integration",
+      "Jacobian Computation",
+      "Memory Management",
+      "CMA-ES for Multi-Scale Problems",
+      "Consensus Monte Carlo (CMC)",
+      "NUTS (No-U-Turn Sampler)",
+      "Adaptive Sampling",
+      "Reparameterization (Log-Space Priors)",
+      "Diagnostics"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\{c_2^{ij,\\mathrm{meas}}\\}"
+      },
+      {
+        "role": "math",
+        "target": "c_2^{ij}(\\theta)"
+      },
+      {
+        "role": "math",
+        "target": "\\mathcal{S}"
+      },
+      {
+        "role": "math",
+        "target": "w_{ij}"
+      },
+      {
+        "role": "math",
+        "target": "\\propto 1/\\sigma_{ij}^2"
+      },
+      {
+        "role": "math",
+        "target": "k"
+      },
+      {
+        "role": "math",
+        "target": "J_k = \\partial r_k / \\partial\\theta"
+      },
+      {
+        "role": "math",
+        "target": "W = \\mathrm{diag}(w_{ij})"
+      },
+      {
+        "role": "math",
+        "target": "r_k"
+      },
+      {
+        "role": "math",
+        "target": "\\lambda_k \\geq 0"
+      },
+      {
+        "role": "math",
+        "target": "\\lambda_k \\to 0"
+      },
+      {
+        "role": "math",
+        "target": "\\lambda_k \\to \\infty"
+      },
+      {
+        "role": "math",
+        "target": "\\lambda_k"
+      },
+      {
+        "role": "math",
+        "target": "\\geq"
+      },
+      {
+        "role": "class",
+        "target": "homodyne.optimization.nlsq.adapter.NLSQAdapter"
+      },
+      {
+        "role": "math",
+        "target": "\\mathcal{D}(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "\\Gamma(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "(t_1, t_2)"
+      },
+      {
+        "role": "func",
+        "target": "jax.numpy.cumsum"
+      },
+      {
+        "role": "math",
+        "target": "O(N_t^2)"
+      },
+      {
+        "role": "math",
+        "target": "O(N_t)"
+      },
+      {
+        "role": "math",
+        "target": "F(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\partial c_2 / \\partial\\theta"
+      },
+      {
+        "role": "math",
+        "target": "n_\\mathrm{params} \\ll n_\\mathrm{residuals}"
+      },
+      {
+        "role": "math",
+        "target": "n_\\mathrm{residuals}"
+      },
+      {
+        "role": "math",
+        "target": "< 10^7"
+      },
+      {
+        "role": "math",
+        "target": "J^\\top W J"
+      },
+      {
+        "role": "math",
+        "target": "J^\\top W r"
+      },
+      {
+        "role": "math",
+        "target": "(A + \\lambda\\,\\mathrm{diag}(A))\\delta\\theta = b"
+      },
+      {
+        "role": "math",
+        "target": "O(N_\\mathrm{params}^2)"
+      },
+      {
+        "role": "math",
+        "target": "D_0 \\sim 10^4"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0 \\sim 10^{-3}"
+      },
+      {
+        "role": "math",
+        "target": "M"
+      },
+      {
+        "role": "math",
+        "target": "n_s"
+      },
+      {
+        "role": "math",
+        "target": "\\{\\theta^{(k)}_s\\}_{k=1}^K"
+      },
+      {
+        "role": "math",
+        "target": "M"
+      },
+      {
+        "role": "math",
+        "target": "\\epsilon"
+      },
+      {
+        "role": "math",
+        "target": "\\delta_\\mathrm{target} = 0.8"
+      },
+      {
+        "role": "math",
+        "target": "\\rho \\sim \\mathcal{N}(0, M)"
+      },
+      {
+        "role": "math",
+        "target": "M"
+      },
+      {
+        "role": "math",
+        "target": "L"
+      },
+      {
+        "role": "math",
+        "target": "O(n_s \\cdot L)"
+      },
+      {
+        "role": "math",
+        "target": "L \\sim\nO(\\log n_s)"
+      },
+      {
+        "role": "math",
+        "target": "n_\\mathrm{samples}"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "t_\\mathrm{ref} = \\sqrt{\\Delta t \\cdot t_\\mathrm{max}}"
+      },
+      {
+        "role": "func",
+        "target": "homodyne.optimization.cmc.reparameterization.compute_t_ref"
+      },
+      {
+        "role": "class",
+        "target": "ValueError"
+      },
+      {
+        "role": "math",
+        "target": "t_\\mathrm{ref} = 1.0"
+      },
+      {
+        "role": "math",
+        "target": "\\hat{V}"
+      },
+      {
+        "role": "math",
+        "target": "W"
+      },
+      {
+        "role": "math",
+        "target": "1.01"
+      },
+      {
+        "role": "math",
+        "target": "\\rho_t"
+      },
+      {
+        "role": "math",
+        "target": "t"
+      },
+      {
+        "role": "math",
+        "target": "H = -\\log p(\\theta) - \\log p(y|\\theta)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.nlsq.adapter"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.cmc.sampler"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.cmc.reparameterization"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.optimization.cmc.backends.multiprocessing"
+      }
+    ]
+  },
+  "theory/correlation_functions.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Correlation Functions in XPCS",
+      "Position Density and Scattered Field",
+      "First-Order Correlation Function",
+      "Second-Order Correlation Function",
+      "Siegert Relation",
+      "Equilibrium Approximation: g\u2082(q, \u03c4)",
+      "Two-Time Correlation Matrix",
+      "Model Fitting"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "g_2(q,\\tau)"
+      },
+      {
+        "role": "math",
+        "target": "N"
+      },
+      {
+        "role": "math",
+        "target": "\\mathbf{r}_j(t)"
+      },
+      {
+        "role": "math",
+        "target": "f_j"
+      },
+      {
+        "role": "math",
+        "target": "j"
+      },
+      {
+        "role": "math",
+        "target": "\\mathbf{q}"
+      },
+      {
+        "role": "math",
+        "target": "|\\mathbf{q}| = q = 4\\pi\\sin(\\theta)/\\lambda"
+      },
+      {
+        "role": "math",
+        "target": "\\rho"
+      },
+      {
+        "role": "math",
+        "target": "N"
+      },
+      {
+        "role": "math",
+        "target": "c_1"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "I(\\mathbf{q}, t)"
+      },
+      {
+        "role": "math",
+        "target": "t_1"
+      },
+      {
+        "role": "math",
+        "target": "t_2"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "c_2 \\geq 1"
+      },
+      {
+        "role": "math",
+        "target": "c_2 \\to 1"
+      },
+      {
+        "role": "math",
+        "target": "|t_2 - t_1| \\to \\infty"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(t_1, t_2) \\in (0, 1]"
+      },
+      {
+        "role": "math",
+        "target": "\\beta = 1"
+      },
+      {
+        "role": "math",
+        "target": "\\beta \\approx 0.05\u20130.8"
+      },
+      {
+        "role": "eq",
+        "target": "c1_general"
+      },
+      {
+        "role": "eq",
+        "target": "siegert"
+      },
+      {
+        "role": "math",
+        "target": "|c_1|^2"
+      },
+      {
+        "role": "ref",
+        "target": "theory_heterodyne_scattering"
+      },
+      {
+        "role": "math",
+        "target": "\\int J(t')\\,dt'"
+      },
+      {
+        "role": "math",
+        "target": "\\int D(t')\\,dt'"
+      },
+      {
+        "role": "math",
+        "target": "D(t) = D_0 t^\\alpha + D_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "D_0 = 2 D_\\mathrm{SE}"
+      },
+      {
+        "role": "ref",
+        "target": "theory_transport_coefficient"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "\\tau = t_2 - t_1"
+      },
+      {
+        "role": "math",
+        "target": "t_1"
+      },
+      {
+        "role": "math",
+        "target": "\\Gamma = Dq^2"
+      },
+      {
+        "role": "math",
+        "target": "g_2(q, \\tau) = \\langle c_2(q, t_1, t_1+\\tau)\\rangle_{t_1}"
+      },
+      {
+        "role": "math",
+        "target": "c_2(q, t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "g_2(q, \\tau)"
+      },
+      {
+        "role": "math",
+        "target": "D"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "(t_i, t_j)"
+      },
+      {
+        "role": "math",
+        "target": "c_2^{ij} = c_2^{ji}"
+      },
+      {
+        "role": "math",
+        "target": "c_2^{ii} = 1 + \\beta"
+      },
+      {
+        "role": "math",
+        "target": "g_2(\\tau)"
+      },
+      {
+        "role": "math",
+        "target": "\\tau = (j-i)\\Delta t"
+      },
+      {
+        "role": "class",
+        "target": "homodyne.data.XPCSDataLoader"
+      },
+      {
+        "role": "math",
+        "target": "\\{c_2^{ij}\\}"
+      },
+      {
+        "role": "math",
+        "target": "\\theta = (D_0, \\alpha, D_\\mathrm{offset})"
+      },
+      {
+        "role": "math",
+        "target": "\\theta = (D_0, \\alpha, D_\\mathrm{offset}, \\dot{\\gamma}_0, \\beta_\\gamma, \\dot{\\gamma}_\\mathrm{offset}, \\phi_0)"
+      },
+      {
+        "role": "math",
+        "target": "w_{ij}"
+      },
+      {
+        "role": "ref",
+        "target": "theory_computational_methods"
+      },
+      {
+        "role": "ref",
+        "target": "theory_transport_coefficient"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_homodyne_scattering"
+      },
+      {
+        "role": "ref",
+        "target": "theory_heterodyne_scattering"
+      },
+      {
+        "role": "class",
+        "target": "homodyne.data.XPCSDataLoader"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.core.jax_backend"
+      },
+      {
+        "role": "math",
+        "target": "g_2"
+      }
+    ]
+  },
+  "theory/heterodyne_scattering.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Heterodyne Scattering: Multi-Component Models",
+      "Physical Motivation",
+      "N-Component General Formula",
+      "Two-Component Case: Static + Flowing",
+      "Three-Component Case: Two Flowing + One Static",
+      "Normalization Factor f\u00b2",
+      "Oscillatory Patterns as Diagnostic",
+      "Comparison to Homodyne"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "N"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}"
+      },
+      {
+        "role": "math",
+        "target": "D"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_1"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_2"
+      },
+      {
+        "role": "math",
+        "target": "N"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "N"
+      },
+      {
+        "role": "math",
+        "target": "t"
+      },
+      {
+        "role": "math",
+        "target": "n"
+      },
+      {
+        "role": "math",
+        "target": "x_n(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\langle v_n(t)\\rangle"
+      },
+      {
+        "role": "math",
+        "target": "J_n(t)"
+      },
+      {
+        "role": "math",
+        "target": "A_{nm}"
+      },
+      {
+        "role": "math",
+        "target": "A_{nm}"
+      },
+      {
+        "role": "math",
+        "target": "n"
+      },
+      {
+        "role": "math",
+        "target": "m"
+      },
+      {
+        "role": "math",
+        "target": "\\Delta v_{nm}"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "f^2"
+      },
+      {
+        "role": "math",
+        "target": "\\langle v_s\\rangle = 0"
+      },
+      {
+        "role": "math",
+        "target": "J_s(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\langle v_f(t)\\rangle = \\dot{\\gamma}(t)\\,r\\cos\\phi"
+      },
+      {
+        "role": "math",
+        "target": "J_f(t)"
+      },
+      {
+        "role": "math",
+        "target": "x_s + x_f = 1"
+      },
+      {
+        "role": "math",
+        "target": "A_{sf}"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "\\tau = t_2 - t_1"
+      },
+      {
+        "role": "math",
+        "target": "\\langle v_f\\rangle"
+      },
+      {
+        "role": "math",
+        "target": "v = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_1"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "A_{sf1}"
+      },
+      {
+        "role": "math",
+        "target": "A_{sf2}"
+      },
+      {
+        "role": "math",
+        "target": "A_{f1f2}"
+      },
+      {
+        "role": "math",
+        "target": "\\Delta v_{ij} = \\langle v_i\\rangle - \\langle v_j\\rangle"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "f^2"
+      },
+      {
+        "role": "eq",
+        "target": "f2_normalization"
+      },
+      {
+        "role": "math",
+        "target": "c_2 \\leq 1 + \\beta"
+      },
+      {
+        "role": "math",
+        "target": "P_2(t) = \\sum_n x_n(t)^2"
+      },
+      {
+        "role": "math",
+        "target": "x_1 = 1"
+      },
+      {
+        "role": "math",
+        "target": "f^2 = 1"
+      },
+      {
+        "role": "eq",
+        "target": "c2_N_component"
+      },
+      {
+        "role": "math",
+        "target": "f^2 \\to 1/N^2"
+      },
+      {
+        "role": "math",
+        "target": "\\beta/f^2"
+      },
+      {
+        "role": "math",
+        "target": "c_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "t_1 - t_2 = \\tau"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "ref",
+        "target": "theory_homodyne_scattering"
+      },
+      {
+        "role": "ref",
+        "target": "theory_correlation_functions"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "ref",
+        "target": "theory_yielding_dynamics"
+      }
+    ]
+  },
+  "theory/homodyne_scattering.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Homodyne Scattering: Laminar Flow Model",
+      "Taylor-Couette Geometry",
+      "Gap Integration and the sinc\u00b2 Modulation",
+      "Full Laminar Flow Equation",
+      "Angular Dependence",
+      "Homodyne Implementation Parameters",
+      "Code Example",
+      "Connection to Rheology"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "\\Omega"
+      },
+      {
+        "role": "math",
+        "target": "h"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "h"
+      },
+      {
+        "role": "math",
+        "target": "x"
+      },
+      {
+        "role": "math",
+        "target": "0 \\leq x \\leq h"
+      },
+      {
+        "role": "math",
+        "target": "\\mathbf{q}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "c_1"
+      },
+      {
+        "role": "math",
+        "target": "e^{iq\\int_{t_1}^{t_2} v_\\parallel(x,t)dt}"
+      },
+      {
+        "role": "math",
+        "target": "\\Gamma(t_1, t_2) = \\int_{t_1}^{t_2}\\dot{\\gamma}(t)\\,dt"
+      },
+      {
+        "role": "math",
+        "target": "x"
+      },
+      {
+        "role": "math",
+        "target": "|c_1^\\mathrm{(shear)}|^2"
+      },
+      {
+        "role": "math",
+        "target": "\\mathrm{sinc}(x) = \\sin(\\pi x)/(\\pi x)"
+      },
+      {
+        "role": "math",
+        "target": "\\mathrm{sinc}(0)=1"
+      },
+      {
+        "role": "eq",
+        "target": "c2_general_homodyne"
+      },
+      {
+        "role": "eq",
+        "target": "sinc2_term"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_\\mathrm{det}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi = \\phi_\\mathrm{det} - \\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\cos(\\phi_0 - \\phi_\\mathrm{det})"
+      },
+      {
+        "role": "math",
+        "target": "\\cos(\\phi_\\mathrm{det} - \\phi_0)"
+      },
+      {
+        "role": "eq",
+        "target": "c2_laminar_flow"
+      },
+      {
+        "role": "ref",
+        "target": "theory_heterodyne_scattering"
+      },
+      {
+        "role": "math",
+        "target": "\\cos\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\phi = 90\u00b0"
+      },
+      {
+        "role": "math",
+        "target": "\\cos\\phi = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi = 0\u00b0"
+      },
+      {
+        "role": "math",
+        "target": "\\cos\\phi = 1"
+      },
+      {
+        "role": "math",
+        "target": "N_\\phi = 23"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\beta_\\gamma"
+      },
+      {
+        "role": "ref",
+        "target": "parameter_guide"
+      },
+      {
+        "role": "eq",
+        "target": "c2_laminar_flow"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta_\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma \\sim t^{1/3}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}(t)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_transport_coefficient"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_correlation_functions"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "ref",
+        "target": "theory_heterodyne_scattering"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "ref",
+        "target": "theory_yielding_dynamics"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.core.jax_backend"
+      }
+    ]
+  },
+  "theory/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Theory & Physics",
+      "Overview of Sections",
+      "Quick Physics Reference"
+    ],
+    "toctree": [
+      "transport_coefficient",
+      "correlation_functions",
+      "homodyne_scattering",
+      "heterodyne_scattering",
+      "classical_processes",
+      "yielding_dynamics",
+      "theoretical_framework",
+      "analysis_modes",
+      "anti_degeneracy",
+      "anti_degeneracy_defense",
+      "computational_methods",
+      "citations"
+    ],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "c_2(\\vec{q}, t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "g_2(q, \\tau)"
+      },
+      {
+        "role": "math",
+        "target": "n_\\mathrm{params} = 3"
+      },
+      {
+        "role": "math",
+        "target": "n_\\mathrm{params} = 7"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\text{\u00c5}^2/\\text{s}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "\\text{s}^{-1}"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "ref",
+        "target": "theory_transport_coefficient"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_homodyne_scattering"
+      }
+    ]
+  },
+  "theory/theoretical_framework.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Theoretical Framework",
+      "Mathematical Foundation",
+      "Core Correlation Equation",
+      "Diffusion Contribution",
+      "Shear Contribution",
+      "Time-Dependent Transport Coefficients",
+      "Parameter Sets",
+      "Experimental Parameters",
+      "Shear Rate",
+      "Integral Functions",
+      "Diffusion Integral",
+      "Shear Integral",
+      "Numerical Evaluation (NLSQ vs CMC)",
+      "Parameter Space and Priors (CMC)",
+      "Scattering Geometry",
+      "Wavevector Definition",
+      "Angular Dependence",
+      "Physical Interpretation",
+      "Static Systems",
+      "Flowing Systems",
+      "Chi-Squared Objective Function",
+      "Uncertainty Quantification",
+      "Parameter Uncertainties",
+      "Goodness of Fit",
+      "Numerical Implementation",
+      "References"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "t_{\\min} = \\min(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "t_{\\max} = \\max(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "t_{\\min} = \\min(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "t_{\\max} = \\max(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_{\\text{offset}}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0 = 0"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_{\\text{offset}}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_{\\text{offset}}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "q"
+      },
+      {
+        "role": "math",
+        "target": "L"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "dt"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha = 0"
+      },
+      {
+        "role": "math",
+        "target": "0"
+      },
+      {
+        "role": "math",
+        "target": "D_{\\text{offset}}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_{\\text{offset}}"
+      },
+      {
+        "role": "sup",
+        "target": "-1"
+      },
+      {
+        "role": "math",
+        "target": "[t_1, t_2]"
+      },
+      {
+        "role": "math",
+        "target": "[t_1, t_2]"
+      },
+      {
+        "role": "doc",
+        "target": "computational_methods"
+      },
+      {
+        "role": "math",
+        "target": "\\lambda"
+      },
+      {
+        "role": "math",
+        "target": "\\theta"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma} = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\boldsymbol{\\theta}"
+      },
+      {
+        "role": "math",
+        "target": "c_2^{\\text{exp}}"
+      },
+      {
+        "role": "math",
+        "target": "c_2^{\\text{model}}"
+      },
+      {
+        "role": "math",
+        "target": "\\sigma_{ij}"
+      },
+      {
+        "role": "math",
+        "target": "\\mathbf{C}"
+      },
+      {
+        "role": "math",
+        "target": "N"
+      },
+      {
+        "role": "math",
+        "target": "p"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "doc",
+        "target": "computational_methods"
+      },
+      {
+        "role": "doc",
+        "target": "citations"
+      }
+    ]
+  },
+  "theory/transport_coefficient.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Transport Coefficient J(t)",
+      "Definition",
+      "Physical Interpretation",
+      "Homodyne Implementation",
+      "Connection to Physical Diffusion Coefficient",
+      "Table of J(t) for Classical Processes",
+      "Relationship to Rheology"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "t"
+      },
+      {
+        "role": "math",
+        "target": "v(t) = \\dot{x}(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\mathrm{Cov}[x, v] = \\frac{1}{2} \\frac{d}{dt}\\mathrm{Var}[x]"
+      },
+      {
+        "role": "eq",
+        "target": "J_greenkubo"
+      },
+      {
+        "role": "math",
+        "target": "0"
+      },
+      {
+        "role": "math",
+        "target": "t"
+      },
+      {
+        "role": "math",
+        "target": "J = 2\\int_0^\\infty C_v(\\tau)\\,d\\tau = 2D"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\text{length}^2 / \\text{time}"
+      },
+      {
+        "role": "math",
+        "target": "t"
+      },
+      {
+        "role": "math",
+        "target": "J"
+      },
+      {
+        "role": "math",
+        "target": "J = 2D"
+      },
+      {
+        "role": "math",
+        "target": "D"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "J"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha = 0"
+      },
+      {
+        "role": "math",
+        "target": "0"
+      },
+      {
+        "role": "math",
+        "target": "D_\\mathrm{offset} \\geq 0"
+      },
+      {
+        "role": "eq",
+        "target": "c1_general"
+      },
+      {
+        "role": "math",
+        "target": "D(t)"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.core.physics_utils"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.core.jax_backend"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.core.physics_cmc"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "D_\\mathrm{SE} = k_B T / (6\\pi\\eta R_h)"
+      },
+      {
+        "role": "math",
+        "target": "D_0 = 2 D_\\mathrm{SE}"
+      },
+      {
+        "role": "eq",
+        "target": "siegert"
+      },
+      {
+        "role": "math",
+        "target": "c_1"
+      },
+      {
+        "role": "math",
+        "target": "|c_1|^2 = \\exp(-q^2 \\mathcal{D})"
+      },
+      {
+        "role": "math",
+        "target": "\\mathcal{D} = \\int D(t')\\,dt'"
+      },
+      {
+        "role": "math",
+        "target": "|c_1|^2 = e^{-2 q^2 D_\\mathrm{SE}\\,\\tau}"
+      },
+      {
+        "role": "math",
+        "target": "D_0 = 2 D_\\mathrm{SE}"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "t"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha = 0"
+      },
+      {
+        "role": "math",
+        "target": "D_\\mathrm{SE}"
+      },
+      {
+        "role": "math",
+        "target": "0"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_classical_processes"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "2D"
+      },
+      {
+        "role": "math",
+        "target": "D"
+      },
+      {
+        "role": "math",
+        "target": "2D_0 t^{\\alpha}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha \\in (-1, 1]"
+      },
+      {
+        "role": "math",
+        "target": "2D\\!\\left(1 - e^{-\\gamma t}\\right)^2"
+      },
+      {
+        "role": "math",
+        "target": "\\sqrt{D/\\gamma}"
+      },
+      {
+        "role": "math",
+        "target": "\\displaystyle 2D\\frac{\\gamma^2}{\\omega_s^2} e^{-\\gamma t}\\sin^2(\\omega_s t)"
+      },
+      {
+        "role": "math",
+        "target": "\\displaystyle 8D\\frac{\\gamma^2}{\\gamma_s^2} e^{-\\gamma t}\\sinh^2\\!\\left(\\tfrac{1}{2}\\gamma_s t\\right)"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "\\omega_0"
+      },
+      {
+        "role": "math",
+        "target": "\\omega_s = \\sqrt{\\omega_0^2 - \\gamma^2/4}"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma_s = \\sqrt{\\gamma^2 - 4\\omega_0^2}"
+      },
+      {
+        "role": "math",
+        "target": "D"
+      },
+      {
+        "role": "math",
+        "target": "D_0 = 2D"
+      },
+      {
+        "role": "eq",
+        "target": "D_model"
+      },
+      {
+        "role": "eq",
+        "target": "J_greenkubo"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "G^*(\\omega)"
+      },
+      {
+        "role": "math",
+        "target": "R"
+      },
+      {
+        "role": "math",
+        "target": "k_B T"
+      },
+      {
+        "role": "math",
+        "target": "\\eta(\\omega)"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma \\sim t^{1/3}"
+      },
+      {
+        "role": "math",
+        "target": "J(t) \\propto t^{-2/3}"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_yielding_dynamics"
+      },
+      {
+        "role": "ref",
+        "target": "theory_correlation_functions"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "c_1"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "ref",
+        "target": "theory_classical_processes"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.core.jax_backend"
+      },
+      {
+        "role": "mod",
+        "target": "homodyne.core.physics_cmc"
+      }
+    ]
+  },
+  "theory/yielding_dynamics.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Yielding Dynamics of Colloidal Suspensions",
+      "Overview: Repulsive vs Attractive Suspensions",
+      "Repulsive Suspensions: Andrade Creep",
+      "Attractive Suspensions: Shear Banding and Delayed Yielding",
+      "Bond Dynamics and Interfacial Layers",
+      "Non-Affine Displacements",
+      "Connection to XPCS Measurements",
+      "Summary of Physical Signatures"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "t^{1/3}"
+      },
+      {
+        "role": "math",
+        "target": "1"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "t^{1/3}"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma_c \\approx 0.3"
+      },
+      {
+        "role": "math",
+        "target": "\\tau_\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\sim"
+      },
+      {
+        "role": "math",
+        "target": "\\sim \\mu"
+      },
+      {
+        "role": "math",
+        "target": "\\mathbf{E}(t)"
+      },
+      {
+        "role": "math",
+        "target": "P(\\delta u)"
+      },
+      {
+        "role": "math",
+        "target": "P(\\delta u)"
+      },
+      {
+        "role": "math",
+        "target": "P(\\delta u)"
+      },
+      {
+        "role": "math",
+        "target": "D"
+      },
+      {
+        "role": "math",
+        "target": "\\mathcal{D}"
+      },
+      {
+        "role": "math",
+        "target": "\\Gamma"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "t = t_\\mathrm{yield}"
+      },
+      {
+        "role": "math",
+        "target": "c_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "c_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "\\gamma(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\propto t^{1/3}"
+      },
+      {
+        "role": "math",
+        "target": "t_\\mathrm{yield}"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "\\propto t^{1/3}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha < 1"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha_2"
+      },
+      {
+        "role": "math",
+        "target": "\\approx 0"
+      },
+      {
+        "role": "math",
+        "target": "\\gg 0"
+      },
+      {
+        "role": "ref",
+        "target": "theory_homodyne_scattering"
+      },
+      {
+        "role": "ref",
+        "target": "theory_heterodyne_scattering"
+      },
+      {
+        "role": "ref",
+        "target": "theory_classical_processes"
+      },
+      {
+        "role": "ref",
+        "target": "theory_citations"
+      }
+    ]
+  },
+  "user_guide/01_fundamentals/analysis_modes.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Analysis Modes",
+      "Overview",
+      "Static Mode",
+      "Laminar Flow Mode",
+      "Choosing Between Modes",
+      "Per-Angle Scaling",
+      "Mode-Specific Parameter Counts",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\int J\\,dt'"
+      },
+      {
+        "role": "math",
+        "target": "[t_1, t_2]"
+      },
+      {
+        "role": "ref",
+        "target": "theory_transport_coefficient"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "doc",
+        "target": "parameter_guide"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "q"
+      },
+      {
+        "role": "math",
+        "target": "(t_2 - t_1)"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "[t_1, t_2]"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma(t)"
+      },
+      {
+        "role": "math",
+        "target": "h"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\Gamma(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "\\mathrm{sinc}(x) = \\sin(\\pi x)/(\\pi x)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_homodyne_scattering"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "doc",
+        "target": "parameter_guide"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "1/\\dot\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi \\geq 3"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi)"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "doc",
+        "target": "parameter_guide"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/per_angle_modes"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/laminar_flow"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/configuration"
+      }
+    ]
+  },
+  "user_guide/01_fundamentals/homodyne_overview.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Homodyne Package Overview",
+      "What Homodyne Does",
+      "What Homodyne Does Not Do",
+      "Key Design Decisions",
+      "Package Architecture",
+      "Data Flow",
+      "Comparison with Other XPCS Analysis Tools",
+      "Installation",
+      "Version Information",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "C_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "doc",
+        "target": "what_is_xpcs"
+      },
+      {
+        "role": "doc",
+        "target": "analysis_modes"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/bayesian_inference"
+      }
+    ]
+  },
+  "user_guide/01_fundamentals/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Fundamentals"
+    ],
+    "toctree": [
+      "what_is_xpcs",
+      "analysis_modes",
+      "homodyne_overview",
+      "parameter_guide"
+    ],
+    "xrefs": []
+  },
+  "user_guide/01_fundamentals/parameter_guide.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Parameter Interpretation Guide",
+      "Overview",
+      "Diffusion Parameters",
+      "D\u2080 \u2014 Reference Diffusion Coefficient",
+      "alpha \u2014 Diffusion Time-Dependence Exponent",
+      "D_offset \u2014 Baseline Diffusion",
+      "Shear Parameters (laminar_flow only)",
+      "gamma_dot_0 \u2014 Reference Shear Rate",
+      "beta \u2014 Shear Rate Time-Dependence Exponent",
+      "gamma_dot_t_offset \u2014 Baseline Shear Rate",
+      "phi_0 \u2014 Angular Offset",
+      "Optical Parameters",
+      "Contrast (beta_coherence)",
+      "Offset",
+      "Parameter Reference Table",
+      "Setting Initial Values",
+      "Overriding Parameter Bounds via YAML",
+      "Cross-System Bounds Consistency",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "D_0, \\alpha, D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0, \\beta, \\dot\\gamma_\\text{offset}, \\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "t_\\text{ref} = \\sqrt{dt \\cdot t_\\text{max}}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha = 0"
+      },
+      {
+        "role": "math",
+        "target": "D(t) = D_0 + D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "D_0 = 2 D_\\text{SE}"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{SE}"
+      },
+      {
+        "role": "ref",
+        "target": "theory_transport_coefficient"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "q"
+      },
+      {
+        "role": "math",
+        "target": "q"
+      },
+      {
+        "role": "math",
+        "target": "\\tau_q \\sim (q^2 D_0)^{-1}"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{SE} \\approx 2.4 \\times 10^4"
+      },
+      {
+        "role": "math",
+        "target": "D_0 \\approx 4.8 \\times 10^4"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "2 D_\\text{SE}"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\log(D_0 / t_\\text{ref})"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\int_{t_1}^{t_2} J(t')\\,dt'"
+      },
+      {
+        "role": "math",
+        "target": "D(t)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_transport_coefficient"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha = 0"
+      },
+      {
+        "role": "math",
+        "target": "D(t) = D_0"
+      },
+      {
+        "role": "math",
+        "target": "0"
+      },
+      {
+        "role": "math",
+        "target": "D(t)"
+      },
+      {
+        "role": "math",
+        "target": "D(t)"
+      },
+      {
+        "role": "math",
+        "target": "-1"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0 \\approx 0"
+      },
+      {
+        "role": "math",
+        "target": "D_0 \\sim 10^4"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0 \\sim 10^{-3}"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/cmaes_optimization"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\beta = 0"
+      },
+      {
+        "role": "math",
+        "target": "0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi = \\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0 = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\beta = 1"
+      },
+      {
+        "role": "math",
+        "target": "1"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta_\\phi"
+      },
+      {
+        "role": "doc",
+        "target": "analysis_modes"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/result_interpretation"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/configuration"
+      },
+      {
+        "role": "ref",
+        "target": "theory"
+      }
+    ]
+  },
+  "user_guide/01_fundamentals/what_is_xpcs.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "What is X-ray Photon Correlation Spectroscopy?",
+      "Introduction",
+      "The Coherent X-ray Requirement",
+      "From Speckles to Correlation Functions",
+      "Two-Time Correlation Functions",
+      "Connection to Particle Dynamics",
+      "Homodyne Detection",
+      "Why XPCS for Soft Matter?",
+      "Experimental Setup",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "t"
+      },
+      {
+        "role": "math",
+        "target": "g_2"
+      },
+      {
+        "role": "math",
+        "target": "t"
+      },
+      {
+        "role": "math",
+        "target": "t_0"
+      },
+      {
+        "role": "math",
+        "target": "g_2"
+      },
+      {
+        "role": "math",
+        "target": "g_1"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "g_2(t)"
+      },
+      {
+        "role": "math",
+        "target": "C_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "t_1"
+      },
+      {
+        "role": "math",
+        "target": "t_2"
+      },
+      {
+        "role": "math",
+        "target": "|\\mathbf{q}|"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "|t_2 - t_1|"
+      },
+      {
+        "role": "math",
+        "target": "g_2"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "C_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "(n_\\phi, n_{t_1}, n_{t_2})"
+      },
+      {
+        "role": "math",
+        "target": "c_1"
+      },
+      {
+        "role": "math",
+        "target": "J(t)"
+      },
+      {
+        "role": "math",
+        "target": "t"
+      },
+      {
+        "role": "ref",
+        "target": "theory_transport_coefficient"
+      },
+      {
+        "role": "math",
+        "target": "\\int J\\,dt'"
+      },
+      {
+        "role": "math",
+        "target": "D"
+      },
+      {
+        "role": "math",
+        "target": "J = 2D"
+      },
+      {
+        "role": "math",
+        "target": "D(t) = D_0\\,t^\\alpha + D_\\text{offset}"
+      },
+      {
+        "role": "math",
+        "target": "0"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha = 0"
+      },
+      {
+        "role": "ref",
+        "target": "theory_homodyne_scattering"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "h"
+      },
+      {
+        "role": "math",
+        "target": "\\Gamma(t_1, t_2) = \\int_{t_1}^{t_2}\\dot\\gamma(t)\\,dt"
+      },
+      {
+        "role": "math",
+        "target": "\\mathrm{sinc}(x) = \\sin(\\pi x)/(\\pi x)"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi)"
+      },
+      {
+        "role": "math",
+        "target": "\\text{offset}(\\phi)"
+      },
+      {
+        "role": "math",
+        "target": "q"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "doc",
+        "target": "homodyne_overview"
+      },
+      {
+        "role": "doc",
+        "target": "analysis_modes"
+      },
+      {
+        "role": "doc",
+        "target": "parameter_guide"
+      },
+      {
+        "role": "ref",
+        "target": "theory"
+      }
+    ]
+  },
+  "user_guide/02_data_and_fitting/data_loading.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Loading XPCS Data",
+      "Overview",
+      "HDF5 File Requirements",
+      "Basic Usage",
+      "Loaded Data Dictionary",
+      "YAML Configuration for Data Loading",
+      "Multiple q-Values",
+      "Phi Angle Filtering",
+      "Data Validation",
+      "Common Data Issues and Fixes",
+      "Supported File Formats",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/batch_processing"
+      },
+      {
+        "role": "math",
+        "target": "t_1 = t_2"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/streaming_mode"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/configuration"
+      },
+      {
+        "role": "doc",
+        "target": "nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/batch_processing"
+      }
+    ]
+  },
+  "user_guide/02_data_and_fitting/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Data and Fitting"
+    ],
+    "toctree": [
+      "data_loading",
+      "nlsq_fitting",
+      "model_selection",
+      "result_interpretation"
+    ],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "../01_fundamentals/index"
+      },
+      {
+        "role": "doc",
+        "target": "/installation"
+      }
+    ]
+  },
+  "user_guide/02_data_and_fitting/model_selection.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Choosing Your Model",
+      "Overview",
+      "Decision Guide",
+      "Memory Considerations",
+      "Performance Benchmarks",
+      "Anti-Degeneracy System",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "\\chi^2"
+      },
+      {
+        "role": "doc",
+        "target": "../01_fundamentals/analysis_modes"
+      },
+      {
+        "role": "doc",
+        "target": "nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "result_interpretation"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/per_angle_modes"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/laminar_flow"
+      }
+    ]
+  },
+  "user_guide/02_data_and_fitting/nlsq_fitting.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "NLSQ Fitting Guide",
+      "Overview",
+      "Complete Workflow",
+      "The fit_nlsq_jax Function",
+      "Understanding the Result Object",
+      "NLSQAdapter vs NLSQWrapper",
+      "Memory-Adaptive Strategy Selection",
+      "Setting Initial Parameters",
+      "Multi-Start Optimization",
+      "Convergence Diagnostics",
+      "Common Fitting Issues",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\chi^2_\\nu = \\chi^2 / \\nu"
+      },
+      {
+        "role": "math",
+        "target": "\\nu = n_\\text{data} - n_\\text{params}"
+      },
+      {
+        "role": "math",
+        "target": "\\chi^2_\\nu"
+      },
+      {
+        "role": "doc",
+        "target": "data_loading"
+      },
+      {
+        "role": "doc",
+        "target": "result_interpretation"
+      },
+      {
+        "role": "doc",
+        "target": "model_selection"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/per_angle_modes"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/cmaes_optimization"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/bayesian_inference"
+      }
+    ]
+  },
+  "user_guide/02_data_and_fitting/result_interpretation.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Interpreting Results",
+      "NLSQ Result Structure",
+      "Reduced Chi-Squared Interpretation",
+      "Parameter Uncertainties",
+      "Residual Analysis",
+      "CMC Result Structure",
+      "Convergence Diagnostics",
+      "Saving and Loading Results",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\chi^2_\\nu = \\chi^2 / (n - p)"
+      },
+      {
+        "role": "math",
+        "target": "n"
+      },
+      {
+        "role": "math",
+        "target": "p"
+      },
+      {
+        "role": "math",
+        "target": "\\chi^2_\\nu"
+      },
+      {
+        "role": "math",
+        "target": "J"
+      },
+      {
+        "role": "math",
+        "target": "W = \\text{diag}(1/\\sigma_i^2)"
+      },
+      {
+        "role": "math",
+        "target": "k"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/bayesian_inference"
+      },
+      {
+        "role": "math",
+        "target": "\\hat{V}"
+      },
+      {
+        "role": "math",
+        "target": "W"
+      },
+      {
+        "role": "doc",
+        "target": "nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/diagnostics"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/visualization"
+      }
+    ]
+  },
+  "user_guide/03_advanced_topics/bayesian_inference.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Bayesian Inference with CMC",
+      "When to Use Bayesian Inference",
+      "The NLSQ Warm-Start Pipeline",
+      "CMC Configuration",
+      "SamplingPlan and Adaptive Sampling",
+      "Chain Execution Methods",
+      "Parameter Reparameterization",
+      "Shard Scheduling",
+      "Worker Pool and Shared Memory",
+      "Heterogeneity Detection",
+      "ArviZ Diagnostics",
+      "Posterior Comparison: NLSQ vs CMC",
+      "Quality Filtering",
+      "Checkpointing for Long Runs",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/configuration"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "diagnostics"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/result_interpretation"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/configuration"
+      }
+    ]
+  },
+  "user_guide/03_advanced_topics/cmaes_optimization.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "CMA-ES for Multi-Scale Problems",
+      "When to Use CMA-ES",
+      "Configuration",
+      "Python API",
+      "CMA-ES \u2192 NLSQ Refinement Pipeline",
+      "Warm-Start Optimization",
+      "Performance Considerations",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "D_0 \\sim 10^4"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0 \\sim 10^{-3}"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "laminar_flow"
+      },
+      {
+        "role": "doc",
+        "target": "../01_fundamentals/parameter_guide"
+      }
+    ]
+  },
+  "user_guide/03_advanced_topics/diagnostics.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Convergence Diagnostics",
+      "NLSQ Diagnostics",
+      "Reduced Chi-Squared",
+      "Convergence Status",
+      "Error Recovery Actions",
+      "Jacobian Condition Number",
+      "Residual Analysis",
+      "CMC Diagnostics",
+      "R-hat (Gelman-Rubin Statistic)",
+      "Effective Sample Size (ESS)",
+      "Divergent Transitions",
+      "BFMI (Bayesian Fraction of Missing Information)",
+      "ArviZ Comprehensive Check",
+      "Quality Filtering in CMC",
+      "Diagnosing Common Failures",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "doc",
+        "target": "bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/result_interpretation"
+      },
+      {
+        "role": "doc",
+        "target": "../05_appendices/troubleshooting"
+      }
+    ]
+  },
+  "user_guide/03_advanced_topics/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Advanced Topics"
+    ],
+    "toctree": [
+      "bayesian_inference",
+      "per_angle_modes",
+      "laminar_flow",
+      "cmaes_optimization",
+      "streaming_mode",
+      "diagnostics"
+    ],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/nlsq_fitting"
+      }
+    ]
+  },
+  "user_guide/03_advanced_topics/laminar_flow.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Laminar Flow Analysis Guide",
+      "Physical Setup: Taylor-Couette Geometry",
+      "Configuring for Laminar Flow",
+      "Anti-Degeneracy System",
+      "Angular Dependence Visualization",
+      "Interpreting Shear Parameters",
+      "Troubleshooting Laminar Flow Fits",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "h"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "q"
+      },
+      {
+        "role": "math",
+        "target": "\\Delta t = t_2 - t_1"
+      },
+      {
+        "role": "math",
+        "target": "\\Gamma"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "math",
+        "target": "q"
+      },
+      {
+        "role": "math",
+        "target": "h"
+      },
+      {
+        "role": "math",
+        "target": "\\Gamma"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/configuration"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\chi^2"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta \\approx 0"
+      },
+      {
+        "role": "math",
+        "target": "q h \\dot\\gamma \\Delta t_\\text{max} \\ll 1"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0 + 180\u00b0"
+      },
+      {
+        "role": "math",
+        "target": "\\chi^2"
+      },
+      {
+        "role": "doc",
+        "target": "cmaes_optimization"
+      },
+      {
+        "role": "doc",
+        "target": "../01_fundamentals/analysis_modes"
+      },
+      {
+        "role": "doc",
+        "target": "../01_fundamentals/parameter_guide"
+      },
+      {
+        "role": "doc",
+        "target": "per_angle_modes"
+      },
+      {
+        "role": "doc",
+        "target": "cmaes_optimization"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/nlsq_fitting"
+      }
+    ]
+  },
+  "user_guide/03_advanced_topics/per_angle_modes.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Per-Angle Scaling Modes",
+      "Why Per-Angle Scaling Matters",
+      "The Four Modes",
+      "auto (Recommended)",
+      "constant",
+      "individual",
+      "fourier",
+      "Configuration Examples",
+      "Parameter Count Summary",
+      "Diagnosing Degeneracy",
+      "Fixing Degeneracy Issues",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\beta(\\phi)"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta_i"
+      },
+      {
+        "role": "math",
+        "target": "\\text{offset}_i"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "doc",
+        "target": "../01_fundamentals/analysis_modes"
+      },
+      {
+        "role": "doc",
+        "target": "laminar_flow"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "bayesian_inference"
+      }
+    ]
+  },
+  "user_guide/03_advanced_topics/streaming_mode.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Large Dataset Handling and Streaming",
+      "Overview",
+      "Memory Thresholds",
+      "Stratified LS (Full-Batch)",
+      "Hybrid Streaming",
+      "Performance Tips for Large Datasets",
+      "Monitoring Memory Usage",
+      "CMC Memory Considerations",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "O(10^8)"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/performance_tuning"
+      },
+      {
+        "role": "doc",
+        "target": "bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/performance_tuning"
+      },
+      {
+        "role": "doc",
+        "target": "bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "../05_appendices/troubleshooting"
+      }
+    ]
+  },
+  "user_guide/04_practical_guides/batch_processing.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Batch Processing Multiple Datasets",
+      "Overview",
+      "Sequential Batch Script",
+      "Multiple q-Values",
+      "Result Aggregation",
+      "HPC Parallel Processing",
+      "Collecting SLURM Results",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "configuration"
+      },
+      {
+        "role": "doc",
+        "target": "performance_tuning"
+      },
+      {
+        "role": "doc",
+        "target": "../05_appendices/troubleshooting"
+      }
+    ]
+  },
+  "user_guide/04_practical_guides/configuration.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "YAML Configuration Reference",
+      "Configuration Overview",
+      "Complete Configuration Schema",
+      "Additional Configuration Details",
+      "Configuration Validation",
+      "Configuration Precedence",
+      "Template Generation",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "../01_fundamentals/analysis_modes"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "performance_tuning"
+      }
+    ]
+  },
+  "user_guide/04_practical_guides/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Practical Guides"
+    ],
+    "toctree": [
+      "configuration",
+      "batch_processing",
+      "visualization",
+      "performance_tuning"
+    ],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/index"
+      }
+    ]
+  },
+  "user_guide/04_practical_guides/performance_tuning.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Performance Tuning: CPU/NUMA Optimization",
+      "Overview",
+      "homodyne-config-xla",
+      "XLA Flags",
+      "OMP Thread Configuration",
+      "CMC Worker Count",
+      "NUMA Awareness",
+      "JAX Compilation Caching",
+      "Memory Profiling",
+      "JAX Profiling (Advanced)",
+      "Performance Checklist",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "configuration"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/streaming_mode"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "../05_appendices/troubleshooting"
+      }
+    ]
+  },
+  "user_guide/04_practical_guides/visualization.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Plotting Results",
+      "Two-Time Correlation Heatmaps",
+      "Fitted vs Experimental Cuts",
+      "NLSQ Fit Quality Plot",
+      "CMC Posterior Plots",
+      "Parameter Evolution Across Samples",
+      "Publication-Quality Figures",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "C_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/result_interpretation"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "../05_appendices/troubleshooting"
+      }
+    ]
+  },
+  "user_guide/05_appendices/faq.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Frequently Asked Questions",
+      "General Questions",
+      "Analysis Mode Selection",
+      "NLSQ Optimization",
+      "CMC / Bayesian Questions",
+      "Configuration Questions",
+      "Results Questions",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "C_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/data_loading"
+      },
+      {
+        "role": "math",
+        "target": "C_2"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/model_selection"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/per_angle_modes"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/per_angle_modes"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/result_interpretation"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/configuration"
+      },
+      {
+        "role": "ref",
+        "target": "glossary"
+      },
+      {
+        "role": "ref",
+        "target": "troubleshooting"
+      },
+      {
+        "role": "doc",
+        "target": "../02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/bayesian_inference"
+      }
+    ]
+  },
+  "user_guide/05_appendices/glossary.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Glossary"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\langle r^2(t) \\rangle \\propto t^\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha \\neq 1"
+      },
+      {
+        "role": "math",
+        "target": "1"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha = 1"
+      },
+      {
+        "role": "math",
+        "target": "\\chi^2 = \\sum_i (y_i - f_i)^2 / \\sigma_i^2"
+      },
+      {
+        "role": "math",
+        "target": "\\chi^2_\\nu = \\chi^2 / (n - p)"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "g_2(t)"
+      },
+      {
+        "role": "math",
+        "target": "\\beta"
+      },
+      {
+        "role": "math",
+        "target": "J \\supset D_\\text{offset} (t_2 - t_1)"
+      },
+      {
+        "role": "math",
+        "target": "D_0"
+      },
+      {
+        "role": "math",
+        "target": "g_1(q, t) = \\langle E^*(q, 0) E(q, t) \\rangle / \\langle |E(q)|^2 \\rangle"
+      },
+      {
+        "role": "math",
+        "target": "g_1(q, t) = \\exp(-q^2 D_0 t^\\alpha)"
+      },
+      {
+        "role": "math",
+        "target": "g_2(q, t) = \\langle I(q, 0) I(q, t) \\rangle / \\langle I(q) \\rangle^2"
+      },
+      {
+        "role": "math",
+        "target": "g_1"
+      },
+      {
+        "role": "math",
+        "target": "g_2 = 1 + \\beta |g_1|^2"
+      },
+      {
+        "role": "math",
+        "target": "h"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma_0"
+      },
+      {
+        "role": "math",
+        "target": "C_2 \\propto |g_1|^2"
+      },
+      {
+        "role": "math",
+        "target": "C_2 \\to 1"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_0"
+      },
+      {
+        "role": "math",
+        "target": "\\tau_q \\sim (q^2 D_0)^{-1}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot\\gamma = dv_x/dy"
+      },
+      {
+        "role": "math",
+        "target": "g_2(q,t) = 1 + \\beta |g_1(q,t)|^2"
+      },
+      {
+        "role": "math",
+        "target": "g_2"
+      },
+      {
+        "role": "math",
+        "target": "g_1"
+      },
+      {
+        "role": "math",
+        "target": "\\mathrm{sinc}(x) = \\sin(\\pi x) / (\\pi x)"
+      },
+      {
+        "role": "math",
+        "target": "\\mathrm{sinc}^2(\\cdot)"
+      },
+      {
+        "role": "math",
+        "target": "1/q"
+      },
+      {
+        "role": "math",
+        "target": "D_0 = k_BT / (6\\pi\\eta R_h)"
+      },
+      {
+        "role": "math",
+        "target": "k_BT"
+      },
+      {
+        "role": "math",
+        "target": "\\eta"
+      },
+      {
+        "role": "math",
+        "target": "R_h"
+      },
+      {
+        "role": "math",
+        "target": "1"
+      },
+      {
+        "role": "math",
+        "target": "\\langle r^2 \\rangle \\propto t^\\alpha"
+      },
+      {
+        "role": "math",
+        "target": "C_2(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "q = (4\\pi/\\lambda) \\sin(\\theta/2)"
+      },
+      {
+        "role": "math",
+        "target": "\\lambda"
+      },
+      {
+        "role": "math",
+        "target": "\\theta"
+      },
+      {
+        "role": "math",
+        "target": "q"
+      },
+      {
+        "role": "math",
+        "target": "q"
+      }
+    ]
+  },
+  "user_guide/05_appendices/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Appendices"
+    ],
+    "toctree": [
+      "troubleshooting",
+      "faq",
+      "glossary"
+    ],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "troubleshooting"
+      },
+      {
+        "role": "doc",
+        "target": "faq"
+      },
+      {
+        "role": "doc",
+        "target": "glossary"
+      }
+    ]
+  },
+  "user_guide/05_appendices/troubleshooting.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Troubleshooting Guide",
+      "Installation Issues",
+      "Data Loading Errors",
+      "Fitting Convergence Failures",
+      "Memory Errors",
+      "JAX Compilation Issues",
+      "CMC Divergence Issues",
+      "Shell Completion Issues",
+      "Getting Help",
+      "See Also"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "D_0 \\gg 10^6"
+      },
+      {
+        "role": "ref",
+        "target": "faq"
+      },
+      {
+        "role": "ref",
+        "target": "glossary"
+      },
+      {
+        "role": "ref",
+        "target": "faq"
+      },
+      {
+        "role": "doc",
+        "target": "../03_advanced_topics/diagnostics"
+      },
+      {
+        "role": "doc",
+        "target": "../04_practical_guides/performance_tuning"
+      }
+    ]
+  },
+  "user_guide/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "User Guide",
+      "Learning Pathways",
+      "Sections Overview"
+    ],
+    "toctree": [
+      "01_fundamentals/index",
+      "02_data_and_fitting/index",
+      "03_advanced_topics/index",
+      "04_practical_guides/index",
+      "05_appendices/index"
+    ],
+    "xrefs": [
+      {
+        "role": "doc",
+        "target": "01_fundamentals/what_is_xpcs"
+      },
+      {
+        "role": "doc",
+        "target": "/installation"
+      },
+      {
+        "role": "doc",
+        "target": "/quickstart"
+      },
+      {
+        "role": "doc",
+        "target": "02_data_and_fitting/data_loading"
+      },
+      {
+        "role": "doc",
+        "target": "02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "02_data_and_fitting/result_interpretation"
+      },
+      {
+        "role": "doc",
+        "target": "01_fundamentals/what_is_xpcs"
+      },
+      {
+        "role": "doc",
+        "target": "01_fundamentals/analysis_modes"
+      },
+      {
+        "role": "doc",
+        "target": "03_advanced_topics/laminar_flow"
+      },
+      {
+        "role": "doc",
+        "target": "03_advanced_topics/per_angle_modes"
+      },
+      {
+        "role": "doc",
+        "target": "03_advanced_topics/bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "05_appendices/troubleshooting"
+      },
+      {
+        "role": "doc",
+        "target": "/quickstart"
+      },
+      {
+        "role": "doc",
+        "target": "02_data_and_fitting/nlsq_fitting"
+      },
+      {
+        "role": "doc",
+        "target": "03_advanced_topics/bayesian_inference"
+      },
+      {
+        "role": "doc",
+        "target": "03_advanced_topics/diagnostics"
+      },
+      {
+        "role": "doc",
+        "target": "02_data_and_fitting/result_interpretation"
+      },
+      {
+        "role": "doc",
+        "target": "04_practical_guides/configuration"
+      },
+      {
+        "role": "doc",
+        "target": "04_practical_guides/performance_tuning"
+      },
+      {
+        "role": "doc",
+        "target": "03_advanced_topics/streaming_mode"
+      },
+      {
+        "role": "doc",
+        "target": "03_advanced_topics/cmaes_optimization"
+      },
+      {
+        "role": "doc",
+        "target": "01_fundamentals/parameter_guide"
+      },
+      {
+        "role": "doc",
+        "target": "01_fundamentals/index"
+      },
+      {
+        "role": "doc",
+        "target": "02_data_and_fitting/index"
+      },
+      {
+        "role": "doc",
+        "target": "03_advanced_topics/index"
+      },
+      {
+        "role": "doc",
+        "target": "04_practical_guides/index"
+      },
+      {
+        "role": "doc",
+        "target": "05_appendices/index"
+      }
+    ]
+  }
+}
