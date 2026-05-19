@@ -3206,24 +3206,38 @@
         "  Start %d/%d: new best cost=%.4e (%.2fs)",
         "  Worker %d/%d done: cost=%.4e (%.2fs)",
         "  Worker %d/%d done: new best cost=%.4e (%.2fs)",
+        "Generated %d random starting points for %d parameters",
         "Start %d/%d",
+        "Using %d parallel workers for %d starts",
         "check_zero_volume_bounds: %d fixed dimension(s) detected: %s",
         "generate_lhs_starts: generated %d starts across %d free / %d fixed dims (seed=%d)"
       ],
       "info": [
+        "Including %d custom starting point(s)",
         "Multi-start complete: %d/%d successful, best cost=%.4e, total time=%.1fs",
         "Multi-start: %d starts, parallel=%s",
-        "Parallel multi-start: %d starts, %d workers, timeout=%.0fs"
+        "Parallel multi-start: %d starts, %d workers, timeout=%.0fs",
+        "Screening: kept %d/%d starts (best cost: %.4g, worst kept: %.4g)"
       ],
       "warning": [
+        "%d custom starting point(s) are outside bounds and will be skipped.",
+        "Custom starts have wrong dimension: %d != %d. Ignoring custom starts.",
         "Global as_completed timeout reached after %.0fs \u2014 proceeding with %d completed workers",
         "Parallel multi-start requested but JAX closures cannot be transmitted across process boundaries. Falling back to sequential execution.",
+        "Parallel screening failed, falling back to sequential: %s",
+        "Parameter degeneracy detected: %d distinct basins with similar chi-squared values",
         "Worker %d/%d failed: %s \u2014 skipping",
         "Worker %d/%d timed out after %.0fs \u2014 skipping",
-        "generate_lhs_starts: all %d dimensions are fixed \u2014 all starts are identical"
+        "generate_lhs_starts: all %d dimensions are fixed \u2014 all starts are identical",
+        "n_starts (%d) < n_params (%d): LHS coverage may be inadequate. Consider n_starts >= %d.",
+        "n_starts (%d) is very large for %d parameters. This may produce redundant samples with diminishing returns. Consider n_starts <= %d."
       ]
     },
     "raises": [
+      {
+        "exception": "ImportError",
+        "message": "NLSQ GlobalOptimizationConfig not available. Please install NLSQ >= 0.4.0: pip install nlsq>=0.4.0"
+      },
       {
         "exception": "RuntimeError",
         "message": "All parallel workers failed or timed out. Consider using sequential execution."
@@ -3253,6 +3267,10 @@
         "Created OOC kernels for %d-parameter model",
         "Parallel accumulation: %d chunks, %d workers, %d total points",
         "Sequential accumulation: %d chunks, %d total points, cost=%.4e"
+      ],
+      "info": [
+        "OOCComputePool shut down",
+        "OOCComputePool started: %d workers, %d chunks"
       ],
       "warning": [
         "Chunk %d failed during accumulation: %s (skipping)",

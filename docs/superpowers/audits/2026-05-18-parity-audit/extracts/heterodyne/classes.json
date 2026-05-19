@@ -2291,15 +2291,26 @@
   "optimization.nlsq.multistart.MultiStartConfig": {
     "bases": [],
     "dataclass_fields": [
+      "enable",
       "n_starts",
       "seed",
+      "sampling_strategy",
+      "custom_starts",
+      "n_workers",
+      "use_screening",
+      "screen_keep_fraction",
+      "refine_top_k",
+      "refinement_ftol",
+      "degeneracy_threshold",
       "parallel",
       "max_workers",
       "worker_timeout",
       "max_data_points_for_parallel"
     ],
     "methods": [
-      "from_dict(cls, d: dict[str, Any]) -> MultiStartConfig"
+      "from_dict(cls, d: dict[str, Any]) -> MultiStartConfig",
+      "from_nlsq_config(cls, nlsq_config: Any) -> MultiStartConfig",
+      "to_nlsq_global_config(self) -> Any"
     ]
   },
   "optimization.nlsq.multistart.MultiStartOptimizer": {
@@ -2318,11 +2329,19 @@
       "n_successful",
       "n_total",
       "config",
-      "wall_time_total"
+      "strategy_used",
+      "n_unique_basins",
+      "degeneracy_detected",
+      "total_wall_time",
+      "wall_time_total",
+      "screening_costs",
+      "basin_labels"
     ],
     "methods": [
       "all_results(self) -> list[NLSQResult]",
-      "to_nlsq_result(self) -> NLSQResult"
+      "best(self) -> NLSQResult",
+      "to_nlsq_result(self) -> NLSQResult",
+      "to_optimization_result(self) -> Any"
     ]
   },
   "optimization.nlsq.multistart.SingleStartResult": {
@@ -2344,6 +2363,23 @@
       "n_data"
     ],
     "methods": []
+  },
+  "optimization.nlsq.parallel_accumulator.OOCComputePool": {
+    "bases": [],
+    "dataclass_fields": [],
+    "methods": [
+      "compute_accumulators(self, params: np.ndarray) -> list[tuple[np.ndarray, np.ndarray, float]]",
+      "compute_chi2(self, params: np.ndarray, stride: int = 1) -> float",
+      "shutdown(self) -> None"
+    ]
+  },
+  "optimization.nlsq.parallel_accumulator.OOCSharedArrays": {
+    "bases": [],
+    "dataclass_fields": [],
+    "methods": [
+      "cleanup(self) -> None",
+      "get_refs(self) -> dict[str, dict[str, Any]]"
+    ]
   },
   "optimization.nlsq.parameter_index_mapper.ParameterIndexMapper": {
     "bases": [],

@@ -2069,6 +2069,15 @@
   "optimization.nlsq.memory.StrategyDecision.threshold_gb": {
     "default": null
   },
+  "optimization.nlsq.multistart.MultiStartConfig.custom_starts": {
+    "default": "None"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.degeneracy_threshold": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.enable": {
+    "default": "False"
+  },
   "optimization.nlsq.multistart.MultiStartConfig.max_data_points_for_parallel": {
     "default": "_MAX_POINTS_FOR_PARALLEL"
   },
@@ -2078,11 +2087,29 @@
   "optimization.nlsq.multistart.MultiStartConfig.n_starts": {
     "default": "10"
   },
+  "optimization.nlsq.multistart.MultiStartConfig.n_workers": {
+    "default": "0"
+  },
   "optimization.nlsq.multistart.MultiStartConfig.parallel": {
     "default": "False"
   },
+  "optimization.nlsq.multistart.MultiStartConfig.refine_top_k": {
+    "default": "3"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.refinement_ftol": {
+    "default": "1e-12"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.sampling_strategy": {
+    "default": "'latin_hypercube'"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.screen_keep_fraction": {
+    "default": "0.5"
+  },
   "optimization.nlsq.multistart.MultiStartConfig.seed": {
     "default": "None"
+  },
+  "optimization.nlsq.multistart.MultiStartConfig.use_screening": {
+    "default": "True"
   },
   "optimization.nlsq.multistart.MultiStartConfig.worker_timeout": {
     "default": "_WORKER_TIMEOUT"
@@ -2090,17 +2117,35 @@
   "optimization.nlsq.multistart.MultiStartResult.all_starts": {
     "default": null
   },
+  "optimization.nlsq.multistart.MultiStartResult.basin_labels": {
+    "default": "None"
+  },
   "optimization.nlsq.multistart.MultiStartResult.best_result": {
     "default": null
   },
   "optimization.nlsq.multistart.MultiStartResult.config": {
     "default": null
   },
+  "optimization.nlsq.multistart.MultiStartResult.degeneracy_detected": {
+    "default": "False"
+  },
   "optimization.nlsq.multistart.MultiStartResult.n_successful": {
     "default": null
   },
   "optimization.nlsq.multistart.MultiStartResult.n_total": {
     "default": null
+  },
+  "optimization.nlsq.multistart.MultiStartResult.n_unique_basins": {
+    "default": "1"
+  },
+  "optimization.nlsq.multistart.MultiStartResult.screening_costs": {
+    "default": "None"
+  },
+  "optimization.nlsq.multistart.MultiStartResult.strategy_used": {
+    "default": "'full'"
+  },
+  "optimization.nlsq.multistart.MultiStartResult.total_wall_time": {
+    "default": "0.0"
   },
   "optimization.nlsq.multistart.MultiStartResult.wall_time_total": {
     "default": "0.0"

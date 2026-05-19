@@ -1,12 +1,12 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `e27d8b5debd3664fde2c1de2612e2a52bbc60a2b`
-- Total gaps: **4165**
+- Heterodyne SHA: `14294cc736deea946cfcb25aabe561b72c8f6f02`
+- Total gaps: **4116**
 
-## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1548 gaps)
+## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1500 gaps)
 
-### classes (460)
+### classes (441)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -356,26 +356,9 @@
 | `KEEP` | missing_field | `optimization.nlsq.hierarchical.HierarchicalResult.history` | homodyne dataclass field `history` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.hierarchical.HierarchicalResult.total_time` | homodyne dataclass field `total_time` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.hierarchical.HierarchicalResult.message` | homodyne dataclass field `message` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.multistart.MultiStartConfig.from_nlsq_config` | homodyne method `from_nlsq_config(cls, nlsq_config: Any) -> MultiStartConfig` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.multistart.MultiStartConfig.to_nlsq_global_config` | homodyne method `to_nlsq_global_config(self) -> Any` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartConfig.enable` | homodyne dataclass field `enable` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartConfig.sampling_strategy` | homodyne dataclass field `sampling_strategy` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartConfig.custom_starts` | homodyne dataclass field `custom_starts` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartConfig.n_workers` | homodyne dataclass field `n_workers` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartConfig.use_screening` | homodyne dataclass field `use_screening` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartConfig.screen_keep_fraction` | homodyne dataclass field `screen_keep_fraction` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartConfig.refine_top_k` | homodyne dataclass field `refine_top_k` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartConfig.refinement_ftol` | homodyne dataclass field `refinement_ftol` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartConfig.degeneracy_threshold` | homodyne dataclass field `degeneracy_threshold` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.multistart.MultiStartResult.to_optimization_result` | homodyne method `to_optimization_result(self) -> OptimizationResult` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartResult.best` | homodyne dataclass field `best` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartResult.all_results` | homodyne dataclass field `all_results` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartResult.strategy_used` | homodyne dataclass field `strategy_used` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartResult.n_unique_basins` | homodyne dataclass field `n_unique_basins` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartResult.degeneracy_detected` | homodyne dataclass field `degeneracy_detected` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartResult.total_wall_time` | homodyne dataclass field `total_wall_time` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartResult.screening_costs` | homodyne dataclass field `screening_costs` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.multistart.MultiStartResult.basin_labels` | homodyne dataclass field `basin_labels` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.multistart.SingleStartResult.start_idx` | homodyne dataclass field `start_idx` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.multistart.SingleStartResult.final_params` | homodyne dataclass field `final_params` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.multistart.SingleStartResult.chi_squared` | homodyne dataclass field `chi_squared` missing in heterodyne |
@@ -388,8 +371,6 @@
 | `KEEP` | missing_field | `optimization.nlsq.multistart.SingleStartResult.hessian` | homodyne dataclass field `hessian` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.multistart.SingleStartResult.covariance` | homodyne dataclass field `covariance` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.multistart.SingleStartResult.jacobian` | homodyne dataclass field `jacobian` missing in heterodyne |
-| `KEEP` | missing_class | `optimization.nlsq.parallel_accumulator.OOCComputePool` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_class | `optimization.nlsq.parallel_accumulator.OOCSharedArrays` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_method | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.get_covariance_slice_indices` | homodyne method `get_covariance_slice_indices(self) -> tuple[slice, slice]` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.get_diagnostics` | homodyne method `get_diagnostics(self) -> dict` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.get_group_indices` | homodyne method `get_group_indices(self) -> list[tuple[int, int]]` missing in heterodyne |
@@ -502,7 +483,7 @@
 | `KEEP` | missing_cli_flag | `--static-mode` | homodyne flag `--static-mode` (default=None) missing in heterodyne |
 | `KEEP` | missing_cli_flag | `--tolerance` | homodyne flag `--tolerance` (default=1e-08) missing in heterodyne |
 
-### configs (425)
+### configs (410)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -808,23 +789,8 @@
 | `KEEP` | missing_config_key | `optimization.nlsq.hierarchical.HierarchicalResult.success` | homodyne defines `optimization.nlsq.hierarchical.HierarchicalResult.success`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.hierarchical.HierarchicalResult.total_time` | homodyne defines `optimization.nlsq.hierarchical.HierarchicalResult.total_time`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.hierarchical.HierarchicalResult.x` | homodyne defines `optimization.nlsq.hierarchical.HierarchicalResult.x`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartConfig.custom_starts` | homodyne defines `optimization.nlsq.multistart.MultiStartConfig.custom_starts`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartConfig.degeneracy_threshold` | homodyne defines `optimization.nlsq.multistart.MultiStartConfig.degeneracy_threshold`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartConfig.enable` | homodyne defines `optimization.nlsq.multistart.MultiStartConfig.enable`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartConfig.n_workers` | homodyne defines `optimization.nlsq.multistart.MultiStartConfig.n_workers`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartConfig.refine_top_k` | homodyne defines `optimization.nlsq.multistart.MultiStartConfig.refine_top_k`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartConfig.refinement_ftol` | homodyne defines `optimization.nlsq.multistart.MultiStartConfig.refinement_ftol`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartConfig.sampling_strategy` | homodyne defines `optimization.nlsq.multistart.MultiStartConfig.sampling_strategy`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartConfig.screen_keep_fraction` | homodyne defines `optimization.nlsq.multistart.MultiStartConfig.screen_keep_fraction`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartConfig.use_screening` | homodyne defines `optimization.nlsq.multistart.MultiStartConfig.use_screening`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartResult.all_results` | homodyne defines `optimization.nlsq.multistart.MultiStartResult.all_results`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartResult.basin_labels` | homodyne defines `optimization.nlsq.multistart.MultiStartResult.basin_labels`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartResult.best` | homodyne defines `optimization.nlsq.multistart.MultiStartResult.best`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartResult.degeneracy_detected` | homodyne defines `optimization.nlsq.multistart.MultiStartResult.degeneracy_detected`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartResult.n_unique_basins` | homodyne defines `optimization.nlsq.multistart.MultiStartResult.n_unique_basins`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartResult.screening_costs` | homodyne defines `optimization.nlsq.multistart.MultiStartResult.screening_costs`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartResult.strategy_used` | homodyne defines `optimization.nlsq.multistart.MultiStartResult.strategy_used`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.multistart.MultiStartResult.total_wall_time` | homodyne defines `optimization.nlsq.multistart.MultiStartResult.total_wall_time`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.multistart.SingleStartResult.chi_squared` | homodyne defines `optimization.nlsq.multistart.SingleStartResult.chi_squared`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.multistart.SingleStartResult.covariance` | homodyne defines `optimization.nlsq.multistart.SingleStartResult.covariance`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.multistart.SingleStartResult.final_params` | homodyne defines `optimization.nlsq.multistart.SingleStartResult.final_params`; heterodyne does not |
@@ -1009,7 +975,7 @@
 |---|---|---|---|
 | `KEEP` | exit_code_drift | `<package>` | homodyne exit codes=[0, 1, 130] heterodyne=[] |
 
-### signatures (575)
+### signatures (561)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1401,28 +1367,14 @@
 | `KEEP` | changed | `optimization.nlsq.jacobian.compute_jacobian_condition_number` | homodyne: `compute_jacobian_condition_number(residual_fn: Callable[..., Any], x_subset: np.ndarray, params: np.ndarray) -> float | None`<br>  heterodyne: `compute_jacobian_condition_number(jacobian: np.ndarray) -> float` |
 | `KEEP` | changed | `optimization.nlsq.jacobian.estimate_gradient_noise` | homodyne: `estimate_gradient_noise(residual_fn: Callable[..., Any], x_subset: np.ndarray, params: np.ndarray, n_samples: int = 5, perturbation: float = 1e-06, seed: int = 42) -> float | None`<br>  heterodyne: `estimate_gradient_noise(jacobian: np.ndarray, residuals: np.ndarray) -> dict[str, float]` |
 | `KEEP` | changed | `optimization.nlsq.memory.estimate_peak_memory_gb` | homodyne: `estimate_peak_memory_gb(n_points: int, n_params: int, bytes_per_element: int = 8, jacobian_overhead: float = 6.5) -> float`<br>  heterodyne: `estimate_peak_memory_gb(n_points: int, n_params: int, bytes_per_element: int = 8, jacobian_overhead: float = _JACOBIAN_OVERHEAD) -> float` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.MultiStartConfig.from_nlsq_config` | homodyne has `from_nlsq_config(cls, nlsq_config: Any) -> MultiStartConfig`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.MultiStartConfig.to_nlsq_global_config` | homodyne has `to_nlsq_global_config(self) -> Any`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.MultiStartResult.to_optimization_result` | homodyne has `to_optimization_result(self) -> OptimizationResult`; heterodyne missing |
+| `KEEP` | changed | `optimization.nlsq.multistart.MultiStartResult.to_optimization_result` | homodyne: `to_optimization_result(self) -> OptimizationResult`<br>  heterodyne: `to_optimization_result(self) -> Any` |
 | `KEEP` | changed | `optimization.nlsq.multistart.check_zero_volume_bounds` | homodyne: `check_zero_volume_bounds(bounds: NDArray[np.float64]) -> bool`<br>  heterodyne: `check_zero_volume_bounds(bounds_lower: np.ndarray, bounds_upper: np.ndarray) -> list[int]` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.detect_degeneracy` | homodyne has `detect_degeneracy(results: list[SingleStartResult], chi_sq_threshold: float = 0.1, param_threshold: float = 0.2) -> tuple[bool, int, NDArray[np.int64] | None]`; heterodyne missing |
 | `KEEP` | changed | `optimization.nlsq.multistart.generate_lhs_starts` | homodyne: `generate_lhs_starts(bounds: NDArray[np.float64], n_starts: int, seed: int = 42) -> NDArray[np.float64]`<br>  heterodyne: `generate_lhs_starts(n_starts: int, bounds_lower: np.ndarray, bounds_upper: np.ndarray, seed: int = 42) -> np.ndarray` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.generate_random_starts` | homodyne has `generate_random_starts(bounds: NDArray[np.float64], n_starts: int, seed: int = 42) -> NDArray[np.float64]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.get_n_workers` | homodyne has `get_n_workers(config: MultiStartConfig, n_starts: int) -> int`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.include_custom_starts` | homodyne has `include_custom_starts(generated_starts: NDArray[np.float64], custom_starts: list[list[float]] | NDArray[np.float64] | None, bounds: NDArray[np.float64]) -> NDArray[np.float64]`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.run_multistart_nlsq` | homodyne has `run_multistart_nlsq(data: dict[str, Any], bounds: NDArray[np.float64], config: MultiStartConfig, single_fit_func: Callable[[dict[str, Any], NDArray[np.float64]], SingleStartResult], cost_func: Callable[[NDArray[np.float64]], float] | None = None, custom_starts: list[list[float]] | NDArray[np.float64] | None = None) -> MultiStartResult`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.screen_starts` | homodyne has `screen_starts(cost_func: Callable[[NDArray[np.float64]], float], starts: NDArray[np.float64], keep_fraction: float = 0.5, min_keep: int = 3, n_workers: int = 0) -> tuple[NDArray[np.float64], NDArray[np.float64]]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.multistart.validate_n_starts_for_lhs` | homodyne has `validate_n_starts_for_lhs(n_starts: int, n_params: int, warn: bool = True) -> int`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.parallel_accumulator.OOCComputePool.compute_accumulators` | homodyne has `compute_accumulators(self, params: np.ndarray) -> list[tuple[np.ndarray, np.ndarray, float]]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.parallel_accumulator.OOCComputePool.compute_chi2` | homodyne has `compute_chi2(self, params: np.ndarray, stride: int = 1) -> float`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.parallel_accumulator.OOCComputePool.shutdown` | homodyne has `shutdown(self) -> None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.parallel_accumulator.OOCSharedArrays.cleanup` | homodyne has `cleanup(self) -> None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.parallel_accumulator.OOCSharedArrays.get_refs` | homodyne has `get_refs(self) -> dict[str, dict[str, Any]]`; heterodyne missing |
 | `KEEP` | changed | `optimization.nlsq.parallel_accumulator.accumulate_chunks_parallel` | homodyne: `accumulate_chunks_parallel(chunks: list[tuple[np.ndarray, np.ndarray, float]], n_workers: int = 4) -> tuple[np.ndarray, np.ndarray, float, int]`<br>  heterodyne: `accumulate_chunks_parallel(chunks: list[tuple[np.ndarray, np.ndarray]], residual_fn: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]], params: np.ndarray, n_workers: int = 2) -> GaussNewtonAccumulation` |
 | `KEEP` | changed | `optimization.nlsq.parallel_accumulator.accumulate_chunks_sequential` | homodyne: `accumulate_chunks_sequential(chunks: list[tuple[np.ndarray, np.ndarray, float]]) -> tuple[np.ndarray, np.ndarray, float, int]`<br>  heterodyne: `accumulate_chunks_sequential(chunks: list[tuple[np.ndarray, np.ndarray]], residual_fn: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]], params: np.ndarray) -> GaussNewtonAccumulation` |
 | `KEEP` | changed | `optimization.nlsq.parallel_accumulator.create_ooc_kernels` | homodyne: `create_ooc_kernels(per_angle_scaling: bool, n_phi: int, phi_unique: Any, t1_unique_global: Any, t2_unique_global: Any, n_t1: int, n_t2: int, q_val: float, L_val: float, dt_val: float) -> tuple[Callable, Callable]`<br>  heterodyne: `create_ooc_kernels(n_params: int = 14) -> tuple[Callable[..., Any], Callable[..., Any]]` |
 | `KEEP` | changed | `optimization.nlsq.parallel_accumulator.should_use_parallel_accumulation` | homodyne: `should_use_parallel_accumulation(n_chunks: int) -> bool`<br>  heterodyne: `should_use_parallel_accumulation(n_chunks: int, threshold: int = 10) -> bool` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.parallel_accumulator.should_use_parallel_compute` | homodyne has `should_use_parallel_compute(n_chunks: int) -> bool`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.get_covariance_slice_indices` | homodyne has `get_covariance_slice_indices(self) -> tuple[slice, slice]`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.get_diagnostics` | homodyne has `get_diagnostics(self) -> dict`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.get_group_indices` | homodyne has `get_group_indices(self) -> list[tuple[int, int]]`; heterodyne missing |
@@ -1589,7 +1541,7 @@
 | `KEEP` | missing_in_heterodyne | `viz.mcmc_report.print_mcmc_summary` | homodyne has `print_mcmc_summary(result: Any) -> None`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `viz.validation.validate_plot_arrays` | homodyne has `validate_plot_arrays(*arrays: np.ndarray, names: list[str] | None = None) -> bool`; heterodyne missing |
 
-## P1 — Structural drift — files added/missing/renamed, docs pages missing (1161 gaps)
+## P1 — Structural drift — files added/missing/renamed, docs pages missing (1162 gaps)
 
 ### cli (26)
 
@@ -2144,7 +2096,7 @@
 | `KEEP` | missing_doc_file | `user_guide/03_advanced_topics/streaming_mode.rst` | homodyne has docs file `user_guide/03_advanced_topics/streaming_mode.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `user_guide/04_practical_guides/batch_processing.rst` | homodyne has docs file `user_guide/04_practical_guides/batch_processing.rst`; heterodyne does not |
 
-### signatures (633)
+### signatures (634)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -2623,6 +2575,7 @@
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.multistart.MultiStartOptimizer.fit` | heterodyne-only: `fit(self, residual_fn: Callable[[np.ndarray], np.ndarray], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None) -> MultiStartResult` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.multistart.MultiStartOptimizer.generate_starting_points` | heterodyne-only: `generate_starting_points(self, initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray]) -> np.ndarray` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.multistart.MultiStartResult.all_results` | heterodyne-only: `all_results(self) -> list[NLSQResult]` |
+| `KEEP` | extra_in_heterodyne | `optimization.nlsq.multistart.MultiStartResult.best` | heterodyne-only: `best(self) -> NLSQResult` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.multistart.MultiStartResult.to_nlsq_result` | heterodyne-only: `to_nlsq_result(self) -> NLSQResult` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.build_from_manager` | heterodyne-only: `build_from_manager(cls, pm: ParameterManager, use_log: bool = False) -> ParameterIndexMapper` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.fixed_full_indices` | heterodyne-only: `fixed_full_indices(self) -> list[int]` |
@@ -2782,7 +2735,7 @@
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_quality_report` | heterodyne-only: `plot_quality_report(quality_report: QualityReport, ax: Axes | None = None) -> Axes` |
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_validation_report` | heterodyne-only: `plot_validation_report(report: ValidationReport, ax: Axes | None = None) -> Axes` |
 
-## P2 — Observable drift — log formats, error stems, docs heading drift (1456 gaps)
+## P2 — Observable drift — log formats, error stems, docs heading drift (1454 gaps)
 
 ### docs (837)
 
@@ -3626,7 +3579,7 @@
 | `KEEP` | heading_drift | `user_guide/05_appendices/troubleshooting.rst` | heading `Troubleshooting Guide` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/index.rst` | heading `Sections Overview` present in homodyne, absent in heterodyne |
 
-### logs_errors (619)
+### logs_errors (617)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -3999,8 +3952,6 @@
 | `KEEP` | log_format_drift | `optimization.nlsq.multistart [info]` | homodyne logs 'PHASE 4: Analyzing results'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.multistart [info]` | homodyne logs 'Strategy: FULL (all starting points run complete optimization)'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.multistart [warning]` | homodyne logs 'Parameter bounds have zero volume (all lower == upper). Falling back to single-start at bounds center.'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.parallel_accumulator [info]` | homodyne logs 'OOCComputePool shut down'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.parallel_accumulator [info]` | homodyne logs 'OOCComputePool started: %d workers, %d chunks'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.parallel_accumulator [warning]` | homodyne logs 'Parallel chunk accumulation failed (%s), falling back to sequential'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.progress [debug]` | homodyne logs 'NLSQ ProgressBar not available'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.progress [warning]` | homodyne logs 'tqdm not available for progress bar display. Install with: pip install tqdm'; heterodyne does not (at this level) |
