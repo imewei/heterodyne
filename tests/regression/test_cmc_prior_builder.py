@@ -12,11 +12,11 @@ import pytest
 
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
 from heterodyne.config.parameter_space import ParameterSpace
-from heterodyne.optimization.cmc.prior_builder import (
+from heterodyne.optimization.cmc.priors import (
     PriorBuilder,
+    build_default_priors,
     build_default_priors_via_builder,
 )
-from heterodyne.optimization.cmc.priors import build_default_priors
 
 
 class TestPriorBuilderSyncGate:
