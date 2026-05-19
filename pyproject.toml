@@ -192,6 +192,11 @@ ignore = [
 exclude_dirs = ["tests", "docs", "build", "dist"]
 skips = ["B101", "B110", "B403", "B404", "B603"]
 
+[tool.pyright]
+include = ["heterodyne", "tools", "tests"]
+extraPaths = ["."]
+pythonVersion = "3.13"
+
 [tool.mypy]
 python_version = "3.13"
 warn_return_any = true
