@@ -6,7 +6,7 @@ Populated incrementally by Phase 4 PRs as they encounter DROP-dispositioned rows
 
 ## D1 — Physics-exempt files (5 rows)
 
-_Populated by Phase 4 PR 1._
+- file_inventory:missing_py_file | `optimization.nlsq.shear_weighting` | Layer 5 (shear-sensitivity weighting); not applicable to heterodyne's velocity-phase physics model (D1, spec §2)
 
 ## D2 — Physics-specific docs (10 rows)
 
