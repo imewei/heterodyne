@@ -1,12 +1,12 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `19adced96539e158143204f000708d9dd14fdc5a`
-- Total gaps: **4218**
+- Heterodyne SHA: `e27d8b5debd3664fde2c1de2612e2a52bbc60a2b`
+- Total gaps: **4165**
 
-## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1585 gaps)
+## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1548 gaps)
 
-### classes (467)
+### classes (460)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -326,19 +326,12 @@
 | `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.hierarchical` | homodyne dataclass field `hierarchical` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.shear_weighter` | homodyne dataclass field `shear_weighter` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.mapper` | homodyne dataclass field `mapper` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.parameters` | homodyne dataclass field `parameters` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.covariance` | homodyne dataclass field `covariance` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.chi_squared` | homodyne dataclass field `chi_squared` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.success` | homodyne dataclass field `success` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.diagnostics` | homodyne dataclass field `diagnostics` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.method_used` | homodyne dataclass field `method_used` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.nlsq_refined` | homodyne dataclass field `nlsq_refined` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.message` | homodyne dataclass field `message` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.compute_scale_ratio` | homodyne method `compute_scale_ratio(self, bounds: tuple[np.ndarray, np.ndarray]) -> float` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.fit` | homodyne method `fit(self, model_func: Callable, xdata: np.ndarray, ydata: np.ndarray, p0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], sigma: np.ndarray | None = None, warmstart_chi2: float | None = None) -> CMAESResult` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.is_available` | homodyne method `is_available(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.should_use_cmaes` | homodyne method `should_use_cmaes(self, bounds: tuple[np.ndarray, np.ndarray], scale_threshold: float = 1000.0) -> bool` missing in heterodyne |
-| `KEEP` | missing_class | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig` | homodyne defines this class; heterodyne does not |
+| `KEEP` | missing_method | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.to_cmaes_config` | homodyne method `to_cmaes_config(self, n_params: int, *, sigma_override: float | None = None) -> Any` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.population_batch_size` | homodyne dataclass field `population_batch_size` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.data_chunk_size` | homodyne dataclass field `data_chunk_size` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.auto_memory` | homodyne dataclass field `auto_memory` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.memory_limit_gb` | homodyne dataclass field `memory_limit_gb` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_workflow` | homodyne dataclass field `refinement_workflow` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.config.HybridRecoveryConfig.get_retry_settings` | homodyne method `get_retry_settings(self, attempt: int) -> dict` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.config.NLSQConfig.from_dict` | homodyne method `from_dict(cls, config_dict: dict[str, Any]) -> NLSQConfig` missing in heterodyne |
 | `KEEP` | missing_class | `optimization.nlsq.core.NLSQResult` | homodyne defines this class; heterodyne does not |
@@ -509,7 +502,7 @@
 | `KEEP` | missing_cli_flag | `--static-mode` | homodyne flag `--static-mode` (default=None) missing in heterodyne |
 | `KEEP` | missing_cli_flag | `--tolerance` | homodyne flag `--tolerance` (default=1e-08) missing in heterodyne |
 
-### configs (450)
+### configs (425)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -778,36 +771,11 @@
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.hierarchical` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.hierarchical`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.mapper` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.mapper`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.shear_weighter` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.shear_weighter`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.chi_squared` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.chi_squared`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.covariance` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.covariance`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.diagnostics` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.diagnostics`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.message` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.message`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.method_used` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.method_used`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.nlsq_refined` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.nlsq_refined`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.parameters` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.parameters`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.success` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.success`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.auto_memory` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.auto_memory`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.data_chunk_size` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.data_chunk_size`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.max_generations` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.max_generations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.max_restarts` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.max_restarts`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.memory_limit_gb` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.memory_limit_gb`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.normalization_epsilon` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.normalization_epsilon`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.normalize` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.normalize`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.popsize` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.popsize`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.population_batch_size` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.population_batch_size`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.preset` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.preset`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refine_with_nlsq` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refine_with_nlsq`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_ftol` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_ftol`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_gtol` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_gtol`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_loss` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_loss`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_max_nfev` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_max_nfev`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_workflow` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_workflow`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_xtol` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_xtol`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.restart_strategy` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.restart_strategy`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma_warmstart` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma_warmstart`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_fun` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_fun`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_x` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_x`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.gradient_monitor.CollapseEvent.iteration` | homodyne defines `optimization.nlsq.gradient_monitor.CollapseEvent.iteration`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.gradient_monitor.CollapseEvent.per_angle_grad_norm` | homodyne defines `optimization.nlsq.gradient_monitor.CollapseEvent.per_angle_grad_norm`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.gradient_monitor.CollapseEvent.physical_grad_norm` | homodyne defines `optimization.nlsq.gradient_monitor.CollapseEvent.physical_grad_norm`; heterodyne does not |
@@ -1041,7 +1009,7 @@
 |---|---|---|---|
 | `KEEP` | exit_code_drift | `<package>` | homodyne exit codes=[0, 1, 130] heterodyne=[] |
 
-### signatures (580)
+### signatures (575)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1405,11 +1373,6 @@
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_from_fourier` | homodyne has `transform_params_from_fourier(self, fourier_params: np.ndarray) -> np.ndarray`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_to_constant` | homodyne has `transform_params_to_constant(self, params: np.ndarray) -> np.ndarray`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.update_shear_phi0` | homodyne has `update_shear_phi0(self, params: np.ndarray, iteration: int = 0) -> None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.compute_scale_ratio` | homodyne has `compute_scale_ratio(self, bounds: tuple[np.ndarray, np.ndarray]) -> float`; heterodyne missing |
-| `KEEP` | changed | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.fit` | homodyne: `fit(self, model_func: Callable, xdata: np.ndarray, ydata: np.ndarray, p0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], sigma: np.ndarray | None = None, warmstart_chi2: float | None = None) -> CMAESResult`<br>  heterodyne: `fit(self, objective_fn: Callable[[np.ndarray], float], x0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], *, residual_fn: Callable[[np.ndarray], np.ndarray] | None = None, n_data: int | None = None, parameter_names: list[str] | None = None, metadata: dict[str, Any] | None = None) -> NLSQResult` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.is_available` | homodyne has `is_available(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.should_use_cmaes` | homodyne has `should_use_cmaes(self, bounds: tuple[np.ndarray, np.ndarray], scale_threshold: float = 1000.0) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.from_nlsq_config` | homodyne has `from_nlsq_config(cls, config: NLSQConfig) -> CMAESWrapperConfig`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.to_cmaes_config` | homodyne has `to_cmaes_config(self, n_params: int, *, sigma_override: float | None = None) -> Any`; heterodyne missing |
 | `KEEP` | changed | `optimization.nlsq.cmaes_wrapper.fit_with_cmaes` | homodyne: `fit_with_cmaes(model_func: Callable, xdata: np.ndarray, ydata: np.ndarray, p0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], sigma: np.ndarray | None = None, config: CMAESWrapperConfig | None = None) -> CMAESResult`<br>  heterodyne: `fit_with_cmaes(objective_fn: Callable[[np.ndarray], float], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], parameter_names: list[str] | None = None, *, config: CMAESConfig | None = None, residual_fn: Callable[[np.ndarray], np.ndarray] | None = None, n_data: int | None = None, anti_degeneracy: bool = False, metadata: dict[str, Any] | None = None) -> NLSQResult` |
 | `KEEP` | changed | `optimization.nlsq.config.HybridRecoveryConfig.get_retry_settings` | homodyne: `get_retry_settings(self, attempt: int) -> dict`<br>  heterodyne: `get_retry_settings(self, attempt: int) -> dict[str, float]` |
@@ -1626,7 +1589,7 @@
 | `KEEP` | missing_in_heterodyne | `viz.mcmc_report.print_mcmc_summary` | homodyne has `print_mcmc_summary(result: Any) -> None`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `viz.validation.validate_plot_arrays` | homodyne has `validate_plot_arrays(*arrays: np.ndarray, names: list[str] | None = None) -> bool`; heterodyne missing |
 
-## P1 — Structural drift — files added/missing/renamed, docs pages missing (1167 gaps)
+## P1 — Structural drift — files added/missing/renamed, docs pages missing (1161 gaps)
 
 ### cli (26)
 
@@ -1659,7 +1622,7 @@
 | `KEEP` | extra_cli_flag | `--show-template` | heterodyne-only CLI flag |
 | `KEEP` | extra_cli_flag | `--time-length` | heterodyne-only CLI flag |
 
-### configs (419)
+### configs (412)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1937,13 +1900,6 @@
 | `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESConfig.sigma0` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESConfig.tolfun` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESConfig.tolx` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.best_cost` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.best_params` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.converged` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.final_sigma` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.history` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.n_evaluations` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.n_iterations` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.nlsq.config.HybridRecoveryConfig.perturb_scale` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.nlsq.config.NLSQConfig.analysis_mode` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.nlsq.config.NLSQConfig.chunk_size` | heterodyne-only config key |
@@ -2188,7 +2144,7 @@
 | `KEEP` | missing_doc_file | `user_guide/03_advanced_topics/streaming_mode.rst` | homodyne has docs file `user_guide/03_advanced_topics/streaming_mode.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `user_guide/04_practical_guides/batch_processing.rst` | homodyne has docs file `user_guide/04_practical_guides/batch_processing.rst`; heterodyne does not |
 
-### signatures (632)
+### signatures (633)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -2638,6 +2594,7 @@
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.compute_effective_lambda` | heterodyne-only: `compute_effective_lambda(base_lambda: float, iteration: int, decay_rate: float = 0.95) -> float` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.detect_hierarchical_trigger` | heterodyne-only: `detect_hierarchical_trigger(degeneracy_checks: list[DegeneracyCheck], cost_history: list[float]) -> bool` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.suggest_regularization` | heterodyne-only: `suggest_regularization(degeneracy_checks: list[DegeneracyCheck], base_lambda: float = 0.0001) -> float` |
+| `KEEP` | extra_in_heterodyne | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.fit_with_objective` | heterodyne-only: `fit_with_objective(self, objective_fn: Callable[[np.ndarray], float], x0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], *, residual_fn: Callable[[np.ndarray], np.ndarray] | None = None, n_data: int | None = None, parameter_names: list[str] | None = None, metadata: dict[str, Any] | None = None) -> NLSQResult` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.cmaes_wrapper.adjust_covariance_for_bounds` | heterodyne-only: `adjust_covariance_for_bounds(cov: np.ndarray, lower: np.ndarray, upper: np.ndarray) -> np.ndarray` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.cmaes_wrapper.build_anti_degeneracy_objective` | heterodyne-only: `build_anti_degeneracy_objective(base_objective: Callable[[np.ndarray], float], bounds: tuple[np.ndarray, np.ndarray], parameter_names: list[str], penalty_weight: float = 0.01) -> Callable[[np.ndarray], float]` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.cmaes_wrapper.compute_adaptive_cmaes_params` | heterodyne-only: `compute_adaptive_cmaes_params(bounds: tuple[np.ndarray, np.ndarray]) -> tuple[int, int]` |
@@ -2825,7 +2782,7 @@
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_quality_report` | heterodyne-only: `plot_quality_report(quality_report: QualityReport, ax: Axes | None = None) -> Axes` |
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_validation_report` | heterodyne-only: `plot_validation_report(report: ValidationReport, ax: Axes | None = None) -> Axes` |
 
-## P2 — Observable drift — log formats, error stems, docs heading drift (1466 gaps)
+## P2 — Observable drift — log formats, error stems, docs heading drift (1456 gaps)
 
 ### docs (837)
 
@@ -3669,7 +3626,7 @@
 | `KEEP` | heading_drift | `user_guide/05_appendices/troubleshooting.rst` | heading `Troubleshooting Guide` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/index.rst` | heading `Sections Overview` present in homodyne, absent in heterodyne |
 
-### logs_errors (629)
+### logs_errors (619)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -3997,7 +3954,6 @@
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [debug]` | homodyne logs '[CMA-ES] Parameter bounds (canonical order): lower=%s, upper=%s'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [debug]` | homodyne logs '[CMA-ES] Parameters denormalized from [0,1] to physical space'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [debug]` | homodyne logs '[CMA-ES] Post-refinement disabled, using global search result'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [info]` | homodyne logs '[CMA-ES] Global search phase starting...'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [info]` | homodyne logs '[CMA-ES] Method unavailable: evosax not installed. Install with: pip install nlsq[evosax]'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [info]` | homodyne logs "[CMA-ES] Warm-start: overriding restart_strategy='bipop' -> 'none' (BIPOP large-population restarts are incoherent with small sigma_warmstart)"; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs '  Averaged to: 1 contrast + 1 offset (OPTIMIZED)'; heterodyne does not (at this level) |
@@ -4023,10 +3979,6 @@
 | `KEEP` | log_format_drift | `optimization.nlsq.core [warning]` | homodyne logs '[Multi-Start] Enabled in config but not available. Falling back to local optimization.'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [warning]` | homodyne logs 'per_angle_scaling in initial_parameters must provide equal-length contrast/offset arrays; ignoring overrides'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.data_prep [info]` | homodyne logs 'Expanding scaling parameters for per-angle scaling:'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.fallback_chain [info]` | homodyne logs 'NLSQ Result Analysis:'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.fallback_chain [info]` | homodyne logs 'Using NLSQ AdaptiveHybridStreamingOptimizer for large datasets...'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.fallback_chain [warning]` | homodyne logs 'No pcov attribute in result object. Using identity matrix.'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.fallback_chain [warning]` | homodyne logs 'Optimization failure: Parameters unchanged from initial guess!\n   This suggests curve_fit returned immediately without optimizing.\n   Possible causes: (1) Already at optimum, (2) Singular Jacobian, (3) Bounds too tight'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.fit_computation [debug]` | homodyne logs 'Unable to infer analysis_mode from params=%s angles=%s; defaulting to static'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.fit_computation [info]` | homodyne logs 'Note: lstsq contrast/offset values may differ from NLSQ-optimized values. lstsq re-fits scaling to raw theory (contrast=1, offset=1) post-hoc; NLSQ values are authoritative as they are jointly optimized with physical parameters.'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.fit_computation [warning]` | homodyne logs 'Solver returned scalar contrast/offset (parameter count %d). Expanding scalars across %d filtered angles for result saving.'; heterodyne does not (at this level) |
@@ -4052,12 +4004,7 @@
 | `KEEP` | log_format_drift | `optimization.nlsq.parallel_accumulator [warning]` | homodyne logs 'Parallel chunk accumulation failed (%s), falling back to sequential'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.progress [debug]` | homodyne logs 'NLSQ ProgressBar not available'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.progress [warning]` | homodyne logs 'tqdm not available for progress bar display. Install with: pip install tqdm'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.recovery [debug]` | homodyne logs 'Using curve_fit_large with NLSQ automatic memory management'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.recovery [error]` | homodyne logs 'Optimization returned unchanged parameters after all retries. This may indicate a bug in NLSQ or an intractable problem.'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.recovery [info]` | homodyne logs '  bounds=None (unbounded)'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.recovery [info]` | homodyne logs 'NLSQ curve_fit RESULT DIAGNOSTICS'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.recovery [info]` | homodyne logs 'Retrying with perturbed parameters...'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.recovery [warning]` | homodyne logs '   Affected parameters were likely NOT optimized by NLSQ.'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.recovery [warning]` | homodyne logs '   This indicates singular/ill-conditioned Jacobian matrix!'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.result_builder [warning]` | homodyne logs 'No pcov attribute in result object. Using identity matrix.'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.shear_weighting [debug]` | homodyne logs 'Shear-sensitivity weighting disabled by config'; heterodyne does not (at this level) |

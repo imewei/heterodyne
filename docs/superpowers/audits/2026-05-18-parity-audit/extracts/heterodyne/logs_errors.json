@@ -2618,18 +2618,35 @@
     "exit_codes": [],
     "log_messages": {
       "debug": [
-        "Adaptive CMA-ES: scale_ratio=%.1f, popsize=%d, max_generations=%d"
+        "Adaptive CMA-ES: scale_ratio=%.1f, popsize=%d, max_generations=%d",
+        "[CMA-ES] Not selected: scale_ratio=%.2e < threshold=%.2e"
       ],
       "info": [
         "CMA-ES BIPOP: max_restarts=%d",
-        "CMA-ES finished: strategy=%s, cost=%.6e, evals=%d, iters=%d, wall=%.2fs",
-        "Starting CMA-ES: sigma0=%.3g, maxiter=%d, n_params=%d"
+        "CMA-ES finished: cost=%.6e, evals=%d, iters=%d, wall=%.2fs",
+        "Starting CMA-ES (objective): sigma=%.3g, maxiter=%d, n_params=%d",
+        "[CMA-ES] Auto-selected: scale_ratio=%.2e (threshold=%.2e), %s",
+        "[CMA-ES] BIPOP: max_restarts=%d",
+        "[CMA-ES] Global search completed: chi2=%.4e, generations=%d, evals=%d, wall=%.2fs",
+        "[CMA-ES] Global search phase starting...",
+        "[CMA-ES] Method unavailable: 'cma' package not installed. Install with: uv add cma",
+        "[CMA-ES] Optimization starting: n_params=%d, n_data=%d",
+        "[CMA-ES] Problem characteristics: scale_ratio=%.2e, %s",
+        "[CMA-ES] Refinement improved chi2: %.4e -> %.4e",
+        "[CMA-ES] Warm-start active: using sigma_warmstart=%.3f (default sigma=%.3f)",
+        "[CMA-ES] Warm-start: overriding restart_strategy='bipop' -> 'none'"
       ],
       "warning": [
+        "[CMA-ES] Refinement failed: %s. Using CMA-ES result.",
+        "[CMA-ES] Skipping refinement: CMA-ES chi2=%.4e is >%.0fx worse than warm-start chi2=%.4e.",
         "adjust_covariance_for_bounds: result is not PSD (min eigenvalue=%.2e). Downstream consumers may need to apply a PSD projection."
       ]
     },
     "raises": [
+      {
+        "exception": "ImportError",
+        "message": "CMA-ES requires the 'cma' package. Install it with: uv add cma"
+      },
       {
         "exception": "ImportError",
         "message": "CMA-ES requires the 'cma' package. Install it with: uv add cma"
@@ -2972,14 +2989,19 @@
         "_run_strategy: routing to NLSQWrapper (%s)"
       ],
       "info": [
+        "  strategy=%s, n_data=%d",
         "Auto-selected strategy: %s (%s)",
         "Fallback chain: %s succeeded (cost=%s)",
         "Fallback chain: attempting %s strategy",
-        "Memory error detected; skipping to STREAMING strategy"
+        "Memory error detected; skipping to STREAMING strategy",
+        "NLSQ Result Analysis:",
+        "Using NLSQ AdaptiveHybridStreamingOptimizer for large datasets..."
       ],
       "warning": [
         "Fallback chain: %s raised %s: %s",
-        "Info object is not a dict (type=%s); wrapping as 'raw_info'"
+        "Info object is not a dict (type=%s); wrapping as 'raw_info'",
+        "No pcov attribute in result object. Using identity matrix.",
+        "Optimization failure: Parameters unchanged from initial guess!\n   This suggests curve_fit returned immediately without optimizing.\n   Possible causes: (1) Already at optimum, (2) Singular Jacobian, (3) Bounds too tight"
       ]
     },
     "raises": [
@@ -3287,16 +3309,27 @@
   "optimization.nlsq.recovery": {
     "exit_codes": [],
     "log_messages": {
+      "debug": [
+        "Using curve_fit_large with NLSQ automatic memory management"
+      ],
+      "error": [
+        "Optimization returned unchanged parameters after all retries. This may indicate a bug in NLSQ or an intractable problem."
+      ],
       "info": [
+        "  attempt=%d, action=%s, success=%s",
+        "NLSQ curve_fit RESULT DIAGNOSTICS",
         "Recovery attempt %d: perturbing parameters (scale=%.3f)",
         "Recovery attempt %d: relaxing tolerances by 10x",
         "Recovery attempt %d: switching method to %s",
-        "Recovery succeeded on attempt %d (%s)"
+        "Recovery succeeded on attempt %d (%s)",
+        "Retrying with perturbed parameters..."
       ],
       "warning": [
+        "   Affected parameters were likely NOT optimized by NLSQ.",
         "%d/%d parameters have undefined uncertainty (negative or zero variance)",
         "Covariance shape %s doesn't match n_params=%d; returning inf",
         "No covariance matrix; returning inf uncertainties",
+        "Optimization returned unchanged parameters on attempt %d.",
         "Recovery attempt %d (%s) did not converge: %s",
         "Recovery attempt %d (%s) failed: %s [%s]"
       ]

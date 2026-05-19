@@ -1410,26 +1410,80 @@
   "optimization.nlsq.cmaes_wrapper.CMAESConfig.tolx": {
     "default": "1e-11"
   },
-  "optimization.nlsq.cmaes_wrapper.CMAESResult.best_cost": {
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.chi_squared": {
     "default": null
   },
-  "optimization.nlsq.cmaes_wrapper.CMAESResult.best_params": {
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.covariance": {
     "default": null
   },
-  "optimization.nlsq.cmaes_wrapper.CMAESResult.converged": {
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.diagnostics": {
+    "default": "field(default_factory=dict)"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.message": {
+    "default": "''"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.method_used": {
+    "default": "'cmaes'"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.nlsq_refined": {
+    "default": "False"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.parameters": {
     "default": null
   },
-  "optimization.nlsq.cmaes_wrapper.CMAESResult.final_sigma": {
+  "optimization.nlsq.cmaes_wrapper.CMAESResult.success": {
     "default": null
   },
-  "optimization.nlsq.cmaes_wrapper.CMAESResult.history": {
-    "default": null
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.max_generations": {
+    "default": "None"
   },
-  "optimization.nlsq.cmaes_wrapper.CMAESResult.n_evaluations": {
-    "default": null
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.max_restarts": {
+    "default": "9"
   },
-  "optimization.nlsq.cmaes_wrapper.CMAESResult.n_iterations": {
-    "default": null
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.normalization_epsilon": {
+    "default": "1e-12"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.normalize": {
+    "default": "True"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.popsize": {
+    "default": "None"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.preset": {
+    "default": "'cmaes'"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refine_with_nlsq": {
+    "default": "True"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_ftol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_gtol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_loss": {
+    "default": "'linear'"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_max_nfev": {
+    "default": "500"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.refinement_xtol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.restart_strategy": {
+    "default": "'bipop'"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma": {
+    "default": "0.5"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma_warmstart": {
+    "default": "0.05"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_fun": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_x": {
+    "default": "1e-08"
   },
   "optimization.nlsq.config.HybridRecoveryConfig.lambda_growth": {
     "default": "10.0"

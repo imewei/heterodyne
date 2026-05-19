@@ -1926,13 +1926,14 @@
   "optimization.nlsq.cmaes_wrapper.CMAESResult": {
     "bases": [],
     "dataclass_fields": [
-      "best_params",
-      "best_cost",
-      "n_iterations",
-      "n_evaluations",
-      "converged",
-      "final_sigma",
-      "history"
+      "parameters",
+      "covariance",
+      "chi_squared",
+      "success",
+      "diagnostics",
+      "method_used",
+      "nlsq_refined",
+      "message"
     ],
     "methods": []
   },
@@ -1940,7 +1941,36 @@
     "bases": [],
     "dataclass_fields": [],
     "methods": [
-      "fit(self, objective_fn: Callable[[np.ndarray], float], x0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], *, residual_fn: Callable[[np.ndarray], np.ndarray] | None = None, n_data: int | None = None, parameter_names: list[str] | None = None, metadata: dict[str, Any] | None = None) -> NLSQResult"
+      "compute_scale_ratio(self, bounds: tuple[np.ndarray, np.ndarray]) -> float",
+      "fit(self, model_func: Callable, xdata: np.ndarray, ydata: np.ndarray, p0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], sigma: np.ndarray | None = None, warmstart_chi2: float | None = None) -> CMAESResult",
+      "fit_with_objective(self, objective_fn: Callable[[np.ndarray], float], x0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], *, residual_fn: Callable[[np.ndarray], np.ndarray] | None = None, n_data: int | None = None, parameter_names: list[str] | None = None, metadata: dict[str, Any] | None = None) -> NLSQResult",
+      "is_available(self) -> bool",
+      "should_use_cmaes(self, bounds: tuple[np.ndarray, np.ndarray], scale_threshold: float = 1000.0) -> bool"
+    ]
+  },
+  "optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig": {
+    "bases": [],
+    "dataclass_fields": [
+      "preset",
+      "max_generations",
+      "popsize",
+      "sigma",
+      "sigma_warmstart",
+      "tol_fun",
+      "tol_x",
+      "restart_strategy",
+      "max_restarts",
+      "refine_with_nlsq",
+      "refinement_ftol",
+      "refinement_xtol",
+      "refinement_gtol",
+      "refinement_max_nfev",
+      "refinement_loss",
+      "normalize",
+      "normalization_epsilon"
+    ],
+    "methods": [
+      "from_nlsq_config(cls, config: NLSQConfig) -> CMAESWrapperConfig"
     ]
   },
   "optimization.nlsq.config.HybridRecoveryConfig": {
