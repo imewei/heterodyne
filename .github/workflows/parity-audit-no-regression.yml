@@ -1,0 +1,104 @@
+name: parity-audit-no-regression
+
+# Runs the heterodyne to homodyne parity audit on every PR and fails if any
+# previously-closed gap reopens. The audit tooling at tools/parity_audit/
+# ships with the repo, so this workflow has no external service dependencies.
+#
+# Pinned to a specific homodyne SHA so audit results are reproducible. To
+# refresh the pin against newer homodyne work, update HOMODYNE_PIN below
+# and re-run the audit locally to update REPORT.md before merging.
+#
+# Security note: this workflow uses only github.workspace and a controlled
+# env var (HOMODYNE_PIN). No untrusted user inputs (issue titles, PR bodies,
+# commit messages) are interpolated into run: commands.
+#
+# Refs: Phase 4 spec section 6 PR 12, section 7 Rule 2
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  HOMODYNE_PIN: 0368cbdb075fcff1908c0da2b59a1b0d37d5eeca
+
+jobs:
+  audit:
+    name: Heterodyne to Homodyne parity audit (no regression)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout heterodyne (PR head)
+        uses: actions/checkout@v4
+        with:
+          path: heterodyne
+          fetch-depth: 0
+
+      - name: Checkout homodyne (pinned SHA)
+        uses: actions/checkout@v4
+        with:
+          repository: imewei/homodyne
+          ref: ${{ env.HOMODYNE_PIN }}
+          path: homodyne
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+
+      - name: Set up Python 3.13
+        run: uv python install 3.13
+
+      - name: Install heterodyne deps
+        working-directory: heterodyne
+        run: uv sync --frozen
+
+      - name: Run parity audit (PR head vs pinned homodyne)
+        working-directory: heterodyne
+        run: |
+          uv run python -m tools.parity_audit run-all \
+              --homodyne ../homodyne/homodyne \
+              --heterodyne ./heterodyne \
+              --out ./pr-audit
+          cp pr-audit/REPORT.md pr-audit/REPORT-pr.md
+
+      - name: Checkout main baseline and run baseline audit
+        working-directory: heterodyne
+        env:
+          WORKSPACE: ${{ github.workspace }}
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          git worktree add --detach /tmp/heterodyne-main FETCH_HEAD
+          cd /tmp/heterodyne-main
+          uv sync --frozen
+          uv run python -m tools.parity_audit run-all \
+              --homodyne "$WORKSPACE/homodyne/homodyne" \
+              --heterodyne ./heterodyne \
+              --out ./main-audit
+          cp main-audit/REPORT.md "$WORKSPACE/heterodyne/pr-audit/REPORT-main.md"
+
+      - name: Compare gap counts (no closed gap may reopen)
+        working-directory: heterodyne
+        run: |
+          PR_TOTAL=$(grep -oE 'Total gaps: \*\*[0-9]+\*\*' pr-audit/REPORT-pr.md | grep -oE '[0-9]+')
+          MAIN_TOTAL=$(grep -oE 'Total gaps: \*\*[0-9]+\*\*' pr-audit/REPORT-main.md | grep -oE '[0-9]+')
+          echo "Main baseline total gaps: $MAIN_TOTAL"
+          echo "PR head total gaps:       $PR_TOTAL"
+          if [ "$PR_TOTAL" -gt "$MAIN_TOTAL" ]; then
+            echo "::error::PR introduces parity regressions (gap count increased from $MAIN_TOTAL to $PR_TOTAL)"
+            echo "::group::Diff (main to PR)"
+            diff pr-audit/REPORT-main.md pr-audit/REPORT-pr.md | head -200 || true
+            echo "::endgroup::"
+            exit 1
+          fi
+          DELTA=$((PR_TOTAL - MAIN_TOTAL))
+          echo "::notice::PR maintains or improves parity (gap delta: $DELTA)"
+
+      - name: Upload PR audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-audit-pr-head
+          path: heterodyne/pr-audit/
+          retention-days: 14
