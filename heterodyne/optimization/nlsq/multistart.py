@@ -3,6 +3,9 @@
 Supports parallel execution via ProcessPoolExecutor with automatic
 fallback to sequential when JAX functions cannot be serialized for
 inter-process communication.
+
+NOTE: Subsampling is explicitly NOT supported per project requirements.
+Numerical precision and reproducibility take priority over computational speed.
 """
 
 from __future__ import annotations
@@ -23,6 +26,8 @@ from heterodyne.utils.logging import get_logger
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from numpy.typing import NDArray
+
     from heterodyne.optimization.nlsq.adapter_base import NLSQAdapterBase
 
 logger = get_logger(__name__)
@@ -41,8 +46,20 @@ class MultiStartConfig:
     """Configuration for multi-start optimization.
 
     Attributes:
+        enable: Whether to use multi-start optimization. Default: False.
         n_starts: Number of starting points (including the user-provided one).
         seed: Random seed for Latin Hypercube Sampling reproducibility.
+        sampling_strategy: Method for generating starting points.
+            ``"latin_hypercube"`` or ``"random"``.
+        custom_starts: User-provided custom starting points to include
+            alongside generated starts.
+        n_workers: Number of parallel workers. 0 = auto (cpu_count). Default: 0.
+        use_screening: Whether to pre-screen starting points by cost.
+        screen_keep_fraction: Fraction of starts to keep after screening.
+        refine_top_k: Refine only the top-k starts after screening.
+        refinement_ftol: Function tolerance for refinement phase.
+        degeneracy_threshold: Relative chi-squared threshold for degeneracy
+            detection across basins.
         parallel: Whether to attempt parallel execution via ProcessPoolExecutor.
             Defaults to False because JAX closures cannot be sent across
             process boundaries.
@@ -53,8 +70,17 @@ class MultiStartConfig:
             ``n_data * n_starts`` exceeds this threshold.
     """
 
+    enable: bool = False
     n_starts: int = 10
     seed: int | None = None
+    sampling_strategy: str = "latin_hypercube"
+    custom_starts: list[list[float]] | None = None
+    n_workers: int = 0
+    use_screening: bool = True
+    screen_keep_fraction: float = 0.5
+    refine_top_k: int = 3
+    refinement_ftol: float = 1e-12
+    degeneracy_threshold: float = 0.1
     parallel: bool = (
         False  # Default False — JAX closures cannot cross process boundaries
     )
@@ -82,6 +108,89 @@ class MultiStartConfig:
         """
         known = set(cls.__dataclass_fields__)
         return cls(**{k: v for k, v in d.items() if k in known})
+
+    @classmethod
+    def from_nlsq_config(cls, nlsq_config: Any) -> MultiStartConfig:
+        """Create MultiStartConfig from NLSQConfig.
+
+        Parameters
+        ----------
+        nlsq_config : NLSQConfig
+            NLSQ configuration object.
+
+        Returns
+        -------
+        MultiStartConfig
+            Multi-start configuration.
+        """
+        custom_starts = getattr(nlsq_config, "multi_start_custom_starts", None)
+        return cls(
+            enable=getattr(nlsq_config, "enable_multi_start", False),
+            n_starts=getattr(nlsq_config, "multi_start_n_starts", 10),
+            seed=getattr(nlsq_config, "multi_start_seed", None),
+            sampling_strategy=getattr(
+                nlsq_config, "multi_start_sampling_strategy", "latin_hypercube"
+            ),
+            custom_starts=custom_starts,
+            n_workers=getattr(nlsq_config, "multi_start_n_workers", 0),
+            use_screening=getattr(nlsq_config, "multi_start_use_screening", True),
+            screen_keep_fraction=getattr(
+                nlsq_config, "multi_start_screen_keep_fraction", 0.5
+            ),
+            refine_top_k=getattr(nlsq_config, "multi_start_refine_top_k", 3),
+            refinement_ftol=getattr(nlsq_config, "multi_start_refinement_ftol", 1e-12),
+            degeneracy_threshold=getattr(
+                nlsq_config, "multi_start_degeneracy_threshold", 0.1
+            ),
+        )
+
+    def to_nlsq_global_config(self) -> Any:
+        """Convert to NLSQ's GlobalOptimizationConfig.
+
+        Returns
+        -------
+        GlobalOptimizationConfig
+            NLSQ global optimization configuration.
+
+        Raises
+        ------
+        ImportError
+            If NLSQ GlobalOptimizationConfig is not available.
+
+        Notes
+        -----
+        Maps heterodyne's multi-start configuration to NLSQ's
+        GlobalOptimizationConfig:
+
+        - sampling_strategy -> sampler (lhs, sobol, halton)
+        - use_screening -> elimination_rounds (0 if disabled)
+        - screen_keep_fraction -> elimination_fraction (inverted)
+        """
+        try:
+            from nlsq.global_optimization import GlobalOptimizationConfig
+        except ImportError as e:
+            raise ImportError(
+                "NLSQ GlobalOptimizationConfig not available. "
+                "Please install NLSQ >= 0.4.0: pip install nlsq>=0.4.0"
+            ) from e
+
+        sampler_map = {
+            "latin_hypercube": "lhs",
+            "lhs": "lhs",
+            "sobol": "sobol",
+            "halton": "halton",
+            "random": "lhs",
+        }
+        sampler_str = sampler_map.get(self.sampling_strategy, "lhs")
+        elimination_fraction = 1.0 - self.screen_keep_fraction
+        elimination_rounds = 3 if self.use_screening else 0
+
+        return GlobalOptimizationConfig(
+            n_starts=self.n_starts,
+            sampler=sampler_str,  # type: ignore[arg-type]
+            elimination_rounds=elimination_rounds,
+            elimination_fraction=elimination_fraction,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +225,13 @@ class MultiStartResult:
         n_successful: Number of starts that reported ``success=True``.
         n_total: Total number of starts attempted.
         config: The ``MultiStartConfig`` used for this run.
+        strategy_used: Strategy that was used (always ``"full"``).
+        n_unique_basins: Number of distinct local minima found.
+        degeneracy_detected: Whether parameter degeneracy was detected.
+        total_wall_time: Total execution time in seconds (homodyne-parity alias).
         wall_time_total: Total elapsed wall-clock time in seconds.
+        screening_costs: Initial costs from screening phase.
+        basin_labels: Cluster labels for each result.
     """
 
     best_result: NLSQResult
@@ -124,7 +239,18 @@ class MultiStartResult:
     n_successful: int
     n_total: int
     config: MultiStartConfig
+    strategy_used: str = "full"
+    n_unique_basins: int = 1
+    degeneracy_detected: bool = False
+    total_wall_time: float = 0.0
     wall_time_total: float = 0.0
+    screening_costs: NDArray[np.float64] | None = None
+    basin_labels: NDArray[np.int64] | None = None
+
+    @property
+    def best(self) -> NLSQResult:
+        """Homodyne-parity alias: best result by cost."""
+        return self.best_result
 
     @property
     def all_results(self) -> list[NLSQResult]:
@@ -149,8 +275,36 @@ class MultiStartResult:
             "n_successful": self.n_successful,
             "wall_time_total": self.wall_time_total,
             "best_start_index": best_index,
+            "strategy_used": self.strategy_used,
+            "n_unique_basins": self.n_unique_basins,
+            "degeneracy_detected": self.degeneracy_detected,
         }
         return self.best_result
+
+    def to_optimization_result(self) -> Any:
+        """Convert MultiStartResult to a result dict for CLI compatibility.
+
+        Returns a dictionary containing the best solution with multi-start
+        metadata, compatible with downstream reporting.
+
+        Returns
+        -------
+        dict[str, Any]
+            Result dict with best parameters and multi-start diagnostics.
+        """
+        best = self.best_result
+        multistart_diagnostics: dict[str, Any] = {
+            "strategy_used": self.strategy_used,
+            "n_starts": self.n_total,
+            "n_successful": self.n_successful,
+            "n_unique_basins": self.n_unique_basins,
+            "degeneracy_detected": self.degeneracy_detected,
+            "total_wall_time": self.total_wall_time,
+        }
+        return {
+            "best_result": best,
+            "multistart_diagnostics": multistart_diagnostics,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -731,3 +885,309 @@ def generate_lhs_starts(
         seed,
     )
     return starts
+
+
+def validate_n_starts_for_lhs(
+    n_starts: int,
+    n_params: int,
+    warn: bool = True,
+) -> int:
+    """Validate n_starts for Latin Hypercube Sampling coverage.
+
+    For LHS to provide meaningful coverage, n_starts should be at least
+    n_params.  Very large n_starts relative to parameter space may produce
+    redundant samples.
+
+    Parameters
+    ----------
+    n_starts : int
+        Requested number of starting points.
+    n_params : int
+        Number of parameters (dimensions).
+    warn : bool
+        Whether to emit warnings for suboptimal settings.
+
+    Returns
+    -------
+    int
+        Validated n_starts (unchanged if valid).
+    """
+    if n_starts < n_params and warn:
+        logger.warning(
+            "n_starts (%d) < n_params (%d): "
+            "LHS coverage may be inadequate. Consider n_starts >= %d.",
+            n_starts,
+            n_params,
+            n_params,
+        )
+    max_meaningful = n_params * 1000
+    if n_starts > max_meaningful and warn:
+        logger.warning(
+            "n_starts (%d) is very large for %d parameters. "
+            "This may produce redundant samples with diminishing returns. "
+            "Consider n_starts <= %d.",
+            n_starts,
+            n_params,
+            max_meaningful,
+        )
+    return n_starts
+
+
+def generate_random_starts(
+    bounds: NDArray[np.float64],
+    n_starts: int,
+    seed: int = 42,
+) -> NDArray[np.float64]:
+    """Generate starting points via random uniform sampling.
+
+    Parameters
+    ----------
+    bounds : NDArray[np.float64]
+        Parameter bounds as (n_params, 2) array.
+    n_starts : int
+        Number of starting points to generate.
+    seed : int
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    NDArray[np.float64]
+        Starting points as (n_starts, n_params) array.
+    """
+    rng = np.random.default_rng(seed)
+    n_params = bounds.shape[0]
+    lower = bounds[:, 0]
+    upper = bounds[:, 1]
+    samples = rng.uniform(lower, upper, size=(n_starts, n_params))
+    logger.debug(
+        "Generated %d random starting points for %d parameters", n_starts, n_params
+    )
+    return samples
+
+
+def include_custom_starts(
+    generated_starts: NDArray[np.float64],
+    custom_starts: list[list[float]] | NDArray[np.float64] | None,
+    bounds: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """Include user-provided custom starting points alongside generated starts.
+
+    Custom starting points are prepended to the generated starts so they are
+    always included (not filtered by screening).
+
+    Parameters
+    ----------
+    generated_starts : NDArray[np.float64]
+        Starting points generated by LHS or random sampling.
+    custom_starts : list[list[float]] | NDArray[np.float64] | None
+        User-provided custom starting points.
+    bounds : NDArray[np.float64]
+        Parameter bounds as (n_params, 2) array, used for validation.
+
+    Returns
+    -------
+    NDArray[np.float64]
+        Combined starting points with custom starts first.
+    """
+    if custom_starts is None or len(custom_starts) == 0:
+        return generated_starts
+
+    custom_array = np.asarray(custom_starts, dtype=np.float64)
+    n_params = bounds.shape[0]
+    if custom_array.ndim == 1:
+        custom_array = custom_array.reshape(1, -1)
+
+    if custom_array.shape[1] != n_params:
+        logger.warning(
+            "Custom starts have wrong dimension: %d != %d. Ignoring custom starts.",
+            custom_array.shape[1],
+            n_params,
+        )
+        return generated_starts
+
+    lower = bounds[:, 0]
+    upper = bounds[:, 1]
+    n_custom = len(custom_array)
+    valid_mask = np.all((custom_array >= lower) & (custom_array <= upper), axis=1)
+    n_valid = int(np.sum(valid_mask))
+
+    if n_valid < n_custom:
+        logger.warning(
+            "%d custom starting point(s) are outside bounds and will be skipped.",
+            n_custom - n_valid,
+        )
+        custom_array = custom_array[valid_mask]
+
+    if len(custom_array) == 0:
+        return generated_starts
+
+    logger.info("Including %d custom starting point(s)", len(custom_array))
+    return np.vstack([custom_array, generated_starts])
+
+
+def screen_starts(
+    cost_func: Callable[[NDArray[np.float64]], float],
+    starts: NDArray[np.float64],
+    keep_fraction: float = 0.5,
+    min_keep: int = 3,
+    n_workers: int = 0,
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Pre-filter starting points by initial cost.
+
+    Parameters
+    ----------
+    cost_func : Callable
+        Function that computes cost (chi-squared) for a parameter vector.
+    starts : NDArray[np.float64]
+        Starting points as (n_starts, n_params) array.
+    keep_fraction : float
+        Fraction of starting points to keep (0, 1].
+    min_keep : int
+        Minimum number of starting points to keep.
+    n_workers : int
+        Number of parallel workers for cost evaluation. 0 = auto
+        (cpu_count - 1).
+
+    Returns
+    -------
+    tuple[NDArray[np.float64], NDArray[np.float64]]
+        Filtered starting points and their initial costs (all costs, not just
+        kept ones).
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    n_total_starts = len(starts)
+    n_keep = max(min_keep, int(n_total_starts * keep_fraction))
+    n_keep = min(n_keep, n_total_starts)
+
+    if n_workers == 0:
+        n_workers = max(1, (os.cpu_count() or 1) - 1)
+
+    if n_total_starts >= 4 and n_workers > 1:
+        try:
+            with ThreadPoolExecutor(max_workers=n_workers) as executor:
+                costs = np.array(list(executor.map(cost_func, starts)))
+        except (RuntimeError, OSError, ValueError) as exc:
+            logger.warning(
+                "Parallel screening failed, falling back to sequential: %s", exc
+            )
+            costs = np.array([cost_func(start) for start in starts])
+    else:
+        costs = np.array([cost_func(start) for start in starts])
+
+    sorted_indices = np.argsort(costs)
+    keep_indices = sorted_indices[:n_keep]
+    filtered_starts = starts[keep_indices]
+    filtered_costs = costs[keep_indices]
+
+    logger.info(
+        "Screening: kept %d/%d starts (best cost: %.4g, worst kept: %.4g)",
+        n_keep,
+        n_total_starts,
+        filtered_costs[0],
+        filtered_costs[-1],
+    )
+    return filtered_starts, costs
+
+
+def get_n_workers(config: MultiStartConfig, n_starts: int) -> int:
+    """Determine number of parallel workers.
+
+    Parameters
+    ----------
+    config : MultiStartConfig
+        Multi-start configuration.
+    n_starts : int
+        Number of starting points.
+
+    Returns
+    -------
+    int
+        Number of workers to use.
+    """
+    if config.n_workers > 0:
+        n_workers = config.n_workers
+    else:
+        n_workers = os.cpu_count() or 4
+    n_workers = min(n_workers, n_starts)
+    logger.debug("Using %d parallel workers for %d starts", n_workers, n_starts)
+    return n_workers
+
+
+def detect_degeneracy(
+    results: list[SingleStartResult],
+    chi_sq_threshold: float = 0.1,
+    param_threshold: float = 0.2,
+) -> tuple[bool, int, NDArray[np.int64] | None]:
+    """Detect parameter degeneracy from multiple optimization results.
+
+    Parameters
+    ----------
+    results : list[SingleStartResult]
+        List of optimization results (heterodyne ``SingleStartResult``
+        wrapping an inner ``NLSQResult``).
+    chi_sq_threshold : float
+        Maximum relative chi-squared difference to consider similar.
+    param_threshold : float
+        Maximum relative parameter distance to consider same basin.
+
+    Returns
+    -------
+    tuple[bool, int, NDArray[np.int64] | None]
+        (degeneracy_detected, n_unique_basins, basin_labels)
+    """
+    successful = [r for r in results if r.result.success]
+    if len(successful) < 2:
+        return False, 1, None
+
+    # Sort by cost
+    successful.sort(
+        key=lambda r: r.result.final_cost if r.result.final_cost is not None else np.inf
+    )
+    best_cost = (
+        successful[0].result.final_cost
+        if successful[0].result.final_cost is not None
+        else 0.0
+    )
+
+    basins: list[list[SingleStartResult]] = []
+    basin_assignments: list[int] = []
+
+    for r in successful:
+        r_cost = r.result.final_cost if r.result.final_cost is not None else np.inf
+        cost_diff = abs(r_cost - best_cost) / (abs(best_cost) + 1e-10)
+        if cost_diff > chi_sq_threshold:
+            basin_assignments.append(-1)
+            continue
+
+        r_params = r.result.parameters
+        found_basin = False
+        for basin_idx, basin in enumerate(basins):
+            center_params = basin[0].result.parameters
+            if center_params is None:
+                continue
+            param_dist = np.linalg.norm(r_params - center_params) / (
+                np.linalg.norm(center_params) + 1e-10
+            )
+            if param_dist < param_threshold:
+                basin.append(r)
+                basin_assignments.append(basin_idx)
+                found_basin = True
+                break
+
+        if not found_basin:
+            basins.append([r])
+            basin_assignments.append(len(basins) - 1)
+
+    n_unique_basins = len(basins)
+    degeneracy_detected = n_unique_basins > 1
+    labels = np.array(basin_assignments, dtype=np.int64)
+
+    if degeneracy_detected:
+        logger.warning(
+            "Parameter degeneracy detected: %d distinct basins "
+            "with similar chi-squared values",
+            n_unique_basins,
+        )
+
+    return degeneracy_detected, n_unique_basins, labels
