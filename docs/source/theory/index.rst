@@ -54,4 +54,5 @@ PNAS publications. Physical quantities use angstrom-based units throughout:
    classical_processes
    computational_methods
    analysis_modes
+   anti_degeneracy
    citations

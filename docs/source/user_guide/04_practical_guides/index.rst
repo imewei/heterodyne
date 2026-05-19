@@ -13,3 +13,4 @@ generating publication-quality plots, and tuning performance.
    configuration
    visualization
    performance_tuning
+   batch_processing

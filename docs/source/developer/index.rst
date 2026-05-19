@@ -51,3 +51,4 @@ Sections
    testing_guide
    architecture
    parameter_bounds_verification
+   adrs/index
