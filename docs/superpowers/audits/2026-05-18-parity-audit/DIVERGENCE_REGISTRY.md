@@ -16,6 +16,8 @@ _Populated by Phase 4 PR 10._
 
 _Populated incrementally by Phase 4 PRs 1–11 as each PR encounters D3-matching rows in its scope. Each entry: `category:kind | qualname | rationale (one of: Layer-5 shear-only / homodyne-only param / homodyne-only physics class / homodyne-only CLI mode)`._
 
+- file_inventory:extra_py_file | `optimization.nlsq.strategies.chunked` | heterodyne-only ChunkedStrategy class (memory-bounded NLSQ chunking); no homodyne equivalent. KEEP (D3 heterodyne-required). Phase 4 PR 1 Task 1.2 Step 2.5 verification classified the chunked.py↔chunking.py pair as "different files" — homodyne's chunking.py contains stratification utility functions (analyze_angle_distribution, StratificationDiagnostics, create_angle_stratified_data, etc.) deferred to a separate port task (not in scope for PR 1 Task 1.2 as originally written).
+
 ## Manual-narrative-diff escalations (3 rows; from REPORT.md §"Manual narrative diffs")
 
 _Populated as the corresponding PRs land:_
