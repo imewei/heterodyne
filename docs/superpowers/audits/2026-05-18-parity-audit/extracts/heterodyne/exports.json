@@ -281,11 +281,14 @@
     "should_use_persistent_pool"
   ],
   "optimization.nlsq": [
+    "AntiDegeneracyConfig",
+    "AntiDegeneracyController",
     "BoundsValidator",
     "CMAESResult",
     "CMAES_AVAILABLE",
     "ChunkedStrategy",
     "ConvergenceValidator",
+    "DegeneracyCheck",
     "FitQualityConfig",
     "FitQualityReport",
     "FitQualityValidator",

@@ -2486,16 +2486,35 @@
     "exit_codes": [],
     "log_messages": {
       "debug": [
+        "Created HybridStreamingConfig kwargs: %s",
+        "Created NLSQ callbacks: %s",
         "GradientCollapseDetector: Frobenius norm = %.4e",
         "compute_effective_lambda: iter=%d, base=%.4e, decay=%.4f \u2192 lambda=%.4e",
         "suggest_regularization: %d degenerate checks \u2192 lambda=%.4e"
       ],
       "info": [
+        "  Behavior: Quantile estimates -> AVERAGED -> OPTIMIZED",
+        "  Behavior: Quantile estimates -> per-angle FIXED (not optimized)",
+        "  Enabled: True",
+        "  Enabled: True (lazy construction at fit time)",
+        "  Parameters: 14 physical + 2 averaged scaling = 16 total",
+        "ANTI-DEGENERACY: Auto-selected 'auto_averaged' mode",
+        "ANTI-DEGENERACY: Auto-selected 'fourier' mode",
+        "ANTI-DEGENERACY: Auto-selected 'individual' mode",
+        "ANTI-DEGENERACY: Layer 1 - Fourier Reparameterization",
+        "ANTI-DEGENERACY: Layer 2 - Hierarchical Optimization",
+        "ANTI-DEGENERACY: Layer 3 - Adaptive Regularization",
+        "ANTI-DEGENERACY: Layer 4 - Gradient Collapse Monitor",
+        "ANTI-DEGENERACY: Using explicit 'constant' mode -> fixed_constant",
+        "ANTI-DEGENERACY: Using explicit 'fourier' mode",
+        "CONSTANT MODE: Computing fixed per-angle scaling from quantiles",
+        "Fixed scaling computed: contrast=[%.3f\u00b1%.3f], offset=[%.3f\u00b1%.3f]",
         "detect_hierarchical_trigger: degeneracy + cost plateau detected (last 3 costs: %s) \u2014 hierarchical fitting recommended"
       ],
       "warning": [
-        "Degeneracy detected: %s",
-        "GradientCollapseDetector: Jacobian Frobenius norm has been below %.2e for %d consecutive calls \u2014 gradient collapse detected"
+        "ANTI-DEGENERACY Layer 4: Gradient collapse detected at iteration %d (cost=%.4e)",
+        "GradientCollapseDetector: Jacobian Frobenius norm has been below %.2e for %d consecutive calls \u2014 gradient collapse detected",
+        "compute_fixed_per_angle_scaling called but not in constant mode; estimates will be stored but may not be used"
       ]
     },
     "raises": [
@@ -2506,14 +2525,6 @@
       {
         "exception": "ValueError",
         "message": ""
-      },
-      {
-        "exception": "ValueError",
-        "message": "bound_tolerance must be non-negative"
-      },
-      {
-        "exception": "ValueError",
-        "message": "correlation_threshold must be in (0, 1]"
       },
       {
         "exception": "ValueError",

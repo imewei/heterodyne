@@ -1257,6 +1257,87 @@
   "optimization.nlsq.adaptive_regularization.RegularizationConfig.lambda_min": {
     "default": "1e-12"
   },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.constant_scaling_threshold": {
+    "default": "3"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.fourier_auto_threshold": {
+    "default": "8"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.fourier_order": {
+    "default": "2"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_consecutive_triggers": {
+    "default": "5"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_monitoring_enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_ratio_threshold": {
+    "default": "0.01"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_response_mode": {
+    "default": "'hierarchical'"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_enable": {
+    "default": "True"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_max_outer_iterations": {
+    "default": "5"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_outer_tolerance": {
+    "default": "0.0001"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_per_angle_max_iterations": {
+    "default": "50"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_physical_max_iterations": {
+    "default": "100"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.per_angle_mode": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_lambda": {
+    "default": "1.0"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_max_cv": {
+    "default": "0.2"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_mode": {
+    "default": "'relative'"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_target_contribution": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_target_cv": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.config": {
+    "default": null
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.fourier": {
+    "default": "None"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.monitor": {
+    "default": "None"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_phi": {
+    "default": null
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_physical": {
+    "default": null
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.per_angle_mode_actual": {
+    "default": "'disabled'"
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.phi_angles": {
+    "default": null
+  },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.regularizer": {
+    "default": "None"
+  },
   "optimization.nlsq.anti_degeneracy_controller.DegeneracyCheck.affected_params": {
     "default": "field(default_factory=list)"
   },

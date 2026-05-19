@@ -1809,11 +1809,65 @@
     ],
     "methods": []
   },
+  "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig": {
+    "bases": [],
+    "dataclass_fields": [
+      "enable",
+      "per_angle_mode",
+      "fourier_order",
+      "fourier_auto_threshold",
+      "constant_scaling_threshold",
+      "hierarchical_enable",
+      "hierarchical_max_outer_iterations",
+      "hierarchical_outer_tolerance",
+      "hierarchical_physical_max_iterations",
+      "hierarchical_per_angle_max_iterations",
+      "regularization_mode",
+      "regularization_lambda",
+      "regularization_target_cv",
+      "regularization_target_contribution",
+      "regularization_max_cv",
+      "gradient_monitoring_enable",
+      "gradient_ratio_threshold",
+      "gradient_consecutive_triggers",
+      "gradient_response_mode"
+    ],
+    "methods": [
+      "from_dict(cls, config_dict: dict[str, Any]) -> AntiDegeneracyConfig"
+    ]
+  },
   "optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController": {
     "bases": [],
-    "dataclass_fields": [],
+    "dataclass_fields": [
+      "config",
+      "n_phi",
+      "n_physical",
+      "phi_angles",
+      "fourier",
+      "regularizer",
+      "monitor",
+      "per_angle_mode_actual"
+    ],
     "methods": [
-      "check(self, result: NLSQResult, param_manager: ParameterManager | None = None) -> DegeneracyCheck"
+      "compute_fixed_per_angle_scaling(self, stratified_data: Any, contrast_bounds: tuple[float, float] = (0.0, 1.0), offset_bounds: tuple[float, float] = (0.5, 1.5)) -> None",
+      "create_hybrid_streaming_config_kwargs(self) -> dict[str, Any]",
+      "create_nlsq_callbacks(self) -> dict[str, Any]",
+      "from_config(cls, config_dict: dict[str, Any], n_phi: int, phi_angles: np.ndarray, n_physical: int = 14, per_angle_scaling: bool = True) -> AntiDegeneracyController",
+      "get_diagnostics(self) -> dict[str, Any]",
+      "get_fixed_per_angle_scaling(self) -> tuple[np.ndarray, np.ndarray] | None",
+      "get_group_variance_indices(self) -> list[tuple[int, int]]",
+      "get_shear_weights(self) -> np.ndarray | None",
+      "has_fixed_per_angle_scaling(self) -> bool",
+      "is_enabled(self) -> bool",
+      "n_per_angle_params(self) -> int",
+      "reset_monitor(self) -> None",
+      "transform_params_to_fourier(self, params: np.ndarray) -> tuple[np.ndarray, tuple[np.ndarray, np.ndarray] | None]",
+      "use_averaged_scaling(self) -> bool",
+      "use_constant(self) -> bool",
+      "use_fixed_scaling(self) -> bool",
+      "use_fourier(self) -> bool",
+      "use_hierarchical(self) -> bool",
+      "use_shear_weighting(self) -> bool"
     ]
   },
   "optimization.nlsq.anti_degeneracy_controller.DegeneracyCheck": {

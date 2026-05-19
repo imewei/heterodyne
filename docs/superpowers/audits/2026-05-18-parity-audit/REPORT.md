@@ -1,12 +1,12 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `dde9767825cebd8132d1284e0c612ec05bd27617`
-- Total gaps: **4505**
+- Heterodyne SHA: `5525c6080dcd9365b4c63f10301df326e1fc24ec`
+- Total gaps: **4427**
 
-## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1845 gaps)
+## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1779 gaps)
 
-### classes (573)
+### classes (552)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -321,41 +321,20 @@
 | `KEEP` | missing_method | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.compute_regularization_jax` | homodyne method `compute_regularization_jax(self, params: jnp.ndarray, mse: jnp.ndarray, n_points: int) -> jnp.ndarray` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.get_diagnostics` | homodyne method `get_diagnostics(self) -> dict` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.log_summary` | homodyne method `log_summary(self, params: np.ndarray, mse: float, n_points: int) -> None` missing in heterodyne |
-| `KEEP` | missing_class | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.compute_fixed_per_angle_scaling` | homodyne method `compute_fixed_per_angle_scaling(self, stratified_data: Any, contrast_bounds: tuple[float, float] = (0.0, 1.0), offset_bounds: tuple[float, float] = (0.5, 1.5)) -> None` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.create_hybrid_streaming_config_kwargs` | homodyne method `create_hybrid_streaming_config_kwargs(self) -> dict[str, Any]` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.create_nlsq_callbacks` | homodyne method `create_nlsq_callbacks(self) -> dict[str, Any]` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_enable` | homodyne dataclass field `shear_weighting_enable` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_min_weight` | homodyne dataclass field `shear_weighting_min_weight` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_alpha` | homodyne dataclass field `shear_weighting_alpha` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_update_frequency` | homodyne dataclass field `shear_weighting_update_frequency` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_normalize` | homodyne dataclass field `shear_weighting_normalize` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.from_config` | homodyne method `from_config(cls, config_dict: dict[str, Any], n_phi: int, phi_angles: np.ndarray, n_physical: int, per_angle_scaling: bool = True, is_laminar_flow: bool = True) -> AntiDegeneracyController` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.get_diagnostics` | homodyne method `get_diagnostics(self) -> dict[str, Any]` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.get_fixed_per_angle_scaling` | homodyne method `get_fixed_per_angle_scaling(self) -> tuple[np.ndarray, np.ndarray] | None` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.get_group_variance_indices` | homodyne method `get_group_variance_indices(self) -> list[tuple[int, int]] | None` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.get_shear_weights` | homodyne method `get_shear_weights(self) -> np.ndarray | None` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.has_fixed_per_angle_scaling` | homodyne method `has_fixed_per_angle_scaling(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.is_enabled` | homodyne method `is_enabled(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_per_angle_params` | homodyne method `n_per_angle_params(self) -> int` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.reset_monitor` | homodyne method `reset_monitor(self) -> None` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_from_constant` | homodyne method `transform_params_from_constant(self, constant_params: np.ndarray) -> np.ndarray` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_from_fourier` | homodyne method `transform_params_from_fourier(self, fourier_params: np.ndarray) -> np.ndarray` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_to_constant` | homodyne method `transform_params_to_constant(self, params: np.ndarray) -> np.ndarray` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_to_fourier` | homodyne method `transform_params_to_fourier(self, params: np.ndarray) -> tuple[np.ndarray, tuple[np.ndarray, np.ndarray] | None]` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.update_shear_phi0` | homodyne method `update_shear_phi0(self, params: np.ndarray, iteration: int = 0) -> None` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_averaged_scaling` | homodyne method `use_averaged_scaling(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_constant` | homodyne method `use_constant(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_fixed_scaling` | homodyne method `use_fixed_scaling(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_fourier` | homodyne method `use_fourier(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_hierarchical` | homodyne method `use_hierarchical(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_shear_weighting` | homodyne method `use_shear_weighting(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.config` | homodyne dataclass field `config` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_phi` | homodyne dataclass field `n_phi` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_physical` | homodyne dataclass field `n_physical` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.phi_angles` | homodyne dataclass field `phi_angles` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.fourier` | homodyne dataclass field `fourier` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.hierarchical` | homodyne dataclass field `hierarchical` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.regularizer` | homodyne dataclass field `regularizer` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.monitor` | homodyne dataclass field `monitor` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.shear_weighter` | homodyne dataclass field `shear_weighter` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.mapper` | homodyne dataclass field `mapper` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.per_angle_mode_actual` | homodyne dataclass field `per_angle_mode_actual` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.parameters` | homodyne dataclass field `parameters` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.covariance` | homodyne dataclass field `covariance` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.cmaes_wrapper.CMAESResult.chi_squared` | homodyne dataclass field `chi_squared` missing in heterodyne |
@@ -615,7 +594,7 @@
 | `KEEP` | missing_cli_flag | `--static-mode` | homodyne flag `--static-mode` (default=None) missing in heterodyne |
 | `KEEP` | missing_cli_flag | `--tolerance` | homodyne flag `--tolerance` (default=1e-08) missing in heterodyne |
 
-### configs (569)
+### configs (542)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -887,40 +866,13 @@
 | `KEEP` | missing_config_key | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.mode` | homodyne defines `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.mode`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.target_contribution` | homodyne defines `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.target_contribution`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.target_cv` | homodyne defines `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.target_cv`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.constant_scaling_threshold` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.constant_scaling_threshold`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.enable` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.enable`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.fourier_auto_threshold` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.fourier_auto_threshold`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.fourier_order` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.fourier_order`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_consecutive_triggers` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_consecutive_triggers`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_monitoring_enable` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_monitoring_enable`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_ratio_threshold` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_ratio_threshold`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_response_mode` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.gradient_response_mode`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_enable` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_enable`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_max_outer_iterations` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_max_outer_iterations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_outer_tolerance` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_outer_tolerance`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_per_angle_max_iterations` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_per_angle_max_iterations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_physical_max_iterations` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.hierarchical_physical_max_iterations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.per_angle_mode` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.per_angle_mode`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_lambda` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_lambda`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_max_cv` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_max_cv`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_mode` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_mode`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_target_contribution` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_target_contribution`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_target_cv` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.regularization_target_cv`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_alpha` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_alpha`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_enable` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_enable`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_min_weight` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_min_weight`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_normalize` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_normalize`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_update_frequency` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.shear_weighting_update_frequency`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.config` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.config`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.fourier` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.fourier`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.hierarchical` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.hierarchical`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.mapper` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.mapper`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.monitor` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.monitor`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_phi` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_phi`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_physical` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_physical`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.per_angle_mode_actual` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.per_angle_mode_actual`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.phi_angles` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.phi_angles`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.regularizer` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.regularizer`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.shear_weighter` | homodyne defines `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.shear_weighter`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.chi_squared` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.chi_squared`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESResult.covariance` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESResult.covariance`; heterodyne does not |
@@ -1254,7 +1206,7 @@
 | `KEEP` | missing_export | `io` | missing from __all__: ['create_mcmc_analysis_dict', 'create_mcmc_diagnostics_dict', 'create_mcmc_parameters_dict'] |
 | `KEEP` | missing_export | `optimization` | missing from __all__: ['MCMCResult', 'MCMC_AVAILABLE', 'MultiStartConfig', 'MultiStartResult', 'NLSQWrapper', 'NLSQ_AVAILABLE', 'OPTIMIZATION_STATUS', 'OptimizationResult', 'StratificationDiagnostics', 'StratifiedResidualFunction', 'StratifiedResidualFunctionJIT', 'cmc', 'create_angle_stratified_data', 'create_angle_stratified_indices', 'create_stratified_residual_function', 'fit_mcmc_jax', 'fit_nlsq_multistart', 'nlsq', 'optimize_per_angle_sequential', 'should_use_stratification'] |
 | `KEEP` | missing_export | `optimization.cmc.backends` | missing from __all__: ['CMCBackend'] |
-| `KEEP` | missing_export | `optimization.nlsq` | missing from __all__: ['AdapterConfig', 'AdaptiveHybridStreamingOptimizer', 'AntiDegeneracyConfig', 'AntiDegeneracyController', 'CMAESConfig', 'CMAESDiagnostics', 'CMAESOptimizer', 'CMAESWrapper', 'CMAESWrapperConfig', 'CMAES_PRESETS', 'CurveFit', 'CurveFitResult', 'DEFAULT_MEMORY_FRACTION', 'ExecutionResult', 'ExpandedParameters', 'FALLBACK_THRESHOLD_GB', 'FunctionEvaluationCounter', 'GlobalOptimizationConfig', 'HybridRecoveryConfig', 'HybridStreamingConfig', 'JAC_SAMPLE_SIZE', 'JAX_AVAILABLE', 'LargeDatasetExecutor', 'MethodSelector', 'MultiStartConfig', 'MultiStartOrchestrator', 'MultiStartResult', 'NLSQDatasetSizeTier', 'NLSQMemoryManager', 'NLSQOptimizationRecovery', 'NLSQ_AVAILABLE', 'NLSQ_CACHING_AVAILABLE', 'NLSQ_CMAES_AVAILABLE', 'NLSQ_CURVEFIT_AVAILABLE', 'NLSQ_GLOBAL_OPT_AVAILABLE', 'NLSQ_GOAL_AVAILABLE', 'NLSQ_RESULT_AVAILABLE', 'NLSQ_STABILITY_AVAILABLE', 'NLSQ_STREAMING_AVAILABLE', 'NLSQ_WORKFLOW_AVAILABLE', 'NumericalStabilityGuard', 'OptimizationExecutor', 'OptimizationGoal', 'OptimizationResult', 'ParameterIndexMapper', 'PreparedData', 'QualityMetrics', 'ResultBuilder', 'SingleStartResult', 'StandardExecutor', 'StrategyDecision', 'StratificationDiagnostics', 'StratifiedResidualFunction', 'StratifiedResidualFunctionJIT', 'StreamingExecutor', 'WorkflowSelector', 'WorkflowTier', '_get_param_names', 'analyze_angle_distribution', 'auto_configure_cmaes_memory', 'build_parameter_labels', 'build_parameter_labels_utils', 'classify_parameter_status', 'classify_parameter_status_utils', 'clear_model_cache', 'compute_consistent_per_angle_init', 'compute_default_popsize', 'compute_jacobian_stats', 'compute_quality_metrics', 'compute_stratification_diagnostics', 'compute_theoretical_fits', 'compute_uncertainties', 'convert_bounds_to_nlsq_format', 'create_angle_stratified_data', 'create_angle_stratified_indices', 'create_stratified_residual_function', 'curve_fit', 'detect_degeneracy', 'detect_total_system_memory', 'determine_convergence_status', 'estimate_cmaes_memory_gb', 'estimate_peak_memory_gb', 'estimate_stratification_memory', 'expand_per_angle_parameters', 'extract_parameters_from_result', 'fit_nlsq_cmaes', 'fit_nlsq_multistart', 'format_diagnostics_report', 'generate_random_starts', 'get_adapter', 'get_adaptive_memory_threshold', 'get_cache_stats', 'get_executor', 'get_memory_manager', 'get_or_create_model', 'get_physical_param_count', 'include_custom_starts', 'is_adapter_available', 'is_evosax_available', 'normalize_analysis_mode', 'normalize_nlsq_result', 'optimize_per_angle_sequential', 'run_multistart_nlsq', 'sample_xdata', 'screen_starts', 'should_use_stratification', 'validate_bounds', 'validate_initial_params', 'validate_n_starts_for_lhs'] |
+| `KEEP` | missing_export | `optimization.nlsq` | missing from __all__: ['AdapterConfig', 'AdaptiveHybridStreamingOptimizer', 'CMAESConfig', 'CMAESDiagnostics', 'CMAESOptimizer', 'CMAESWrapper', 'CMAESWrapperConfig', 'CMAES_PRESETS', 'CurveFit', 'CurveFitResult', 'DEFAULT_MEMORY_FRACTION', 'ExecutionResult', 'ExpandedParameters', 'FALLBACK_THRESHOLD_GB', 'FunctionEvaluationCounter', 'GlobalOptimizationConfig', 'HybridRecoveryConfig', 'HybridStreamingConfig', 'JAC_SAMPLE_SIZE', 'JAX_AVAILABLE', 'LargeDatasetExecutor', 'MethodSelector', 'MultiStartConfig', 'MultiStartOrchestrator', 'MultiStartResult', 'NLSQDatasetSizeTier', 'NLSQMemoryManager', 'NLSQOptimizationRecovery', 'NLSQ_AVAILABLE', 'NLSQ_CACHING_AVAILABLE', 'NLSQ_CMAES_AVAILABLE', 'NLSQ_CURVEFIT_AVAILABLE', 'NLSQ_GLOBAL_OPT_AVAILABLE', 'NLSQ_GOAL_AVAILABLE', 'NLSQ_RESULT_AVAILABLE', 'NLSQ_STABILITY_AVAILABLE', 'NLSQ_STREAMING_AVAILABLE', 'NLSQ_WORKFLOW_AVAILABLE', 'NumericalStabilityGuard', 'OptimizationExecutor', 'OptimizationGoal', 'OptimizationResult', 'ParameterIndexMapper', 'PreparedData', 'QualityMetrics', 'ResultBuilder', 'SingleStartResult', 'StandardExecutor', 'StrategyDecision', 'StratificationDiagnostics', 'StratifiedResidualFunction', 'StratifiedResidualFunctionJIT', 'StreamingExecutor', 'WorkflowSelector', 'WorkflowTier', '_get_param_names', 'analyze_angle_distribution', 'auto_configure_cmaes_memory', 'build_parameter_labels', 'build_parameter_labels_utils', 'classify_parameter_status', 'classify_parameter_status_utils', 'clear_model_cache', 'compute_consistent_per_angle_init', 'compute_default_popsize', 'compute_jacobian_stats', 'compute_quality_metrics', 'compute_stratification_diagnostics', 'compute_theoretical_fits', 'compute_uncertainties', 'convert_bounds_to_nlsq_format', 'create_angle_stratified_data', 'create_angle_stratified_indices', 'create_stratified_residual_function', 'curve_fit', 'detect_degeneracy', 'detect_total_system_memory', 'determine_convergence_status', 'estimate_cmaes_memory_gb', 'estimate_peak_memory_gb', 'estimate_stratification_memory', 'expand_per_angle_parameters', 'extract_parameters_from_result', 'fit_nlsq_cmaes', 'fit_nlsq_multistart', 'format_diagnostics_report', 'generate_random_starts', 'get_adapter', 'get_adaptive_memory_threshold', 'get_cache_stats', 'get_executor', 'get_memory_manager', 'get_or_create_model', 'get_physical_param_count', 'include_custom_starts', 'is_adapter_available', 'is_evosax_available', 'normalize_analysis_mode', 'normalize_nlsq_result', 'optimize_per_angle_sequential', 'run_multistart_nlsq', 'sample_xdata', 'screen_starts', 'should_use_stratification', 'validate_bounds', 'validate_initial_params', 'validate_n_starts_for_lhs'] |
 | `KEEP` | missing_export | `optimization.nlsq.strategies` | missing from __all__: ['ExecutionResult', 'JAC_SAMPLE_SIZE', 'LargeDatasetExecutor', 'OptimizationExecutor', 'StandardExecutor', 'StratificationDiagnostics', 'StratifiedResidualFunction', 'StratifiedResidualFunctionJIT', 'StreamingExecutor', 'analyze_angle_distribution', 'compute_stratification_diagnostics', 'create_angle_stratified_data', 'create_angle_stratified_indices', 'create_stratified_residual_function', 'estimate_stratification_memory', 'format_diagnostics_report', 'get_executor', 'optimize_per_angle_sequential', 'should_use_stratification'] |
 | `KEEP` | missing_export | `optimization.nlsq.validation` | missing from __all__: ['validate_array_dimensions', 'validate_bounds_consistency', 'validate_covariance', 'validate_initial_params', 'validate_no_nan_inf', 'validate_optimized_params', 'validate_result_consistency'] |
 | `KEEP` | missing_export | `utils` | missing from __all__: ['PathValidationError', 'get_safe_output_dir', 'validate_plot_save_path', 'validate_save_path'] |
@@ -1266,7 +1218,7 @@
 |---|---|---|---|
 | `KEEP` | exit_code_drift | `<package>` | homodyne exit codes=[0, 1, 130] heterodyne=[] |
 
-### signatures (615)
+### signatures (597)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1630,30 +1582,12 @@
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.compute_regularization_jax` | homodyne has `compute_regularization_jax(self, params: jnp.ndarray, mse: jnp.ndarray, n_points: int) -> jnp.ndarray`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.get_diagnostics` | homodyne has `get_diagnostics(self) -> dict`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.log_summary` | homodyne has `log_summary(self, params: np.ndarray, mse: float, n_points: int) -> None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyConfig.from_dict` | homodyne has `from_dict(cls, config_dict: dict[str, Any]) -> AntiDegeneracyConfig`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.compute_fixed_per_angle_scaling` | homodyne has `compute_fixed_per_angle_scaling(self, stratified_data: Any, contrast_bounds: tuple[float, float] = (0.0, 1.0), offset_bounds: tuple[float, float] = (0.5, 1.5)) -> None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.create_hybrid_streaming_config_kwargs` | homodyne has `create_hybrid_streaming_config_kwargs(self) -> dict[str, Any]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.create_nlsq_callbacks` | homodyne has `create_nlsq_callbacks(self) -> dict[str, Any]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.from_config` | homodyne has `from_config(cls, config_dict: dict[str, Any], n_phi: int, phi_angles: np.ndarray, n_physical: int, per_angle_scaling: bool = True, is_laminar_flow: bool = True) -> AntiDegeneracyController`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.get_diagnostics` | homodyne has `get_diagnostics(self) -> dict[str, Any]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.get_fixed_per_angle_scaling` | homodyne has `get_fixed_per_angle_scaling(self) -> tuple[np.ndarray, np.ndarray] | None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.get_group_variance_indices` | homodyne has `get_group_variance_indices(self) -> list[tuple[int, int]] | None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.get_shear_weights` | homodyne has `get_shear_weights(self) -> np.ndarray | None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.has_fixed_per_angle_scaling` | homodyne has `has_fixed_per_angle_scaling(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.is_enabled` | homodyne has `is_enabled(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.n_per_angle_params` | homodyne has `n_per_angle_params(self) -> int`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.reset_monitor` | homodyne has `reset_monitor(self) -> None`; heterodyne missing |
+| `KEEP` | changed | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.from_config` | homodyne: `from_config(cls, config_dict: dict[str, Any], n_phi: int, phi_angles: np.ndarray, n_physical: int, per_angle_scaling: bool = True, is_laminar_flow: bool = True) -> AntiDegeneracyController`<br>  heterodyne: `from_config(cls, config_dict: dict[str, Any], n_phi: int, phi_angles: np.ndarray, n_physical: int = 14, per_angle_scaling: bool = True) -> AntiDegeneracyController` |
+| `KEEP` | changed | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.get_group_variance_indices` | homodyne: `get_group_variance_indices(self) -> list[tuple[int, int]] | None`<br>  heterodyne: `get_group_variance_indices(self) -> list[tuple[int, int]]` |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_from_constant` | homodyne has `transform_params_from_constant(self, constant_params: np.ndarray) -> np.ndarray`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_from_fourier` | homodyne has `transform_params_from_fourier(self, fourier_params: np.ndarray) -> np.ndarray`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_to_constant` | homodyne has `transform_params_to_constant(self, params: np.ndarray) -> np.ndarray`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.transform_params_to_fourier` | homodyne has `transform_params_to_fourier(self, params: np.ndarray) -> tuple[np.ndarray, tuple[np.ndarray, np.ndarray] | None]`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.update_shear_phi0` | homodyne has `update_shear_phi0(self, params: np.ndarray, iteration: int = 0) -> None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_averaged_scaling` | homodyne has `use_averaged_scaling(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_constant` | homodyne has `use_constant(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_fixed_scaling` | homodyne has `use_fixed_scaling(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_fourier` | homodyne has `use_fourier(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_hierarchical` | homodyne has `use_hierarchical(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_shear_weighting` | homodyne has `use_shear_weighting(self) -> bool`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.compute_scale_ratio` | homodyne has `compute_scale_ratio(self, bounds: tuple[np.ndarray, np.ndarray]) -> float`; heterodyne missing |
 | `KEEP` | changed | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.fit` | homodyne: `fit(self, model_func: Callable, xdata: np.ndarray, ydata: np.ndarray, p0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], sigma: np.ndarray | None = None, warmstart_chi2: float | None = None) -> CMAESResult`<br>  heterodyne: `fit(self, objective_fn: Callable[[np.ndarray], float], x0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], *, residual_fn: Callable[[np.ndarray], np.ndarray] | None = None, n_data: int | None = None, parameter_names: list[str] | None = None, metadata: dict[str, Any] | None = None) -> NLSQResult` |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.is_available` | homodyne has `is_available(self) -> bool`; heterodyne missing |
@@ -1886,7 +1820,7 @@
 | `KEEP` | missing_in_heterodyne | `viz.mcmc_report.print_mcmc_summary` | homodyne has `print_mcmc_summary(result: Any) -> None`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `viz.validation.validate_plot_arrays` | homodyne has `validate_plot_arrays(*arrays: np.ndarray, names: list[str] | None = None) -> bool`; heterodyne missing |
 
-## P1 — Structural drift — files added/missing/renamed, docs pages missing (1167 gaps)
+## P1 — Structural drift — files added/missing/renamed, docs pages missing (1166 gaps)
 
 ### cli (26)
 
@@ -2389,7 +2323,7 @@
 | `KEEP` | extra_export | `optimization` | heterodyne-only in __all__: ['BoundsError', 'ConvergenceError', 'DegeneracyError', 'FitQualityConfig', 'FitQualityReport', 'NLSQAdapter', 'NLSQConfig', 'NumericalError', 'OptimizationError', 'ValidationError', 'fit_cmc_jax', 'validate_fit_quality'] |
 | `KEEP` | extra_export | `optimization.cmc` | heterodyne-only in __all__: ['BimodalConsensusResult', 'BimodalResult', 'DIVERGENCE_RATE_CRITICAL', 'DIVERGENCE_RATE_HIGH', 'DIVERGENCE_RATE_TARGET', 'ModeCluster', 'ParameterScaling', 'ParameterStats', 'ReparamConfig', 'SamplingStats', 'build_init_values_dict', 'check_shard_bimodality', 'cluster_shard_modes', 'compute_nlsq_comparison_metrics', 'compute_precision_analysis', 'compute_t_ref', 'detect_bimodal', 'estimate_per_angle_scaling', 'extract_nlsq_values_for_cmc', 'fit_cmc_jax', 'fit_cmc_sharded', 'get_heterodyne_model', 'get_model_param_count', 'get_param_names_in_order', 'run_cmc_analysis', 'run_nuts_with_retry', 'summarize_cross_shard_bimodality', 'summarize_diagnostics', 'validate_convergence', 'validate_initial_value_bounds', 'validate_model_output'] |
 | `KEEP` | extra_export | `optimization.cmc.backends` | heterodyne-only in __all__: ['CPUBackend', 'MCMCBackend', 'PBSConfig', 'PersistentWorkerPool', 'ShardPosterior', 'WorkerPoolBackend', 'combine_shard_samples', 'combine_shard_samples_bimodal', 'consensus_mc', 'robust_consensus_mc', 'should_use_persistent_pool'] |
-| `KEEP` | extra_export | `optimization.nlsq` | heterodyne-only in __all__: ['BoundsValidator', 'CMAES_AVAILABLE', 'ChunkedStrategy', 'ConvergenceValidator', 'FitQualityConfig', 'FitQualityReport', 'FitQualityValidator', 'FittingStrategy', 'GradientCollapseDetector', 'HierarchicalResult', 'InputValidator', 'JITStrategy', 'MultiStartOptimizer', 'NLSQValidationConfig', 'ParameterTransform', 'ResidualStrategy', 'ResultValidator', 'SequentialStrategy', 'StrategyResult', 'TimedContext', 'ValidationIssue', 'ValidationReport', 'ValidationSeverity', 'adjust_covariance_for_bounds', 'analyze_parameter_sensitivity', 'build_failed_result', 'build_result_from_arrays', 'build_result_from_scipy', 'classify_fit_quality', 'compute_adaptive_cmaes_params', 'compute_degrees_of_freedom', 'compute_effective_lambda', 'compute_jacobian_condition_number', 'compute_weights', 'denormalize_from_unit_cube', 'detect_hierarchical_trigger', 'estimate_gradient_noise', 'fit_nlsq_multi_phi', 'flatten_upper_triangle', 'normalize_to_unit_cube', 'prepare_fit_data', 'select_strategy', 'suggest_regularization', 'unflatten_upper_triangle', 'validate_fit_quality'] |
+| `KEEP` | extra_export | `optimization.nlsq` | heterodyne-only in __all__: ['BoundsValidator', 'CMAES_AVAILABLE', 'ChunkedStrategy', 'ConvergenceValidator', 'DegeneracyCheck', 'FitQualityConfig', 'FitQualityReport', 'FitQualityValidator', 'FittingStrategy', 'GradientCollapseDetector', 'HierarchicalResult', 'InputValidator', 'JITStrategy', 'MultiStartOptimizer', 'NLSQValidationConfig', 'ParameterTransform', 'ResidualStrategy', 'ResultValidator', 'SequentialStrategy', 'StrategyResult', 'TimedContext', 'ValidationIssue', 'ValidationReport', 'ValidationSeverity', 'adjust_covariance_for_bounds', 'analyze_parameter_sensitivity', 'build_failed_result', 'build_result_from_arrays', 'build_result_from_scipy', 'classify_fit_quality', 'compute_adaptive_cmaes_params', 'compute_degrees_of_freedom', 'compute_effective_lambda', 'compute_jacobian_condition_number', 'compute_weights', 'denormalize_from_unit_cube', 'detect_hierarchical_trigger', 'estimate_gradient_noise', 'fit_nlsq_multi_phi', 'flatten_upper_triangle', 'normalize_to_unit_cube', 'prepare_fit_data', 'select_strategy', 'suggest_regularization', 'unflatten_upper_triangle', 'validate_fit_quality'] |
 | `KEEP` | extra_export | `optimization.nlsq.strategies` | heterodyne-only in __all__: ['ChunkedStrategy', 'FittingStrategy', 'HybridStreamingStrategy', 'JITStrategy', 'OutOfCoreStrategy', 'ResidualJITStrategy', 'ResidualStrategy', 'SequentialStrategy', 'StrategyResult', 'StratifiedLSStrategy', 'select_strategy'] |
 | `KEEP` | extra_export | `optimization.nlsq.validation` | heterodyne-only in __all__: ['BoundsValidator', 'ConvergenceValidator', 'FitQualityValidator', 'ValidationIssue', 'ValidationReport', 'ValidationSeverity', 'classify_fit_quality'] |
 | `KEEP` | extra_export | `runtime` | heterodyne-only in __all__: ['Severity'] |
@@ -2448,7 +2382,7 @@
 | `KEEP` | missing_doc_file | `user_guide/03_advanced_topics/streaming_mode.rst` | homodyne has docs file `user_guide/03_advanced_topics/streaming_mode.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `user_guide/04_practical_guides/batch_processing.rst` | homodyne has docs file `user_guide/04_practical_guides/batch_processing.rst`; heterodyne does not |
 
-### signatures (632)
+### signatures (631)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -2892,7 +2826,6 @@
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.current_lambda` | heterodyne-only: `current_lambda(self) -> float` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.regularize_covariance` | heterodyne-only: `regularize_covariance(self, covariance: np.ndarray, lambda_: float | None = None) -> np.ndarray` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.reset` | heterodyne-only: `reset(self) -> None` |
-| `KEEP` | extra_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.check` | heterodyne-only: `check(self, result: NLSQResult, param_manager: ParameterManager | None = None) -> DegeneracyCheck` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.GradientCollapseDetector.reset` | heterodyne-only: `reset(self) -> None` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.GradientCollapseDetector.update` | heterodyne-only: `update(self, jacobian: np.ndarray) -> bool` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.anti_degeneracy_controller.compute_effective_lambda` | heterodyne-only: `compute_effective_lambda(base_lambda: float, iteration: int, decay_rate: float = 0.95) -> float` |
@@ -3085,7 +3018,7 @@
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_quality_report` | heterodyne-only: `plot_quality_report(quality_report: QualityReport, ax: Axes | None = None) -> Axes` |
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_validation_report` | heterodyne-only: `plot_validation_report(report: ValidationReport, ax: Axes | None = None) -> Axes` |
 
-## P2 — Observable drift — log formats, error stems, docs heading drift (1493 gaps)
+## P2 — Observable drift — log formats, error stems, docs heading drift (1482 gaps)
 
 ### docs (837)
 
@@ -3929,7 +3862,7 @@
 | `KEEP` | heading_drift | `user_guide/05_appendices/troubleshooting.rst` | heading `Troubleshooting Guide` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/index.rst` | heading `Sections Overview` present in homodyne, absent in heterodyne |
 
-### logs_errors (656)
+### logs_errors (645)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -4257,21 +4190,10 @@
 | `KEEP` | log_format_drift | `optimization.nlsq.adapter [info]` | homodyne logs 'NLSQAdapter.fit: n_data=%d, n_params=%d, n_phi=%d, mode=%s'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.adaptive_regularization [info]` | homodyne logs 'Adaptive Regularization Summary:'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.adaptive_regularization [info]` | homodyne logs 'Adaptive regularization: DISABLED'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs '  Behavior: Quantile estimates -> AVERAGED -> OPTIMIZED'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs '  Behavior: Quantile estimates -> per-angle values FIXED (NOT optimized)'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs '  Enabled: True'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs '  Parameters: 7 physical + 2 averaged scaling = 9 total'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs '  Parameters: 7 physical only (scaling FIXED from quantiles)'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs "ANTI-DEGENERACY: Auto-selected 'auto_averaged' mode"; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs "ANTI-DEGENERACY: Auto-selected 'individual' mode"; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs 'ANTI-DEGENERACY: Layer 1 - Fourier Reparameterization'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs 'ANTI-DEGENERACY: Layer 2 - Hierarchical Optimization'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs 'ANTI-DEGENERACY: Layer 3 - Adaptive Regularization'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs 'ANTI-DEGENERACY: Layer 4 - Gradient Collapse Monitor'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs 'ANTI-DEGENERACY: Layer 5 - Shear-Sensitivity Weighting'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs "ANTI-DEGENERACY: Using explicit 'constant' mode -> fixed_constant"; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [info]` | homodyne logs 'CONSTANT MODE: Computing fixed per-angle scaling from quantiles'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.anti_degeneracy_controller [warning]` | homodyne logs 'compute_fixed_per_angle_scaling called but not in constant mode; estimates will be stored but may not be used'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [debug]` | homodyne logs '[CMA-ES] Parameter bounds (canonical order): lower=%s, upper=%s'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [debug]` | homodyne logs '[CMA-ES] Parameters denormalized from [0,1] to physical space'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [debug]` | homodyne logs '[CMA-ES] Post-refinement disabled, using global search result'; heterodyne does not (at this level) |
