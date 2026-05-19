@@ -1,8 +1,8 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `e27fa70d91055f79944275bafc31342c095b9f04`
-- Total gaps: **4249**
+- Heterodyne SHA: `40303155c84210f78a61b2658efc20dac80bdcbf`
+- Total gaps: **4240**
 
 ## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1607 gaps)
 
@@ -1428,9 +1428,9 @@
 | `KEEP` | changed | `optimization.nlsq.cmaes_wrapper.fit_with_cmaes` | homodyne: `fit_with_cmaes(model_func: Callable, xdata: np.ndarray, ydata: np.ndarray, p0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], sigma: np.ndarray | None = None, config: CMAESWrapperConfig | None = None) -> CMAESResult`<br>  heterodyne: `fit_with_cmaes(objective_fn: Callable[[np.ndarray], float], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], parameter_names: list[str] | None = None, *, config: CMAESConfig | None = None, residual_fn: Callable[[np.ndarray], np.ndarray] | None = None, n_data: int | None = None, anti_degeneracy: bool = False, metadata: dict[str, Any] | None = None) -> NLSQResult` |
 | `KEEP` | changed | `optimization.nlsq.config.HybridRecoveryConfig.get_retry_settings` | homodyne: `get_retry_settings(self, attempt: int) -> dict`<br>  heterodyne: `get_retry_settings(self, attempt: int) -> dict[str, float]` |
 | `KEEP` | changed | `optimization.nlsq.config.NLSQConfig.from_dict` | homodyne: `from_dict(cls, config_dict: dict[str, Any]) -> NLSQConfig`<br>  heterodyne: `from_dict(cls, config: dict[str, Any]) -> NLSQConfig` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.core.fit_nlsq_cmaes` | homodyne has `fit_nlsq_cmaes(data: dict[str, Any], config: ConfigManager, initial_params: dict[str, float] | None = None, per_angle_scaling: bool = True) -> OptimizationResult`; heterodyne missing |
+| `KEEP` | changed | `optimization.nlsq.core.fit_nlsq_cmaes` | homodyne: `fit_nlsq_cmaes(data: dict[str, Any], config: ConfigManager, initial_params: dict[str, float] | None = None, per_angle_scaling: bool = True) -> OptimizationResult`<br>  heterodyne: `fit_nlsq_cmaes(model: HeterodyneModel, c2_data: np.ndarray | jnp.ndarray, phi_angle: float = 0.0, config: NLSQConfig | None = None, weights: np.ndarray | jnp.ndarray | None = None) -> NLSQResult` |
 | `KEEP` | changed | `optimization.nlsq.core.fit_nlsq_jax` | homodyne: `fit_nlsq_jax(data: dict[str, Any], config: ConfigManager, initial_params: dict[str, float] | None = None, per_angle_scaling: bool = True, use_adapter: bool = False, _skip_global_selection: bool = False) -> OptimizationResult`<br>  heterodyne: `fit_nlsq_jax(model: HeterodyneModel, c2_data: np.ndarray | jnp.ndarray, phi_angle: float = 0.0, config: NLSQConfig | None = None, weights: np.ndarray | jnp.ndarray | None = None, use_nlsq_library: bool = True, *, _skip_global_selection: bool = False) -> NLSQResult` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.core.fit_nlsq_multistart` | homodyne has `fit_nlsq_multistart(data: dict[str, Any], config: ConfigManager, initial_params: dict[str, float] | None = None, per_angle_scaling: bool = True) -> MultiStartResult`; heterodyne missing |
+| `KEEP` | changed | `optimization.nlsq.core.fit_nlsq_multistart` | homodyne: `fit_nlsq_multistart(data: dict[str, Any], config: ConfigManager, initial_params: dict[str, float] | None = None, per_angle_scaling: bool = True) -> MultiStartResult`<br>  heterodyne: `fit_nlsq_multistart(model: HeterodyneModel, c2_data: np.ndarray | jnp.ndarray, phi_angle: float = 0.0, config: NLSQConfig | None = None, weights: np.ndarray | jnp.ndarray | None = None, use_nlsq_library: bool = True) -> NLSQResult` |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.data_prep.build_parameter_labels` | homodyne has `build_parameter_labels(per_angle_scaling: bool, n_phi: int, physical_param_names: list[str]) -> list[str]`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.data_prep.classify_parameter_status` | homodyne has `classify_parameter_status(values: np.ndarray, lower: np.ndarray | None, upper: np.ndarray | None, atol: float = 1e-09) -> list[str]`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.data_prep.convert_bounds_to_nlsq_format` | homodyne has `convert_bounds_to_nlsq_format(bounds: tuple[np.ndarray, np.ndarray] | tuple[list, list] | None) -> tuple[np.ndarray, np.ndarray] | None`; heterodyne missing |
@@ -2847,7 +2847,7 @@
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_quality_report` | heterodyne-only: `plot_quality_report(quality_report: QualityReport, ax: Axes | None = None) -> Axes` |
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_validation_report` | heterodyne-only: `plot_validation_report(report: ValidationReport, ax: Axes | None = None) -> Axes` |
 
-## P2 — Observable drift — log formats, error stems, docs heading drift (1475 gaps)
+## P2 — Observable drift — log formats, error stems, docs heading drift (1466 gaps)
 
 ### docs (837)
 
@@ -3691,7 +3691,7 @@
 | `KEEP` | heading_drift | `user_guide/05_appendices/troubleshooting.rst` | heading `Troubleshooting Guide` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/index.rst` | heading `Sections Overview` present in homodyne, absent in heterodyne |
 
-### logs_errors (638)
+### logs_errors (629)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -4022,26 +4022,17 @@
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [info]` | homodyne logs '[CMA-ES] Global search phase starting...'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [info]` | homodyne logs '[CMA-ES] Method unavailable: evosax not installed. Install with: pip install nlsq[evosax]'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.cmaes_wrapper [info]` | homodyne logs "[CMA-ES] Warm-start: overriding restart_strategy='bipop' -> 'none' (BIPOP large-population restarts are incoherent with small sigma_warmstart)"; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.core [debug]` | homodyne logs 'Attempting optimization with NLSQAdapter'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.core [debug]` | homodyne logs 'No global optimization enabled, using local optimization'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.core [debug]` | homodyne logs 'Using NLSQAdapter (CurveFit class) for optimization'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.core [error]` | homodyne logs 'Both NLSQAdapter and NLSQWrapper failed: adapter=%s, wrapper=%s'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs '  Averaged to: 1 contrast + 1 offset (OPTIMIZED)'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs '  Per-angle values: FIXED (not optimized)'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs '  Physical parameters:'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs '  Total parameters: 7 physical + 2 averaged scaling = 9'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs '  Total parameters: 7 physical only'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'ANTI-DEGENERACY: Enabled for CMA-ES (Auto Averaged Mode)'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'ANTI-DEGENERACY: Enabled for CMA-ES (Fixed Constant Mode)'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'CMA-ES OPTIMIZATION COMPLETE'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'CMA-ES enabled, delegating to fit_nlsq_cmaes'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'CONSTANT MODE: Computing per-angle scaling from quantiles'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'Fitted parameters:'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'Fixed constant mode: per-angle scaling will be FIXED'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'Including user-specified initial parameters as custom start point'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'Loaded initial parameters from configuration for multi-start optimization'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'Multi-start enabled, delegating to fit_nlsq_multistart'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'NLSQWrapper fallback optimization succeeded'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'Using default initial parameters'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs 'Using initial parameters from configuration'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.core [info]` | homodyne logs '[CMA-ES] NLSQ warm-start did not improve fit, using original starting point'; heterodyne does not (at this level) |

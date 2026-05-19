@@ -2785,27 +2785,32 @@
     "exit_codes": [],
     "log_messages": {
       "debug": [
-        "Attempting optimization with NLSQAdapter (JAX)",
+        "Attempting optimization with NLSQAdapter",
         "Attempting optimization with NLSQWrapper",
+        "No global optimization enabled, using local optimization",
+        "Using NLSQAdapter (CurveFit class) for optimization",
         "[CMA-ES] Warm-start active: overriding restart_strategy='bipop' -> 'none' (BIPOP large-population restarts are incoherent with small sigma_warmstart)",
         "chi2 correction: \u03c3\u00b2_noise=%.4e  n_valid=%d  SSR=%.4e  raw_chi2=%.4g \u2192 chi2_corrected=%.4f"
       ],
       "error": [
-        "Both adapter and wrapper failed: adapter=%s, wrapper=%s"
+        "Both NLSQAdapter and NLSQWrapper failed: adapter=%s, wrapper=%s"
       ],
       "info": [
-        "  %s: %.6g",
-        "  %s: %.6g \u00b1 %.3g",
+        "    %s: %.6g",
+        "    %s: %.6g \u00b1 %.3g",
+        "  Physical parameters:",
+        "  Total parameters: %d physical + 2 scaling = %d",
         "AUTO AVERAGED SCALING: Computing per-angle scaling from quantiles",
         "Analysis mode: %s",
         "Anti-degeneracy scaling mode: %s%s",
         "CMA-ES GLOBAL OPTIMIZATION",
         "CMA-ES Phase 1: NLSQ warm-start refinement",
         "CMA-ES Phase 2: global search (warm-started)",
-        "CMA-ES enabled, delegating to fit_with_cmaes",
+        "CMA-ES enabled, delegating to fit_nlsq_cmaes",
         "CMA-ES enabled, delegating to joint multi-angle CMA-ES",
         "Constant averaged scaling selected: mode=%s, n_phi=%d, threshold=%d",
         "Final cost: %.6e",
+        "Fitted parameters:",
         "Fitting %d parameters: %s",
         "Fitting phi angle %d/%d: %s\u00b0",
         "Fitting phi angle %d/%d: %s\u00b0 (warm-start from angle %s\u00b0)",
@@ -2814,12 +2819,12 @@
         "Joint multi-angle fit complete: success=%s, cost=%.6f, n_evals=%d, wall_time=%.2fs, %d angles",
         "Joint multi-angle fit: %d physics + %d Fourier = %d total params, %d angles",
         "Message: %s",
-        "Multi-start enabled, delegating to multi-start optimizer",
+        "Multi-start enabled, delegating to fit_nlsq_multistart",
         "NLSQ OPTIMIZATION",
         "NLSQ OPTIMIZATION COMPLETE",
         "NLSQ warm-start succeeded: cost=%.6e, chi2_red=%.4f",
         "NLSQAdapter optimization succeeded",
-        "NLSQWrapper fallback succeeded",
+        "NLSQWrapper fallback optimization succeeded",
         "NLSQWrapper optimization succeeded",
         "Phase 3: CMA-ES wins (cost=%.6e vs NLSQ=%.6e)",
         "Phase 3: NLSQ wins (cost=%.6e vs CMA-ES=%.6e)",
@@ -2834,7 +2839,6 @@
         "phi=%s\u00b0, method=%s"
       ],
       "warning": [
-        "CMA-ES enabled in config but not available (cma not installed). Install with: uv add cma. Falling back.",
         "Estimated peak memory (%.2f GB) exceeds threshold (%.2f GB). Fit may fail with OOM.",
         "Joint NLSQAdapter failed, falling back to NLSQWrapper: %s",
         "Joint auto averaged NLSQAdapter failed, falling back to NLSQWrapper: %s",
@@ -2842,12 +2846,21 @@
         "NLSQ warm-start failed (%s), using raw initial params for CMA-ES",
         "NLSQ warm-start raised %s: %s \u2014 proceeding with raw p0",
         "NLSQAdapter failed, falling back to wrapper: %s",
+        "[CMA-ES] Enabled in config but not available (cma not installed). Install with: uv add cma. Falling back to multi-start or local optimization.",
         "chi2 noise estimate near-zero (\u03c3\u00b2=%.2e); reporting uncorrected MSE chi2",
         "fourier_reparam not available, falling back to sequential fits",
         "nlsq library not available, falling back to NLSQWrapper"
       ]
     },
     "raises": [
+      {
+        "exception": "ImportError",
+        "message": "CMA-ES requires the 'cma' package. Install with: uv add cma"
+      },
+      {
+        "exception": "ImportError",
+        "message": "Multi-start optimization requires the multistart module. Ensure heterodyne.optimization.nlsq.multistart is importable."
+      },
       {
         "exception": "ImportError",
         "message": "No NLSQ adapter available"
@@ -2883,6 +2896,14 @@
       {
         "exception": "ValueError",
         "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "CMA-ES optimization is not enabled. Set enable_cmaes=True in NLSQConfig."
+      },
+      {
+        "exception": "ValueError",
+        "message": "Multi-start optimization is not enabled. Set multistart=True in NLSQConfig."
       }
     ]
   },
