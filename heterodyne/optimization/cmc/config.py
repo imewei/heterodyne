@@ -14,7 +14,7 @@ from __future__ import annotations
 import math
 import warnings
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 from heterodyne.utils.logging import get_logger
 
@@ -307,7 +307,7 @@ class CMCConfig:
     num_warmup: int = 1500
     num_samples: int = 1500
     num_chains: int = 4
-    target_accept_prob: float = 0.90
+    target_accept: float = 0.90
     max_tree_depth: int = 10
     seed: int = 42
     dense_mass: bool = True
@@ -324,7 +324,7 @@ class CMCConfig:
     # 6. Validation thresholds
     # ------------------------------------------------------------------
 
-    max_r_hat: float = 1.1
+    r_hat_threshold: float = 1.1
     min_ess: int = 400
     min_bfmi: float = 0.3
     max_divergence_rate: float = 0.10
@@ -339,7 +339,7 @@ class CMCConfig:
 
     use_nlsq_warmstart: bool = True
     use_nlsq_informed_priors: bool = True
-    nlsq_prior_width_factor: float = 2.0
+    prior_width_factor: float = 2.0
     #: Codex S1: integrate ``build_log_space_priors`` into ``build_default_priors``.
     #: When True (default), parameters flagged ``log_space=True`` in the parameter
     #: registry (currently D0_ref, D0_sample, v0) are sampled with LogNormal priors
@@ -399,6 +399,42 @@ class CMCConfig:
     # ------------------------------------------------------------------
 
     _validation_errors: list[str] = field(default_factory=list, repr=False)
+
+    # ==================================================================
+    # Backward-compat aliases (deferred task #38 — homodyne parity rename)
+    # ==================================================================
+    #
+    # Three fields were renamed to match homodyne's naming convention:
+    #   target_accept_prob       -> target_accept
+    #   max_r_hat                -> r_hat_threshold
+    #   nlsq_prior_width_factor  -> prior_width_factor
+    #
+    # __getattr__ provides read access to the old names so existing call
+    # sites (~140 across heterodyne) continue working with a deprecation
+    # warning. Old names will be removed in a future release; new code
+    # should use the new names.
+
+    _LEGACY_ALIASES: ClassVar[dict[str, str]] = {
+        "target_accept_prob": "target_accept",
+        "max_r_hat": "r_hat_threshold",
+        "nlsq_prior_width_factor": "prior_width_factor",
+    }
+
+    def __getattr__(self, name: str) -> object:
+        # __getattr__ only runs when normal lookup fails, so dataclass
+        # fields are unaffected. We only intercept the 3 legacy aliases.
+        aliases = type(self).__dict__.get("_LEGACY_ALIASES") or self._LEGACY_ALIASES
+        if name in aliases:
+            import warnings
+
+            new_name = aliases[name]
+            warnings.warn(
+                f"CMCConfig.{name} is deprecated; use CMCConfig.{new_name} instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return object.__getattribute__(self, new_name)
+        raise AttributeError(f"'CMCConfig' object has no attribute {name!r}")
 
     # ==================================================================
     # Post-init
@@ -556,10 +592,8 @@ class CMCConfig:
         if self.num_chains < 1:
             errors.append(f"num_chains={self.num_chains} must be >= 1.")
 
-        if not (0.5 <= self.target_accept_prob <= 0.99):
-            errors.append(
-                f"target_accept_prob={self.target_accept_prob} must be in [0.5, 0.99]."
-            )
+        if not (0.5 <= self.target_accept <= 0.99):
+            errors.append(f"target_accept={self.target_accept} must be in [0.5, 0.99].")
 
         if self.max_tree_depth < 1:
             errors.append(f"max_tree_depth={self.max_tree_depth} must be >= 1.")
@@ -587,9 +621,9 @@ class CMCConfig:
             )
 
         # ---- validation thresholds ------------------------------------
-        if self.max_r_hat <= 1.0:
+        if self.r_hat_threshold <= 1.0:
             errors.append(
-                f"max_r_hat={self.max_r_hat} must be > 1.0 "
+                f"r_hat_threshold={self.r_hat_threshold} must be > 1.0 "
                 "(R-hat is always >= 1 by definition; threshold must exceed 1.0)."
             )
 
@@ -608,9 +642,9 @@ class CMCConfig:
             errors.append(f"max_parameter_cv={self.max_parameter_cv} must be > 0.")
 
         # ---- NLSQ priors ----------------------------------------------
-        if self.nlsq_prior_width_factor <= 0.0:
+        if self.prior_width_factor <= 0.0:
             errors.append(
-                f"nlsq_prior_width_factor={self.nlsq_prior_width_factor} must be > 0."
+                f"nlsq_prior_width_factor={self.prior_width_factor} must be > 0."
             )
 
         # ---- combination ----------------------------------------------
@@ -1016,7 +1050,7 @@ class CMCConfig:
                 "num_warmup": self.num_warmup,
                 "num_samples": self.num_samples,
                 "num_chains": self.num_chains,
-                "target_accept_prob": self.target_accept_prob,
+                "target_accept_prob": self.target_accept,
                 "max_tree_depth": self.max_tree_depth,
                 "seed": self.seed,
                 "dense_mass": self.dense_mass,
@@ -1026,7 +1060,7 @@ class CMCConfig:
                 "min_samples": self.min_samples,
             },
             "validation": {
-                "max_r_hat": self.max_r_hat,
+                "max_r_hat": self.r_hat_threshold,
                 "min_ess": self.min_ess,
                 "min_bfmi": self.min_bfmi,
                 "max_divergence_rate": self.max_divergence_rate,
@@ -1037,7 +1071,7 @@ class CMCConfig:
             "nlsq": {
                 "use_nlsq_warmstart": self.use_nlsq_warmstart,
                 "use_nlsq_informed_priors": self.use_nlsq_informed_priors,
-                "nlsq_prior_width_factor": self.nlsq_prior_width_factor,
+                "nlsq_prior_width_factor": self.prior_width_factor,
             },
             "prior_tempering": self.prior_tempering,
             "combination": {
@@ -1177,10 +1211,10 @@ class CMCConfig:
         _pick("num_warmup", mcmc)
         _pick("num_samples", mcmc)
         _pick("num_chains", mcmc)
-        _pick("target_accept_prob", mcmc)
-        # Accept legacy key name from the old config schema.
-        if "target_accept" in mcmc and "target_accept_prob" not in kwargs:
-            kwargs["target_accept_prob"] = mcmc["target_accept"]
+        _pick("target_accept", mcmc)
+        # Accept legacy key name from the old config schema (homodyne parity rename).
+        if "target_accept_prob" in mcmc and "target_accept" not in kwargs:
+            kwargs["target_accept"] = mcmc["target_accept_prob"]
         _pick("max_tree_depth", mcmc)
         _pick("seed", mcmc)
         _pick("dense_mass", mcmc)
@@ -1188,12 +1222,12 @@ class CMCConfig:
         _pick("adaptive_sampling", mcmc)
         _pick("min_warmup", mcmc)
         _pick("min_samples", mcmc)
-        # Flat fallbacks (including legacy target_accept)
+        # Flat fallbacks (including legacy target_accept_prob)
         for _f in (
             "num_warmup",
             "num_samples",
             "num_chains",
-            "target_accept_prob",
+            "target_accept",
             "max_tree_depth",
             "seed",
             "dense_mass",
@@ -1203,15 +1237,15 @@ class CMCConfig:
             "min_samples",
         ):
             _pick(_f, config_dict)
-        if "target_accept" in config_dict and "target_accept_prob" not in kwargs:
-            kwargs["target_accept_prob"] = config_dict["target_accept"]
+        if "target_accept_prob" in config_dict and "target_accept" not in kwargs:
+            kwargs["target_accept"] = config_dict["target_accept_prob"]
 
         # --- validation section ----------------------------------------
         validation = _extract_section("validation")
-        _pick("max_r_hat", validation)
-        # Accept legacy key name.
-        if "r_hat_threshold" in validation and "max_r_hat" not in kwargs:
-            kwargs["max_r_hat"] = validation["r_hat_threshold"]
+        _pick("r_hat_threshold", validation)
+        # Accept legacy key name (homodyne parity rename).
+        if "max_r_hat" in validation and "r_hat_threshold" not in kwargs:
+            kwargs["r_hat_threshold"] = validation["max_r_hat"]
         _pick("min_ess", validation)
         _pick("min_bfmi", validation)
         _pick("max_divergence_rate", validation)
@@ -1220,7 +1254,7 @@ class CMCConfig:
         _pick("heterogeneity_abort", validation)
         # Flat fallbacks
         for _f in (
-            "max_r_hat",
+            "r_hat_threshold",
             "min_ess",
             "min_bfmi",
             "max_divergence_rate",
@@ -1229,29 +1263,29 @@ class CMCConfig:
             "heterogeneity_abort",
         ):
             _pick(_f, config_dict)
-        if "r_hat_threshold" in config_dict and "max_r_hat" not in kwargs:
-            kwargs["max_r_hat"] = config_dict["r_hat_threshold"]
+        if "max_r_hat" in config_dict and "r_hat_threshold" not in kwargs:
+            kwargs["r_hat_threshold"] = config_dict["max_r_hat"]
 
         # --- nlsq section ----------------------------------------------
         nlsq = _extract_section("nlsq")
         _pick("use_nlsq_warmstart", nlsq)
         _pick("use_nlsq_informed_priors", nlsq)
-        _pick("nlsq_prior_width_factor", nlsq)
-        # Accept legacy key name.
-        if "prior_width_factor" in nlsq and "nlsq_prior_width_factor" not in kwargs:
-            kwargs["nlsq_prior_width_factor"] = nlsq["prior_width_factor"]
+        _pick("prior_width_factor", nlsq)
+        # Accept legacy key name (homodyne parity rename).
+        if "nlsq_prior_width_factor" in nlsq and "prior_width_factor" not in kwargs:
+            kwargs["prior_width_factor"] = nlsq["nlsq_prior_width_factor"]
         # Flat fallbacks
         for _f in (
             "use_nlsq_warmstart",
             "use_nlsq_informed_priors",
-            "nlsq_prior_width_factor",
+            "prior_width_factor",
         ):
             _pick(_f, config_dict)
         if (
-            "prior_width_factor" in config_dict
-            and "nlsq_prior_width_factor" not in kwargs
+            "nlsq_prior_width_factor" in config_dict
+            and "prior_width_factor" not in kwargs
         ):
-            kwargs["nlsq_prior_width_factor"] = config_dict["prior_width_factor"]
+            kwargs["prior_width_factor"] = config_dict["nlsq_prior_width_factor"]
 
         # --- combination section ---------------------------------------
         combination = _extract_section("combination")

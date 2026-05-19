@@ -501,7 +501,7 @@ def test_fit_cmc_sharded_forwards_nlsq_uncertainties_to_workers():
                     num_warmup=10,
                     num_samples=10,
                     use_nlsq_informed_priors=True,
-                    nlsq_prior_width_factor=2.5,
+                    prior_width_factor=2.5,
                 ),
             )
         except Exception:

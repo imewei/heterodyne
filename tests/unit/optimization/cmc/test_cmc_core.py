@@ -1621,7 +1621,7 @@ class TestBugPrevention_DegenerateWarmstart:
             "stats": {"num_divergent": 0, "n_warmup": 500},
             "duration": 1.0,
         }
-        config = CMCConfig(max_r_hat=1.1, min_ess=400)
+        config = CMCConfig(r_hat_threshold=1.1, min_ess=400)
 
         warning_calls: list[str] = []
         _orig = cmc_core.logger.warning
