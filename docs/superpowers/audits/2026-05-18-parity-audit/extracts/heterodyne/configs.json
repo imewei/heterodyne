@@ -848,9 +848,6 @@
   "optimization.cmc.config.CMCConfig.max_points_per_shard": {
     "default": "'auto'"
   },
-  "optimization.cmc.config.CMCConfig.max_r_hat": {
-    "default": "1.1"
-  },
   "optimization.cmc.config.CMCConfig.max_tree_depth": {
     "default": "10"
   },
@@ -881,9 +878,6 @@
   "optimization.cmc.config.CMCConfig.min_warmup": {
     "default": "100"
   },
-  "optimization.cmc.config.CMCConfig.nlsq_prior_width_factor": {
-    "default": "2.0"
-  },
   "optimization.cmc.config.CMCConfig.num_chains": {
     "default": "4"
   },
@@ -905,6 +899,12 @@
   "optimization.cmc.config.CMCConfig.prior_tempering": {
     "default": "True"
   },
+  "optimization.cmc.config.CMCConfig.prior_width_factor": {
+    "default": "2.0"
+  },
+  "optimization.cmc.config.CMCConfig.r_hat_threshold": {
+    "default": "1.1"
+  },
   "optimization.cmc.config.CMCConfig.reparameterization_d_total": {
     "default": "True"
   },
@@ -923,7 +923,7 @@
   "optimization.cmc.config.CMCConfig.sharding_strategy": {
     "default": "'random'"
   },
-  "optimization.cmc.config.CMCConfig.target_accept_prob": {
+  "optimization.cmc.config.CMCConfig.target_accept": {
     "default": "0.9"
   },
   "optimization.cmc.config.CMCConfig.use_log_space_priors": {

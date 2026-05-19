@@ -1691,7 +1691,12 @@
         "min_success_rate_warning=%.2f > min_success_rate=%.2f \u2014 the warning threshold will never trigger (abort fires first)."
       ]
     },
-    "raises": []
+    "raises": [
+      {
+        "exception": "AttributeError",
+        "message": ""
+      }
+    ]
   },
   "optimization.cmc.core": {
     "exit_codes": [],

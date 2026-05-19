@@ -1,12 +1,12 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `170c753c54e4d02cd1dc40684ce17f879ccb6dbe`
-- Total gaps: **4027**
+- Heterodyne SHA: `e50662887c4307764de5c4b9e52678f875f5c8e2`
+- Total gaps: **4036**
 
-## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1426 gaps)
+## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1432 gaps)
 
-### classes (435)
+### classes (438)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -249,6 +249,9 @@
 | `KEEP` | missing_class | `optimization.cmc.backends.worker_pool.WorkerPool` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_method | `optimization.cmc.config.CMCConfig.get_adaptive_sample_counts` | homodyne method `get_adaptive_sample_counts(self, shard_size: int, n_params: int = 7) -> tuple[int, int]` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.cmc.config.CMCConfig.get_num_shards` | homodyne method `get_num_shards(self, n_points: int, n_phi: int, n_params: int = 7) -> int` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.cmc.config.CMCConfig.target_accept_prob` | homodyne dataclass field `target_accept_prob` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.cmc.config.CMCConfig.max_r_hat` | homodyne dataclass field `max_r_hat` missing in heterodyne |
+| `KEEP` | missing_field | `optimization.cmc.config.CMCConfig.nlsq_prior_width_factor` | homodyne dataclass field `nlsq_prior_width_factor` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.cmc.data_prep.PreparedData.data` | homodyne dataclass field `data` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.cmc.data_prep.PreparedData.t1` | homodyne dataclass field `t1` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.cmc.data_prep.PreparedData.t2` | homodyne dataclass field `t2` missing in heterodyne |
@@ -477,7 +480,7 @@
 | `KEEP` | missing_cli_flag | `--static-mode` | homodyne flag `--static-mode` (default=None) missing in heterodyne |
 | `KEEP` | missing_cli_flag | `--tolerance` | homodyne flag `--tolerance` (default=1e-08) missing in heterodyne |
 
-### configs (375)
+### configs (378)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -676,6 +679,9 @@
 | `KEEP` | missing_config_key | `device.config.HardwareConfig.num_nodes` | homodyne defines `device.config.HardwareConfig.num_nodes`; heterodyne does not |
 | `KEEP` | missing_config_key | `device.config.HardwareConfig.platform` | homodyne defines `device.config.HardwareConfig.platform`; heterodyne does not |
 | `KEEP` | missing_config_key | `device.config.HardwareConfig.total_memory_gb` | homodyne defines `device.config.HardwareConfig.total_memory_gb`; heterodyne does not |
+| `KEEP` | missing_config_key | `optimization.cmc.config.CMCConfig.max_r_hat` | homodyne defines `optimization.cmc.config.CMCConfig.max_r_hat`; heterodyne does not |
+| `KEEP` | missing_config_key | `optimization.cmc.config.CMCConfig.nlsq_prior_width_factor` | homodyne defines `optimization.cmc.config.CMCConfig.nlsq_prior_width_factor`; heterodyne does not |
+| `KEEP` | missing_config_key | `optimization.cmc.config.CMCConfig.target_accept_prob` | homodyne defines `optimization.cmc.config.CMCConfig.target_accept_prob`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.cmc.data_prep.PreparedData.data` | homodyne defines `optimization.cmc.data_prep.PreparedData.data`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.cmc.data_prep.PreparedData.n_phi` | homodyne defines `optimization.cmc.data_prep.PreparedData.n_phi`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.cmc.data_prep.PreparedData.n_total` | homodyne defines `optimization.cmc.data_prep.PreparedData.n_total`; heterodyne does not |
@@ -1467,7 +1473,7 @@
 | `KEEP` | missing_in_heterodyne | `viz.mcmc_report.print_mcmc_summary` | homodyne has `print_mcmc_summary(result: Any) -> None`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `viz.validation.validate_plot_arrays` | homodyne has `validate_plot_arrays(*arrays: np.ndarray, names: list[str] | None = None) -> bool`; heterodyne missing |
 
-## P1 — Structural drift — files added/missing/renamed, docs pages missing (1148 gaps)
+## P1 — Structural drift — files added/missing/renamed, docs pages missing (1151 gaps)
 
 ### cli (26)
 
@@ -1500,7 +1506,7 @@
 | `KEEP` | extra_cli_flag | `--show-template` | heterodyne-only CLI flag |
 | `KEEP` | extra_cli_flag | `--time-length` | heterodyne-only CLI flag |
 
-### configs (412)
+### configs (415)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1691,6 +1697,9 @@
 | `KEEP` | extra_config_key | `optimization.cmc.config.CMCConfig.fast_warmup` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.config.CMCConfig.init_strategy` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.config.CMCConfig.min_bfmi` | heterodyne-only config key |
+| `KEEP` | extra_config_key | `optimization.cmc.config.CMCConfig.prior_width_factor` | heterodyne-only config key |
+| `KEEP` | extra_config_key | `optimization.cmc.config.CMCConfig.r_hat_threshold` | heterodyne-only config key |
+| `KEEP` | extra_config_key | `optimization.cmc.config.CMCConfig.target_accept` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.config.CMCConfig.use_log_space_priors` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.config.CMCConfig.use_nlsq_warmstart` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.config.CMCConfig.use_reparam` | heterodyne-only config key |
