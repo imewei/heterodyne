@@ -1,7 +1,7 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `bfe3eada9b7ba676a4f0b9661932181004e3ed9d`
+- Heterodyne SHA: `170c753c54e4d02cd1dc40684ce17f879ccb6dbe`
 - Total gaps: **4027**
 
 ## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1426 gaps)
