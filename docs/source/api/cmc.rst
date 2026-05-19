@@ -158,7 +158,7 @@ Parallel shard evaluation across CPU cores using Python
 chain on its own shard, with full JAX persistent compilation cache
 support.
 
-.. automodule:: heterodyne.optimization.cmc.backends.multiprocessing_backend
+.. automodule:: heterodyne.optimization.cmc.backends.multiprocessing
    :members: MultiprocessingBackend
    :undoc-members:
    :show-inheritance:
@@ -181,7 +181,7 @@ Experimental backend that shards chains across ``jax.devices()`` via
 ``pjit``.  Currently CPU-only because heterodyne ships no GPU support,
 but the interface is device-agnostic.
 
-.. automodule:: heterodyne.optimization.cmc.backends.pjit_backend
+.. automodule:: heterodyne.optimization.cmc.backends.pjit
    :members: PjitBackend
    :undoc-members:
    :show-inheritance:

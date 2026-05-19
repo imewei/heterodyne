@@ -6,13 +6,14 @@ separate spawned process with its own JAX initialization, avoiding JAX
 shared-state issues across forked processes.
 
 Key design decisions:
+
 - ``mp_context="spawn"`` (not fork): JAX cannot be safely shared across
   fork.  Spawned workers re-initialize JAX from scratch.
 - All NumPyro imports inside worker functions: spawn safety requires that
   no JAX/NumPyro state exists at import time in the child process.
 - Shared memory for common data: ``SharedDataManager`` places config,
   parameter-space state, and per-shard arrays in shared memory once,
-  avoiding redundant pickle overhead through spawn.
+  avoiding redundant serialization overhead through spawn.
 - LPT scheduling: shards dispatched highest-cost-first to minimize
   tail latency on identical parallel workers.
 - Heartbeat thread inside each worker: emits liveness pings so the parent
@@ -21,6 +22,7 @@ Key design decisions:
   recently, shrinking CPU overhead during long-running shards.
 
 Optimizations carried over from homodyne v2.22.2:
+
 - Batch PRNG key generation: pre-generate all shard keys in one JAX call.
 - Per-shard shared memory (packed format): 4 segments total regardless
   of shard count, avoiding fd exhaustion.
