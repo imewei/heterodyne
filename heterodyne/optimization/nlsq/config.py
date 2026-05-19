@@ -116,6 +116,7 @@ class HybridRecoveryConfig:
     lambda_growth: float = 10.0
     trust_decay: float = 0.5
     perturb_scale: float = 0.1
+    log_retries: bool = True
 
     def get_retry_settings(self, attempt: int) -> dict[str, float]:
         """Return scaled optimiser settings for a given retry attempt.
@@ -273,6 +274,7 @@ class NLSQConfig:
     xtol: float = 1e-8
     gtol: float = 1e-8
     loss: Literal["linear", "soft_l1", "huber", "cauchy", "arctan"] = "soft_l1"
+    trust_region_scale: float = 1.0
 
     # Advanced solver options
     diff_step: float | None = None
@@ -338,6 +340,9 @@ class NLSQConfig:
     hierarchical_max_outer_iterations: int = 20
     hierarchical_inner_tolerance: float = 1e-6
     hierarchical_outer_tolerance: float = 1e-4
+    # Homodyne-parity hierarchical fields
+    hierarchical_physical_max_iterations: int = 100
+    hierarchical_per_angle_max_iterations: int = 50
 
     # ------------------------------------------------------------------
     # Adaptive regularization
@@ -346,6 +351,10 @@ class NLSQConfig:
     regularization_mode: Literal["none", "tikhonov", "adaptive"] = "none"
     group_variance_lambda: float = 0.01
     regularization_target_cv: float = 0.5
+    # Homodyne-parity regularization fields
+    regularization_target_contribution: float = 0.10  # 10% of MSE contribution
+    regularization_max_cv: float = 0.20  # 20% max variation
+    regularization_auto_tune_lambda: bool = True
 
     # ------------------------------------------------------------------
     # Gradient collapse detection
@@ -354,9 +363,13 @@ class NLSQConfig:
     enable_gradient_monitoring: bool = False
     gradient_ratio_threshold: float = 100.0
     gradient_consecutive_triggers: int = 3
+    # Homodyne-parity gradient collapse response field
+    gradient_collapse_response: str = (
+        "hierarchical"  # "warn", "hierarchical", "reset", "abort"
+    )
 
     # ------------------------------------------------------------------
-    # CMA-ES global search
+    # CMA-ES global search (legacy heterodyne fields)
     # ------------------------------------------------------------------
 
     enable_cmaes: bool = False
@@ -373,7 +386,55 @@ class NLSQConfig:
     cmaes_max_restarts: int = 9
 
     # ------------------------------------------------------------------
-    # Hybrid streaming optimizer
+    # CMA-ES global search (homodyne-parity fields, NLSQ v0.6.4+)
+    # ------------------------------------------------------------------
+
+    cmaes_preset: str = "cmaes"  # "cmaes-fast", "cmaes", "cmaes-global"
+    cmaes_max_generations: int | None = None  # None = use preset + adaptive scaling
+    cmaes_popsize: int | None = None  # Population size (None = auto)
+    cmaes_sigma: float = 0.5  # Initial step size (fraction of search range)
+    cmaes_sigma_warmstart: float = 0.05  # Reduced sigma for warm-start mode
+    cmaes_tol_fun: float = 1e-8  # Function value tolerance for convergence
+    cmaes_tol_x: float = 1e-8  # Parameter tolerance for convergence
+    cmaes_population_batch_size: int | None = None  # Memory batching (None = auto)
+    cmaes_data_chunk_size: int | None = None  # Data streaming (None = auto)
+    cmaes_refine_with_nlsq: bool = True  # Refine CMA-ES solution with NLSQ TRF
+    cmaes_auto_select: bool = (
+        True  # Auto-select CMA-ES vs multi-start based on scale ratio
+    )
+    cmaes_scale_threshold: float = 1000.0  # Scale ratio threshold for auto-selection
+    cmaes_memory_limit_gb: float = 8.0  # Memory limit for auto-configuration
+    # Post-CMA-ES NLSQ TRF Refinement
+    cmaes_refinement_workflow: str = "auto"  # "auto", "standard", "streaming"
+    cmaes_refinement_ftol: float = 1e-10
+    cmaes_refinement_xtol: float = 1e-10
+    cmaes_refinement_gtol: float = 1e-10
+    cmaes_refinement_max_nfev: int = 500
+    cmaes_refinement_loss: str = "linear"  # "linear", "soft_l1", "huber"
+    # CMA-ES Parameter Normalization
+    cmaes_normalize: bool = True  # Enable bounds-based normalization
+    cmaes_normalization_epsilon: float = 1e-12  # Prevent division by zero
+
+    # ------------------------------------------------------------------
+    # Fit Quality Validation (homodyne-parity fields, v2.16.0)
+    # ------------------------------------------------------------------
+
+    enable_quality_validation: bool = True  # Enable post-fit quality checks
+    quality_reduced_chi_squared_threshold: float = 10.0  # Warn if χ²_red > threshold
+    quality_warn_on_max_restarts: bool = True  # Warn if CMA-ES didn't converge
+    quality_warn_on_bounds_hit: bool = True  # Warn if physical params at bounds
+    quality_warn_on_convergence_failure: bool = True  # Warn if optimization failed
+    quality_bounds_tolerance: float = 1e-9  # Tolerance for "at bounds" detection
+
+    # ------------------------------------------------------------------
+    # Progress and logging settings
+    # ------------------------------------------------------------------
+
+    enable_progress_bar: bool = True  # Show tqdm progress bar during fitting
+    log_iteration_interval: int = 10  # Log every N iterations (for verbose >= 2)
+
+    # ------------------------------------------------------------------
+    # Hybrid streaming optimizer (legacy heterodyne fields)
     # ------------------------------------------------------------------
 
     hybrid_enable: bool = False
@@ -386,12 +447,63 @@ class NLSQConfig:
     hybrid_max_phases: int = 4
 
     # ------------------------------------------------------------------
-    # Multi-start extensions
+    # Hybrid streaming optimizer (homodyne-parity fields, v2.6.0+)
+    # ------------------------------------------------------------------
+
+    enable_hybrid_streaming: bool = True
+    hybrid_normalize: bool = True
+    hybrid_normalization_strategy: str = "auto"  # 'auto', 'bounds', 'p0', 'none'
+    hybrid_warmup_iterations: int = 200
+    hybrid_max_warmup_iterations: int = 500
+    hybrid_warmup_learning_rate: float = 0.001
+    hybrid_gauss_newton_max_iterations: int = 100
+    hybrid_gauss_newton_tol: float = 1e-8
+    hybrid_chunk_size: int = 10000
+    hybrid_trust_region_initial: float = 1.0
+    hybrid_regularization_factor: float = 1e-10
+    hybrid_enable_checkpoints: bool = True
+    hybrid_checkpoint_frequency: int = 100
+    hybrid_validate_numerics: bool = True
+
+    # 4-Layer Defense Strategy for L-BFGS Warmup (v2.8.0 / NLSQ 0.3.6)
+    # Layer 1: Warm Start Detection
+    hybrid_enable_warm_start_detection: bool = True
+    hybrid_warm_start_threshold: float = 0.01  # Skip if loss/variance < this
+    # Layer 2: Adaptive Learning Rate
+    hybrid_enable_adaptive_warmup_lr: bool = True
+    hybrid_warmup_lr_refinement: float = 1e-6  # LR for good starts
+    hybrid_warmup_lr_careful: float = 1e-5  # LR for moderate starts
+    # Layer 3: Cost-Increase Guard
+    hybrid_enable_cost_guard: bool = True
+    hybrid_cost_increase_tolerance: float = 0.05  # Abort if loss increases >5%
+    # Layer 4: Step Clipping
+    hybrid_enable_step_clipping: bool = True
+    hybrid_max_warmup_step_size: float = 0.1  # Max step in normalized units
+
+    # ------------------------------------------------------------------
+    # Multi-start extensions (legacy heterodyne fields)
     # ------------------------------------------------------------------
 
     sampling_strategy: Literal["lhs", "sobol", "random"] = "lhs"
     screen_keep_fraction: float = 0.5
     refine_top_k: int = 3
+
+    # ------------------------------------------------------------------
+    # Multi-start optimization settings (homodyne-parity fields, v2.6.0)
+    # ------------------------------------------------------------------
+
+    enable_multi_start: bool = False  # Default OFF - user opt-in
+    multi_start_n_starts: int = 10
+    multi_start_seed: int = 42
+    multi_start_sampling_strategy: str = (
+        "latin_hypercube"  # 'latin_hypercube' or 'random'
+    )
+    multi_start_n_workers: int = 0  # 0 = auto (min of n_starts, cpu_count)
+    multi_start_use_screening: bool = True
+    multi_start_screen_keep_fraction: float = 0.5
+    multi_start_refine_top_k: int = 3
+    multi_start_refinement_ftol: float = 1e-12
+    multi_start_degeneracy_threshold: float = 0.1
 
     # ------------------------------------------------------------------
     # Scaling threshold
@@ -651,7 +763,16 @@ class NLSQConfig:
             "enable_gradient_monitoring": "bool",
             "gradient_ratio_threshold": "float",
             "gradient_consecutive_triggers": "int",
-            # CMA-ES global search
+            # Hierarchical optimization (homodyne-parity)
+            "hierarchical_physical_max_iterations": "int",
+            "hierarchical_per_angle_max_iterations": "int",
+            # Adaptive regularization (homodyne-parity)
+            "regularization_target_contribution": "float",
+            "regularization_max_cv": "float",
+            "regularization_auto_tune_lambda": "bool",
+            # Gradient collapse detection (homodyne-parity)
+            "gradient_collapse_response": "str",
+            # CMA-ES global search (legacy heterodyne fields)
             "enable_cmaes": "bool",
             "cmaes_sigma0": "float",
             "cmaes_max_iterations": "int",
@@ -664,7 +785,32 @@ class NLSQConfig:
             "cmaes_warmstart_skip_threshold": "float",
             "cmaes_restart_strategy": "str",
             "cmaes_max_restarts": "int",
-            # Hybrid streaming optimizer
+            # CMA-ES global search (homodyne-parity fields)
+            "cmaes_preset": "str",
+            "cmaes_max_generations": "int_or_none",
+            "cmaes_popsize": "int_or_none",
+            "cmaes_sigma": "float",
+            "cmaes_sigma_warmstart": "float",
+            "cmaes_tol_fun": "float",
+            "cmaes_tol_x": "float",
+            "cmaes_population_batch_size": "int_or_none",
+            "cmaes_data_chunk_size": "int_or_none",
+            "cmaes_refine_with_nlsq": "bool",
+            "cmaes_auto_select": "bool",
+            "cmaes_scale_threshold": "float",
+            "cmaes_memory_limit_gb": "float",
+            "cmaes_refinement_workflow": "str",
+            "cmaes_refinement_ftol": "float",
+            "cmaes_refinement_xtol": "float",
+            "cmaes_refinement_gtol": "float",
+            "cmaes_refinement_max_nfev": "int",
+            "cmaes_refinement_loss": "str",
+            "cmaes_normalize": "bool",
+            "cmaes_normalization_epsilon": "float",
+            # Progress and logging (homodyne-parity)
+            "enable_progress_bar": "bool",
+            "log_iteration_interval": "int",
+            # Hybrid streaming optimizer (legacy heterodyne fields)
             "hybrid_enable": "bool",
             "hybrid_warmup_fraction": "float",
             "hybrid_normalization": "bool",
@@ -673,10 +819,52 @@ class NLSQConfig:
             "hybrid_convergence_window": "int",
             "hybrid_convergence_threshold": "float",
             "hybrid_max_phases": "int",
-            # Multi-start extensions
+            # Hybrid streaming optimizer (homodyne-parity fields)
+            "enable_hybrid_streaming": "bool",
+            "hybrid_normalize": "bool",
+            "hybrid_normalization_strategy": "str",
+            "hybrid_warmup_iterations": "int",
+            "hybrid_max_warmup_iterations": "int",
+            "hybrid_warmup_learning_rate": "float",
+            "hybrid_gauss_newton_max_iterations": "int",
+            "hybrid_gauss_newton_tol": "float",
+            "hybrid_chunk_size": "int",
+            "hybrid_trust_region_initial": "float",
+            "hybrid_regularization_factor": "float",
+            "hybrid_enable_checkpoints": "bool",
+            "hybrid_checkpoint_frequency": "int",
+            "hybrid_validate_numerics": "bool",
+            "hybrid_enable_warm_start_detection": "bool",
+            "hybrid_warm_start_threshold": "float",
+            "hybrid_enable_adaptive_warmup_lr": "bool",
+            "hybrid_warmup_lr_refinement": "float",
+            "hybrid_warmup_lr_careful": "float",
+            "hybrid_enable_cost_guard": "bool",
+            "hybrid_cost_increase_tolerance": "float",
+            "hybrid_enable_step_clipping": "bool",
+            "hybrid_max_warmup_step_size": "float",
+            # Multi-start extensions (legacy heterodyne fields)
             "sampling_strategy": "str",
             "screen_keep_fraction": "float",
             "refine_top_k": "int",
+            # Multi-start optimization (homodyne-parity fields)
+            "enable_multi_start": "bool",
+            "multi_start_n_starts": "int",
+            "multi_start_seed": "int",
+            "multi_start_sampling_strategy": "str",
+            "multi_start_n_workers": "int",
+            "multi_start_use_screening": "bool",
+            "multi_start_screen_keep_fraction": "float",
+            "multi_start_refine_top_k": "int",
+            "multi_start_refinement_ftol": "float",
+            "multi_start_degeneracy_threshold": "float",
+            # Fit quality validation (homodyne-parity fields)
+            "enable_quality_validation": "bool",
+            "quality_reduced_chi_squared_threshold": "float",
+            "quality_warn_on_max_restarts": "bool",
+            "quality_warn_on_bounds_hit": "bool",
+            "quality_warn_on_convergence_failure": "bool",
+            "quality_bounds_tolerance": "float",
             # Scaling threshold
             "constant_scaling_threshold": "int",
             # Backend / model
@@ -689,6 +877,8 @@ class NLSQConfig:
             "nlsq_x_scale": "passthrough",  # str or np.ndarray
             "nlsq_memory_fraction": "float",
             "nlsq_memory_fallback_gb": "float",
+            # Loss function scale (homodyne-parity)
+            "trust_region_scale": "float",
         }
 
         normalized_config = dict(config)
@@ -733,6 +923,15 @@ class NLSQConfig:
                     "hierarchical_outer_tolerance",
                     hierarchical.get("outer_tolerance", _SENTINEL),
                 )
+                # Homodyne-parity hierarchical fields
+                _set_from_nested(
+                    "hierarchical_physical_max_iterations",
+                    hierarchical.get("physical_max_iterations", _SENTINEL),
+                )
+                _set_from_nested(
+                    "hierarchical_per_angle_max_iterations",
+                    hierarchical.get("per_angle_max_iterations", _SENTINEL),
+                )
             elif hierarchical is not None:
                 logger.warning(
                     "NLSQConfig.from_dict: anti_degeneracy.hierarchical must be a "
@@ -751,6 +950,19 @@ class NLSQConfig:
                 _set_from_nested(
                     "regularization_target_cv",
                     regularization.get("target_cv", _SENTINEL),
+                )
+                # Homodyne-parity regularization fields
+                _set_from_nested(
+                    "regularization_target_contribution",
+                    regularization.get("target_contribution", _SENTINEL),
+                )
+                _set_from_nested(
+                    "regularization_max_cv",
+                    regularization.get("max_cv", _SENTINEL),
+                )
+                _set_from_nested(
+                    "regularization_auto_tune_lambda",
+                    regularization.get("auto_tune_lambda", _SENTINEL),
                 )
             elif regularization is not None:
                 logger.warning(
@@ -772,6 +984,11 @@ class NLSQConfig:
                 _set_from_nested(
                     "gradient_consecutive_triggers",
                     gradient_monitoring.get("consecutive_triggers", _SENTINEL),
+                )
+                # Homodyne-parity gradient collapse response field
+                _set_from_nested(
+                    "gradient_collapse_response",
+                    gradient_monitoring.get("response", _SENTINEL),
                 )
             elif gradient_monitoring is not None:
                 logger.warning(
@@ -827,10 +1044,266 @@ class NLSQConfig:
                 "cmaes_warmstart_skip_threshold",
                 raw_cmaes.get("warmstart_skip_threshold", _SENTINEL),
             )
+            # Homodyne-parity CMA-ES fields
+            _set_from_nested("cmaes_preset", raw_cmaes.get("preset", _SENTINEL))
+            _set_from_nested(
+                "cmaes_max_generations",
+                raw_cmaes.get("max_generations", _SENTINEL),
+            )
+            _set_from_nested("cmaes_popsize", raw_cmaes.get("popsize", _SENTINEL))
+            _set_from_nested("cmaes_sigma", raw_cmaes.get("sigma", _SENTINEL))
+            _set_from_nested(
+                "cmaes_sigma_warmstart",
+                raw_cmaes.get("sigma_warmstart", _SENTINEL),
+            )
+            _set_from_nested("cmaes_tol_fun", raw_cmaes.get("tol_fun", _SENTINEL))
+            _set_from_nested("cmaes_tol_x", raw_cmaes.get("tol_x", _SENTINEL))
+            _set_from_nested(
+                "cmaes_population_batch_size",
+                raw_cmaes.get("population_batch_size", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_data_chunk_size",
+                raw_cmaes.get("data_chunk_size", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_refine_with_nlsq",
+                raw_cmaes.get("refine_with_nlsq", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_auto_select", raw_cmaes.get("auto_select", _SENTINEL)
+            )
+            _set_from_nested(
+                "cmaes_scale_threshold",
+                raw_cmaes.get("scale_threshold", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_memory_limit_gb",
+                raw_cmaes.get("memory_limit_gb", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_refinement_workflow",
+                raw_cmaes.get("refinement_workflow", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_refinement_ftol",
+                raw_cmaes.get("refinement_ftol", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_refinement_xtol",
+                raw_cmaes.get("refinement_xtol", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_refinement_gtol",
+                raw_cmaes.get("refinement_gtol", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_refinement_max_nfev",
+                raw_cmaes.get("refinement_max_nfev", _SENTINEL),
+            )
+            _set_from_nested(
+                "cmaes_refinement_loss",
+                raw_cmaes.get("refinement_loss", _SENTINEL),
+            )
+            _set_from_nested("cmaes_normalize", raw_cmaes.get("normalize", _SENTINEL))
+            _set_from_nested(
+                "cmaes_normalization_epsilon",
+                raw_cmaes.get("normalization_epsilon", _SENTINEL),
+            )
         elif raw_cmaes is not None:
             logger.warning(
                 "NLSQConfig.from_dict: 'cmaes' must be a dict, got %r — ignoring",
                 type(raw_cmaes).__name__,
+            )
+
+        # Homodyne-parity: progress section
+        raw_progress = config.get("progress")
+        if isinstance(raw_progress, dict):
+            _set_from_nested(
+                "enable_progress_bar", raw_progress.get("enable", _SENTINEL)
+            )
+            _set_from_nested("verbose", raw_progress.get("verbose", _SENTINEL))
+            _set_from_nested(
+                "log_iteration_interval", raw_progress.get("log_interval", _SENTINEL)
+            )
+        elif raw_progress is not None:
+            logger.warning(
+                "NLSQConfig.from_dict: 'progress' must be a dict, got %r — ignoring",
+                type(raw_progress).__name__,
+            )
+
+        # Homodyne-parity: hybrid_streaming section
+        raw_hybrid_streaming = config.get("hybrid_streaming")
+        if isinstance(raw_hybrid_streaming, dict):
+            _set_from_nested(
+                "enable_hybrid_streaming",
+                raw_hybrid_streaming.get("enable", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_normalize", raw_hybrid_streaming.get("normalize", _SENTINEL)
+            )
+            _set_from_nested(
+                "hybrid_normalization_strategy",
+                raw_hybrid_streaming.get("normalization_strategy", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_warmup_iterations",
+                raw_hybrid_streaming.get("warmup_iterations", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_max_warmup_iterations",
+                raw_hybrid_streaming.get("max_warmup_iterations", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_warmup_learning_rate",
+                raw_hybrid_streaming.get("warmup_learning_rate", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_gauss_newton_max_iterations",
+                raw_hybrid_streaming.get("gauss_newton_max_iterations", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_gauss_newton_tol",
+                raw_hybrid_streaming.get("gauss_newton_tol", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_chunk_size", raw_hybrid_streaming.get("chunk_size", _SENTINEL)
+            )
+            _set_from_nested(
+                "hybrid_trust_region_initial",
+                raw_hybrid_streaming.get("trust_region_initial", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_regularization_factor",
+                raw_hybrid_streaming.get("regularization_factor", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_enable_checkpoints",
+                raw_hybrid_streaming.get("enable_checkpoints", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_checkpoint_frequency",
+                raw_hybrid_streaming.get("checkpoint_frequency", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_validate_numerics",
+                raw_hybrid_streaming.get("validate_numerics", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_enable_warm_start_detection",
+                raw_hybrid_streaming.get("enable_warm_start_detection", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_warm_start_threshold",
+                raw_hybrid_streaming.get("warm_start_threshold", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_enable_adaptive_warmup_lr",
+                raw_hybrid_streaming.get("enable_adaptive_warmup_lr", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_warmup_lr_refinement",
+                raw_hybrid_streaming.get("warmup_lr_refinement", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_warmup_lr_careful",
+                raw_hybrid_streaming.get("warmup_lr_careful", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_enable_cost_guard",
+                raw_hybrid_streaming.get("enable_cost_guard", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_cost_increase_tolerance",
+                raw_hybrid_streaming.get("cost_increase_tolerance", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_enable_step_clipping",
+                raw_hybrid_streaming.get("enable_step_clipping", _SENTINEL),
+            )
+            _set_from_nested(
+                "hybrid_max_warmup_step_size",
+                raw_hybrid_streaming.get("max_warmup_step_size", _SENTINEL),
+            )
+        elif raw_hybrid_streaming is not None:
+            logger.warning(
+                "NLSQConfig.from_dict: 'hybrid_streaming' must be a dict, got %r — ignoring",
+                type(raw_hybrid_streaming).__name__,
+            )
+
+        # Homodyne-parity: multi_start section
+        raw_multi_start = config.get("multi_start")
+        if isinstance(raw_multi_start, dict):
+            _set_from_nested(
+                "enable_multi_start", raw_multi_start.get("enable", _SENTINEL)
+            )
+            _set_from_nested(
+                "multi_start_n_starts", raw_multi_start.get("n_starts", _SENTINEL)
+            )
+            _set_from_nested("multi_start_seed", raw_multi_start.get("seed", _SENTINEL))
+            _set_from_nested(
+                "multi_start_sampling_strategy",
+                raw_multi_start.get("sampling_strategy", _SENTINEL),
+            )
+            _set_from_nested(
+                "multi_start_n_workers", raw_multi_start.get("n_workers", _SENTINEL)
+            )
+            _set_from_nested(
+                "multi_start_use_screening",
+                raw_multi_start.get("use_screening", _SENTINEL),
+            )
+            _set_from_nested(
+                "multi_start_screen_keep_fraction",
+                raw_multi_start.get("screen_keep_fraction", _SENTINEL),
+            )
+            _set_from_nested(
+                "multi_start_refine_top_k",
+                raw_multi_start.get("refine_top_k", _SENTINEL),
+            )
+            _set_from_nested(
+                "multi_start_refinement_ftol",
+                raw_multi_start.get("refinement_ftol", _SENTINEL),
+            )
+            _set_from_nested(
+                "multi_start_degeneracy_threshold",
+                raw_multi_start.get("degeneracy_threshold", _SENTINEL),
+            )
+        elif raw_multi_start is not None:
+            logger.warning(
+                "NLSQConfig.from_dict: 'multi_start' must be a dict, got %r — ignoring",
+                type(raw_multi_start).__name__,
+            )
+
+        # Homodyne-parity: quality_validation section
+        raw_quality = config.get("quality_validation")
+        if isinstance(raw_quality, dict):
+            _set_from_nested(
+                "enable_quality_validation", raw_quality.get("enable", _SENTINEL)
+            )
+            _set_from_nested(
+                "quality_reduced_chi_squared_threshold",
+                raw_quality.get("reduced_chi_squared_threshold", _SENTINEL),
+            )
+            _set_from_nested(
+                "quality_warn_on_max_restarts",
+                raw_quality.get("warn_on_max_restarts", _SENTINEL),
+            )
+            _set_from_nested(
+                "quality_warn_on_bounds_hit",
+                raw_quality.get("warn_on_bounds_hit", _SENTINEL),
+            )
+            _set_from_nested(
+                "quality_warn_on_convergence_failure",
+                raw_quality.get("warn_on_convergence_failure", _SENTINEL),
+            )
+            _set_from_nested(
+                "quality_bounds_tolerance",
+                raw_quality.get("bounds_tolerance", _SENTINEL),
+            )
+        elif raw_quality is not None:
+            logger.warning(
+                "NLSQConfig.from_dict: 'quality_validation' must be a dict, got %r — ignoring",
+                type(raw_quality).__name__,
             )
 
         nested_keys = {
@@ -839,6 +1312,10 @@ class NLSQConfig:
             "x_scale_map",
             "anti_degeneracy",
             "cmaes",
+            "progress",
+            "hybrid_streaming",
+            "multi_start",
+            "quality_validation",
         }
 
         # Warn on unrecognised keys
@@ -1064,3 +1541,99 @@ class NLSQConfig:
                 "correlation_warn": self.validation.correlation_warn,
             },
         }
+
+    @classmethod
+    def from_yaml(cls, yaml_path: str) -> NLSQConfig:
+        """Create NLSQConfig from YAML configuration file.
+
+        This is the recommended single entry point for loading NLSQ
+        configuration.  It reads the YAML file, extracts the
+        ``optimization.nlsq`` section, and creates a validated
+        ``NLSQConfig`` object.
+
+        Args:
+            yaml_path: Path to YAML configuration file.
+
+        Returns:
+            Validated ``NLSQConfig`` instance.
+
+        Raises:
+            FileNotFoundError: If the YAML file does not exist.
+            ValueError: If the YAML file is invalid or missing required
+                sections.
+
+        Examples:
+            >>> config = NLSQConfig.from_yaml("heterodyne_config.yaml")
+            >>> print(config.loss)
+            soft_l1
+        """
+        from pathlib import Path
+
+        import yaml
+
+        path = Path(yaml_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {yaml_path}")
+
+        with open(path, encoding="utf-8") as f:
+            full_config = yaml.safe_load(f)
+
+        if full_config is None:
+            full_config = {}
+
+        # Extract optimization.nlsq section
+        optimization = full_config.get("optimization", {})
+        nlsq_config = optimization.get("nlsq", {})
+
+        if not nlsq_config:
+            logger.warning(
+                "No optimization.nlsq section found in %s, using defaults",
+                yaml_path,
+            )
+
+        return cls.from_dict(nlsq_config)
+
+    def is_valid(self) -> bool:
+        """Check if the configuration is valid.
+
+        Returns:
+            ``True`` if ``validate()`` returns an empty list, ``False``
+            otherwise.
+        """
+        return len(self.validate()) == 0
+
+    def to_workflow_kwargs(self) -> dict[str, Any]:
+        """Convert settings to kwargs for NLSQ's ``curve_fit()``.
+
+        Maps ``NLSQConfig`` settings to NLSQ 0.6.10+ ``curve_fit()``
+        parameters.  Heterodyne uses ``curve_fit()`` directly rather than
+        the unified ``fit()`` API.
+
+        Returns:
+            Dictionary of kwargs suitable for passing to ``curve_fit()``:
+            ``ftol``, ``gtol``, ``xtol``, ``max_nfev``, ``loss``, and
+            optionally ``goal``.
+
+        Notes:
+            NLSQ 0.6.3+ workflows: ``"auto"``, ``"auto_global"``,
+            ``"hpc"``.  Old presets (``"streaming"``, ``"standard"``)
+            were removed.  Heterodyne uses its own strategy selection for
+            memory-aware dispatch, so ``workflow`` is not forwarded.
+        """
+        kwargs: dict[str, Any] = {}
+
+        # goal can be passed to NLSQ's fit() API; omit the default value
+        # to avoid overriding NLSQ's own default.
+        if self.goal != "quality":
+            kwargs["goal"] = self.goal
+
+        # Convergence settings — directly supported by curve_fit()
+        kwargs["ftol"] = self.ftol
+        kwargs["gtol"] = self.gtol
+        kwargs["xtol"] = self.xtol
+        kwargs["max_nfev"] = self.max_iterations
+
+        # Loss function
+        kwargs["loss"] = self.loss
+
+        return kwargs
