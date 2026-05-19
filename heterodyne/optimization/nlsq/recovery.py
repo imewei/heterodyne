@@ -210,6 +210,7 @@ def execute_with_recovery(
                 rng.normal(0, perturb_scale, size=initial_params.shape) * param_range
             )
             current_params = np.clip(initial_params + noise, lower, upper)
+            logger.info("Retrying with perturbed parameters...")
             logger.info(
                 "Recovery attempt %d: perturbing parameters (scale=%.3f)",
                 attempt,
@@ -243,6 +244,7 @@ def execute_with_recovery(
             )
 
         try:
+            logger.debug("Using curve_fit_large with NLSQ automatic memory management")
             result = fit_fn(current_params, bounds, current_config)
 
             attempts.append(
@@ -253,6 +255,34 @@ def execute_with_recovery(
                     "cost": result.final_cost,
                 }
             )
+
+            # Log NLSQ result diagnostics (homodyne parity)
+            logger.info("NLSQ curve_fit RESULT DIAGNOSTICS")
+            # Note: bounds is always a tuple here; log first param for diagnostics
+            logger.info(
+                "  bounds=None (unbounded)"
+                if lower[0] == -np.inf
+                else "  bounds provided"
+            )
+            logger.info(
+                "  attempt=%d, action=%s, success=%s",
+                attempt + 1,
+                action,
+                result.success,
+            )
+
+            # Warn when parameters appear unchanged
+            _params = getattr(result, "parameters", None)
+            if _params is not None and np.allclose(
+                _params, current_params, rtol=1e-10, atol=1e-14
+            ):
+                logger.warning(
+                    "Optimization returned unchanged parameters on attempt %d.",
+                    attempt + 1,
+                )
+                logger.warning(
+                    "   Affected parameters were likely NOT optimized by NLSQ."
+                )
 
             if result.success:
                 result.metadata["recovery"] = {
@@ -295,5 +325,9 @@ def execute_with_recovery(
             if not diagnosis.recoverable:
                 break
 
+    logger.error(
+        "Optimization returned unchanged parameters after all retries. "
+        "This may indicate a bug in NLSQ or an intractable problem."
+    )
     error_msg = f"All {len(attempts)} recovery attempts failed"
     raise RuntimeError(error_msg)

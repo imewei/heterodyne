@@ -173,6 +173,7 @@ def handle_nlsq_result(
         pcov_raw = getattr(raw_result, "pcov", None)
         pcov = np.asarray(pcov_raw, dtype=np.float64) if pcov_raw is not None else None
         if pcov_raw is None:
+            logger.warning("No pcov attribute in result object. Using identity matrix.")
             logger.debug(
                 "No pcov attribute in result object (type=%s)",
                 type(raw_result).__name__,
@@ -393,10 +394,35 @@ def execute_optimization_with_fallback(
     while current is not None:
         logger.info("Fallback chain: attempting %s strategy", current.name)
 
+        if current == OptimizationStrategy.STREAMING:
+            logger.info(
+                "Using NLSQ AdaptiveHybridStreamingOptimizer for large datasets..."
+            )
+
         try:
             popt, pcov, info = _run_strategy(
                 current, model, c2_data, phi_angle, config, weights
             )
+
+            logger.info("NLSQ Result Analysis:")
+            logger.info("  strategy=%s, n_data=%d", current.name, n_data)
+
+            # Warn when parameters appear unchanged from initial guess
+            try:
+                initial_params_for_check = np.array(
+                    model.param_manager.get_initial_values(), dtype=np.float64
+                )
+                if initial_params_for_check.shape == popt.shape and np.allclose(
+                    popt, initial_params_for_check, rtol=1e-10, atol=1e-14
+                ):
+                    logger.warning(
+                        "Optimization failure: Parameters unchanged from initial guess!\n"
+                        "   This suggests curve_fit returned immediately without optimizing.\n"
+                        "   Possible causes: (1) Already at optimum, (2) Singular Jacobian,"
+                        " (3) Bounds too tight"
+                    )
+            except Exception:  # noqa: BLE001
+                pass  # param_manager may not be available in all contexts
 
             # Reconstruct a minimal dict/object to pass to build_result_from_nlsq
             raw_for_builder: dict[str, Any] = {"x": popt, **info}

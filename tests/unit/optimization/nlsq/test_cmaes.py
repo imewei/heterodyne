@@ -22,17 +22,18 @@ from heterodyne.optimization.nlsq.cmaes_wrapper import (
 
 
 class TestCMAESResult:
-    """Tests for the CMAESResult dataclass."""
+    """Tests for the CMAESResult dataclass (homodyne-parity fields)."""
 
     def _make_result(self, **overrides: object) -> CMAESResult:
         defaults: dict[str, object] = {
-            "best_params": {"D0_ref": 1e4, "alpha_ref": 1.8},
-            "best_cost": 0.05,
-            "n_iterations": 42,
-            "n_evaluations": 1000,
-            "converged": True,
-            "final_sigma": 1e-3,
-            "history": [1.0, 0.5, 0.2, 0.05],
+            "parameters": np.array([1e4, 1.8, 0.0]),
+            "covariance": None,
+            "chi_squared": 0.05,
+            "success": True,
+            "diagnostics": {"generations": 42, "evaluations": 1000},
+            "method_used": "cmaes",
+            "nlsq_refined": False,
+            "message": "CMA-ES: tol_fun=1e-8",
         }
         defaults.update(overrides)
         return CMAESResult(**defaults)  # type: ignore[arg-type]
@@ -40,37 +41,35 @@ class TestCMAESResult:
     def test_cmaes_result_creation(self) -> None:
         """CMAESResult can be created with required fields."""
         result = self._make_result()
-        assert result.best_cost == pytest.approx(0.05)
-        assert result.n_iterations == 42
-        assert result.n_evaluations == 1000
-        assert result.converged is True
-        assert result.final_sigma == pytest.approx(1e-3)
+        assert result.chi_squared == pytest.approx(0.05)
+        assert result.success is True
+        assert result.method_used == "cmaes"
+        assert result.nlsq_refined is False
 
-    def test_cmaes_result_best_params(self) -> None:
-        """best_params dictionary is accessible and has correct content."""
-        result = self._make_result(best_params={"p0": 1.5, "p1": 2.5})
-        assert result.best_params["p0"] == pytest.approx(1.5)
-        assert result.best_params["p1"] == pytest.approx(2.5)
+    def test_cmaes_result_parameters(self) -> None:
+        """parameters array is accessible and has correct content."""
+        params = np.array([1.5, 2.5, 0.0])
+        result = self._make_result(parameters=params)
+        np.testing.assert_allclose(result.parameters, params)
 
-    def test_cmaes_result_convergence_history(self) -> None:
-        """history field stores and returns a list of floats."""
-        history = [10.0, 5.0, 2.5, 1.0, 0.1]
-        result = self._make_result(history=history)
-        assert result.history == history
-        assert len(result.history) == 5
-        # History should be monotonically decreasing in a typical run
-        assert result.history[0] >= result.history[-1]
+    def test_cmaes_result_diagnostics(self) -> None:
+        """diagnostics dict stores generations and evaluations."""
+        diag = {"generations": 100, "evaluations": 5000}
+        result = self._make_result(diagnostics=diag)
+        assert result.diagnostics["generations"] == 100
+        assert result.diagnostics["evaluations"] == 5000
 
-    def test_cmaes_result_is_frozen(self) -> None:
-        """CMAESResult is frozen — attribute mutation raises AttributeError."""
-        result = self._make_result()
-        with pytest.raises(AttributeError):
-            result.best_cost = 999.0  # type: ignore[misc]
+    def test_cmaes_result_with_covariance(self) -> None:
+        """covariance can be set to an ndarray."""
+        cov = np.eye(3)
+        result = self._make_result(covariance=cov)
+        assert result.covariance is not None
+        np.testing.assert_allclose(result.covariance, cov)
 
-    def test_cmaes_result_empty_params(self) -> None:
-        """Empty best_params dict is accepted."""
-        result = self._make_result(best_params={})
-        assert result.best_params == {}
+    def test_cmaes_result_nlsq_refined(self) -> None:
+        """nlsq_refined flag is stored correctly."""
+        result = self._make_result(nlsq_refined=True)
+        assert result.nlsq_refined is True
 
 
 # ---------------------------------------------------------------------------
