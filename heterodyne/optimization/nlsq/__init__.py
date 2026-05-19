@@ -69,6 +69,7 @@ from heterodyne.optimization.nlsq.validation import (
     classify_fit_quality,
     validate_fit_quality,
 )
+from heterodyne.optimization.nlsq.wrapper import NLSQWrapper
 
 __all__ = [
     # Core
@@ -79,6 +80,7 @@ __all__ = [
     "NLSQResult",
     "NLSQAdapter",
     "NLSQAdapterBase",
+    "NLSQWrapper",
     "MultiStartOptimizer",
     "NLSQStrategy",
     "select_nlsq_strategy",
