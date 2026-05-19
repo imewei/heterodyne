@@ -1218,6 +1218,24 @@
   "optimization.gradient_diagnostics.GradientHealth.metrics": {
     "default": "field(default_factory=dict)"
   },
+  "optimization.nlsq.adapter.AdapterConfig.enable_cache": {
+    "default": "True"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.enable_jit": {
+    "default": "True"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.enable_recovery": {
+    "default": "True"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.enable_stability": {
+    "default": "True"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.goal": {
+    "default": "'quality'"
+  },
+  "optimization.nlsq.adapter.AdapterConfig.workflow": {
+    "default": "'auto'"
+  },
   "optimization.nlsq.adapter.CachedModel.created_at": {
     "default": "field(default_factory=time.monotonic)"
   },
@@ -1227,8 +1245,17 @@
   "optimization.nlsq.adapter.CachedModel.last_accessed": {
     "default": "field(default_factory=time.monotonic)"
   },
+  "optimization.nlsq.adapter.CachedModel.model": {
+    "default": "None"
+  },
+  "optimization.nlsq.adapter.CachedModel.model_func": {
+    "default": "None"
+  },
   "optimization.nlsq.adapter.CachedModel.n_hits": {
     "default": "0"
+  },
+  "optimization.nlsq.adapter.ModelCacheKey.analysis_mode": {
+    "default": "'full'"
   },
   "optimization.nlsq.adapter.ModelCacheKey.callable_scope": {
     "default": "None"
@@ -1239,8 +1266,14 @@
   "optimization.nlsq.adapter.ModelCacheKey.n_params": {
     "default": null
   },
+  "optimization.nlsq.adapter.ModelCacheKey.per_angle_scaling": {
+    "default": "True"
+  },
   "optimization.nlsq.adapter.ModelCacheKey.phi_angles": {
     "default": null
+  },
+  "optimization.nlsq.adapter.ModelCacheKey.q": {
+    "default": "0.0"
   },
   "optimization.nlsq.adapter.ModelCacheKey.scaling_mode": {
     "default": null

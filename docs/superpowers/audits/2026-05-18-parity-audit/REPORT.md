@@ -1,12 +1,12 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `5525c6080dcd9365b4c63f10301df326e1fc24ec`
-- Total gaps: **4427**
+- Heterodyne SHA: `6c80768c0b0ffe41254783231cfd1cc9d16f9694`
+- Total gaps: **4395**
 
-## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1779 gaps)
+## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1753 gaps)
 
-### classes (552)
+### classes (543)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -304,16 +304,7 @@
 | `KEEP` | missing_field | `optimization.cmc.sampler.SamplingStats.plan` | homodyne dataclass field `plan` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.cmc.scaling.ParameterScaling.to_normalized` | homodyne method `to_normalized(self, value: float) -> float` missing in heterodyne |
 | `KEEP` | missing_class | `optimization.exceptions.NLSQCheckpointError` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_class | `optimization.nlsq.adapter.AdapterConfig` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_field | `optimization.nlsq.adapter.CachedModel.model` | homodyne dataclass field `model` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.adapter.CachedModel.model_func` | homodyne dataclass field `model_func` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.adapter.ModelCacheKey.analysis_mode` | homodyne dataclass field `analysis_mode` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.adapter.ModelCacheKey.q` | homodyne dataclass field `q` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.adapter.ModelCacheKey.per_angle_scaling` | homodyne dataclass field `per_angle_scaling` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.adapter.NLSQAdapter.fit` | homodyne method `fit(self, data: Any, config: Any, initial_params: np.ndarray | None = None, bounds: tuple[np.ndarray, np.ndarray] | None = None, analysis_mode: str = 'static_isotropic', per_angle_scaling: bool = True, diagnostics_enabled: bool = False, shear_transforms: dict[str, Any] | None = None, per_angle_scaling_initial: dict[str, list[float]] | None = None, anti_degeneracy_controller: Any | None = None) -> OptimizationResult` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.adapter.NLSQAdapter.is_available` | homodyne method `is_available(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.adapter.NLSQAdapter.workflow_available` | homodyne method `workflow_available(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.adapter_base.NLSQAdapterBase.fit` | homodyne method `fit(self, *args: Any, **kwargs: Any) -> Any` missing in heterodyne |
 | `KEEP` | missing_class | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_method | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.check_constraint_violation` | homodyne method `check_constraint_violation(self, params: np.ndarray) -> dict[str, dict]` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.compute_regularization` | homodyne method `compute_regularization(self, params: np.ndarray, mse: float, n_points: int) -> float` missing in heterodyne |
@@ -594,7 +585,7 @@
 | `KEEP` | missing_cli_flag | `--static-mode` | homodyne flag `--static-mode` (default=None) missing in heterodyne |
 | `KEEP` | missing_cli_flag | `--tolerance` | homodyne flag `--tolerance` (default=1e-08) missing in heterodyne |
 
-### configs (542)
+### configs (531)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -847,17 +838,6 @@
 | `KEEP` | missing_config_key | `optimization.cmc.sampler.SamplingStats.total_time` | homodyne defines `optimization.cmc.sampler.SamplingStats.total_time`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.cmc.sampler.SamplingStats.tree_depth` | homodyne defines `optimization.cmc.sampler.SamplingStats.tree_depth`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.cmc.sampler.SamplingStats.warmup_time` | homodyne defines `optimization.cmc.sampler.SamplingStats.warmup_time`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.AdapterConfig.enable_cache` | homodyne defines `optimization.nlsq.adapter.AdapterConfig.enable_cache`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.AdapterConfig.enable_jit` | homodyne defines `optimization.nlsq.adapter.AdapterConfig.enable_jit`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.AdapterConfig.enable_recovery` | homodyne defines `optimization.nlsq.adapter.AdapterConfig.enable_recovery`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.AdapterConfig.enable_stability` | homodyne defines `optimization.nlsq.adapter.AdapterConfig.enable_stability`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.AdapterConfig.goal` | homodyne defines `optimization.nlsq.adapter.AdapterConfig.goal`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.AdapterConfig.workflow` | homodyne defines `optimization.nlsq.adapter.AdapterConfig.workflow`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.CachedModel.model` | homodyne defines `optimization.nlsq.adapter.CachedModel.model`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.CachedModel.model_func` | homodyne defines `optimization.nlsq.adapter.CachedModel.model_func`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.ModelCacheKey.analysis_mode` | homodyne defines `optimization.nlsq.adapter.ModelCacheKey.analysis_mode`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.ModelCacheKey.per_angle_scaling` | homodyne defines `optimization.nlsq.adapter.ModelCacheKey.per_angle_scaling`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.adapter.ModelCacheKey.q` | homodyne defines `optimization.nlsq.adapter.ModelCacheKey.q`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.auto_tune_lambda` | homodyne defines `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.auto_tune_lambda`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.enable` | homodyne defines `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.enable`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.group_indices` | homodyne defines `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.group_indices`; heterodyne does not |
@@ -1218,7 +1198,7 @@
 |---|---|---|---|
 | `KEEP` | exit_code_drift | `<package>` | homodyne exit codes=[0, 1, 130] heterodyne=[] |
 
-### signatures (597)
+### signatures (591)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1567,14 +1547,8 @@
 | `KEEP` | changed | `optimization.gradient_diagnostics.compute_optimal_x_scale` | homodyne: `compute_optimal_x_scale(parameters: dict[str, float], data: Any, config: Any, analysis_mode: str, baseline_params: list[str] | None = None, safety_factor: float = 1.0, min_scale: float = 1e-08, max_scale: float = 100.0) -> dict[str, float]`<br>  heterodyne: `compute_optimal_x_scale(gradient_norms: dict[str, float], baseline_params: list[str] | None = None, safety_factor: float = 1.0, min_scale: float = 1e-08, max_scale: float = 100.0) -> dict[str, float]` |
 | `KEEP` | changed | `optimization.gradient_diagnostics.diagnose_gradient_imbalance` | homodyne: `diagnose_gradient_imbalance(parameters: dict[str, float], data: Any, config: Any, analysis_mode: str, threshold: float = 10.0) -> dict[str, Any]`<br>  heterodyne: `diagnose_gradient_imbalance(gradient_norms: dict[str, float], threshold: float = 10.0) -> dict[str, Any]` |
 | `KEEP` | missing_in_heterodyne | `optimization.gradient_diagnostics.print_gradient_report` | homodyne has `print_gradient_report(parameters: dict[str, float], data: Any, config: Any, analysis_mode: str) -> None`; heterodyne missing |
-| `KEEP` | changed | `optimization.nlsq.adapter.NLSQAdapter.fit` | homodyne: `fit(self, data: Any, config: Any, initial_params: np.ndarray | None = None, bounds: tuple[np.ndarray, np.ndarray] | None = None, analysis_mode: str = 'static_isotropic', per_angle_scaling: bool = True, diagnostics_enabled: bool = False, shear_transforms: dict[str, Any] | None = None, per_angle_scaling_initial: dict[str, list[float]] | None = None, anti_degeneracy_controller: Any | None = None) -> OptimizationResult`<br>  heterodyne: `fit(self, residual_fn: Callable[[np.ndarray], np.ndarray], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None) -> NLSQResult` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.adapter.NLSQAdapter.is_available` | homodyne has `is_available(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.adapter.NLSQAdapter.workflow_available` | homodyne has `workflow_available(self) -> bool`; heterodyne missing |
-| `KEEP` | changed | `optimization.nlsq.adapter.clear_model_cache` | homodyne: `clear_model_cache() -> int`<br>  heterodyne: `clear_model_cache() -> None` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.adapter.get_adapter` | homodyne has `get_adapter(config: AdapterConfig | None = None) -> NLSQAdapter`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.adapter.get_or_create_model` | homodyne has `get_or_create_model(analysis_mode: str, phi_angles: np.ndarray, q: float, per_angle_scaling: bool = True, config: dict[str, Any] | None = None, enable_jit: bool = True) -> tuple[Any, Callable[[np.ndarray, Any], np.ndarray], bool]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.adapter.is_adapter_available` | homodyne has `is_adapter_available() -> bool`; heterodyne missing |
-| `KEEP` | changed | `optimization.nlsq.adapter_base.NLSQAdapterBase.fit` | homodyne: `fit(self, *args: Any, **kwargs: Any) -> Any`<br>  heterodyne: `fit(self, residual_fn: Callable[[np.ndarray], np.ndarray], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None) -> NLSQResult` |
+| `KEEP` | changed | `optimization.nlsq.adapter.NLSQAdapter.fit` | homodyne: `fit(self, data: Any, config: Any, initial_params: np.ndarray | None = None, bounds: tuple[np.ndarray, np.ndarray] | None = None, analysis_mode: str = 'static_isotropic', per_angle_scaling: bool = True, diagnostics_enabled: bool = False, shear_transforms: dict[str, Any] | None = None, per_angle_scaling_initial: dict[str, list[float]] | None = None, anti_degeneracy_controller: Any | None = None) -> OptimizationResult`<br>  heterodyne: `fit(self, residual_fn: Callable[[np.ndarray], np.ndarray], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None, *, analysis_mode: str = 'full', per_angle_scaling: bool = True, diagnostics_enabled: bool = False, per_angle_scaling_initial: dict[str, list[float]] | None = None, anti_degeneracy_controller: Any | None = None) -> NLSQResult` |
+| `KEEP` | changed | `optimization.nlsq.adapter.get_or_create_model` | homodyne: `get_or_create_model(analysis_mode: str, phi_angles: np.ndarray, q: float, per_angle_scaling: bool = True, config: dict[str, Any] | None = None, enable_jit: bool = True) -> tuple[Any, Callable[[np.ndarray, Any], np.ndarray], bool]`<br>  heterodyne: `get_or_create_model(analysis_mode: str, phi_angles: np.ndarray, q: float, per_angle_scaling: bool = True, config: dict[str, Any] | None = None, enable_jit: bool = True) -> tuple[Any, Callable[..., Any] | None, bool]` |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizationConfig.from_dict` | homodyne has `from_dict(cls, config_dict: dict) -> AdaptiveRegularizationConfig`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.check_constraint_violation` | homodyne has `check_constraint_violation(self, params: np.ndarray) -> dict[str, dict]`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.adaptive_regularization.AdaptiveRegularizer.compute_regularization` | homodyne has `compute_regularization(self, params: np.ndarray, mse: float, n_points: int) -> float`; heterodyne missing |
@@ -1820,7 +1794,7 @@
 | `KEEP` | missing_in_heterodyne | `viz.mcmc_report.print_mcmc_summary` | homodyne has `print_mcmc_summary(result: Any) -> None`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `viz.validation.validate_plot_arrays` | homodyne has `validate_plot_arrays(*arrays: np.ndarray, names: list[str] | None = None) -> bool`; heterodyne missing |
 
-## P1 — Structural drift — files added/missing/renamed, docs pages missing (1166 gaps)
+## P1 — Structural drift — files added/missing/renamed, docs pages missing (1167 gaps)
 
 ### cli (26)
 
@@ -2382,7 +2356,7 @@
 | `KEEP` | missing_doc_file | `user_guide/03_advanced_topics/streaming_mode.rst` | homodyne has docs file `user_guide/03_advanced_topics/streaming_mode.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `user_guide/04_practical_guides/batch_processing.rst` | homodyne has docs file `user_guide/04_practical_guides/batch_processing.rst`; heterodyne does not |
 
-### signatures (631)
+### signatures (632)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -2818,6 +2792,7 @@
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.adapter.NLSQWrapper.supports_bounds` | heterodyne-only: `supports_bounds(self) -> bool` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.adapter.NLSQWrapper.supports_jacobian` | heterodyne-only: `supports_jacobian(self) -> bool` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.adapter.get_or_create_fitter` | heterodyne-only: `get_or_create_fitter(n_data: int, n_params: int, phi_angles: tuple[float, ...] | None = None, scaling_mode: str = 'auto', callable_scope: object | None = None) -> tuple[object, bool]` |
+| `KEEP` | extra_in_heterodyne | `optimization.nlsq.adapter_base.NLSQAdapterBase.fit_typed` | heterodyne-only: `fit_typed(self, residual_fn: Callable[[np.ndarray], np.ndarray], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None) -> NLSQResult` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.adapter_base.NLSQAdapterBase.name` | heterodyne-only: `name(self) -> str` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.adapter_base.NLSQAdapterBase.supports_bounds` | heterodyne-only: `supports_bounds(self) -> bool` |
 | `KEEP` | extra_in_heterodyne | `optimization.nlsq.adapter_base.NLSQAdapterBase.supports_jacobian` | heterodyne-only: `supports_jacobian(self) -> bool` |
@@ -3018,7 +2993,7 @@
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_quality_report` | heterodyne-only: `plot_quality_report(quality_report: QualityReport, ax: Axes | None = None) -> Axes` |
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_validation_report` | heterodyne-only: `plot_validation_report(report: ValidationReport, ax: Axes | None = None) -> Axes` |
 
-## P2 — Observable drift — log formats, error stems, docs heading drift (1482 gaps)
+## P2 — Observable drift — log formats, error stems, docs heading drift (1475 gaps)
 
 ### docs (837)
 
@@ -3862,7 +3837,7 @@
 | `KEEP` | heading_drift | `user_guide/05_appendices/troubleshooting.rst` | heading `Troubleshooting Guide` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/index.rst` | heading `Sections Overview` present in homodyne, absent in heterodyne |
 
-### logs_errors (645)
+### logs_errors (638)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -4175,17 +4150,10 @@
 | `KEEP` | log_format_drift | `optimization.gradient_diagnostics [info]` | homodyne logs 'RECOMMENDATIONS'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.gradient_diagnostics [warning]` | homodyne logs 'GRADIENT IMBALANCE DETECTED'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.gradient_diagnostics [warning]` | homodyne logs 'data.dt is missing or None; using dt=1.0 for gradient diagnostics. Gradient norms will be correct only if the true frame interval is 1.0 s.'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.adapter [debug]` | homodyne logs 'Injected anti-degeneracy callbacks: %s'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.adapter [debug]` | homodyne logs 'JIT flag enabled; actual JIT applied by underlying model or NLSQ'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.adapter [debug]` | homodyne logs 'LRU eviction: removed oldest cached model'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.adapter [debug]` | homodyne logs 'Model cache hit: mode=%s, n_phi=%d, q=%.6g, hits=%d'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.adapter [debug]` | homodyne logs 'Model cache miss: mode=%s, n_phi=%d, q=%.6g'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.adapter [debug]` | homodyne logs 'Model cache stats: hits=%d, misses=%d, size=%d'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.adapter [debug]` | homodyne logs 'Model created in %.3fs (JIT=%s)'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.adapter [debug]` | homodyne logs 'NLSQAdapter initialized: cache=%s, recovery=%s, stability=%s, goal=%s'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.adapter [debug]` | homodyne logs 'Selected workflow: %s'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.adapter [error]` | homodyne logs 'NLSQ optimization failed: %s'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.adapter [info]` | homodyne logs 'Cleared model cache: %d models removed'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.adapter [info]` | homodyne logs 'NLSQAdapter.fit completed: chi2=%.6g, reduced_chi2=%.6g, status=%s, time=%.2fs'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.adapter [info]` | homodyne logs 'NLSQAdapter.fit: n_data=%d, n_params=%d, n_phi=%d, mode=%s'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.adaptive_regularization [info]` | homodyne logs 'Adaptive Regularization Summary:'; heterodyne does not (at this level) |

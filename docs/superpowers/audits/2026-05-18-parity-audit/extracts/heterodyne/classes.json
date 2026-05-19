@@ -1730,13 +1730,27 @@
     ],
     "methods": []
   },
+  "optimization.nlsq.adapter.AdapterConfig": {
+    "bases": [],
+    "dataclass_fields": [
+      "enable_cache",
+      "enable_jit",
+      "enable_recovery",
+      "enable_stability",
+      "goal",
+      "workflow"
+    ],
+    "methods": []
+  },
   "optimization.nlsq.adapter.CachedModel": {
     "bases": [],
     "dataclass_fields": [
       "fitter",
       "created_at",
       "last_accessed",
-      "n_hits"
+      "n_hits",
+      "model",
+      "model_func"
     ],
     "methods": []
   },
@@ -1747,7 +1761,10 @@
       "n_params",
       "phi_angles",
       "scaling_mode",
-      "callable_scope"
+      "callable_scope",
+      "analysis_mode",
+      "q",
+      "per_angle_scaling"
     ],
     "methods": []
   },
@@ -1757,11 +1774,13 @@
     ],
     "dataclass_fields": [],
     "methods": [
-      "fit(self, residual_fn: Callable[[np.ndarray], np.ndarray], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None) -> NLSQResult",
+      "fit(self, residual_fn: Callable[[np.ndarray], np.ndarray], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None, *, analysis_mode: str = 'full', per_angle_scaling: bool = True, diagnostics_enabled: bool = False, per_angle_scaling_initial: dict[str, list[float]] | None = None, anti_degeneracy_controller: Any | None = None) -> NLSQResult",
       "fit_jax(self, jax_residual_fn: Callable[..., Any], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, n_data: int) -> NLSQResult",
+      "is_available(self) -> bool",
       "name(self) -> str",
       "supports_bounds(self) -> bool",
-      "supports_jacobian(self) -> bool"
+      "supports_jacobian(self) -> bool",
+      "workflow_available(self) -> bool"
     ]
   },
   "optimization.nlsq.adapter.NLSQWrapper": {
@@ -1782,7 +1801,8 @@
     ],
     "dataclass_fields": [],
     "methods": [
-      "fit(self, residual_fn: Callable[[np.ndarray], np.ndarray], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None) -> NLSQResult",
+      "fit(self, *args: Any, **kwargs: Any) -> Any",
+      "fit_typed(self, residual_fn: Callable[[np.ndarray], np.ndarray], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None) -> NLSQResult",
       "name(self) -> str",
       "supports_bounds(self) -> bool",
       "supports_jacobian(self) -> bool"

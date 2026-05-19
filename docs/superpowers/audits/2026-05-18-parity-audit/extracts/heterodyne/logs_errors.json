@@ -2411,6 +2411,12 @@
         "CurveFit cache eviction: removing oldest entry %s",
         "CurveFit cache hit for shape (%d, %d)",
         "CurveFit cache hit: n_data=%d n_params=%d phi=%s scaling=%s",
+        "Injected anti-degeneracy callbacks: %s",
+        "JIT flag enabled; actual JIT applied by underlying model or NLSQ",
+        "LRU eviction: removed oldest cached model",
+        "Model cache hit: mode=%s, n_phi=%d, q=%.6g, hits=%d",
+        "Model cache miss: mode=%s, n_phi=%d, q=%.6g",
+        "NLSQAdapter initialized: cache=%s, recovery=%s, stability=%s, goal=%s",
         "fit_jax: optimizer did not expose final residuals; re-evaluating residual function"
       ],
       "error": [
@@ -2420,6 +2426,7 @@
         "NLSQWrapper: residual probe failed: %s"
       ],
       "info": [
+        "Cleared model cache: %d models removed",
         "NLSQAdapter settings: method=%s loss=%s gtol=%.2e max_nfev=%s x_scale=%s",
         "NLSQAdapter.fit: %d parameters",
         "NLSQAdapter.fit_jax settings: method=%s loss=%s gtol=%.2e max_nfev=%s x_scale=%s",
@@ -2441,6 +2448,77 @@
       {
         "exception": "RuntimeError",
         "message": "AdaptiveHybridStreamingOptimizer not available in this nlsq build"
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "phi_angles cannot be empty"
+      }
+    ]
+  },
+  "optimization.nlsq.adapter_base": {
+    "exit_codes": [],
+    "log_messages": {
+      "debug": [
+        "Bounds setup: %d parameters",
+        "Input validation passed: %d points"
+      ],
+      "error": [
+        "Error in %s: %s"
+      ],
+      "warning": [
+        "Covariance computation failed: %s",
+        "Insufficient degrees of freedom: %d points, %d params",
+        "J^T J ill-conditioned (cond=%.2e), using SVD"
+      ]
+    },
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Input arrays cannot be empty"
+      },
+      {
+        "exception": "ValueError",
+        "message": "g2 contains NaN or Inf values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "phi contains NaN or Inf values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "t1 contains NaN or Inf values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "t2 contains NaN or Inf values"
+      },
+      {
+        "exception": "ValueError",
+        "message": "weights contains NaN or Inf values"
+      },
+      {
+        "exception": "error",
+        "message": ""
       }
     ]
   },

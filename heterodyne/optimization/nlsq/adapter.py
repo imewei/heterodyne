@@ -77,6 +77,10 @@ class ModelCacheKey:
 
     Includes phi_angles and scaling_mode so that different multi-angle
     or scaling configurations do not share the same compiled fitter.
+
+    Homodyne-parity fields (analysis_mode, q, per_angle_scaling) are present
+    but default to heterodyne-appropriate values so existing callers that use
+    the fitter-centric path (n_data, n_params, scaling_mode) continue to work.
     """
 
     n_data: int
@@ -84,16 +88,28 @@ class ModelCacheKey:
     phi_angles: tuple[float, ...] | None
     scaling_mode: str
     callable_scope: object | None = None
+    # Parity fields (homodyne ModelCacheKey)
+    analysis_mode: str = "full"
+    q: float = 0.0
+    per_angle_scaling: bool = True
 
 
 @dataclass
 class CachedModel:
-    """A cached CurveFit instance with usage stats."""
+    """A cached CurveFit instance with usage stats.
+
+    The ``model`` and ``model_func`` fields mirror homodyne's CachedModel
+    for API parity; in the heterodyne fitter-centric path they remain None
+    and ``fitter`` carries the nlsq.CurveFit instance.
+    """
 
     fitter: object  # nlsq.CurveFit
     created_at: float = field(default_factory=time.monotonic)
     last_accessed: float = field(default_factory=time.monotonic)
     n_hits: int = 0
+    # Parity fields (homodyne CachedModel)
+    model: Any = None
+    model_func: Callable[..., Any] | None = None
 
 
 _model_cache: dict[ModelCacheKey, CachedModel] = {}
@@ -154,11 +170,100 @@ def get_or_create_fitter(
     return fitter, False
 
 
-def clear_model_cache() -> None:
-    """Clear the CurveFit model cache and reset hit/miss counters."""
+def get_or_create_model(
+    analysis_mode: str,
+    phi_angles: np.ndarray,
+    q: float,
+    per_angle_scaling: bool = True,
+    config: dict[str, Any] | None = None,
+    enable_jit: bool = True,
+) -> tuple[Any, Callable[..., Any] | None, bool]:
+    """Get cached model or create a new placeholder for heterodyne.
+
+    This function provides model instance caching for API parity with
+    homodyne's ``get_or_create_model()``.  Heterodyne's NLSQ path uses a
+    residual-function interface rather than a high-level model object, so
+    ``model`` and ``model_func`` are returned as ``None`` here — callers
+    that need a concrete fitter should use ``get_or_create_fitter()``.
+
+    Args:
+        analysis_mode: Physics mode string (heterodyne always uses ``'full'``).
+        phi_angles: Unique phi angles in radians.
+        q: Scattering wavevector magnitude.
+        per_angle_scaling: Whether per-angle contrast/offset is used.
+        config: Optional config dict (unused; kept for API parity).
+        enable_jit: Whether JIT compilation is requested (advisory).
+
+    Returns:
+        Tuple of (model, model_func, cache_hit) where model and model_func
+        are always ``None`` in heterodyne (residual path), and cache_hit
+        reflects whether the key was already registered.
+    """
+    if len(phi_angles) == 0:
+        raise ValueError("phi_angles cannot be empty")
+    if q < 0:
+        raise ValueError(f"q must be non-negative, got {q}")
+
+    normalized_mode = analysis_mode if analysis_mode else "full"
+    phi_sorted = tuple(float(v) for v in sorted(set(phi_angles)))
+    q_rounded = round(float(q), 10)
+
+    key = ModelCacheKey(
+        n_data=0,
+        n_params=0,
+        phi_angles=phi_sorted,
+        scaling_mode="auto",
+        callable_scope=None,
+        analysis_mode=normalized_mode,
+        q=q_rounded,
+        per_angle_scaling=per_angle_scaling,
+    )
+
+    if key in _model_cache:
+        _model_cache[key].last_accessed = time.monotonic()
+        _model_cache[key].n_hits += 1
+        _cache_stats["hits"] += 1
+        logger.debug(
+            "Model cache hit: mode=%s, n_phi=%d, q=%.6g, hits=%d",
+            normalized_mode,
+            len(phi_angles),
+            q,
+            _model_cache[key].n_hits,
+        )
+        cached = _model_cache[key]
+        return cached.model, cached.model_func, True
+
+    _cache_stats["misses"] += 1
+    logger.debug(
+        "Model cache miss: mode=%s, n_phi=%d, q=%.6g",
+        normalized_mode,
+        len(phi_angles),
+        q,
+    )
+    if enable_jit:
+        logger.debug("JIT flag enabled; actual JIT applied by underlying model or NLSQ")
+
+    if len(_model_cache) >= _MODEL_CACHE_MAX_SIZE:
+        oldest_key = min(_model_cache, key=lambda k: _model_cache[k].last_accessed)
+        logger.debug("LRU eviction: removed oldest cached model")
+        del _model_cache[oldest_key]
+
+    _model_cache[key] = CachedModel(fitter=None, model=None, model_func=None)
+    return None, None, False
+
+
+def clear_model_cache() -> int:
+    """Clear the CurveFit model cache and reset hit/miss counters.
+
+    Returns:
+        Number of models removed from the cache.
+    """
+    n_cleared = len(_model_cache)
     _model_cache.clear()
     _cache_stats["hits"] = 0
     _cache_stats["misses"] = 0
+    logger.info("Cleared model cache: %d models removed", n_cleared)
+    return n_cleared
 
 
 def get_cache_stats() -> dict[str, int]:
@@ -198,6 +303,32 @@ def _assess_convergence(
 
 
 # ---------------------------------------------------------------------------
+# AdapterConfig — configuration for NLSQAdapter (homodyne parity)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AdapterConfig:
+    """Configuration for NLSQAdapter.
+
+    Attributes:
+        enable_cache: Enable model instance caching.
+        enable_jit: Enable JIT compilation of model functions.
+        enable_recovery: Enable NLSQ's built-in recovery system.
+        enable_stability: Enable NLSQ's numerical stability guard.
+        goal: Optimization goal (fast, robust, quality, memory_efficient).
+        workflow: Workflow tier override (auto, standard, streaming).
+    """
+
+    enable_cache: bool = True
+    enable_jit: bool = True
+    enable_recovery: bool = True
+    enable_stability: bool = True
+    goal: str = "quality"  # XPCS requires precision
+    workflow: str = "auto"
+
+
+# ---------------------------------------------------------------------------
 # NLSQAdapter — primary JAX-traced adapter
 # ---------------------------------------------------------------------------
 
@@ -211,13 +342,31 @@ class NLSQAdapter(NLSQAdapterBase):
     JAX-traceable function to ``CurveFit.curve_fit()``.
     """
 
-    def __init__(self, parameter_names: list[str]) -> None:
+    def __init__(
+        self,
+        parameter_names: list[str] | None = None,
+        config: AdapterConfig | None = None,
+    ) -> None:
         """Initialise the adapter.
 
         Args:
             parameter_names: Names of parameters being optimised, in order.
+                Kept as the primary heterodyne argument.  Defaults to an empty
+                list so that ``NLSQAdapter()`` (homodyne-style, no names) works.
+            config: Optional AdapterConfig for feature flags (parity with
+                homodyne).  When provided, ``enable_recovery`` and
+                ``enable_stability`` are forwarded to the underlying CurveFit
+                constructor if the installed nlsq version supports them.
         """
-        self._parameter_names = parameter_names
+        self._parameter_names = parameter_names if parameter_names is not None else []
+        self.config = config or AdapterConfig()
+        logger.debug(
+            "NLSQAdapter initialized: cache=%s, recovery=%s, stability=%s, goal=%s",
+            self.config.enable_cache,
+            self.config.enable_recovery,
+            self.config.enable_stability,
+            self.config.goal,
+        )
 
     @property
     def name(self) -> str:
@@ -229,6 +378,25 @@ class NLSQAdapter(NLSQAdapterBase):
     def supports_jacobian(self) -> bool:
         return True
 
+    def is_available(self) -> bool:
+        """Check if the NLSQ CurveFit backend is available."""
+        try:
+            from nlsq import CurveFit as _CurveFit  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
+
+    @property
+    def workflow_available(self) -> bool:
+        """Check if NLSQ WorkflowSelector is available.
+
+        WorkflowSelector was removed in NLSQ v0.6.0; heterodyne uses
+        its own ``select_nlsq_strategy()`` from ``memory.py`` instead.
+        Always returns False for parity with homodyne post-v0.6.0.
+        """
+        return False
+
     def fit(
         self,
         residual_fn: Callable[[np.ndarray], np.ndarray],
@@ -236,6 +404,12 @@ class NLSQAdapter(NLSQAdapterBase):
         bounds: tuple[np.ndarray, np.ndarray],
         config: NLSQConfig,
         jacobian_fn: Callable[[np.ndarray], np.ndarray] | None = None,
+        *,
+        analysis_mode: str = "full",
+        per_angle_scaling: bool = True,
+        diagnostics_enabled: bool = False,
+        per_angle_scaling_initial: dict[str, list[float]] | None = None,
+        anti_degeneracy_controller: Any | None = None,
     ) -> NLSQResult:
         """Run NLSQ optimisation using nlsq.CurveFit.
 
@@ -250,6 +424,18 @@ class NLSQAdapter(NLSQAdapterBase):
             config: Optimisation configuration.
             jacobian_fn: Optional analytic Jacobian (unused by CurveFit; kept
                 for API compatibility).
+            analysis_mode: Physics mode string (heterodyne always uses
+                ``'full'``).  Present for homodyne API parity; not used
+                internally because heterodyne residuals are pre-computed.
+            per_angle_scaling: Whether per-angle contrast/offset is used.
+                Present for homodyne API parity; heterodyne encodes scaling
+                inside ``residual_fn``.
+            diagnostics_enabled: Enable extended diagnostics logging.
+            per_angle_scaling_initial: Initial per-angle contrast/offset.
+                Present for homodyne API parity; not used in residual path.
+            anti_degeneracy_controller: Anti-degeneracy controller.  When
+                provided and it exposes ``create_nlsq_callbacks()``, the
+                returned callbacks are injected into the optimizer call.
 
         Returns:
             NLSQResult with fit results.
@@ -306,13 +492,26 @@ class NLSQAdapter(NLSQAdapterBase):
                 else f"auto({100 * n_params})",
                 config.x_scale,
             )
+            optimizer_kw = _optimizer_kwargs(config, method)
+
+            # Inject anti-degeneracy callbacks if controller provides them
+            if anti_degeneracy_controller is not None:
+                if hasattr(anti_degeneracy_controller, "create_nlsq_callbacks"):
+                    callbacks = anti_degeneracy_controller.create_nlsq_callbacks()
+                    if callbacks:
+                        optimizer_kw.update(callbacks)
+                        logger.debug(
+                            "Injected anti-degeneracy callbacks: %s",
+                            list(callbacks.keys()),
+                        )
+
             nlsq_result = fitter.curve_fit(  # type: ignore[union-attr]
                 f=_wrapped,
                 xdata=xdata,
                 ydata=ydata,
                 p0=initial_params,
                 bounds=(lower_bounds, upper_bounds),
-                **_optimizer_kwargs(config, method),
+                **optimizer_kw,
             )
 
             wall_time = time.perf_counter() - start_time
@@ -853,13 +1052,48 @@ class NLSQWrapper(NLSQAdapterBase):
         )
 
 
+# ---------------------------------------------------------------------------
+# Module-level factory functions (homodyne parity)
+# ---------------------------------------------------------------------------
+
+
+def get_adapter(config: AdapterConfig | None = None) -> NLSQAdapter:
+    """Factory function to get an NLSQAdapter instance.
+
+    Args:
+        config: Adapter configuration.  If ``None``, uses defaults.
+
+    Returns:
+        NLSQAdapter instance.
+    """
+    return NLSQAdapter(config=config)
+
+
+def is_adapter_available() -> bool:
+    """Check if NLSQAdapter can be used.
+
+    Returns:
+        True if the nlsq CurveFit class is importable.
+    """
+    try:
+        from nlsq import CurveFit as _CurveFit  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 __all__ = [
+    "AdapterConfig",
     "CachedModel",
     "ModelCacheKey",
     "NLSQAdapter",
     "NLSQWrapper",
     "STREAMING_AVAILABLE",
     "clear_model_cache",
+    "get_adapter",
     "get_cache_stats",
     "get_or_create_fitter",
+    "get_or_create_model",
+    "is_adapter_available",
 ]

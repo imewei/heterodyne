@@ -26,6 +26,7 @@ _Populated incrementally by Phase 4 PRs 1–11 as each PR encounters D3-matching
 - classes:missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.update_shear_phi0` | Layer 5 method; heterodyne has no shear term in the g2 formula (D3, spec §2). Phase 4 PR 2 Task 2.4.
 - classes:missing_method | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_shear_weighting` | Layer 5 property; always False in heterodyne — no shear physics (D3, spec §2). Phase 4 PR 2 Task 2.4.
 - classes:missing_field  | `optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.shear_weighter` | Layer 5 field; heterodyne has no shear term in the g2 formula (D3, spec §2). Phase 4 PR 2 Task 2.4.
+- missing_method | `optimization.nlsq.adapter.NLSQAdapter.fit` kwarg `shear_transforms` | Layer-5 shear-only; heterodyne has no shear sinc term in the g2 formula, so this kwarg is omitted from the ported `fit()` signature. `analysis_mode` default changed from homodyne's `'static_isotropic'` to `'full'` — heterodyne always uses its 14-parameter full model. Phase 4 PR 3 Batch 1.
 
 ## Manual-narrative-diff escalations (3 rows; from REPORT.md §"Manual narrative diffs")
 
