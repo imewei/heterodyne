@@ -3,6 +3,9 @@
 from heterodyne.optimization.nlsq.adapter import NLSQAdapter
 from heterodyne.optimization.nlsq.adapter_base import NLSQAdapterBase
 from heterodyne.optimization.nlsq.anti_degeneracy_controller import (
+    AntiDegeneracyConfig,
+    AntiDegeneracyController,
+    DegeneracyCheck,
     GradientCollapseDetector,
     compute_effective_lambda,
     detect_hierarchical_trigger,
@@ -118,7 +121,10 @@ __all__ = [
     "ValidationSeverity",
     "classify_fit_quality",
     "validate_fit_quality",
-    # Anti-degeneracy (parity)
+    # Anti-degeneracy (active orchestrator — parity with homodyne)
+    "AntiDegeneracyConfig",
+    "AntiDegeneracyController",
+    "DegeneracyCheck",
     "GradientCollapseDetector",
     "suggest_regularization",
     "compute_effective_lambda",

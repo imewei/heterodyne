@@ -1,7 +1,12 @@
 """Unit tests for AntiDegeneracyController and multi-start LHS utilities.
 
-Tests the controller creation, correlation/bound/plateau checks, and
-the standalone `check_zero_volume_bounds` / `generate_lhs_starts` helpers.
+Tests the active orchestrator controller (ported from homodyne v2.9.0),
+the DegeneracyCheck legacy-compat dataclass, and the standalone
+`check_zero_volume_bounds` / `generate_lhs_starts` helpers.
+
+Ported from passive-diagnostic API (correlation/bound/plateau checks on
+NLSQResult) to active-orchestrator API (from_config + create_nlsq_callbacks)
+in Phase 4 PR 2.
 """
 
 from __future__ import annotations
@@ -19,38 +24,71 @@ from heterodyne.optimization.nlsq.multistart import (
 )
 
 # ---------------------------------------------------------------------------
-# AntiDegeneracyController
+# AntiDegeneracyController (active orchestrator API)
 # ---------------------------------------------------------------------------
 
 
 class TestAntiDegeneracyController:
-    """Tests for AntiDegeneracyController creation and check methods."""
+    """Tests for the active AntiDegeneracyController orchestrator."""
 
-    def test_controller_creation_default(self) -> None:
-        """Default construction uses sensible threshold values."""
-        ctrl = AntiDegeneracyController()
-        assert hasattr(ctrl, "check")
-        assert callable(ctrl.check)
-
-    def test_controller_creation_custom(self) -> None:
-        """Custom thresholds are accepted without error."""
-        ctrl = AntiDegeneracyController(
-            correlation_threshold=0.95,
-            bound_tolerance=1e-3,
-            plateau_min_iterations=5,
-            plateau_cost_rtol=1e-8,
+    def test_controller_from_config_default(self) -> None:
+        """from_config() with minimal dict returns a valid controller."""
+        phi_angles = np.linspace(0, np.pi, 4)
+        ctrl = AntiDegeneracyController.from_config(
+            config_dict={},
+            n_phi=4,
+            phi_angles=phi_angles,
+            n_physical=14,
         )
-        assert ctrl is not None
+        assert isinstance(ctrl, AntiDegeneracyController)
+        assert ctrl.is_enabled is True
 
-    def test_controller_invalid_correlation_threshold(self) -> None:
-        """correlation_threshold <= 0 raises ValueError."""
-        with pytest.raises(ValueError, match="correlation_threshold"):
-            AntiDegeneracyController(correlation_threshold=0.0)
+    def test_controller_from_config_disabled(self) -> None:
+        """enable=False produces a disabled controller."""
+        phi_angles = np.linspace(0, np.pi, 4)
+        ctrl = AntiDegeneracyController.from_config(
+            config_dict={"enable": False},
+            n_phi=4,
+            phi_angles=phi_angles,
+            n_physical=14,
+        )
+        assert ctrl.is_enabled is False
+        assert ctrl.per_angle_mode_actual == "disabled"
 
-    def test_controller_invalid_bound_tolerance(self) -> None:
-        """Negative bound_tolerance raises ValueError."""
-        with pytest.raises(ValueError, match="bound_tolerance"):
-            AntiDegeneracyController(bound_tolerance=-1e-4)
+    def test_controller_n_physical_14(self) -> None:
+        """n_physical defaults to 14 (heterodyne model)."""
+        phi_angles = np.linspace(0, np.pi, 4)
+        ctrl = AntiDegeneracyController.from_config(
+            config_dict={},
+            n_phi=4,
+            phi_angles=phi_angles,
+        )
+        assert ctrl.n_physical == 14
+
+    def test_controller_use_shear_weighting_always_false(self) -> None:
+        """use_shear_weighting is always False — Layer 5 is D3-dropped."""
+        phi_angles = np.linspace(0, np.pi, 4)
+        ctrl = AntiDegeneracyController.from_config(
+            config_dict={},
+            n_phi=4,
+            phi_angles=phi_angles,
+            n_physical=14,
+        )
+        assert ctrl.use_shear_weighting is False
+
+    def test_controller_get_diagnostics_returns_dict(self) -> None:
+        """get_diagnostics() returns a dict with at least 'enabled'."""
+        phi_angles = np.linspace(0, np.pi, 4)
+        ctrl = AntiDegeneracyController.from_config(
+            config_dict={},
+            n_phi=4,
+            phi_angles=phi_angles,
+            n_physical=14,
+        )
+        diag = ctrl.get_diagnostics()
+        assert isinstance(diag, dict)
+        assert "enabled" in diag
+        assert diag["enabled"] == ctrl.is_enabled
 
     def test_degeneracy_check_dataclass(self) -> None:
         """DegeneracyCheck fields are accessible and have correct types."""
