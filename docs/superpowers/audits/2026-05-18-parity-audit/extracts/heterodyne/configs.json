@@ -1910,6 +1910,36 @@
     "progress",
     "quality_validation"
   ],
+  "optimization.nlsq.data_prep.ExpandedParameters.bounds": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.ExpandedParameters.n_angles": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.ExpandedParameters.n_params": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.ExpandedParameters.n_physical": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.ExpandedParameters.params": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.n_data": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.n_phi": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.phi_unique": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.xdata": {
+    "default": null
+  },
+  "optimization.nlsq.data_prep.PreparedData.ydata": {
+    "default": null
+  },
   "optimization.nlsq.fourier_reparam.FourierReparamConfig.auto_threshold": {
     "default": "6"
   },
@@ -1968,6 +1998,9 @@
     "default": null
   },
   "optimization.nlsq.hierarchical.HierarchicalResult.total_iterations": {
+    "default": null
+  },
+  "optimization.nlsq.memory.StrategyDecision.index_memory_gb": {
     "default": null
   },
   "optimization.nlsq.memory.StrategyDecision.peak_memory_gb": {

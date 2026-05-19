@@ -2127,6 +2127,28 @@
     ],
     "methods": []
   },
+  "optimization.nlsq.data_prep.ExpandedParameters": {
+    "bases": [],
+    "dataclass_fields": [
+      "params",
+      "bounds",
+      "n_params",
+      "n_physical",
+      "n_angles"
+    ],
+    "methods": []
+  },
+  "optimization.nlsq.data_prep.PreparedData": {
+    "bases": [],
+    "dataclass_fields": [
+      "xdata",
+      "ydata",
+      "n_data",
+      "n_phi",
+      "phi_unique"
+    ],
+    "methods": []
+  },
   "optimization.nlsq.fallback_chain.OptimizationStrategy": {
     "bases": [
       "Enum"
@@ -2230,6 +2252,7 @@
     "dataclass_fields": [
       "strategy",
       "threshold_gb",
+      "index_memory_gb",
       "peak_memory_gb",
       "reason"
     ],

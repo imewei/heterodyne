@@ -2913,11 +2913,30 @@
       "debug": [
         "Prepared fit data: %d points (%d non-zero weight) from (%d, %d) matrix"
       ],
+      "info": [
+        "    - Contrast per angle: %d (indices 0 to %d)",
+        "    - Offset per angle: %d (indices %d to %d)",
+        "    - Physical: %d (indices %d to %d)",
+        "Expanded %d compact params to %d per-angle params (%d angles):"
+      ],
       "warning": [
+        "Clipped %d initial parameters to bounds",
         "Underdetermined system: %d data points, %d parameters"
       ]
     },
     "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
       {
         "exception": "ValueError",
         "message": ""
@@ -3140,20 +3159,19 @@
     "exit_codes": [],
     "log_messages": {
       "debug": [
+        "Adaptive memory threshold: %.1f GB (%.0f%% of %.1f GB total)",
+        "Memory strategy analysis: n_points=%s, n_params=%d, index=%.2f GB, peak=%.2f GB, threshold=%.2f GB",
         "Selecting STANDARD: %s",
-        "Strategy analysis: n_points=%s, n_params=%d, index=%.2f GB, peak=%.2f GB, threshold=%.2f GB",
-        "System memory: %.1f GB, threshold: %.1f GB (%.0f%%)",
         "os.sysconf memory detection failed: %s",
         "psutil memory detection failed: %s",
         "psutil not available, trying os.sysconf fallback"
       ],
       "info": [
-        "Auto-selecting LARGE: %s",
-        "Auto-selecting STREAMING: %s"
+        "Auto-switching to LARGE: %s",
+        "Auto-switching to STREAMING: %s"
       ],
       "warning": [
-        "Could not detect system memory; using fallback threshold %.1f GB",
-        "Invalid %s=%r, using default=%.2f"
+        "Could not detect system memory; using fallback threshold %.1f GB"
       ]
     },
     "raises": []
