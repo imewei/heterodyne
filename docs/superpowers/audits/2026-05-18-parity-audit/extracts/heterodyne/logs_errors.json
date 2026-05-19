@@ -2685,6 +2685,10 @@
       "warning": [
         "NLSQConfig.from_dict: 'anti_degeneracy' must be a dict, got %r \u2014 ignoring",
         "NLSQConfig.from_dict: 'cmaes' must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: 'hybrid_streaming' must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: 'multi_start' must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: 'progress' must be a dict, got %r \u2014 ignoring",
+        "NLSQConfig.from_dict: 'quality_validation' must be a dict, got %r \u2014 ignoring",
         "NLSQConfig.from_dict: 'recovery' must be a dict, got %r \u2014 ignoring",
         "NLSQConfig.from_dict: 'validation' must be a dict, got %r \u2014 ignoring",
         "NLSQConfig.from_dict: anti_degeneracy.gradient_monitoring must be a dict, got %r \u2014 ignoring",
@@ -2693,11 +2697,16 @@
         "NLSQConfig.from_dict: unrecognised key %r \u2014 ignoring",
         "NLSQConfig.from_dict: x_scale_map must be a dict, got %r \u2014 ignoring",
         "NLSQConfig: gtol=%.2e is very tight for loss=%r. Robust loss landscapes are harder \u2014 consider gtol >= 1e-6 to avoid premature max_nfev exhaustion.",
+        "No optimization.nlsq section found in %s, using defaults",
         "safe_float: could not convert %r to float, using default %s",
         "safe_int: could not convert %r to int, using default %s"
       ]
     },
     "raises": [
+      {
+        "exception": "FileNotFoundError",
+        "message": ""
+      },
       {
         "exception": "ValueError",
         "message": ""

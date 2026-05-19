@@ -1,12 +1,12 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `6c80768c0b0ffe41254783231cfd1cc9d16f9694`
-- Total gaps: **4395**
+- Heterodyne SHA: `e27fa70d91055f79944275bafc31342c095b9f04`
+- Total gaps: **4249**
 
-## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1753 gaps)
+## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1607 gaps)
 
-### classes (543)
+### classes (470)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -340,80 +340,7 @@
 | `KEEP` | missing_method | `optimization.nlsq.cmaes_wrapper.CMAESWrapper.should_use_cmaes` | homodyne method `should_use_cmaes(self, bounds: tuple[np.ndarray, np.ndarray], scale_threshold: float = 1000.0) -> bool` missing in heterodyne |
 | `KEEP` | missing_class | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_method | `optimization.nlsq.config.HybridRecoveryConfig.get_retry_settings` | homodyne method `get_retry_settings(self, attempt: int) -> dict` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.HybridRecoveryConfig.log_retries` | homodyne dataclass field `log_retries` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.nlsq.config.NLSQConfig.from_dict` | homodyne method `from_dict(cls, config_dict: dict[str, Any]) -> NLSQConfig` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.config.NLSQConfig.from_yaml` | homodyne method `from_yaml(cls, yaml_path: str) -> NLSQConfig` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.config.NLSQConfig.is_valid` | homodyne method `is_valid(self) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.config.NLSQConfig.to_workflow_kwargs` | homodyne method `to_workflow_kwargs(self) -> dict[str, Any]` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.trust_region_scale` | homodyne dataclass field `trust_region_scale` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.enable_progress_bar` | homodyne dataclass field `enable_progress_bar` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.log_iteration_interval` | homodyne dataclass field `log_iteration_interval` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.enable_hybrid_streaming` | homodyne dataclass field `enable_hybrid_streaming` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_normalize` | homodyne dataclass field `hybrid_normalize` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_normalization_strategy` | homodyne dataclass field `hybrid_normalization_strategy` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_warmup_iterations` | homodyne dataclass field `hybrid_warmup_iterations` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_iterations` | homodyne dataclass field `hybrid_max_warmup_iterations` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_warmup_learning_rate` | homodyne dataclass field `hybrid_warmup_learning_rate` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_max_iterations` | homodyne dataclass field `hybrid_gauss_newton_max_iterations` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_tol` | homodyne dataclass field `hybrid_gauss_newton_tol` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_chunk_size` | homodyne dataclass field `hybrid_chunk_size` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_trust_region_initial` | homodyne dataclass field `hybrid_trust_region_initial` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_regularization_factor` | homodyne dataclass field `hybrid_regularization_factor` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_enable_checkpoints` | homodyne dataclass field `hybrid_enable_checkpoints` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_checkpoint_frequency` | homodyne dataclass field `hybrid_checkpoint_frequency` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_validate_numerics` | homodyne dataclass field `hybrid_validate_numerics` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_enable_warm_start_detection` | homodyne dataclass field `hybrid_enable_warm_start_detection` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_warm_start_threshold` | homodyne dataclass field `hybrid_warm_start_threshold` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_enable_adaptive_warmup_lr` | homodyne dataclass field `hybrid_enable_adaptive_warmup_lr` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_refinement` | homodyne dataclass field `hybrid_warmup_lr_refinement` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_careful` | homodyne dataclass field `hybrid_warmup_lr_careful` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_enable_cost_guard` | homodyne dataclass field `hybrid_enable_cost_guard` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_cost_increase_tolerance` | homodyne dataclass field `hybrid_cost_increase_tolerance` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_enable_step_clipping` | homodyne dataclass field `hybrid_enable_step_clipping` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_step_size` | homodyne dataclass field `hybrid_max_warmup_step_size` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.enable_multi_start` | homodyne dataclass field `enable_multi_start` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.multi_start_n_starts` | homodyne dataclass field `multi_start_n_starts` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.multi_start_seed` | homodyne dataclass field `multi_start_seed` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.multi_start_sampling_strategy` | homodyne dataclass field `multi_start_sampling_strategy` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.multi_start_n_workers` | homodyne dataclass field `multi_start_n_workers` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.multi_start_use_screening` | homodyne dataclass field `multi_start_use_screening` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.multi_start_screen_keep_fraction` | homodyne dataclass field `multi_start_screen_keep_fraction` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.multi_start_refine_top_k` | homodyne dataclass field `multi_start_refine_top_k` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.multi_start_refinement_ftol` | homodyne dataclass field `multi_start_refinement_ftol` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.multi_start_degeneracy_threshold` | homodyne dataclass field `multi_start_degeneracy_threshold` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hierarchical_physical_max_iterations` | homodyne dataclass field `hierarchical_physical_max_iterations` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.hierarchical_per_angle_max_iterations` | homodyne dataclass field `hierarchical_per_angle_max_iterations` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.regularization_target_contribution` | homodyne dataclass field `regularization_target_contribution` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.regularization_max_cv` | homodyne dataclass field `regularization_max_cv` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.regularization_auto_tune_lambda` | homodyne dataclass field `regularization_auto_tune_lambda` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.gradient_collapse_response` | homodyne dataclass field `gradient_collapse_response` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_preset` | homodyne dataclass field `cmaes_preset` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_max_generations` | homodyne dataclass field `cmaes_max_generations` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_popsize` | homodyne dataclass field `cmaes_popsize` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_sigma` | homodyne dataclass field `cmaes_sigma` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_sigma_warmstart` | homodyne dataclass field `cmaes_sigma_warmstart` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_tol_fun` | homodyne dataclass field `cmaes_tol_fun` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_tol_x` | homodyne dataclass field `cmaes_tol_x` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_population_batch_size` | homodyne dataclass field `cmaes_population_batch_size` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_data_chunk_size` | homodyne dataclass field `cmaes_data_chunk_size` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_refine_with_nlsq` | homodyne dataclass field `cmaes_refine_with_nlsq` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_auto_select` | homodyne dataclass field `cmaes_auto_select` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_scale_threshold` | homodyne dataclass field `cmaes_scale_threshold` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_memory_limit_gb` | homodyne dataclass field `cmaes_memory_limit_gb` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_workflow` | homodyne dataclass field `cmaes_refinement_workflow` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_ftol` | homodyne dataclass field `cmaes_refinement_ftol` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_xtol` | homodyne dataclass field `cmaes_refinement_xtol` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_gtol` | homodyne dataclass field `cmaes_refinement_gtol` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_max_nfev` | homodyne dataclass field `cmaes_refinement_max_nfev` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_loss` | homodyne dataclass field `cmaes_refinement_loss` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_normalize` | homodyne dataclass field `cmaes_normalize` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.cmaes_normalization_epsilon` | homodyne dataclass field `cmaes_normalization_epsilon` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.enable_quality_validation` | homodyne dataclass field `enable_quality_validation` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.quality_reduced_chi_squared_threshold` | homodyne dataclass field `quality_reduced_chi_squared_threshold` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.quality_warn_on_max_restarts` | homodyne dataclass field `quality_warn_on_max_restarts` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.quality_warn_on_bounds_hit` | homodyne dataclass field `quality_warn_on_bounds_hit` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.quality_warn_on_convergence_failure` | homodyne dataclass field `quality_warn_on_convergence_failure` missing in heterodyne |
-| `KEEP` | missing_field | `optimization.nlsq.config.NLSQConfig.quality_bounds_tolerance` | homodyne dataclass field `quality_bounds_tolerance` missing in heterodyne |
 | `KEEP` | missing_class | `optimization.nlsq.core.NLSQResult` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_class | `optimization.nlsq.data_prep.ExpandedParameters` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_class | `optimization.nlsq.data_prep.PreparedData` | homodyne defines this class; heterodyne does not |
@@ -585,7 +512,7 @@
 | `KEEP` | missing_cli_flag | `--static-mode` | homodyne flag `--static-mode` (default=None) missing in heterodyne |
 | `KEEP` | missing_cli_flag | `--tolerance` | homodyne flag `--tolerance` (default=1e-08) missing in heterodyne |
 
-### configs (531)
+### configs (461)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -884,76 +811,6 @@
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma_warmstart` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.sigma_warmstart`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_fun` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_fun`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_x` | homodyne defines `optimization.nlsq.cmaes_wrapper.CMAESWrapperConfig.tol_x`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.HybridRecoveryConfig.log_retries` | homodyne defines `optimization.nlsq.config.HybridRecoveryConfig.log_retries`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_auto_select` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_auto_select`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_data_chunk_size` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_data_chunk_size`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_max_generations` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_max_generations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_memory_limit_gb` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_memory_limit_gb`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_normalization_epsilon` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_normalization_epsilon`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_normalize` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_normalize`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_popsize` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_popsize`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_population_batch_size` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_population_batch_size`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_preset` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_preset`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_refine_with_nlsq` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_refine_with_nlsq`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_ftol` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_refinement_ftol`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_gtol` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_refinement_gtol`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_loss` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_refinement_loss`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_max_nfev` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_refinement_max_nfev`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_workflow` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_refinement_workflow`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_refinement_xtol` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_refinement_xtol`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_scale_threshold` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_scale_threshold`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_sigma` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_sigma`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_sigma_warmstart` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_sigma_warmstart`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_tol_fun` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_tol_fun`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.cmaes_tol_x` | homodyne defines `optimization.nlsq.config.NLSQConfig.cmaes_tol_x`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.enable_hybrid_streaming` | homodyne defines `optimization.nlsq.config.NLSQConfig.enable_hybrid_streaming`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.enable_multi_start` | homodyne defines `optimization.nlsq.config.NLSQConfig.enable_multi_start`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.enable_progress_bar` | homodyne defines `optimization.nlsq.config.NLSQConfig.enable_progress_bar`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.enable_quality_validation` | homodyne defines `optimization.nlsq.config.NLSQConfig.enable_quality_validation`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.gradient_collapse_response` | homodyne defines `optimization.nlsq.config.NLSQConfig.gradient_collapse_response`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hierarchical_per_angle_max_iterations` | homodyne defines `optimization.nlsq.config.NLSQConfig.hierarchical_per_angle_max_iterations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hierarchical_physical_max_iterations` | homodyne defines `optimization.nlsq.config.NLSQConfig.hierarchical_physical_max_iterations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_checkpoint_frequency` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_checkpoint_frequency`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_chunk_size` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_chunk_size`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_cost_increase_tolerance` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_cost_increase_tolerance`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_enable_adaptive_warmup_lr` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_enable_adaptive_warmup_lr`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_enable_checkpoints` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_enable_checkpoints`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_enable_cost_guard` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_enable_cost_guard`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_enable_step_clipping` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_enable_step_clipping`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_enable_warm_start_detection` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_enable_warm_start_detection`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_max_iterations` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_max_iterations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_tol` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_tol`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_iterations` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_iterations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_step_size` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_step_size`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_normalization_strategy` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_normalization_strategy`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_normalize` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_normalize`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_regularization_factor` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_regularization_factor`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_trust_region_initial` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_trust_region_initial`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_validate_numerics` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_validate_numerics`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_warm_start_threshold` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_warm_start_threshold`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_warmup_iterations` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_warmup_iterations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_warmup_learning_rate` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_warmup_learning_rate`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_careful` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_careful`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_refinement` | homodyne defines `optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_refinement`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.log_iteration_interval` | homodyne defines `optimization.nlsq.config.NLSQConfig.log_iteration_interval`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.multi_start_degeneracy_threshold` | homodyne defines `optimization.nlsq.config.NLSQConfig.multi_start_degeneracy_threshold`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.multi_start_n_starts` | homodyne defines `optimization.nlsq.config.NLSQConfig.multi_start_n_starts`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.multi_start_n_workers` | homodyne defines `optimization.nlsq.config.NLSQConfig.multi_start_n_workers`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.multi_start_refine_top_k` | homodyne defines `optimization.nlsq.config.NLSQConfig.multi_start_refine_top_k`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.multi_start_refinement_ftol` | homodyne defines `optimization.nlsq.config.NLSQConfig.multi_start_refinement_ftol`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.multi_start_sampling_strategy` | homodyne defines `optimization.nlsq.config.NLSQConfig.multi_start_sampling_strategy`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.multi_start_screen_keep_fraction` | homodyne defines `optimization.nlsq.config.NLSQConfig.multi_start_screen_keep_fraction`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.multi_start_seed` | homodyne defines `optimization.nlsq.config.NLSQConfig.multi_start_seed`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.multi_start_use_screening` | homodyne defines `optimization.nlsq.config.NLSQConfig.multi_start_use_screening`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.quality_bounds_tolerance` | homodyne defines `optimization.nlsq.config.NLSQConfig.quality_bounds_tolerance`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.quality_reduced_chi_squared_threshold` | homodyne defines `optimization.nlsq.config.NLSQConfig.quality_reduced_chi_squared_threshold`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.quality_warn_on_bounds_hit` | homodyne defines `optimization.nlsq.config.NLSQConfig.quality_warn_on_bounds_hit`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.quality_warn_on_convergence_failure` | homodyne defines `optimization.nlsq.config.NLSQConfig.quality_warn_on_convergence_failure`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.quality_warn_on_max_restarts` | homodyne defines `optimization.nlsq.config.NLSQConfig.quality_warn_on_max_restarts`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.regularization_auto_tune_lambda` | homodyne defines `optimization.nlsq.config.NLSQConfig.regularization_auto_tune_lambda`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.regularization_max_cv` | homodyne defines `optimization.nlsq.config.NLSQConfig.regularization_max_cv`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.regularization_target_contribution` | homodyne defines `optimization.nlsq.config.NLSQConfig.regularization_target_contribution`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.config.NLSQConfig.trust_region_scale` | homodyne defines `optimization.nlsq.config.NLSQConfig.trust_region_scale`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.data_prep.ExpandedParameters.bounds` | homodyne defines `optimization.nlsq.data_prep.ExpandedParameters.bounds`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.data_prep.ExpandedParameters.n_angles` | homodyne defines `optimization.nlsq.data_prep.ExpandedParameters.n_angles`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.data_prep.ExpandedParameters.n_params` | homodyne defines `optimization.nlsq.data_prep.ExpandedParameters.n_params`; heterodyne does not |
@@ -1198,7 +1055,7 @@
 |---|---|---|---|
 | `KEEP` | exit_code_drift | `<package>` | homodyne exit codes=[0, 1, 130] heterodyne=[] |
 
-### signatures (591)
+### signatures (588)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1571,9 +1428,6 @@
 | `KEEP` | changed | `optimization.nlsq.cmaes_wrapper.fit_with_cmaes` | homodyne: `fit_with_cmaes(model_func: Callable, xdata: np.ndarray, ydata: np.ndarray, p0: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], sigma: np.ndarray | None = None, config: CMAESWrapperConfig | None = None) -> CMAESResult`<br>  heterodyne: `fit_with_cmaes(objective_fn: Callable[[np.ndarray], float], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], parameter_names: list[str] | None = None, *, config: CMAESConfig | None = None, residual_fn: Callable[[np.ndarray], np.ndarray] | None = None, n_data: int | None = None, anti_degeneracy: bool = False, metadata: dict[str, Any] | None = None) -> NLSQResult` |
 | `KEEP` | changed | `optimization.nlsq.config.HybridRecoveryConfig.get_retry_settings` | homodyne: `get_retry_settings(self, attempt: int) -> dict`<br>  heterodyne: `get_retry_settings(self, attempt: int) -> dict[str, float]` |
 | `KEEP` | changed | `optimization.nlsq.config.NLSQConfig.from_dict` | homodyne: `from_dict(cls, config_dict: dict[str, Any]) -> NLSQConfig`<br>  heterodyne: `from_dict(cls, config: dict[str, Any]) -> NLSQConfig` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.config.NLSQConfig.from_yaml` | homodyne has `from_yaml(cls, yaml_path: str) -> NLSQConfig`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.config.NLSQConfig.is_valid` | homodyne has `is_valid(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.config.NLSQConfig.to_workflow_kwargs` | homodyne has `to_workflow_kwargs(self) -> dict[str, Any]`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.core.fit_nlsq_cmaes` | homodyne has `fit_nlsq_cmaes(data: dict[str, Any], config: ConfigManager, initial_params: dict[str, float] | None = None, per_angle_scaling: bool = True) -> OptimizationResult`; heterodyne missing |
 | `KEEP` | changed | `optimization.nlsq.core.fit_nlsq_jax` | homodyne: `fit_nlsq_jax(data: dict[str, Any], config: ConfigManager, initial_params: dict[str, float] | None = None, per_angle_scaling: bool = True, use_adapter: bool = False, _skip_global_selection: bool = False) -> OptimizationResult`<br>  heterodyne: `fit_nlsq_jax(model: HeterodyneModel, c2_data: np.ndarray | jnp.ndarray, phi_angle: float = 0.0, config: NLSQConfig | None = None, weights: np.ndarray | jnp.ndarray | None = None, use_nlsq_library: bool = True, *, _skip_global_selection: bool = False) -> NLSQResult` |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.core.fit_nlsq_multistart` | homodyne has `fit_nlsq_multistart(data: dict[str, Any], config: ConfigManager, initial_params: dict[str, float] | None = None, per_angle_scaling: bool = True) -> MultiStartResult`; heterodyne missing |

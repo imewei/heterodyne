@@ -1434,6 +1434,9 @@
   "optimization.nlsq.config.HybridRecoveryConfig.lambda_growth": {
     "default": "10.0"
   },
+  "optimization.nlsq.config.HybridRecoveryConfig.log_retries": {
+    "default": "True"
+  },
   "optimization.nlsq.config.HybridRecoveryConfig.lr_decay": {
     "default": "0.5"
   },
@@ -1455,8 +1458,17 @@
   "optimization.nlsq.config.NLSQConfig.cmaes_anti_degeneracy": {
     "default": "False"
   },
+  "optimization.nlsq.config.NLSQConfig.cmaes_auto_select": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_data_chunk_size": {
+    "default": "None"
+  },
   "optimization.nlsq.config.NLSQConfig.cmaes_diagonal_filtering": {
     "default": "'remove'"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_max_generations": {
+    "default": "None"
   },
   "optimization.nlsq.config.NLSQConfig.cmaes_max_iterations": {
     "default": "1000"
@@ -1464,14 +1476,68 @@
   "optimization.nlsq.config.NLSQConfig.cmaes_max_restarts": {
     "default": "9"
   },
+  "optimization.nlsq.config.NLSQConfig.cmaes_memory_limit_gb": {
+    "default": "8.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_normalization_epsilon": {
+    "default": "1e-12"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_normalize": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_popsize": {
+    "default": "None"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_population_batch_size": {
+    "default": "None"
+  },
   "optimization.nlsq.config.NLSQConfig.cmaes_population_size": {
     "default": "None"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_preset": {
+    "default": "'cmaes'"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refine_with_nlsq": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_ftol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_gtol": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_loss": {
+    "default": "'linear'"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_max_nfev": {
+    "default": "500"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_workflow": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_refinement_xtol": {
+    "default": "1e-10"
   },
   "optimization.nlsq.config.NLSQConfig.cmaes_restart_strategy": {
     "default": "'bipop'"
   },
+  "optimization.nlsq.config.NLSQConfig.cmaes_scale_threshold": {
+    "default": "1000.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_sigma": {
+    "default": "0.5"
+  },
   "optimization.nlsq.config.NLSQConfig.cmaes_sigma0": {
     "default": "0.3"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_sigma_warmstart": {
+    "default": "0.05"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_tol_fun": {
+    "default": "1e-08"
+  },
+  "optimization.nlsq.config.NLSQConfig.cmaes_tol_x": {
+    "default": "1e-08"
   },
   "optimization.nlsq.config.NLSQConfig.cmaes_tolfun": {
     "default": "1e-08"
@@ -1506,6 +1572,18 @@
   "optimization.nlsq.config.NLSQConfig.enable_hierarchical": {
     "default": "False"
   },
+  "optimization.nlsq.config.NLSQConfig.enable_hybrid_streaming": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_multi_start": {
+    "default": "False"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_progress_bar": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.enable_quality_validation": {
+    "default": "True"
+  },
   "optimization.nlsq.config.NLSQConfig.enable_recovery": {
     "default": "True"
   },
@@ -1526,6 +1604,9 @@
   },
   "optimization.nlsq.config.NLSQConfig.goal": {
     "default": "'robust'"
+  },
+  "optimization.nlsq.config.NLSQConfig.gradient_collapse_response": {
+    "default": "'hierarchical'"
   },
   "optimization.nlsq.config.NLSQConfig.gradient_consecutive_triggers": {
     "default": "3"
@@ -1548,14 +1629,50 @@
   "optimization.nlsq.config.NLSQConfig.hierarchical_outer_tolerance": {
     "default": "0.0001"
   },
+  "optimization.nlsq.config.NLSQConfig.hierarchical_per_angle_max_iterations": {
+    "default": "50"
+  },
+  "optimization.nlsq.config.NLSQConfig.hierarchical_physical_max_iterations": {
+    "default": "100"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_checkpoint_frequency": {
+    "default": "100"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_chunk_size": {
+    "default": "10000"
+  },
   "optimization.nlsq.config.NLSQConfig.hybrid_convergence_threshold": {
     "default": "1e-06"
   },
   "optimization.nlsq.config.NLSQConfig.hybrid_convergence_window": {
     "default": "5"
   },
+  "optimization.nlsq.config.NLSQConfig.hybrid_cost_increase_tolerance": {
+    "default": "0.05"
+  },
   "optimization.nlsq.config.NLSQConfig.hybrid_enable": {
     "default": "False"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_adaptive_warmup_lr": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_checkpoints": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_cost_guard": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_step_clipping": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_enable_warm_start_detection": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_max_iterations": {
+    "default": "100"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_gauss_newton_tol": {
+    "default": "1e-08"
   },
   "optimization.nlsq.config.NLSQConfig.hybrid_lbfgs_memory": {
     "default": "10"
@@ -1563,14 +1680,53 @@
   "optimization.nlsq.config.NLSQConfig.hybrid_max_phases": {
     "default": "4"
   },
+  "optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_iterations": {
+    "default": "500"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_max_warmup_step_size": {
+    "default": "0.1"
+  },
   "optimization.nlsq.config.NLSQConfig.hybrid_method": {
     "default": "'gauss_newton'"
   },
   "optimization.nlsq.config.NLSQConfig.hybrid_normalization": {
     "default": "True"
   },
+  "optimization.nlsq.config.NLSQConfig.hybrid_normalization_strategy": {
+    "default": "'auto'"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_normalize": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_regularization_factor": {
+    "default": "1e-10"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_trust_region_initial": {
+    "default": "1.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_validate_numerics": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warm_start_threshold": {
+    "default": "0.01"
+  },
   "optimization.nlsq.config.NLSQConfig.hybrid_warmup_fraction": {
     "default": "0.1"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warmup_iterations": {
+    "default": "200"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warmup_learning_rate": {
+    "default": "0.001"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_careful": {
+    "default": "1e-05"
+  },
+  "optimization.nlsq.config.NLSQConfig.hybrid_warmup_lr_refinement": {
+    "default": "1e-06"
+  },
+  "optimization.nlsq.config.NLSQConfig.log_iteration_interval": {
+    "default": "10"
   },
   "optimization.nlsq.config.NLSQConfig.loss": {
     "default": "'soft_l1'"
@@ -1592,6 +1748,33 @@
   },
   "optimization.nlsq.config.NLSQConfig.method": {
     "default": "'trf'"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_degeneracy_threshold": {
+    "default": "0.1"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_n_starts": {
+    "default": "10"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_n_workers": {
+    "default": "0"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_refine_top_k": {
+    "default": "3"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_refinement_ftol": {
+    "default": "1e-12"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_sampling_strategy": {
+    "default": "'latin_hypercube'"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_screen_keep_fraction": {
+    "default": "0.5"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_seed": {
+    "default": "42"
+  },
+  "optimization.nlsq.config.NLSQConfig.multi_start_use_screening": {
+    "default": "True"
   },
   "optimization.nlsq.config.NLSQConfig.multistart": {
     "default": "False"
@@ -1620,14 +1803,38 @@
   "optimization.nlsq.config.NLSQConfig.per_angle_mode": {
     "default": "'auto'"
   },
+  "optimization.nlsq.config.NLSQConfig.quality_bounds_tolerance": {
+    "default": "1e-09"
+  },
+  "optimization.nlsq.config.NLSQConfig.quality_reduced_chi_squared_threshold": {
+    "default": "10.0"
+  },
+  "optimization.nlsq.config.NLSQConfig.quality_warn_on_bounds_hit": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.quality_warn_on_convergence_failure": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.quality_warn_on_max_restarts": {
+    "default": "True"
+  },
   "optimization.nlsq.config.NLSQConfig.recovery_config": {
     "default": "field(default_factory=HybridRecoveryConfig)"
   },
   "optimization.nlsq.config.NLSQConfig.refine_top_k": {
     "default": "3"
   },
+  "optimization.nlsq.config.NLSQConfig.regularization_auto_tune_lambda": {
+    "default": "True"
+  },
+  "optimization.nlsq.config.NLSQConfig.regularization_max_cv": {
+    "default": "0.2"
+  },
   "optimization.nlsq.config.NLSQConfig.regularization_mode": {
     "default": "'none'"
+  },
+  "optimization.nlsq.config.NLSQConfig.regularization_target_contribution": {
+    "default": "0.1"
   },
   "optimization.nlsq.config.NLSQConfig.regularization_target_cv": {
     "default": "0.5"
@@ -1652,6 +1859,9 @@
   },
   "optimization.nlsq.config.NLSQConfig.tr_solver": {
     "default": "None"
+  },
+  "optimization.nlsq.config.NLSQConfig.trust_region_scale": {
+    "default": "1.0"
   },
   "optimization.nlsq.config.NLSQConfig.use_jac": {
     "default": "True"
@@ -1694,7 +1904,11 @@
   },
   "optimization.nlsq.config.runtime_keys": [
     "anti_degeneracy",
-    "cmaes"
+    "cmaes",
+    "hybrid_streaming",
+    "multi_start",
+    "progress",
+    "quality_validation"
   ],
   "optimization.nlsq.fourier_reparam.FourierReparamConfig.auto_threshold": {
     "default": "6"
