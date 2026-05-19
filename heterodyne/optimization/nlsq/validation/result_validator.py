@@ -262,7 +262,219 @@ def check_uncertainty_ratios(
 
 
 # ---------------------------------------------------------------------------
-# Top-level entry point
+# Homodyne-parity: ResultValidator class + functional validators
+# ---------------------------------------------------------------------------
+
+
+class ResultValidator:
+    """Homodyne-parity validator for NLSQ optimization results.
+
+    Validates optimized parameters, covariance matrices, and result consistency
+    using a simple ``bool`` return API.  Warnings are accessible via
+    :attr:`validation_warnings` after each call.
+
+    This is distinct from
+    :class:`~heterodyne.optimization.nlsq.validation.result.ResultValidator`,
+    which uses a structured :class:`~heterodyne.optimization.nlsq.validation.result.ValidationReport`.
+    """
+
+    def __init__(self, strict_mode: bool = False) -> None:
+        """Initialise ResultValidator.
+
+        Parameters
+        ----------
+        strict_mode:
+            If ``True``, :meth:`validate_all` raises ``ValueError`` on failure.
+            If ``False``, logs warnings and returns ``False``.
+        """
+        self.strict_mode = strict_mode
+        self._validation_warnings: list[str] = []
+
+    def validate_all(
+        self,
+        params: np.ndarray,
+        covariance: np.ndarray | None,
+        bounds: tuple[np.ndarray, np.ndarray] | None,
+        chi_squared: float | None = None,
+    ) -> bool:
+        """Validate all result components.
+
+        Parameters
+        ----------
+        params:
+            Optimized parameter values.
+        covariance:
+            Parameter covariance matrix, or ``None``.
+        bounds:
+            Parameter bounds ``(lower, upper)``, or ``None``.
+        chi_squared:
+            Chi-squared value for quality check, or ``None``.
+
+        Returns
+        -------
+        bool
+            ``True`` if all validation passes, ``False`` otherwise.
+        """
+        self._validation_warnings = []
+
+        if not validate_optimized_params(params, bounds):
+            self._validation_warnings.append("Optimized parameters outside bounds")
+
+        if covariance is not None:
+            if not validate_covariance(covariance, len(params)):
+                self._validation_warnings.append("Covariance matrix invalid")
+
+        if chi_squared is not None:
+            if not validate_result_consistency(params, chi_squared):
+                self._validation_warnings.append("Result consistency check failed")
+
+        if self._validation_warnings:
+            if self.strict_mode:
+                raise ValueError(
+                    f"Result validation failed: {'; '.join(self._validation_warnings)}"
+                )
+            else:
+                for warning in self._validation_warnings:
+                    logger.warning(f"Result validation warning: {warning}")
+                return False
+
+        return True
+
+    @property
+    def validation_warnings(self) -> list[str]:
+        """Validation warnings from the last :meth:`validate_all` call."""
+        return self._validation_warnings.copy()
+
+
+def validate_optimized_params(
+    params: np.ndarray,
+    bounds: tuple[np.ndarray, np.ndarray] | None,
+    tolerance: float = 1e-10,
+) -> bool:
+    """Validate that optimized parameters are finite and within bounds.
+
+    Parameters
+    ----------
+    params:
+        Optimized parameter values.
+    bounds:
+        ``(lower, upper)`` bound arrays, or ``None``.
+    tolerance:
+        Absolute tolerance applied when checking bounds (default ``1e-10``).
+
+    Returns
+    -------
+    bool
+        ``True`` if params are finite and within bounds.
+    """
+    if not np.all(np.isfinite(params)):
+        non_finite = np.where(~np.isfinite(params))[0]
+        logger.warning(f"Non-finite optimized params at indices: {non_finite.tolist()}")
+        return False
+
+    if bounds is None:
+        return True
+
+    lower, upper = bounds
+    below_lower = params < lower - tolerance
+    above_upper = params > upper + tolerance
+
+    if np.any(below_lower) or np.any(above_upper):
+        violations: list[str] = []
+        if np.any(below_lower):
+            indices = np.where(below_lower)[0]
+            violations.append(f"below lower at {indices.tolist()}")
+        if np.any(above_upper):
+            indices = np.where(above_upper)[0]
+            violations.append(f"above upper at {indices.tolist()}")
+        logger.warning(f"Params outside bounds: {', '.join(violations)}")
+        return False
+
+    return True
+
+
+def validate_covariance(covariance: np.ndarray, n_params: int) -> bool:
+    """Validate covariance matrix shape and basic properties.
+
+    Parameters
+    ----------
+    covariance:
+        Parameter covariance matrix.
+    n_params:
+        Expected number of parameters.
+
+    Returns
+    -------
+    bool
+        ``True`` if covariance is valid.
+    """
+    if covariance.shape != (n_params, n_params):
+        logger.warning(
+            f"Covariance shape {covariance.shape} != ({n_params}, {n_params})"
+        )
+        return False
+
+    if not np.all(np.isfinite(covariance)):
+        nan_count = int(np.sum(np.isnan(covariance)))
+        inf_count = int(np.sum(np.isinf(covariance)))
+        logger.warning(
+            f"Covariance contains non-finite values: {nan_count} NaN, {inf_count} Inf"
+        )
+        return False
+
+    diag = np.diag(covariance)
+    if np.any(diag < 0):
+        neg_indices = np.where(diag < 0)[0]
+        logger.warning(
+            f"Covariance has negative diagonal at indices: {neg_indices.tolist()}"
+        )
+        return False
+
+    return True
+
+
+def validate_result_consistency(
+    params: np.ndarray,
+    chi_squared: float,
+) -> bool:
+    """Validate basic consistency of the optimization result.
+
+    Parameters
+    ----------
+    params:
+        Optimized parameter values.
+    chi_squared:
+        Chi-squared value from the fit.
+
+    Returns
+    -------
+    bool
+        ``True`` if result passes consistency checks.
+    """
+    if not np.all(np.isfinite(params)):
+        logger.warning("Optimized params contain non-finite values")
+        return False
+
+    if not np.isfinite(chi_squared):
+        logger.warning(f"Chi-squared is non-finite: {chi_squared}")
+        return False
+
+    if chi_squared < 0:
+        logger.warning(f"Chi-squared is negative: {chi_squared:.4e}")
+        return False
+
+    # Soft warnings (do not fail)
+    if chi_squared < 1e-15:
+        logger.warning(f"Chi-squared suspiciously low: {chi_squared:.2e}")
+
+    if chi_squared > 1e10:
+        logger.warning(f"Chi-squared very high: {chi_squared:.2e}")
+
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Top-level entry point (heterodyne-native)
 # ---------------------------------------------------------------------------
 
 
@@ -358,3 +570,19 @@ def validate_result(
     )
 
     return report
+
+
+__all__ = [
+    # Homodyne-parity class + functions
+    "ResultValidator",
+    "validate_covariance",
+    "validate_optimized_params",
+    "validate_result_consistency",
+    # Heterodyne-native dataclass + functions
+    "ValidationReport",
+    "check_bound_saturation",
+    "check_chi_squared",
+    "check_covariance_health",
+    "check_uncertainty_ratios",
+    "validate_result",
+]
