@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 
 def public_fn(a: int, b: str = "x") -> bool:
     return True
