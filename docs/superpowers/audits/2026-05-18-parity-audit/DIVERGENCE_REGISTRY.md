@@ -67,6 +67,7 @@ _Populated incrementally by Phase 4 PRs 1–11 as each PR encounters D3-matching
 - missing_config_key | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.n_phi` | Same as missing_field entry above. KEEP (D3). Phase 4 PR 3 Batch 6.
 - missing_config_key | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.n_physical` | Same as missing_field entry above. KEEP (D3). Phase 4 PR 3 Batch 6.
 - missing_config_key | `optimization.nlsq.parameter_index_mapper.ParameterIndexMapper.use_constant` | Same as missing_field entry above. KEEP (D3). Phase 4 PR 3 Batch 6.
+- file_inventory:extra_py_file | `optimization.cmc.backends.cpu_backend` | heterodyne-only `CPUBackend(CMCBackend)` class — inline single-CPU execution path with no subprocess overhead, used for debugging and small-shard runs. 21 call sites across heterodyne. Homodyne's `MultiprocessingBackend` technically accepts `n_workers=1` (line 1082: `max(1, n_workers)`) but always spawns a subprocess pool; heterodyne's `CPUBackend` is a true inline path that bypasses the pool entirely. KEEP (D3 heterodyne-required architectural improvement — preserves debugging ergonomics and avoids subprocess startup costs for tiny runs). Phase 4 PR 4 Task 4.3.
 
 ## Manual-narrative-diff escalations (3 rows; from REPORT.md §"Manual narrative diffs")
 
