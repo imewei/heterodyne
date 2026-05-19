@@ -1,12 +1,12 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `14294cc736deea946cfcb25aabe561b72c8f6f02`
-- Total gaps: **4116**
+- Heterodyne SHA: `984ec619c331a82b526da981e84dc35e42eca509`
+- Total gaps: **4058**
 
-## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1500 gaps)
+## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1443 gaps)
 
-### classes (441)
+### classes (435)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -389,12 +389,6 @@
 | `KEEP` | missing_class | `optimization.nlsq.progress.HomodyneIterationLogger` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_class | `optimization.nlsq.progress.MultiStartProgressTracker` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_class | `optimization.nlsq.progress.ProgressConfig` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_class | `optimization.nlsq.result_builder.QualityMetrics` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_class | `optimization.nlsq.result_builder.ResultBuilder` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_class | `optimization.nlsq.results.FallbackInfo` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_class | `optimization.nlsq.results.FunctionEvaluationCounter` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_class | `optimization.nlsq.results.OptimizationResult` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_class | `optimization.nlsq.results.UseSequentialOptimization` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_class | `optimization.nlsq.shear_weighting.ShearSensitivityWeighting` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_class | `optimization.nlsq.shear_weighting.ShearWeightingConfig` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_class | `optimization.nlsq.strategies.chunking.AngleDistributionStats` | homodyne defines this class; heterodyne does not |
@@ -483,7 +477,7 @@
 | `KEEP` | missing_cli_flag | `--static-mode` | homodyne flag `--static-mode` (default=None) missing in heterodyne |
 | `KEEP` | missing_cli_flag | `--tolerance` | homodyne flag `--tolerance` (default=1e-08) missing in heterodyne |
 
-### configs (410)
+### configs (375)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -812,41 +806,6 @@
 | `KEEP` | missing_config_key | `optimization.nlsq.progress.ProgressConfig.log_interval` | homodyne defines `optimization.nlsq.progress.ProgressConfig.log_interval`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.progress.ProgressConfig.max_nfev` | homodyne defines `optimization.nlsq.progress.ProgressConfig.max_nfev`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.progress.ProgressConfig.verbose` | homodyne defines `optimization.nlsq.progress.ProgressConfig.verbose`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.QualityMetrics.chi_squared` | homodyne defines `optimization.nlsq.result_builder.QualityMetrics.chi_squared`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.QualityMetrics.n_at_bounds` | homodyne defines `optimization.nlsq.result_builder.QualityMetrics.n_at_bounds`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.QualityMetrics.quality_flag` | homodyne defines `optimization.nlsq.result_builder.QualityMetrics.quality_flag`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.QualityMetrics.reduced_chi_squared` | homodyne defines `optimization.nlsq.result_builder.QualityMetrics.reduced_chi_squared`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.ResultBuilder.covariance` | homodyne defines `optimization.nlsq.result_builder.ResultBuilder.covariance`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.ResultBuilder.info` | homodyne defines `optimization.nlsq.result_builder.ResultBuilder.info`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.ResultBuilder.n_data` | homodyne defines `optimization.nlsq.result_builder.ResultBuilder.n_data`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.ResultBuilder.nlsq_diagnostics` | homodyne defines `optimization.nlsq.result_builder.ResultBuilder.nlsq_diagnostics`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.ResultBuilder.parameters` | homodyne defines `optimization.nlsq.result_builder.ResultBuilder.parameters`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.ResultBuilder.recovery_actions` | homodyne defines `optimization.nlsq.result_builder.ResultBuilder.recovery_actions`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.ResultBuilder.start_time` | homodyne defines `optimization.nlsq.result_builder.ResultBuilder.start_time`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.result_builder.ResultBuilder.stratification_diagnostics` | homodyne defines `optimization.nlsq.result_builder.ResultBuilder.stratification_diagnostics`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.FallbackInfo.adapter_error` | homodyne defines `optimization.nlsq.results.FallbackInfo.adapter_error`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.FallbackInfo.adapter_used` | homodyne defines `optimization.nlsq.results.FallbackInfo.adapter_used`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.FallbackInfo.fallback_occurred` | homodyne defines `optimization.nlsq.results.FallbackInfo.fallback_occurred`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.FallbackInfo.wrapper_error` | homodyne defines `optimization.nlsq.results.FallbackInfo.wrapper_error`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.FunctionEvaluationCounter.count` | homodyne defines `optimization.nlsq.results.FunctionEvaluationCounter.count`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.FunctionEvaluationCounter.fn` | homodyne defines `optimization.nlsq.results.FunctionEvaluationCounter.fn`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.chi_squared` | homodyne defines `optimization.nlsq.results.OptimizationResult.chi_squared`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.convergence_status` | homodyne defines `optimization.nlsq.results.OptimizationResult.convergence_status`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.covariance` | homodyne defines `optimization.nlsq.results.OptimizationResult.covariance`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.device_info` | homodyne defines `optimization.nlsq.results.OptimizationResult.device_info`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.execution_time` | homodyne defines `optimization.nlsq.results.OptimizationResult.execution_time`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.iterations` | homodyne defines `optimization.nlsq.results.OptimizationResult.iterations`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.nlsq_diagnostics` | homodyne defines `optimization.nlsq.results.OptimizationResult.nlsq_diagnostics`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.parameters` | homodyne defines `optimization.nlsq.results.OptimizationResult.parameters`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.quality_flag` | homodyne defines `optimization.nlsq.results.OptimizationResult.quality_flag`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.recovery_actions` | homodyne defines `optimization.nlsq.results.OptimizationResult.recovery_actions`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.reduced_chi_squared` | homodyne defines `optimization.nlsq.results.OptimizationResult.reduced_chi_squared`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.sigma_is_default` | homodyne defines `optimization.nlsq.results.OptimizationResult.sigma_is_default`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.stratification_diagnostics` | homodyne defines `optimization.nlsq.results.OptimizationResult.stratification_diagnostics`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.streaming_diagnostics` | homodyne defines `optimization.nlsq.results.OptimizationResult.streaming_diagnostics`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.OptimizationResult.uncertainties` | homodyne defines `optimization.nlsq.results.OptimizationResult.uncertainties`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.UseSequentialOptimization.data` | homodyne defines `optimization.nlsq.results.UseSequentialOptimization.data`; heterodyne does not |
-| `KEEP` | missing_config_key | `optimization.nlsq.results.UseSequentialOptimization.reason` | homodyne defines `optimization.nlsq.results.UseSequentialOptimization.reason`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.shear_weighting.ShearWeightingConfig.alpha` | homodyne defines `optimization.nlsq.shear_weighting.ShearWeightingConfig.alpha`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.shear_weighting.ShearWeightingConfig.enable` | homodyne defines `optimization.nlsq.shear_weighting.ShearWeightingConfig.enable`; heterodyne does not |
 | `KEEP` | missing_config_key | `optimization.nlsq.shear_weighting.ShearWeightingConfig.initial_phi0` | homodyne defines `optimization.nlsq.shear_weighting.ShearWeightingConfig.initial_phi0`; heterodyne does not |
@@ -975,7 +934,7 @@
 |---|---|---|---|
 | `KEEP` | exit_code_drift | `<package>` | homodyne exit codes=[0, 1, 130] heterodyne=[] |
 
-### signatures (561)
+### signatures (545)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1401,23 +1360,7 @@
 | `KEEP` | changed | `optimization.nlsq.recovery.diagnose_error` | homodyne: `diagnose_error(error: Exception, params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray] | None, attempt: int) -> dict[str, Any]`<br>  heterodyne: `diagnose_error(error: Exception) -> ErrorDiagnosis` |
 | `KEEP` | changed | `optimization.nlsq.recovery.execute_with_recovery` | homodyne: `execute_with_recovery(residual_fn: Callable[[np.ndarray], np.ndarray], xdata: np.ndarray, ydata: np.ndarray, initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray] | None, strategy: OptimizationStrategy, log: logging.Logger | logging.LoggerAdapter[logging.Logger], loss_name: str, x_scale_value: float | str | np.ndarray, handle_nlsq_result_fn: Callable, curve_fit_fn: Callable, curve_fit_large_fn: Callable) -> tuple[np.ndarray, np.ndarray, dict, list[str], str]`<br>  heterodyne: `execute_with_recovery(fit_fn: Callable[[np.ndarray, tuple[np.ndarray, np.ndarray], NLSQConfig], NLSQResult], initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray], config: NLSQConfig, *, max_retries: int = 3, perturb_scale: float = 0.1, rng_seed: int = 42) -> NLSQResult` |
 | `KEEP` | changed | `optimization.nlsq.recovery.safe_uncertainties_from_pcov` | homodyne: `safe_uncertainties_from_pcov(pcov: np.ndarray, n_params: int) -> np.ndarray`<br>  heterodyne: `safe_uncertainties_from_pcov(pcov: np.ndarray | None, n_params: int = 14) -> np.ndarray` |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.build` | homodyne has `build(self, residual_fn: Any = None, xdata: np.ndarray | None = None) -> dict[str, Any]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.with_covariance` | homodyne has `with_covariance(self, cov: np.ndarray) -> ResultBuilder`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.with_data_size` | homodyne has `with_data_size(self, n_data: int) -> ResultBuilder`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.with_fourier_covariance_transform` | homodyne has `with_fourier_covariance_transform(self, fourier_reparameterizer: Any, n_phi: int, n_physical: int) -> ResultBuilder`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.with_info` | homodyne has `with_info(self, info: dict[str, Any]) -> ResultBuilder`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.with_nlsq_diagnostics` | homodyne has `with_nlsq_diagnostics(self, diags: dict[str, Any]) -> ResultBuilder`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.with_parameters` | homodyne has `with_parameters(self, params: np.ndarray) -> ResultBuilder`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.with_recovery_actions` | homodyne has `with_recovery_actions(self, actions: list[str]) -> ResultBuilder`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.with_start_time` | homodyne has `with_start_time(self, start_time: float) -> ResultBuilder`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.ResultBuilder.with_stratification_diagnostics` | homodyne has `with_stratification_diagnostics(self, diags: Any) -> ResultBuilder`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.compute_quality_metrics` | homodyne has `compute_quality_metrics(residuals: np.ndarray, n_data: int, n_params: int, parameter_status: list[str] | None = None) -> QualityMetrics`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.compute_uncertainties` | homodyne has `compute_uncertainties(covariance: np.ndarray) -> np.ndarray`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.determine_convergence_status` | homodyne has `determine_convergence_status(info: dict[str, Any], quality_metrics: QualityMetrics) -> str`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.result_builder.normalize_nlsq_result` | homodyne has `normalize_nlsq_result(result: Any, strategy_name: str = 'unknown', logger: Any = None) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.results.FallbackInfo.to_dict` | homodyne has `to_dict(self) -> dict[str, Any]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.results.OptimizationResult.message` | homodyne has `message(self) -> str`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.results.OptimizationResult.success` | homodyne has `success(self) -> bool`; heterodyne missing |
+| `KEEP` | changed | `optimization.nlsq.result_builder.compute_uncertainties` | homodyne: `compute_uncertainties(covariance: np.ndarray) -> np.ndarray`<br>  heterodyne: `compute_uncertainties(covariance: np.ndarray | None) -> np.ndarray` |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.shear_weighting.ShearSensitivityWeighting.apply_weights_to_loss` | homodyne has `apply_weights_to_loss(self, residuals: Array, phi_indices: Array) -> Array`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.shear_weighting.ShearSensitivityWeighting.compute_weighted_mse` | homodyne has `compute_weighted_mse(self, residuals: Array, phi_indices: Array) -> Array`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.shear_weighting.ShearSensitivityWeighting.get_diagnostics` | homodyne has `get_diagnostics(self) -> dict`; heterodyne missing |
@@ -2735,7 +2678,7 @@
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_quality_report` | heterodyne-only: `plot_quality_report(quality_report: QualityReport, ax: Axes | None = None) -> Axes` |
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_validation_report` | heterodyne-only: `plot_validation_report(report: ValidationReport, ax: Axes | None = None) -> Axes` |
 
-## P2 — Observable drift — log formats, error stems, docs heading drift (1454 gaps)
+## P2 — Observable drift — log formats, error stems, docs heading drift (1453 gaps)
 
 ### docs (837)
 
@@ -3579,7 +3522,7 @@
 | `KEEP` | heading_drift | `user_guide/05_appendices/troubleshooting.rst` | heading `Troubleshooting Guide` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/index.rst` | heading `Sections Overview` present in homodyne, absent in heterodyne |
 
-### logs_errors (617)
+### logs_errors (616)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -3957,7 +3900,6 @@
 | `KEEP` | log_format_drift | `optimization.nlsq.progress [warning]` | homodyne logs 'tqdm not available for progress bar display. Install with: pip install tqdm'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.recovery [info]` | homodyne logs '  bounds=None (unbounded)'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.recovery [warning]` | homodyne logs '   This indicates singular/ill-conditioned Jacobian matrix!'; heterodyne does not (at this level) |
-| `KEEP` | log_format_drift | `optimization.nlsq.result_builder [warning]` | homodyne logs 'No pcov attribute in result object. Using identity matrix.'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.shear_weighting [debug]` | homodyne logs 'Shear-sensitivity weighting disabled by config'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.shear_weighting [debug]` | homodyne logs 'phi0 not in physical params -- shear weighting disabled'; heterodyne does not (at this level) |
 | `KEEP` | log_format_drift | `optimization.nlsq.strategies.chunking [info]` | homodyne logs 'Single phi angle detected, no stratification needed'; heterodyne does not (at this level) |

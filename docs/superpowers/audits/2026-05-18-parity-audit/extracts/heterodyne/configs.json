@@ -2204,6 +2204,60 @@
   "optimization.nlsq.recovery.ErrorDiagnosis.suggested_action": {
     "default": null
   },
+  "optimization.nlsq.result_builder.QualityMetrics.chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.result_builder.QualityMetrics.n_at_bounds": {
+    "default": "0"
+  },
+  "optimization.nlsq.result_builder.QualityMetrics.quality_flag": {
+    "default": null
+  },
+  "optimization.nlsq.result_builder.QualityMetrics.reduced_chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.covariance": {
+    "default": "None"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.info": {
+    "default": "field(default_factory=dict)"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.n_data": {
+    "default": "0"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.nlsq_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.parameters": {
+    "default": "None"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.recovery_actions": {
+    "default": "field(default_factory=list)"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.start_time": {
+    "default": "field(default_factory=time.time)"
+  },
+  "optimization.nlsq.result_builder.ResultBuilder.stratification_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.FallbackInfo.adapter_error": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.FallbackInfo.adapter_used": {
+    "default": null
+  },
+  "optimization.nlsq.results.FallbackInfo.fallback_occurred": {
+    "default": null
+  },
+  "optimization.nlsq.results.FallbackInfo.wrapper_error": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.FunctionEvaluationCounter.count": {
+    "default": "0"
+  },
+  "optimization.nlsq.results.FunctionEvaluationCounter.fn": {
+    "default": null
+  },
   "optimization.nlsq.results.NLSQResult.convergence_reason": {
     "default": "''"
   },
@@ -2251,6 +2305,57 @@
   },
   "optimization.nlsq.results.NLSQResult.wall_time_seconds": {
     "default": "None"
+  },
+  "optimization.nlsq.results.OptimizationResult.chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.convergence_status": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.covariance": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.device_info": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.execution_time": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.iterations": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.nlsq_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.OptimizationResult.parameters": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.quality_flag": {
+    "default": "'good'"
+  },
+  "optimization.nlsq.results.OptimizationResult.recovery_actions": {
+    "default": "field(default_factory=list)"
+  },
+  "optimization.nlsq.results.OptimizationResult.reduced_chi_squared": {
+    "default": null
+  },
+  "optimization.nlsq.results.OptimizationResult.sigma_is_default": {
+    "default": "False"
+  },
+  "optimization.nlsq.results.OptimizationResult.stratification_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.OptimizationResult.streaming_diagnostics": {
+    "default": "None"
+  },
+  "optimization.nlsq.results.OptimizationResult.uncertainties": {
+    "default": null
+  },
+  "optimization.nlsq.results.UseSequentialOptimization.data": {
+    "default": null
+  },
+  "optimization.nlsq.results.UseSequentialOptimization.reason": {
+    "default": null
   },
   "optimization.nlsq.strategies.base.StrategyResult.metadata": {
     "default": "field(default_factory=dict)"

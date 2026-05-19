@@ -3365,20 +3365,43 @@
       "debug": [
         "Built result: success=%s, n_iter=%d, n_fev=%d, chi2=%.4f, status=%d",
         "Normalized (popt, pcov) tuple",
+        "Normalized (popt, pcov) tuple (strategy: %s)",
         "Normalized (popt, pcov, info) tuple",
+        "Normalized (popt, pcov, info) tuple (strategy: %s)",
         "Normalized StreamingOptimizer dict result",
-        "Normalized object result (type: %s)"
+        "Normalized dict result (strategy: %s)",
+        "Normalized object result (type: %s)",
+        "Normalized object result (type: %s, strategy: %s)"
       ],
       "warning": [
+        "Convergence inferred from reduced_chi_squared=%.4f < 5.0 (no explicit success flag in optimizer info)",
         "Failed to compute covariance: singular J^T J",
+        "Info object is not a dict: %s. Converting to dict.",
         "Info object is not a dict: %s. Wrapping as raw_info.",
         "J^T J condition number %.2e; adding Tikhonov regularization",
         "NLSQ failed: %s",
-        "No pcov attribute in result object"
+        "No pcov attribute in result object",
+        "No pcov attribute in result object. Using identity matrix."
       ]
     },
     "raises": [
       {
+        "exception": "AttributeError",
+        "message": ""
+      },
+      {
+        "exception": "KeyError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
+        "exception": "TypeError",
+        "message": ""
+      },
+      {
         "exception": "TypeError",
         "message": ""
       },
@@ -3393,6 +3416,14 @@
       {
         "exception": "TypeError",
         "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": ""
+      },
+      {
+        "exception": "ValueError",
+        "message": "Parameters must be set before building result"
       }
     ]
   },

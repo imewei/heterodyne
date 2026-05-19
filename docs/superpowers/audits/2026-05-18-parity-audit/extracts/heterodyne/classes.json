@@ -2432,9 +2432,64 @@
     ],
     "methods": []
   },
+  "optimization.nlsq.result_builder.QualityMetrics": {
+    "bases": [],
+    "dataclass_fields": [
+      "chi_squared",
+      "reduced_chi_squared",
+      "quality_flag",
+      "n_at_bounds"
+    ],
+    "methods": []
+  },
+  "optimization.nlsq.result_builder.ResultBuilder": {
+    "bases": [],
+    "dataclass_fields": [
+      "parameters",
+      "covariance",
+      "n_data",
+      "start_time",
+      "recovery_actions",
+      "info",
+      "stratification_diagnostics",
+      "nlsq_diagnostics"
+    ],
+    "methods": [
+      "build(self, residual_fn: Any = None, xdata: np.ndarray | None = None) -> dict[str, Any]",
+      "with_covariance(self, cov: np.ndarray) -> ResultBuilder",
+      "with_data_size(self, n_data: int) -> ResultBuilder",
+      "with_fourier_covariance_transform(self, fourier_reparameterizer: Any, n_phi: int, n_physical: int) -> ResultBuilder",
+      "with_info(self, info: dict[str, Any]) -> ResultBuilder",
+      "with_nlsq_diagnostics(self, diags: dict[str, Any]) -> ResultBuilder",
+      "with_parameters(self, params: np.ndarray) -> ResultBuilder",
+      "with_recovery_actions(self, actions: list[str]) -> ResultBuilder",
+      "with_start_time(self, start_time: float) -> ResultBuilder",
+      "with_stratification_diagnostics(self, diags: Any) -> ResultBuilder"
+    ]
+  },
   "optimization.nlsq.result_builder.TimedContext": {
     "bases": [],
     "dataclass_fields": [],
+    "methods": []
+  },
+  "optimization.nlsq.results.FallbackInfo": {
+    "bases": [],
+    "dataclass_fields": [
+      "fallback_occurred",
+      "adapter_used",
+      "adapter_error",
+      "wrapper_error"
+    ],
+    "methods": [
+      "to_dict(self) -> dict[str, Any]"
+    ]
+  },
+  "optimization.nlsq.results.FunctionEvaluationCounter": {
+    "bases": [],
+    "dataclass_fields": [
+      "fn",
+      "count"
+    ],
     "methods": []
   },
   "optimization.nlsq.results.NLSQResult": {
@@ -2466,6 +2521,38 @@
       "summary(self) -> str",
       "validate(self) -> list[str]"
     ]
+  },
+  "optimization.nlsq.results.OptimizationResult": {
+    "bases": [],
+    "dataclass_fields": [
+      "parameters",
+      "uncertainties",
+      "covariance",
+      "chi_squared",
+      "reduced_chi_squared",
+      "convergence_status",
+      "iterations",
+      "execution_time",
+      "device_info",
+      "recovery_actions",
+      "quality_flag",
+      "streaming_diagnostics",
+      "stratification_diagnostics",
+      "nlsq_diagnostics",
+      "sigma_is_default"
+    ],
+    "methods": [
+      "message(self) -> str",
+      "success(self) -> bool"
+    ]
+  },
+  "optimization.nlsq.results.UseSequentialOptimization": {
+    "bases": [],
+    "dataclass_fields": [
+      "data",
+      "reason"
+    ],
+    "methods": []
   },
   "optimization.nlsq.strategies.base.FittingStrategy": {
     "bases": [
