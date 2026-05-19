@@ -114,6 +114,32 @@ Every Phase 4 PR follows this 6-step structure. PR-specific tasks slot inside St
   - If matched by `WAIVE` rule (only W1 aggregate `__all__` rows): **skip** (will auto-close).
   - Otherwise: **fix** (per the PR's task templates below).
 
+- [ ] **Step 2.5: VERIFY FILE-PAIR SEMANTIC RELATIONSHIP (required before any "rename" or "absorb" task).**
+
+  The audit's `file_inventory` extractor compares **filenames**, not **file contents**. When the plan calls a task a "rename" of `X` to `Y`, the audit only knows X and Y both exist with similar names. The semantic relationship must be verified before any rename happens. Otherwise we risk treating two unrelated files as renames of each other and losing functionality.
+
+  For each file pair the PR-specific task labels as "rename" or "absorb":
+
+  ```bash
+  # 1. List public symbols in both files
+  grep -nE "^class |^def " /home/wei/Documents/GitHub/homodyne/homodyne/PATH/HOMODYNE_FILE.py
+  grep -nE "^class |^def " /home/wei/Documents/GitHub/heterodyne/heterodyne/PATH/HETERODYNE_FILE.py
+
+  # 2. Compare __all__ exports if present
+  grep -A 20 "__all__" /home/wei/Documents/GitHub/homodyne/homodyne/PATH/HOMODYNE_FILE.py
+  grep -A 20 "__all__" /home/wei/Documents/GitHub/heterodyne/heterodyne/PATH/HETERODYNE_FILE.py
+  ```
+
+  Classify the pair into one of three buckets:
+
+  | Bucket | Detection | Action |
+  |---|---|---|
+  | **True rename** | Same public symbol set, same purpose. Often the homodyne file's content is a near-superset of the heterodyne file's. | Proceed with the planned rename. Update imports, run tests, commit. |
+  | **Different files (same name family)** | Public symbol sets disjoint or near-disjoint. Different purposes. | **STOP** the rename. Treat the heterodyne file as `extra_py_file` (KEEP or D3 per its real purpose) AND port the homodyne file as a new `missing_py_file` (port + adapt for 14-param). Two separate sub-tasks, not one rename. |
+  | **Partial overlap** | Some public symbols match, others don't. | **STOP** the rename. Escalate to user with the symbol diff. Decide per-symbol which move where. |
+
+  Record the classification in the commit message. If the classification is "different files" or "partial overlap" for a file pair that the plan called a "rename," that's a plan deviation — note it explicitly so future re-runs of the plan know.
+
 - [ ] **Step 3: Execute PR-specific tasks.** See per-PR sections below.
 
 - [ ] **Step 4: Full test suite green.** Run:
