@@ -383,7 +383,14 @@
     "ValidationReport",
     "ValidationSeverity",
     "classify_fit_quality",
-    "validate_fit_quality"
+    "validate_array_dimensions",
+    "validate_bounds_consistency",
+    "validate_covariance",
+    "validate_fit_quality",
+    "validate_initial_params",
+    "validate_no_nan_inf",
+    "validate_optimized_params",
+    "validate_result_consistency"
   ],
   "runtime": [
     "Severity",

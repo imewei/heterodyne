@@ -2772,7 +2772,9 @@
     "bases": [],
     "dataclass_fields": [],
     "methods": [
-      "validate(self, data: np.ndarray, initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray]) -> ValidationReport"
+      "validate(self, data: np.ndarray, initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray]) -> ValidationReport",
+      "validate_all(self, xdata: np.ndarray, ydata: np.ndarray, initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray] | None) -> bool",
+      "validation_errors(self) -> list[str]"
     ]
   },
   "optimization.nlsq.validation.result.ResultValidator": {
@@ -2810,6 +2812,14 @@
     ],
     "dataclass_fields": [],
     "methods": []
+  },
+  "optimization.nlsq.validation.result_validator.ResultValidator": {
+    "bases": [],
+    "dataclass_fields": [],
+    "methods": [
+      "validate_all(self, params: np.ndarray, covariance: np.ndarray | None, bounds: tuple[np.ndarray, np.ndarray] | None, chi_squared: float | None = None) -> bool",
+      "validation_warnings(self) -> list[str]"
+    ]
   },
   "optimization.nlsq.validation.result_validator.ValidationReport": {
     "bases": [],

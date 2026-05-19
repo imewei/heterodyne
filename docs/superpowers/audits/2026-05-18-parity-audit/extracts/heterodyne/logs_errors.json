@@ -3637,6 +3637,16 @@
     },
     "raises": []
   },
+  "optimization.nlsq.validation.input_validator": {
+    "exit_codes": [],
+    "log_messages": {},
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
+  },
   "optimization.nlsq.validation.result_validator": {
     "exit_codes": [],
     "log_messages": {
@@ -3644,10 +3654,16 @@
         "validate_result: %d error(s), %d warning(s), passed=%s"
       ],
       "warning": [
+        "Optimized params contain non-finite values",
         "validate_result: optimization failure, skipping detailed checks."
       ]
     },
-    "raises": []
+    "raises": [
+      {
+        "exception": "ValueError",
+        "message": ""
+      }
+    ]
   },
   "optimization.nlsq.wrapper": {
     "exit_codes": [],

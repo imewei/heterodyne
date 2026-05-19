@@ -1,12 +1,12 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `984ec619c331a82b526da981e84dc35e42eca509`
-- Total gaps: **4058**
+- Heterodyne SHA: `0a339f016fa26cbe0de82804d172d2778fd1c4e1`
+- Total gaps: **4043**
 
-## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1443 gaps)
+## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1428 gaps)
 
-### classes (435)
+### classes (432)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -414,9 +414,6 @@
 | `KEEP` | missing_field | `optimization.nlsq.strategies.sequential.AngleSubset.t2` | homodyne dataclass field `t2` missing in heterodyne |
 | `KEEP` | missing_field | `optimization.nlsq.strategies.sequential.AngleSubset.g2_exp` | homodyne dataclass field `g2_exp` missing in heterodyne |
 | `KEEP` | missing_class | `optimization.nlsq.strategies.sequential.SequentialResult` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_method | `optimization.nlsq.validation.input_validator.InputValidator.validate_all` | homodyne method `validate_all(self, xdata: np.ndarray, ydata: np.ndarray, initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray] | None) -> bool` missing in heterodyne |
-| `KEEP` | missing_method | `optimization.nlsq.validation.input_validator.InputValidator.validation_errors` | homodyne method `validation_errors(self) -> list[str]` missing in heterodyne |
-| `KEEP` | missing_class | `optimization.nlsq.validation.result_validator.ResultValidator` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_method | `optimization.nlsq.wrapper.NLSQWrapper.fit` | homodyne method `fit(self, data: Any, config: Any, initial_params: np.ndarray | None = None, bounds: tuple[np.ndarray, np.ndarray] | None = None, analysis_mode: str = 'static_isotropic', per_angle_scaling: bool = True, diagnostics_enabled: bool = False, shear_transforms: dict[str, Any] | None = None, per_angle_scaling_initial: dict[str, list[float]] | None = None) -> OptimizationResult` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.numerical_validation.NumericalValidator.set_bounds` | homodyne method `set_bounds(self, bounds: tuple[np.ndarray, np.ndarray]) -> None` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.numerical_validation.NumericalValidator.validate_gradients` | homodyne method `validate_gradients(self, gradients: Any) -> None` missing in heterodyne |
@@ -910,7 +907,7 @@
 | `KEEP` | broken_autodoc_target | `api/viz.rst` | expected autodoc target `heterodyne.viz` not present in heterodyne docs page |
 | `KEEP` | broken_autodoc_target | `api/viz.rst` | expected autodoc target `heterodyne.viz.datashader_backend` not present in heterodyne docs page |
 
-### exports (13)
+### exports (12)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -924,7 +921,6 @@
 | `KEEP` | missing_export | `optimization.cmc.backends` | missing from __all__: ['CMCBackend'] |
 | `KEEP` | missing_export | `optimization.nlsq` | missing from __all__: ['AdapterConfig', 'AdaptiveHybridStreamingOptimizer', 'CMAESConfig', 'CMAESDiagnostics', 'CMAESOptimizer', 'CMAESWrapper', 'CMAESWrapperConfig', 'CMAES_PRESETS', 'CurveFit', 'CurveFitResult', 'DEFAULT_MEMORY_FRACTION', 'ExecutionResult', 'FALLBACK_THRESHOLD_GB', 'FunctionEvaluationCounter', 'GlobalOptimizationConfig', 'HybridRecoveryConfig', 'HybridStreamingConfig', 'JAC_SAMPLE_SIZE', 'JAX_AVAILABLE', 'LargeDatasetExecutor', 'MethodSelector', 'MultiStartConfig', 'MultiStartOrchestrator', 'MultiStartResult', 'NLSQDatasetSizeTier', 'NLSQMemoryManager', 'NLSQOptimizationRecovery', 'NLSQ_AVAILABLE', 'NLSQ_CACHING_AVAILABLE', 'NLSQ_CMAES_AVAILABLE', 'NLSQ_CURVEFIT_AVAILABLE', 'NLSQ_GLOBAL_OPT_AVAILABLE', 'NLSQ_GOAL_AVAILABLE', 'NLSQ_RESULT_AVAILABLE', 'NLSQ_STABILITY_AVAILABLE', 'NLSQ_STREAMING_AVAILABLE', 'NLSQ_WORKFLOW_AVAILABLE', 'NumericalStabilityGuard', 'OptimizationExecutor', 'OptimizationGoal', 'OptimizationResult', 'ParameterIndexMapper', 'QualityMetrics', 'ResultBuilder', 'SingleStartResult', 'StandardExecutor', 'StratificationDiagnostics', 'StratifiedResidualFunction', 'StratifiedResidualFunctionJIT', 'StreamingExecutor', 'WorkflowSelector', 'WorkflowTier', '_get_param_names', 'analyze_angle_distribution', 'auto_configure_cmaes_memory', 'build_parameter_labels_utils', 'classify_parameter_status_utils', 'clear_model_cache', 'compute_consistent_per_angle_init', 'compute_default_popsize', 'compute_quality_metrics', 'compute_stratification_diagnostics', 'compute_theoretical_fits', 'compute_uncertainties', 'create_angle_stratified_data', 'create_angle_stratified_indices', 'create_stratified_residual_function', 'curve_fit', 'detect_degeneracy', 'determine_convergence_status', 'estimate_cmaes_memory_gb', 'estimate_stratification_memory', 'extract_parameters_from_result', 'fit_nlsq_cmaes', 'fit_nlsq_multistart', 'format_diagnostics_report', 'generate_random_starts', 'get_adapter', 'get_cache_stats', 'get_executor', 'get_memory_manager', 'get_or_create_model', 'get_physical_param_count', 'include_custom_starts', 'is_adapter_available', 'is_evosax_available', 'normalize_analysis_mode', 'normalize_nlsq_result', 'optimize_per_angle_sequential', 'run_multistart_nlsq', 'sample_xdata', 'screen_starts', 'should_use_stratification', 'validate_n_starts_for_lhs'] |
 | `KEEP` | missing_export | `optimization.nlsq.strategies` | missing from __all__: ['ExecutionResult', 'JAC_SAMPLE_SIZE', 'LargeDatasetExecutor', 'OptimizationExecutor', 'StandardExecutor', 'StratificationDiagnostics', 'StratifiedResidualFunction', 'StratifiedResidualFunctionJIT', 'StreamingExecutor', 'analyze_angle_distribution', 'compute_stratification_diagnostics', 'create_angle_stratified_data', 'create_angle_stratified_indices', 'create_stratified_residual_function', 'estimate_stratification_memory', 'format_diagnostics_report', 'get_executor', 'optimize_per_angle_sequential', 'should_use_stratification'] |
-| `KEEP` | missing_export | `optimization.nlsq.validation` | missing from __all__: ['validate_array_dimensions', 'validate_bounds_consistency', 'validate_covariance', 'validate_initial_params', 'validate_no_nan_inf', 'validate_optimized_params', 'validate_result_consistency'] |
 | `KEEP` | missing_export | `utils` | missing from __all__: ['PathValidationError', 'get_safe_output_dir', 'validate_plot_save_path', 'validate_save_path'] |
 | `KEEP` | missing_export | `viz` | missing from __all__: ['DatashaderRenderer', 'generate_and_plot_fitted_simulations', 'generate_nlsq_plots', 'plot_c2_comparison_fast', 'plot_c2_heatmap_fast', 'plot_experimental_data', 'plot_fit_comparison', 'plot_posterior_comparison', 'plot_simulated_data', 'plot_trace_plots'] |
 
@@ -934,7 +930,7 @@
 |---|---|---|---|
 | `KEEP` | exit_code_drift | `<package>` | homodyne exit codes=[0, 1, 130] heterodyne=[] |
 
-### signatures (545)
+### signatures (534)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1425,17 +1421,6 @@
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.transforms.parse_shear_transform_config` | homodyne has `parse_shear_transform_config(config: Any | None) -> dict[str, Any]`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.transforms.wrap_model_function_with_transforms` | homodyne has `wrap_model_function_with_transforms(model_fn: Any, state: dict[str, Any] | None) -> Any`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.transforms.wrap_stratified_function_with_transforms` | homodyne has `wrap_stratified_function_with_transforms(residual_fn: Any, state: dict[str, Any] | None) -> Any`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.input_validator.InputValidator.validate_all` | homodyne has `validate_all(self, xdata: np.ndarray, ydata: np.ndarray, initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray] | None) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.input_validator.InputValidator.validation_errors` | homodyne has `validation_errors(self) -> list[str]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.input_validator.validate_array_dimensions` | homodyne has `validate_array_dimensions(xdata: np.ndarray, ydata: np.ndarray) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.input_validator.validate_bounds_consistency` | homodyne has `validate_bounds_consistency(bounds: tuple[np.ndarray, np.ndarray], initial_params: np.ndarray) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.input_validator.validate_initial_params` | homodyne has `validate_initial_params(initial_params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray] | None) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.input_validator.validate_no_nan_inf` | homodyne has `validate_no_nan_inf(arr: np.ndarray, name: str, iteration: int | None = None, context: dict[str, Any] | None = None) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.result_validator.ResultValidator.validate_all` | homodyne has `validate_all(self, params: np.ndarray, covariance: np.ndarray | None, bounds: tuple[np.ndarray, np.ndarray] | None, chi_squared: float | None = None) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.result_validator.ResultValidator.validation_warnings` | homodyne has `validation_warnings(self) -> list[str]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.result_validator.validate_covariance` | homodyne has `validate_covariance(covariance: np.ndarray, n_params: int) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.result_validator.validate_optimized_params` | homodyne has `validate_optimized_params(params: np.ndarray, bounds: tuple[np.ndarray, np.ndarray] | None, tolerance: float = 1e-10) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.nlsq.validation.result_validator.validate_result_consistency` | homodyne has `validate_result_consistency(params: np.ndarray, chi_squared: float) -> bool`; heterodyne missing |
 | `KEEP` | changed | `optimization.nlsq.wrapper.NLSQWrapper.fit` | homodyne: `fit(self, data: Any, config: Any, initial_params: np.ndarray | None = None, bounds: tuple[np.ndarray, np.ndarray] | None = None, analysis_mode: str = 'static_isotropic', per_angle_scaling: bool = True, diagnostics_enabled: bool = False, shear_transforms: dict[str, Any] | None = None, per_angle_scaling_initial: dict[str, list[float]] | None = None) -> OptimizationResult`<br>  heterodyne: `fit(self, data: Any, config: Any, initial_params: np.ndarray | None = None, bounds: tuple[np.ndarray, np.ndarray] | None = None, per_angle_scaling: bool = True, diagnostics_enabled: bool = False, per_angle_scaling_initial: dict[str, list[float]] | None = None) -> NLSQResult` |
 | `KEEP` | missing_in_heterodyne | `optimization.nlsq.wrapper.create_multistart_warmup_func` | homodyne has `create_multistart_warmup_func(model_func: Callable[..., np.ndarray], xdata: np.ndarray, ydata: np.ndarray, bounds: tuple[np.ndarray, np.ndarray] | None = None, warmup_learning_rate: float = 0.001, normalize: bool = True, chunk_size: int = 50000) -> Callable[[dict[str, Any], np.ndarray, int], Any]`; heterodyne missing |
 | `KEEP` | changed | `optimization.numerical_validation.NumericalValidator.set_bounds` | homodyne: `set_bounds(self, bounds: tuple[np.ndarray, np.ndarray]) -> None`<br>  heterodyne: `set_bounds(self, bounds: dict[str, tuple[float, float]]) -> None` |
