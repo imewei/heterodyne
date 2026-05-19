@@ -1223,7 +1223,7 @@
       "validate_resources(self) -> None"
     ]
   },
-  "optimization.cmc.backends.multiprocessing_backend.ArraySpec": {
+  "optimization.cmc.backends.multiprocessing.ArraySpec": {
     "bases": [],
     "dataclass_fields": [
       "expected_dtype",
@@ -1232,7 +1232,7 @@
     ],
     "methods": []
   },
-  "optimization.cmc.backends.multiprocessing_backend.LPTScheduler": {
+  "optimization.cmc.backends.multiprocessing.LPTScheduler": {
     "bases": [],
     "dataclass_fields": [],
     "methods": [
@@ -1242,7 +1242,7 @@
       "remaining(self) -> int"
     ]
   },
-  "optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend": {
+  "optimization.cmc.backends.multiprocessing.MultiprocessingBackend": {
     "bases": [
       "CMCBackend"
     ],
@@ -1257,7 +1257,7 @@
       "validate_resources(self) -> None"
     ]
   },
-  "optimization.cmc.backends.multiprocessing_backend.SharedDataManager": {
+  "optimization.cmc.backends.multiprocessing.SharedDataManager": {
     "bases": [],
     "dataclass_fields": [],
     "methods": [
@@ -1312,7 +1312,7 @@
     ],
     "methods": []
   },
-  "optimization.cmc.backends.pjit_backend.PjitBackend": {
+  "optimization.cmc.backends.pjit.PjitBackend": {
     "bases": [
       "CMCBackend"
     ],
@@ -1490,7 +1490,7 @@
     ],
     "methods": []
   },
-  "optimization.cmc.prior_builder.PriorBuilder": {
+  "optimization.cmc.priors.PriorBuilder": {
     "bases": [],
     "dataclass_fields": [],
     "methods": [

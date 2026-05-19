@@ -1,12 +1,12 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `0a339f016fa26cbe0de82804d172d2778fd1c4e1`
-- Total gaps: **4043**
+- Heterodyne SHA: `99b3302cf59b2627bfa4279450815af4b95862a9`
+- Total gaps: **4027**
 
-## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1428 gaps)
+## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1426 gaps)
 
-### classes (432)
+### classes (435)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -237,12 +237,15 @@
 | `KEEP` | missing_method | `optimization.cmc.backends.base.CMCBackend.get_name` | homodyne method `get_name(self) -> str` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.cmc.backends.base.CMCBackend.is_available` | homodyne method `is_available(self) -> bool` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.cmc.backends.base.CMCBackend.run` | homodyne method `run(self, model: Callable, model_kwargs: dict[str, Any], config: CMCConfig, shards: list[PreparedData] | None = None) -> MCMCSamples` missing in heterodyne |
-| `KEEP` | missing_class | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend` | homodyne defines this class; heterodyne does not |
-| `KEEP` | missing_class | `optimization.cmc.backends.multiprocessing.SharedDataManager` | homodyne defines this class; heterodyne does not |
+| `KEEP` | missing_method | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.get_name` | homodyne method `get_name(self) -> str` missing in heterodyne |
+| `KEEP` | missing_method | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.run` | homodyne method `run(self, model: Callable, model_kwargs: dict[str, Any], config: CMCConfig, shards: list[PreparedData] | None = None, initial_values: dict[str, float] | None = None, parameter_space: ParameterSpace | None = None, analysis_mode: str = 'static', progress_bar: bool = True) -> MCMCSamples` missing in heterodyne |
+| `KEEP` | missing_method | `optimization.cmc.backends.multiprocessing.SharedDataManager.create_shared_dict` | homodyne method `create_shared_dict(self, name: str, d: dict) -> dict[str, Any]` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.cmc.backends.pbs.PBSBackend.get_name` | homodyne method `get_name(self) -> str` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.cmc.backends.pbs.PBSBackend.is_available` | homodyne method `is_available(self) -> bool` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.cmc.backends.pbs.PBSBackend.run` | homodyne method `run(self, model: Callable, model_kwargs: dict[str, Any], config: CMCConfig, shards: list[PreparedData] | None = None) -> MCMCSamples` missing in heterodyne |
-| `KEEP` | missing_class | `optimization.cmc.backends.pjit.PjitBackend` | homodyne defines this class; heterodyne does not |
+| `KEEP` | missing_method | `optimization.cmc.backends.pjit.PjitBackend.get_name` | homodyne method `get_name(self) -> str` missing in heterodyne |
+| `KEEP` | missing_method | `optimization.cmc.backends.pjit.PjitBackend.is_available` | homodyne method `is_available(self) -> bool` missing in heterodyne |
+| `KEEP` | missing_method | `optimization.cmc.backends.pjit.PjitBackend.run` | homodyne method `run(self, model: Callable, model_kwargs: dict[str, Any], config: CMCConfig, shards: list[PreparedData] | None = None, *, initial_values: dict[str, float] | None = None, parameter_space: Any | None = None, analysis_mode: str | None = None, progress_bar: bool = True) -> MCMCSamples` missing in heterodyne |
 | `KEEP` | missing_class | `optimization.cmc.backends.worker_pool.WorkerPool` | homodyne defines this class; heterodyne does not |
 | `KEEP` | missing_method | `optimization.cmc.config.CMCConfig.get_adaptive_sample_counts` | homodyne method `get_adaptive_sample_counts(self, shard_size: int, n_params: int = 7) -> tuple[int, int]` missing in heterodyne |
 | `KEEP` | missing_method | `optimization.cmc.config.CMCConfig.get_num_shards` | homodyne method `get_num_shards(self, n_points: int, n_phi: int, n_params: int = 7) -> int` missing in heterodyne |
@@ -930,7 +933,7 @@
 |---|---|---|---|
 | `KEEP` | exit_code_drift | `<package>` | homodyne exit codes=[0, 1, 130] heterodyne=[] |
 
-### signatures (534)
+### signatures (529)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1184,19 +1187,14 @@
 | `KEEP` | changed | `optimization.cmc.backends.base.combine_shard_samples_bimodal` | homodyne: `combine_shard_samples_bimodal(shard_samples: list[MCMCSamples], cluster_assignments: tuple[list[int], list[int]], bimodal_detections: list[dict[str, Any]], modal_params: list[str], co_occurrence: dict[str, Any], method: str = 'consensus_mc', chunk_seed: int = 0) -> tuple[MCMCSamples, BimodalConsensusResult]`<br>  heterodyne: `combine_shard_samples_bimodal(shard_samples: list[dict[str, np.ndarray]], *, cluster_param: str | None = None, method: str = 'consensus_mc', seed: int = 42) -> dict[str, dict[str, np.ndarray]]` |
 | `KEEP` | changed | `optimization.cmc.backends.base.select_backend` | homodyne: `select_backend(config: CMCConfig) -> CMCBackend`<br>  heterodyne: `select_backend(config: CMCConfig) -> MCMCBackend` |
 | `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.get_name` | homodyne has `get_name(self) -> str`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.is_available` | homodyne has `is_available(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.run` | homodyne has `run(self, model: Callable, model_kwargs: dict[str, Any], config: CMCConfig, shards: list[PreparedData] | None = None, initial_values: dict[str, float] | None = None, parameter_space: ParameterSpace | None = None, analysis_mode: str = 'static', progress_bar: bool = True) -> MCMCSamples`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.multiprocessing.SharedDataManager.cleanup` | homodyne has `cleanup(self) -> None`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.multiprocessing.SharedDataManager.create_shared_array` | homodyne has `create_shared_array(self, name: str, array: np.ndarray) -> dict[str, Any]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.multiprocessing.SharedDataManager.create_shared_bytes` | homodyne has `create_shared_bytes(self, name: str, data: bytes) -> dict[str, Any]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.multiprocessing.SharedDataManager.create_shared_dict` | homodyne has `create_shared_dict(self, name: str, d: dict) -> dict[str, Any]`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.multiprocessing.SharedDataManager.create_shared_shard_arrays` | homodyne has `create_shared_shard_arrays(self, shard_data_list: list[dict[str, Any]]) -> list[dict[str, Any]]`; heterodyne missing |
+| `KEEP` | changed | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.run` | homodyne: `run(self, model: Callable, model_kwargs: dict[str, Any], config: CMCConfig, shards: list[PreparedData] | None = None, initial_values: dict[str, float] | None = None, parameter_space: ParameterSpace | None = None, analysis_mode: str = 'static', progress_bar: bool = True) -> MCMCSamples`<br>  heterodyne: `run(self, model: Callable[..., Any], config: CMCConfig, rng_key: jnp.ndarray, init_params: dict[str, jnp.ndarray] | None = None) -> dict[str, Any]` |
+| `KEEP` | changed | `optimization.cmc.backends.multiprocessing.SharedDataManager.create_shared_dict` | homodyne: `create_shared_dict(self, name: str, d: dict) -> dict[str, Any]`<br>  heterodyne: `create_shared_dict(self, name: str, d: dict[str, Any]) -> dict[str, Any]` |
 | `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.pbs.PBSBackend.get_name` | homodyne has `get_name(self) -> str`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.pbs.PBSBackend.is_available` | homodyne has `is_available(self) -> bool`; heterodyne missing |
 | `KEEP` | changed | `optimization.cmc.backends.pbs.PBSBackend.run` | homodyne: `run(self, model: Callable, model_kwargs: dict[str, Any], config: CMCConfig, shards: list[PreparedData] | None = None) -> MCMCSamples`<br>  heterodyne: `run(self, model: Callable[..., Any], config: CMCConfig, rng_key: jnp.ndarray, init_params: dict[str, jnp.ndarray] | None = None) -> dict[str, Any]` |
 | `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.pjit.PjitBackend.get_name` | homodyne has `get_name(self) -> str`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.pjit.PjitBackend.is_available` | homodyne has `is_available(self) -> bool`; heterodyne missing |
-| `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.pjit.PjitBackend.run` | homodyne has `run(self, model: Callable, model_kwargs: dict[str, Any], config: CMCConfig, shards: list[PreparedData] | None = None, *, initial_values: dict[str, float] | None = None, parameter_space: Any | None = None, analysis_mode: str | None = None, progress_bar: bool = True) -> MCMCSamples`; heterodyne missing |
+| `KEEP` | changed | `optimization.cmc.backends.pjit.PjitBackend.run` | homodyne: `run(self, model: Callable, model_kwargs: dict[str, Any], config: CMCConfig, shards: list[PreparedData] | None = None, *, initial_values: dict[str, float] | None = None, parameter_space: Any | None = None, analysis_mode: str | None = None, progress_bar: bool = True) -> MCMCSamples`<br>  heterodyne: `run(self, model: Callable[..., Any], config: CMCConfig, rng_key: jnp.ndarray, init_params: dict[str, jnp.ndarray] | None = None) -> dict[str, Any]` |
 | `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.worker_pool.WorkerPool.get_result` | homodyne has `get_result(self, timeout: float = 300.0) -> dict[str, Any]`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.worker_pool.WorkerPool.is_alive` | homodyne has `is_alive(self) -> bool`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `optimization.cmc.backends.worker_pool.WorkerPool.n_workers` | homodyne has `n_workers(self) -> int`; heterodyne missing |
@@ -1469,7 +1467,7 @@
 | `KEEP` | missing_in_heterodyne | `viz.mcmc_report.print_mcmc_summary` | homodyne has `print_mcmc_summary(result: Any) -> None`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `viz.validation.validate_plot_arrays` | homodyne has `validate_plot_arrays(*arrays: np.ndarray, names: list[str] | None = None) -> bool`; heterodyne missing |
 
-## P1 — Structural drift — files added/missing/renamed, docs pages missing (1162 gaps)
+## P1 — Structural drift — files added/missing/renamed, docs pages missing (1148 gaps)
 
 ### cli (26)
 
@@ -1670,9 +1668,9 @@
 | `KEEP` | extra_config_key | `optimization.cmc.backends.base.ShardPosterior.mean` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.backends.base.ShardPosterior.n_samples` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.backends.base.ShardPosterior.shard_id` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.cmc.backends.multiprocessing_backend.ArraySpec.allow_none` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.cmc.backends.multiprocessing_backend.ArraySpec.description` | heterodyne-only config key |
-| `KEEP` | extra_config_key | `optimization.cmc.backends.multiprocessing_backend.ArraySpec.expected_dtype` | heterodyne-only config key |
+| `KEEP` | extra_config_key | `optimization.cmc.backends.multiprocessing.ArraySpec.allow_none` | heterodyne-only config key |
+| `KEEP` | extra_config_key | `optimization.cmc.backends.multiprocessing.ArraySpec.description` | heterodyne-only config key |
+| `KEEP` | extra_config_key | `optimization.cmc.backends.multiprocessing.ArraySpec.expected_dtype` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.backends.pbs.PBSConfig.cleanup_on_success` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.backends.pbs.PBSConfig.extra_pbs_directives` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `optimization.cmc.backends.pbs.PBSConfig.max_retries` | heterodyne-only config key |
@@ -1973,23 +1971,17 @@
 | `KEEP` | extra_export | `utils` | heterodyne-only in __all__: ['ensure_directory', 'resolve_path', 'validate_file_exists', 'validate_output_path'] |
 | `KEEP` | extra_export | `viz` | heterodyne-only in __all__: ['ReportConfig', 'generate_report', 'plot_adaptation_summary', 'plot_arviz_pair', 'plot_arviz_posterior', 'plot_arviz_trace', 'plot_corner', 'plot_correlation', 'plot_diagonal_decay', 'plot_divergence_scatter', 'plot_ess_evolution', 'plot_g1_components', 'plot_multi_angle_comparison', 'plot_nlsq_fit', 'plot_nlsq_vs_cmc', 'plot_parameter_uncertainties', 'plot_phi_dependence', 'plot_posterior', 'plot_residual_map', 'plot_trace', 'to_inference_data'] |
 
-### file_inventory (46)
+### file_inventory (40)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
 | `KEEP` | missing_py_file | `core.homodyne_model` | homodyne has `core.homodyne_model.py`; heterodyne does not |
-| `KEEP` | missing_py_file | `optimization.cmc.backends.multiprocessing` | homodyne has `optimization.cmc.backends.multiprocessing.py`; heterodyne does not |
-| `KEEP` | missing_py_file | `optimization.cmc.backends.pjit` | homodyne has `optimization.cmc.backends.pjit.py`; heterodyne does not |
 | `KEEP` | missing_py_file | `optimization.nlsq.shear_weighting` | homodyne has `optimization.nlsq.shear_weighting.py`; heterodyne does not |
 | `KEEP` | missing_py_file | `optimization.nlsq.strategies.chunking` | homodyne has `optimization.nlsq.strategies.chunking.py`; heterodyne does not |
 | `KEEP` | extra_py_file | `core.backend_api` | heterodyne-only file (candidate for absorb-then-delete) |
 | `KEEP` | extra_py_file | `core.heterodyne_model` | heterodyne-only file (candidate for absorb-then-delete) |
 | `KEEP` | extra_py_file | `core.physics_kernel` | heterodyne-only file (candidate for absorb-then-delete) |
 | `KEEP` | extra_py_file | `optimization.cmc.backends.cpu_backend` | heterodyne-only file (candidate for absorb-then-delete) |
-| `KEEP` | extra_py_file | `optimization.cmc.backends.multiprocessing_backend` | heterodyne-only file (candidate for absorb-then-delete) |
-| `KEEP` | extra_py_file | `optimization.cmc.backends.pjit_backend` | heterodyne-only file (candidate for absorb-then-delete) |
-| `KEEP` | extra_py_file | `optimization.cmc.prior_builder` | heterodyne-only file (candidate for absorb-then-delete) |
-| `KEEP` | extra_py_file | `optimization.cmc.warmstart` | heterodyne-only file (candidate for absorb-then-delete) |
 | `KEEP` | extra_py_file | `optimization.nlsq.strategies.base` | heterodyne-only file (candidate for absorb-then-delete) |
 | `KEEP` | extra_py_file | `optimization.nlsq.strategies.chunked` | heterodyne-only file (candidate for absorb-then-delete) |
 | `KEEP` | extra_py_file | `optimization.nlsq.strategies.jit_strategy` | heterodyne-only file (candidate for absorb-then-delete) |
@@ -2024,7 +2016,7 @@
 | `KEEP` | missing_doc_file | `user_guide/03_advanced_topics/streaming_mode.rst` | homodyne has docs file `user_guide/03_advanced_topics/streaming_mode.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `user_guide/04_practical_guides/batch_processing.rst` | homodyne has docs file `user_guide/04_practical_guides/batch_processing.rst`; heterodyne does not |
 
-### signatures (634)
+### signatures (626)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -2330,22 +2322,15 @@
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.cpu_backend.CPUBackend.get_capabilities` | heterodyne-only: `get_capabilities(self) -> BackendCapabilities` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.cpu_backend.CPUBackend.run` | heterodyne-only: `run(self, model: Callable[..., Any], config: CMCConfig, rng_key: jnp.ndarray, init_params: dict[str, jnp.ndarray] | None = None) -> dict[str, Any]` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.cpu_backend.CPUBackend.validate_resources` | heterodyne-only: `validate_resources(self) -> None` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.LPTScheduler.as_deque` | heterodyne-only: `as_deque(self) -> deque[int]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.LPTScheduler.from_shard_data` | heterodyne-only: `from_shard_data(cls, shard_data_list: list[dict[str, Any]], n_workers: int, n_params: int = _N_PARAMS_HETERODYNE, n_samples: int = 1000) -> LPTScheduler` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.LPTScheduler.next_shard` | heterodyne-only: `next_shard(self) -> int | None` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.LPTScheduler.remaining` | heterodyne-only: `remaining(self) -> int` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend.cleanup` | heterodyne-only: `cleanup(self) -> None` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend.estimate_memory` | heterodyne-only: `estimate_memory(self, n_data: int, n_params: int, n_chains: int) -> float` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend.get_capabilities` | heterodyne-only: `get_capabilities(self) -> BackendCapabilities` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend.is_available` | heterodyne-only: `is_available(self) -> bool` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend.run` | heterodyne-only: `run(self, model: Callable[..., Any], config: CMCConfig, rng_key: jnp.ndarray, init_params: dict[str, jnp.ndarray] | None = None) -> dict[str, Any]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend.run_shards` | heterodyne-only: `run_shards(self, shards: list[dict[str, Any]], config: CMCConfig, initial_values: dict[str, Any] | None = None, parameter_space: Any | None = None, prior_width_multiplier: float = 1.0, nlsq_uncertainties: dict[str, float] | None = None, nlsq_prior_width_factor: float = 2.0, progress_bar: bool = True) -> list[dict[str, Any]]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend.validate_resources` | heterodyne-only: `validate_resources(self) -> None` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.SharedDataManager.cleanup` | heterodyne-only: `cleanup(self) -> None` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.SharedDataManager.create_shared_array` | heterodyne-only: `create_shared_array(self, name: str, array: np.ndarray) -> dict[str, Any]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.SharedDataManager.create_shared_bytes` | heterodyne-only: `create_shared_bytes(self, name: str, data: bytes) -> dict[str, Any]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.SharedDataManager.create_shared_dict` | heterodyne-only: `create_shared_dict(self, name: str, d: dict[str, Any]) -> dict[str, Any]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing_backend.SharedDataManager.create_shared_shard_arrays` | heterodyne-only: `create_shared_shard_arrays(self, shard_data_list: list[dict[str, Any]]) -> list[dict[str, Any]]` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing.LPTScheduler.as_deque` | heterodyne-only: `as_deque(self) -> deque[int]` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing.LPTScheduler.from_shard_data` | heterodyne-only: `from_shard_data(cls, shard_data_list: list[dict[str, Any]], n_workers: int, n_params: int = _N_PARAMS_HETERODYNE, n_samples: int = 1000) -> LPTScheduler` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing.LPTScheduler.next_shard` | heterodyne-only: `next_shard(self) -> int | None` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing.LPTScheduler.remaining` | heterodyne-only: `remaining(self) -> int` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.cleanup` | heterodyne-only: `cleanup(self) -> None` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.estimate_memory` | heterodyne-only: `estimate_memory(self, n_data: int, n_params: int, n_chains: int) -> float` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.get_capabilities` | heterodyne-only: `get_capabilities(self) -> BackendCapabilities` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.run_shards` | heterodyne-only: `run_shards(self, shards: list[dict[str, Any]], config: CMCConfig, initial_values: dict[str, Any] | None = None, parameter_space: Any | None = None, prior_width_multiplier: float = 1.0, nlsq_uncertainties: dict[str, float] | None = None, nlsq_prior_width_factor: float = 2.0, progress_bar: bool = True) -> list[dict[str, Any]]` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.multiprocessing.MultiprocessingBackend.validate_resources` | heterodyne-only: `validate_resources(self) -> None` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pbs.PBSBackend.cleanup` | heterodyne-only: `cleanup(self, job_ids: list[str] | None = None) -> None` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pbs.PBSBackend.estimate_memory` | heterodyne-only: `estimate_memory(self, n_data: int, n_params: int, n_chains: int) -> float` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pbs.PBSBackend.get_capabilities` | heterodyne-only: `get_capabilities(self) -> BackendCapabilities` |
@@ -2353,12 +2338,11 @@
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pbs.PBSBackend.submit_shard` | heterodyne-only: `submit_shard(self, shard_data: dict[str, Any], model_fn: Callable[..., Any], config_dict: dict[str, Any], shard_id: int, seed: int) -> str` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pbs.PBSBackend.validate_resources` | heterodyne-only: `validate_resources(self) -> None` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pbs.PBSBackend.wait_for_jobs` | heterodyne-only: `wait_for_jobs(self, job_ids: list[str], timeout: float | None = None) -> list[ShardResult]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit_backend.PjitBackend.cleanup` | heterodyne-only: `cleanup(self) -> None` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit_backend.PjitBackend.estimate_memory` | heterodyne-only: `estimate_memory(self, n_data: int, n_params: int, n_chains: int) -> float` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit_backend.PjitBackend.get_capabilities` | heterodyne-only: `get_capabilities(self) -> BackendCapabilities` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit_backend.PjitBackend.run` | heterodyne-only: `run(self, model: Callable[..., Any], config: CMCConfig, rng_key: jnp.ndarray, init_params: dict[str, jnp.ndarray] | None = None) -> dict[str, Any]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit_backend.PjitBackend.validate_resources` | heterodyne-only: `validate_resources(self) -> None` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit_backend.combine_shard_samples` | heterodyne-only: `combine_shard_samples(shard_results: list[dict[str, Any]]) -> dict[str, Any]` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit.PjitBackend.cleanup` | heterodyne-only: `cleanup(self) -> None` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit.PjitBackend.estimate_memory` | heterodyne-only: `estimate_memory(self, n_data: int, n_params: int, n_chains: int) -> float` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit.PjitBackend.get_capabilities` | heterodyne-only: `get_capabilities(self) -> BackendCapabilities` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit.PjitBackend.validate_resources` | heterodyne-only: `validate_resources(self) -> None` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.pjit.combine_shard_samples` | heterodyne-only: `combine_shard_samples(shard_results: list[dict[str, Any]]) -> dict[str, Any]` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.worker_pool.PersistentWorkerPool.get_result` | heterodyne-only: `get_result(self, timeout: float = 300.0) -> dict[str, Any]` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.worker_pool.PersistentWorkerPool.is_alive` | heterodyne-only: `is_alive(self) -> bool` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.backends.worker_pool.PersistentWorkerPool.n_workers` | heterodyne-only: `n_workers(self) -> int` |
@@ -2404,11 +2388,13 @@
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.plotting.plot_pair_plot` | heterodyne-only: `plot_pair_plot(idata: object, var_names: list[str] | None = None, divergences: bool = True) -> Figure` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.plotting.plot_posterior_predictive` | heterodyne-only: `plot_posterior_predictive(idata: object, c2_data: np.ndarray, times: np.ndarray, ax: Axes | None = None) -> Axes` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.plotting.plot_trace_summary` | heterodyne-only: `plot_trace_summary(idata: object, var_names: list[str] | None = None, figsize: tuple[float, float] | None = None) -> Figure` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.prior_builder.PriorBuilder.build` | heterodyne-only: `build(self, param_space: ParameterSpace) -> dict[str, dist.Distribution]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.prior_builder.build_default_priors_via_builder` | heterodyne-only: `build_default_priors_via_builder(param_space: ParameterSpace, registry: ParameterRegistry | None = None, use_log_space_priors: bool = True) -> dict[str, dist.Distribution]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.prior_builder.build_log_space_priors_via_builder` | heterodyne-only: `build_log_space_priors_via_builder(param_names: list[str], registry: ParameterRegistry | None = None) -> dict[str, dist.Distribution]` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.PriorBuilder.build` | heterodyne-only: `build(self, param_space: ParameterSpace) -> dict[str, dist.Distribution]` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.build_default_priors` | heterodyne-only: `build_default_priors(param_space: ParameterSpace, registry: ParameterRegistry | None = None, use_log_space_priors: bool = True) -> dict[str, dist.Distribution]` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.build_default_priors_via_builder` | heterodyne-only: `build_default_priors_via_builder(param_space: ParameterSpace, registry: ParameterRegistry | None = None, use_log_space_priors: bool = True) -> dict[str, dist.Distribution]` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.build_log_space_priors` | heterodyne-only: `build_log_space_priors(param_names: list[str], registry: ParameterRegistry | None = None) -> dict[str, dist.Distribution]` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.build_log_space_priors_via_builder` | heterodyne-only: `build_log_space_priors_via_builder(param_names: list[str], registry: ParameterRegistry | None = None) -> dict[str, dist.Distribution]` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.clamp_params_to_interior` | heterodyne-only: `clamp_params_to_interior(params: np.ndarray, parameter_names: list[str], *, margin: float = BOUNDARY_INTERIOR_MARGIN) -> tuple[np.ndarray, list[str]]` |
+| `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.clamp_to_interior` | heterodyne-only: `clamp_to_interior(result: NLSQResult, fixed_param_overrides: dict[str, float] | None = None, *, margin: float = BOUNDARY_INTERIOR_MARGIN) -> NLSQResult` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.summarize_priors` | heterodyne-only: `summarize_priors(priors: dict[str, dist.Distribution]) -> str` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.temper_priors` | heterodyne-only: `temper_priors(priors: dict[str, dist.Distribution], num_shards: int) -> dict[str, dist.Distribution]` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.priors.validate_priors` | heterodyne-only: `validate_priors(priors: dict[str, dist.Distribution], param_space: ParameterSpace) -> list[str]` |
@@ -2445,8 +2431,6 @@
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.sampler.compute_mcmc_safe_initial_values` | heterodyne-only: `compute_mcmc_safe_initial_values(initial_values: dict[str, float] | None, *, q: float, dt: float, time_grid: Any | None, target_g1: float = 0.5, g1_threshold: float = 0.1) -> dict[str, float] | None` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.scaling.smooth_bound` | heterodyne-only: `smooth_bound(raw: jnp.ndarray, low: float, high: float) -> jnp.ndarray` |
 | `KEEP` | extra_in_heterodyne | `optimization.cmc.scaling.smooth_bound_inverse` | heterodyne-only: `smooth_bound_inverse(value: float, low: float, high: float) -> float` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.warmstart.clamp_params_to_interior` | heterodyne-only: `clamp_params_to_interior(params: np.ndarray, parameter_names: list[str], *, margin: float = BOUNDARY_INTERIOR_MARGIN) -> tuple[np.ndarray, list[str]]` |
-| `KEEP` | extra_in_heterodyne | `optimization.cmc.warmstart.clamp_to_interior` | heterodyne-only: `clamp_to_interior(result: NLSQResult, fixed_param_overrides: dict[str, float] | None = None, *, margin: float = BOUNDARY_INTERIOR_MARGIN) -> NLSQResult` |
 | `KEEP` | extra_in_heterodyne | `optimization.gradient_diagnostics.compute_gradient_norm` | heterodyne-only: `compute_gradient_norm(jacobian: np.ndarray) -> float` |
 | `KEEP` | extra_in_heterodyne | `optimization.gradient_diagnostics.compute_per_parameter_sensitivity` | heterodyne-only: `compute_per_parameter_sensitivity(jacobian: np.ndarray, param_names: list[str]) -> dict[str, float]` |
 | `KEEP` | extra_in_heterodyne | `optimization.gradient_diagnostics.diagnose_gradients` | heterodyne-only: `diagnose_gradients(jacobian: np.ndarray, residuals: np.ndarray, param_names: list[str]) -> GradientHealth` |

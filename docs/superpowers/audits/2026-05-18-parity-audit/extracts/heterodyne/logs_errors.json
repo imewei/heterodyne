@@ -1413,7 +1413,7 @@
       }
     ]
   },
-  "optimization.cmc.backends.multiprocessing_backend": {
+  "optimization.cmc.backends.multiprocessing": {
     "exit_codes": [],
     "log_messages": {
       "debug": [
@@ -1610,7 +1610,7 @@
       }
     ]
   },
-  "optimization.cmc.backends.pjit_backend": {
+  "optimization.cmc.backends.pjit": {
     "exit_codes": [],
     "log_messages": {
       "debug": [
@@ -2148,20 +2148,6 @@
       }
     ]
   },
-  "optimization.cmc.prior_builder": {
-    "exit_codes": [],
-    "log_messages": {
-      "debug": [
-        "PriorBuilder: registry/spec sync verified (%d parameters)"
-      ]
-    },
-    "raises": [
-      {
-        "exception": "RuntimeError",
-        "message": ""
-      }
-    ]
-  },
   "optimization.cmc.priors": {
     "exit_codes": [],
     "log_messages": {
@@ -2170,6 +2156,7 @@
         "Default prior for %s: Uniform(%.4e, %.4e)",
         "Log-space prior for %s: LogNormal(loc=%.4f, scale=%.4f) [median=%.4e]",
         "NLSQ-informed prior for %s: TruncatedNormal(loc=%.4e, scale=%.4e, low=%.4e, high=%.4e)",
+        "PriorBuilder: registry/spec sync verified (%d parameters)",
         "estimate_contrast_offset_from_data: insufficient data (%d pts), returning midpoints contrast=%.3f offset=%.3f",
         "estimate_contrast_offset_from_data: offset=%.4f contrast=%.4f",
         "estimate_per_angle_scaling: cannot convert key '%s' to array: %s",
@@ -2188,6 +2175,7 @@
         "Built %d NLSQ-informed priors (width_factor=%s)",
         "Built %d default priors from registry (use_log_space_priors=%s)",
         "Built %d log-space priors from %d candidates",
+        "CMC init override: %s %.4g \u2192 %.4g (fixed in current config; stale NLSQ value replaced)",
         "Tempered %d priors for %d shards (scale factor=%.4f).",
         "build_init_values_dict: built %d initial values (nlsq=%d, fallback=%r).",
         "estimate_per_angle_scaling: estimated scaling for %d / %d angles.",
@@ -2195,6 +2183,8 @@
         "validate_priors: all %d priors passed validation."
       ],
       "warning": [
+        "CMC init clamp: %s %.4g \u2192 %.4g (bounds [%.4g, %.4g]); NLSQ hit the %s bound exactly \u2014 true mode may be outside current bounds; expect high NUTS divergence rate. Consider widening the %s bound in your config.",
+        "CMC init clamp: %s %.4g \u2192 %.4g (bounds [%.4g, %.4g]); NUTS boundary-adjacent start prevented",
         "Skipping log-space prior for %s: prior_mean=%s, default=%s (both non-positive)",
         "build_init_values_dict: %s initial value %.4e clamped to [%.4e, %.4e] -> %.4e",
         "estimate_per_angle_scaling: key '%s' not found in data_dict.",
@@ -2206,6 +2196,10 @@
       ]
     },
     "raises": [
+      {
+        "exception": "RuntimeError",
+        "message": ""
+      },
       {
         "exception": "ValueError",
         "message": ""
@@ -2372,19 +2366,6 @@
       ],
       "info": [
         "Scaling factors for %d parameters:"
-      ]
-    },
-    "raises": []
-  },
-  "optimization.cmc.warmstart": {
-    "exit_codes": [],
-    "log_messages": {
-      "info": [
-        "CMC init override: %s %.4g \u2192 %.4g (fixed in current config; stale NLSQ value replaced)"
-      ],
-      "warning": [
-        "CMC init clamp: %s %.4g \u2192 %.4g (bounds [%.4g, %.4g]); NLSQ hit the %s bound exactly \u2014 true mode may be outside current bounds; expect high NUTS divergence rate. Consider widening the %s bound in your config.",
-        "CMC init clamp: %s %.4g \u2192 %.4g (bounds [%.4g, %.4g]); NUTS boundary-adjacent start prevented"
       ]
     },
     "raises": []

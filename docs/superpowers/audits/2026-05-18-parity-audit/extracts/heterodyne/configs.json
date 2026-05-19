@@ -728,13 +728,13 @@
   "optimization.cmc.backends.base.ShardPosterior.shard_id": {
     "default": "0"
   },
-  "optimization.cmc.backends.multiprocessing_backend.ArraySpec.allow_none": {
+  "optimization.cmc.backends.multiprocessing.ArraySpec.allow_none": {
     "default": null
   },
-  "optimization.cmc.backends.multiprocessing_backend.ArraySpec.description": {
+  "optimization.cmc.backends.multiprocessing.ArraySpec.description": {
     "default": null
   },
-  "optimization.cmc.backends.multiprocessing_backend.ArraySpec.expected_dtype": {
+  "optimization.cmc.backends.multiprocessing.ArraySpec.expected_dtype": {
     "default": null
   },
   "optimization.cmc.backends.pbs.PBSConfig.cleanup_on_success": {
