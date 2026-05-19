@@ -134,6 +134,7 @@ def fit_nlsq_jax(
         )
         if global_result is not None:
             return global_result
+        logger.debug("No global optimization enabled, using local optimization")
 
     # ------------------------------------------------------------------
     # Local optimization
@@ -278,6 +279,103 @@ def fit_nlsq_multi_phi(
         results.append(result)
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Public global-optimization entry points (parity with homodyne)
+# ---------------------------------------------------------------------------
+
+
+def fit_nlsq_cmaes(
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+    phi_angle: float = 0.0,
+    config: NLSQConfig | None = None,
+    weights: np.ndarray | jnp.ndarray | None = None,
+) -> NLSQResult:
+    """CMA-ES global optimization for multi-scale parameter problems.
+
+    Public entry point that delegates to the internal ``_fit_cmaes``
+    implementation.  Raises ``ImportError`` if CMA-ES is not available and
+    ``ValueError`` if CMA-ES is not enabled in *config*.
+
+    Args:
+        model: HeterodyneModel instance with parameters configured.
+        c2_data: Experimental correlation data, shape (N, N).
+        phi_angle: Detector phi angle (degrees).
+        config: NLSQ configuration.  Defaults to ``NLSQConfig()``.
+        weights: Optional weights (1/σ²) for weighted least squares.
+
+    Returns:
+        NLSQResult with fitted parameters and diagnostics.
+
+    Raises:
+        ImportError: If CMA-ES (``cma`` package) is not available.
+        ValueError: If CMA-ES is not enabled in *config*.
+
+    Examples:
+        >>> config = NLSQConfig(enable_cmaes=True)
+        >>> result = fit_nlsq_cmaes(model, c2_data, config=config)
+        >>> print(f"Chi2: {result.reduced_chi_squared:.4f}")
+    """
+    if not HAS_CMAES:
+        raise ImportError("CMA-ES requires the 'cma' package. Install with: uv add cma")
+    if config is None:
+        config = NLSQConfig()
+    if not getattr(config, "enable_cmaes", False):
+        raise ValueError(
+            "CMA-ES optimization is not enabled. Set enable_cmaes=True in NLSQConfig."
+        )
+    return _fit_cmaes(model, c2_data, phi_angle, config, weights)
+
+
+def fit_nlsq_multistart(
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+    phi_angle: float = 0.0,
+    config: NLSQConfig | None = None,
+    weights: np.ndarray | jnp.ndarray | None = None,
+    use_nlsq_library: bool = True,
+) -> NLSQResult:
+    """Multi-start NLSQ optimization with Latin Hypercube Sampling.
+
+    Public entry point that delegates to the internal ``_fit_multistart``
+    implementation.  Explores the parameter space to avoid local minima.
+    FULL strategy is always used — no subsampling.
+
+    Args:
+        model: HeterodyneModel instance with parameters configured.
+        c2_data: Experimental correlation data, shape (N, N).
+        phi_angle: Detector phi angle (degrees).
+        config: NLSQ configuration.  Defaults to ``NLSQConfig()``.
+        weights: Optional weights (1/σ²) for weighted least squares.
+        use_nlsq_library: Whether to prefer nlsq library over scipy.
+
+    Returns:
+        NLSQResult with best parameters across all starts.
+
+    Raises:
+        ImportError: If the multi-start module is not available.
+        ValueError: If multi-start is not enabled in *config*.
+
+    Examples:
+        >>> config = NLSQConfig(multistart=True, multistart_n=20)
+        >>> result = fit_nlsq_multistart(model, c2_data, config=config)
+        >>> print(f"Best chi2: {result.reduced_chi_squared:.4f}")
+    """
+    if not HAS_MULTISTART:
+        raise ImportError(
+            "Multi-start optimization requires the multistart module. "
+            "Ensure heterodyne.optimization.nlsq.multistart is importable."
+        )
+    if config is None:
+        config = NLSQConfig()
+    if not getattr(config, "multistart", False):
+        raise ValueError(
+            "Multi-start optimization is not enabled. "
+            "Set multistart=True in NLSQConfig."
+        )
+    return _fit_multistart(model, c2_data, phi_angle, config, weights, use_nlsq_library)
 
 
 def _compute_per_angle_chi2(
@@ -1226,17 +1324,18 @@ def _try_global_optimization(
     # CMA-ES has highest priority
     if getattr(config, "enable_cmaes", False):
         if HAS_CMAES:
-            logger.info("CMA-ES enabled, delegating to fit_with_cmaes")
+            logger.info("CMA-ES enabled, delegating to fit_nlsq_cmaes")
             return _fit_cmaes(model, c2_data, phi_angle, config, weights)
         logger.warning(
-            "CMA-ES enabled in config but not available (cma not installed). "
-            "Install with: uv add cma. Falling back."
+            "[CMA-ES] Enabled in config but not available (cma not installed). "
+            "Install with: uv add cma. "
+            "Falling back to multi-start or local optimization."
         )
 
     # Multi-start is second priority
     if getattr(config, "multistart", False):
         if HAS_MULTISTART:
-            logger.info("Multi-start enabled, delegating to multi-start optimizer")
+            logger.info("Multi-start enabled, delegating to fit_nlsq_multistart")
             return _fit_multistart(
                 model,
                 c2_data,
@@ -1589,7 +1688,8 @@ def _fit_local(
     if use_nlsq_library and HAS_ADAPTERS:
         try:
             adapter = NLSQAdapter(parameter_names=varying_names)
-            logger.debug("Attempting optimization with NLSQAdapter (JAX)")
+            logger.debug("Using NLSQAdapter (CurveFit class) for optimization")
+            logger.debug("Attempting optimization with NLSQAdapter")
 
             result = adapter.fit_jax(
                 jax_residual_fn=jax_residual_fn,
@@ -1624,13 +1724,13 @@ def _fit_local(
             )
 
             if fallback_occurred:
-                logger.info("NLSQWrapper fallback succeeded")
+                logger.info("NLSQWrapper fallback optimization succeeded")
             else:
                 logger.info("NLSQWrapper optimization succeeded")
 
         except (ValueError, RuntimeError, TypeError, MemoryError) as wrapper_error:
             logger.error(
-                "Both adapter and wrapper failed: adapter=%s, wrapper=%s",
+                "Both NLSQAdapter and NLSQWrapper failed: adapter=%s, wrapper=%s",
                 adapter_error,
                 wrapper_error,
             )
@@ -1812,11 +1912,19 @@ def _log_result(result: NLSQResult) -> None:
         logger.info("Wall time: %.2f s", result.wall_time_seconds)
 
     if result.success:
+        n_params = len(result.parameters)
+        logger.info("Fitted parameters:")
+        logger.info("  Physical parameters:")
         for name, val in zip(result.parameter_names, result.parameters, strict=True):
             unc_val = result.get_uncertainty(name)
             if unc_val is not None:
-                logger.info("  %s: %.6g ± %.3g", name, val, unc_val)
+                logger.info("    %s: %.6g ± %.3g", name, val, unc_val)
             else:
-                logger.info("  %s: %.6g", name, val)
+                logger.info("    %s: %.6g", name, val)
+        logger.info(
+            "  Total parameters: %d physical + 2 scaling = %d",
+            n_params,
+            n_params + 2,
+        )
 
     logger.info("=" * 60)
