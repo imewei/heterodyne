@@ -481,6 +481,7 @@ class TestNLSQWrapper:
         standard_decision = StrategyDecision(
             strategy=NLSQStrategy.STANDARD,
             threshold_gb=16.0,
+            index_memory_gb=0.0,
             peak_memory_gb=0.001,
             reason="fits in memory",
         )
@@ -526,6 +527,7 @@ class TestNLSQWrapper:
         large_decision = StrategyDecision(
             strategy=NLSQStrategy.LARGE,
             threshold_gb=16.0,
+            index_memory_gb=0.0,
             peak_memory_gb=20.0,
             reason="jacobian exceeds threshold",
         )
@@ -570,6 +572,7 @@ class TestNLSQWrapper:
         streaming_decision = StrategyDecision(
             strategy=NLSQStrategy.STREAMING,
             threshold_gb=1.0,
+            index_memory_gb=2.0,
             peak_memory_gb=100.0,
             reason="extreme scale",
         )
@@ -625,6 +628,7 @@ class TestNLSQWrapper:
         standard_decision = StrategyDecision(
             strategy=NLSQStrategy.STANDARD,
             threshold_gb=16.0,
+            index_memory_gb=0.0,
             peak_memory_gb=0.001,
             reason="fits",
         )

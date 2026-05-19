@@ -13,10 +13,12 @@ Strategy decision tree:
 from __future__ import annotations
 
 import os
+import warnings
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
-from heterodyne.utils.logging import get_logger
+from heterodyne.utils.logging import get_logger, log_phase
 
 logger = get_logger(__name__)
 
@@ -62,6 +64,8 @@ class StrategyDecision:
         Selected optimization strategy.
     threshold_gb : float
         Memory threshold used for the decision (GB).
+    index_memory_gb : float
+        Memory required for int64 index array (GB).
     peak_memory_gb : float
         Estimated peak memory for the full Jacobian (GB).
     reason : str
@@ -70,6 +74,7 @@ class StrategyDecision:
 
     strategy: NLSQStrategy
     threshold_gb: float
+    index_memory_gb: float
     peak_memory_gb: float
     reason: str
 
@@ -121,7 +126,6 @@ def detect_total_system_memory() -> float | None:
 def estimate_peak_memory_gb(
     n_points: int,
     n_params: int,
-    *,
     bytes_per_element: int = 8,
     jacobian_overhead: float = _JACOBIAN_OVERHEAD,
 ) -> float:
@@ -156,45 +160,116 @@ def estimate_peak_memory_gb(
 # ---------------------------------------------------------------------------
 
 
-def _get_memory_threshold(memory_fraction: float) -> float:
-    """Compute memory threshold in GB.
+def get_adaptive_memory_threshold(
+    memory_fraction: float | None = None,
+) -> tuple[float, dict[str, Any]]:
+    """Compute adaptive memory threshold based on system memory.
 
-    Checks ``HETERODYNE_MEMORY_FRACTION`` env-var, clamps the fraction
-    to ``[0.1, 0.9]``, and falls back to :data:`FALLBACK_THRESHOLD_GB`
-    when detection fails.
+    The memory threshold determines when NLSQ switches to streaming mode
+    for memory-bounded optimization. Instead of a fixed 16 GB threshold,
+    this function computes an adaptive threshold as a fraction of total
+    system memory.
+
+    Parameters
+    ----------
+    memory_fraction : float | None, optional
+        Fraction of total system memory to use as threshold (0.1 to 0.9).
+        If None, uses:
+        1. Environment variable HETERODYNE_MEMORY_FRACTION (if set)
+        2. Default value of 0.75 (75% of total memory)
+
+    Returns
+    -------
+    threshold_gb : float
+        Memory threshold in gigabytes.
+    info : dict
+        Diagnostic information with keys:
+        - 'total_memory_gb': Detected total system memory (GB)
+        - 'memory_fraction': Fraction used
+        - 'source': How the fraction was determined ('argument', 'env', 'default')
+        - 'detection_method': How memory was detected ('psutil', 'sysconf', 'fallback')
+
+    Notes
+    -----
+    - If total memory cannot be detected, falls back to 16.0 GB with a warning.
+    - Memory fraction is clamped to [0.1, 0.9] for safety.
+    - Environment variable HETERODYNE_MEMORY_FRACTION can override the default.
+
+    Examples
+    --------
+    >>> threshold_gb, info = get_adaptive_memory_threshold()
+    >>> print(f"Threshold: {threshold_gb:.1f} GB")
     """
-    # Environment override
-    env_val = os.environ.get(MEMORY_FRACTION_ENV_VAR)
-    if env_val is not None:
-        try:
-            memory_fraction = float(env_val)
-        except ValueError:
-            logger.warning(
-                "Invalid %s=%r, using default=%.2f",
-                MEMORY_FRACTION_ENV_VAR,
-                env_val,
-                memory_fraction,
-            )
+    info: dict[str, Any] = {}
 
-    # Clamp
-    memory_fraction = max(_MIN_FRACTION, min(_MAX_FRACTION, memory_fraction))
+    # Step 1: Determine memory fraction
+    fraction_source = "default"
+    effective_fraction = DEFAULT_MEMORY_FRACTION
 
+    if memory_fraction is not None:
+        effective_fraction = memory_fraction
+        fraction_source = "argument"
+    else:
+        env_value = os.environ.get(MEMORY_FRACTION_ENV_VAR)
+        if env_value is not None:
+            try:
+                effective_fraction = float(env_value)
+                fraction_source = "env"
+            except ValueError:
+                warnings.warn(
+                    f"Invalid {MEMORY_FRACTION_ENV_VAR}='{env_value}', "
+                    f"using default {DEFAULT_MEMORY_FRACTION}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+    # Step 2: Clamp fraction to safe range
+    effective_fraction = max(_MIN_FRACTION, min(_MAX_FRACTION, effective_fraction))
+
+    info["memory_fraction"] = effective_fraction
+    info["source"] = fraction_source
+
+    # Step 3: Detect system memory and compute threshold
     total_gb = detect_total_system_memory()
     if total_gb is None:
         logger.warning(
             "Could not detect system memory; using fallback threshold %.1f GB",
             FALLBACK_THRESHOLD_GB,
         )
-        return FALLBACK_THRESHOLD_GB
+        info["total_memory_gb"] = None
+        info["detection_method"] = "fallback"
+        threshold_gb = FALLBACK_THRESHOLD_GB
+    else:
+        info["total_memory_gb"] = total_gb
+        info["detection_method"] = "psutil" if _psutil_available() else "sysconf"
+        threshold_gb = total_gb * effective_fraction
+        logger.debug(
+            "Adaptive memory threshold: %.1f GB (%.0f%% of %.1f GB total)",
+            threshold_gb,
+            effective_fraction * 100,
+            total_gb,
+        )
 
-    threshold = total_gb * memory_fraction
-    logger.debug(
-        "System memory: %.1f GB, threshold: %.1f GB (%.0f%%)",
-        total_gb,
-        threshold,
-        memory_fraction * 100,
-    )
-    return threshold
+    return threshold_gb, info
+
+
+def _psutil_available() -> bool:
+    """Check if psutil is importable."""
+    try:
+        import psutil  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def _get_memory_threshold(memory_fraction: float) -> float:
+    """Compute memory threshold in GB (legacy internal helper).
+
+    Delegates to :func:`get_adaptive_memory_threshold`.
+    """
+    threshold_gb, _ = get_adaptive_memory_threshold(memory_fraction)
+    return threshold_gb
 
 
 def select_nlsq_strategy(
@@ -224,58 +299,68 @@ def select_nlsq_strategy(
     StrategyDecision
         Decision with selected strategy and rationale.
     """
-    threshold_gb = _get_memory_threshold(memory_fraction)
+    with log_phase("memory_strategy_selection", logger=logger):
+        threshold_gb, _ = get_adaptive_memory_threshold(memory_fraction)
 
-    # Index array cost (int64 per point)
-    index_gb = (n_points * 8) / (1024**3)
+        # Index array cost (int64 per point)
+        index_memory_gb = (n_points * 8) / (1024**3)
 
-    peak_gb = estimate_peak_memory_gb(n_points, n_params) if n_params > 0 else 0.0
-
-    logger.debug(
-        "Strategy analysis: n_points=%s, n_params=%d, "
-        "index=%.2f GB, peak=%.2f GB, threshold=%.2f GB",
-        f"{n_points:,}",
-        n_params,
-        index_gb,
-        peak_gb,
-        threshold_gb,
-    )
-
-    # 1. Extreme scale — even the index array blows memory
-    if index_gb > threshold_gb:
-        reason = (
-            f"Index array ({index_gb:.2f} GB) exceeds threshold ({threshold_gb:.2f} GB)"
+        peak_memory_gb = (
+            estimate_peak_memory_gb(n_points, n_params) if n_params > 0 else 0.0
         )
-        logger.info("Auto-selecting STREAMING: %s", reason)
+
+        logger.debug(
+            "Memory strategy analysis: n_points=%s, n_params=%d, "
+            "index=%.2f GB, peak=%.2f GB, threshold=%.2f GB",
+            f"{n_points:,}",
+            n_params,
+            index_memory_gb,
+            peak_memory_gb,
+            threshold_gb,
+        )
+
+        # 1. Extreme scale — even the index array blows memory
+        if index_memory_gb > threshold_gb:
+            reason = (
+                f"Index array ({index_memory_gb:.2f} GB) exceeds "
+                f"threshold ({threshold_gb:.2f} GB)"
+            )
+            logger.info("Auto-switching to STREAMING: %s", reason)
+            return StrategyDecision(
+                strategy=NLSQStrategy.STREAMING,
+                threshold_gb=threshold_gb,
+                index_memory_gb=index_memory_gb,
+                peak_memory_gb=peak_memory_gb,
+                reason=reason,
+            )
+
+        # 2. Large scale — Jacobian doesn't fit
+        if peak_memory_gb > threshold_gb:
+            reason = (
+                f"Peak memory ({peak_memory_gb:.2f} GB) exceeds "
+                f"threshold ({threshold_gb:.2f} GB)"
+            )
+            logger.info("Auto-switching to LARGE: %s", reason)
+            return StrategyDecision(
+                strategy=NLSQStrategy.LARGE,
+                threshold_gb=threshold_gb,
+                index_memory_gb=index_memory_gb,
+                peak_memory_gb=peak_memory_gb,
+                reason=reason,
+            )
+
+        # 3. Standard — fits in memory
+        reason = (
+            f"Memory fits: {peak_memory_gb:.2f} GB < {threshold_gb:.2f} GB threshold"
+        )
+        logger.debug("Selecting STANDARD: %s", reason)
         return StrategyDecision(
-            strategy=NLSQStrategy.STREAMING,
+            strategy=NLSQStrategy.STANDARD,
             threshold_gb=threshold_gb,
-            peak_memory_gb=peak_gb,
+            index_memory_gb=index_memory_gb,
+            peak_memory_gb=peak_memory_gb,
             reason=reason,
         )
-
-    # 2. Large scale — Jacobian doesn't fit
-    if peak_gb > threshold_gb:
-        reason = (
-            f"Peak memory ({peak_gb:.2f} GB) exceeds threshold ({threshold_gb:.2f} GB)"
-        )
-        logger.info("Auto-selecting LARGE: %s", reason)
-        return StrategyDecision(
-            strategy=NLSQStrategy.LARGE,
-            threshold_gb=threshold_gb,
-            peak_memory_gb=peak_gb,
-            reason=reason,
-        )
-
-    # 3. Standard — fits in memory
-    reason = f"Peak memory ({peak_gb:.2f} GB) within threshold ({threshold_gb:.2f} GB)"
-    logger.debug("Selecting STANDARD: %s", reason)
-    return StrategyDecision(
-        strategy=NLSQStrategy.STANDARD,
-        threshold_gb=threshold_gb,
-        peak_memory_gb=peak_gb,
-        reason=reason,
-    )
 
 
 __all__ = [
@@ -286,5 +371,6 @@ __all__ = [
     "StrategyDecision",
     "detect_total_system_memory",
     "estimate_peak_memory_gb",
+    "get_adaptive_memory_threshold",
     "select_nlsq_strategy",
 ]

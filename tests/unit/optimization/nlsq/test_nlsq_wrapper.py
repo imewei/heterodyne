@@ -56,6 +56,7 @@ def _make_strategy_decision(strategy: NLSQStrategy) -> StrategyDecision:
     return StrategyDecision(
         strategy=strategy,
         threshold_gb=16.0,
+        index_memory_gb=0.0,
         peak_memory_gb=1.0,
         reason="test",
     )

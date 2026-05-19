@@ -161,6 +161,7 @@ class TestStrategyDecisionFrozen:
         decision = StrategyDecision(
             strategy=NLSQStrategy.STANDARD,
             threshold_gb=16.0,
+            index_memory_gb=0.0,
             peak_memory_gb=0.5,
             reason="test",
         )

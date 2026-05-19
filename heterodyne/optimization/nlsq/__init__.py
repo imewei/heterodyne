@@ -23,19 +23,38 @@ from heterodyne.optimization.nlsq.cmaes_wrapper import (
 from heterodyne.optimization.nlsq.config import NLSQConfig, NLSQValidationConfig
 from heterodyne.optimization.nlsq.core import fit_nlsq_jax, fit_nlsq_multi_phi
 from heterodyne.optimization.nlsq.data_prep import (
+    ExpandedParameters,
+    PreparedData,
+    build_parameter_labels,
+    classify_parameter_status,
     compute_degrees_of_freedom,
     compute_weights,
+    convert_bounds_to_nlsq_format,
+    expand_per_angle_parameters,
     flatten_upper_triangle,
     prepare_fit_data,
     unflatten_upper_triangle,
+    validate_bounds,
+    validate_initial_params,
 )
 from heterodyne.optimization.nlsq.hierarchical import HierarchicalResult
 from heterodyne.optimization.nlsq.jacobian import (
     analyze_parameter_sensitivity,
+    compare_jacobians,
     compute_jacobian_condition_number,
+    compute_jacobian_stats,
+    compute_numerical_jacobian,
     estimate_gradient_noise,
+    validate_jacobian,
 )
-from heterodyne.optimization.nlsq.memory import NLSQStrategy, select_nlsq_strategy
+from heterodyne.optimization.nlsq.memory import (
+    NLSQStrategy,
+    StrategyDecision,
+    detect_total_system_memory,
+    estimate_peak_memory_gb,
+    get_adaptive_memory_threshold,
+    select_nlsq_strategy,
+)
 from heterodyne.optimization.nlsq.multistart import (
     MultiStartOptimizer,
     check_zero_volume_bounds,
@@ -96,11 +115,19 @@ __all__ = [
     "SequentialStrategy",
     "select_strategy",
     # Data prep
+    "ExpandedParameters",
+    "PreparedData",
+    "build_parameter_labels",
+    "classify_parameter_status",
+    "convert_bounds_to_nlsq_format",
+    "expand_per_angle_parameters",
     "flatten_upper_triangle",
     "unflatten_upper_triangle",
     "compute_weights",
     "prepare_fit_data",
     "compute_degrees_of_freedom",
+    "validate_bounds",
+    "validate_initial_params",
     # Result building
     "build_result_from_scipy",
     "build_result_from_arrays",
@@ -140,9 +167,18 @@ __all__ = [
     # Hierarchical (parity)
     "HierarchicalResult",
     # Jacobian (parity)
+    "compute_jacobian_stats",
     "compute_jacobian_condition_number",
     "analyze_parameter_sensitivity",
     "estimate_gradient_noise",
+    "compare_jacobians",
+    "compute_numerical_jacobian",
+    "validate_jacobian",
+    # Memory (parity)
+    "StrategyDecision",
+    "detect_total_system_memory",
+    "estimate_peak_memory_gb",
+    "get_adaptive_memory_threshold",
     # Multi-start (parity)
     "check_zero_volume_bounds",
     "generate_lhs_starts",

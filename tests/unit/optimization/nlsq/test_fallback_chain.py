@@ -284,6 +284,7 @@ def test_execute_uses_select_nlsq_strategy(tmp_path: Any) -> None:
     decision = StrategyDecision(
         strategy=NLSQStrategy.STANDARD,
         threshold_gb=16.0,
+        index_memory_gb=0.0,
         peak_memory_gb=0.001,
         reason="fits in memory",
     )

@@ -7,16 +7,82 @@ and verifying NLSQ gradient calculations.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 
 from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 logger = get_logger(__name__)
+
+
+def compute_jacobian_stats(
+    residual_fn: Callable[..., Any],
+    x_subset: np.ndarray,
+    params: np.ndarray,
+    scaling_factor: float,
+) -> tuple[np.ndarray | None, np.ndarray | None]:
+    """Compute Jacobian statistics for convergence diagnostics.
+
+    Computes the Jacobian matrix and derives:
+    - JTJ (Jacobian transpose times Jacobian) for Hessian approximation
+    - Column norms for parameter sensitivity analysis
+
+    Parameters
+    ----------
+    residual_fn : Callable
+        Residual function to differentiate.
+    x_subset : np.ndarray
+        Subset of x data for Jacobian computation.
+    params : np.ndarray
+        Current parameter values.
+    scaling_factor : float
+        Scaling factor for JTJ computation.
+
+    Returns
+    -------
+    tuple[np.ndarray | None, np.ndarray | None]
+        (JTJ matrix, column norms) or (None, None) on failure.
+    """
+    try:
+        params_jnp = jnp.asarray(params)
+        if hasattr(residual_fn, "jax_residual"):
+
+            def residual_vector(p: jnp.ndarray) -> jnp.ndarray:
+                return jnp.asarray(residual_fn.jax_residual(jnp.asarray(p))).reshape(-1)
+
+        else:
+
+            def residual_vector(p: jnp.ndarray) -> jnp.ndarray:
+                return jnp.asarray(residual_fn(x_subset, *tuple(p))).reshape(-1)
+
+        # Use jacfwd (JVP-based): O(n × cost_f) vs jacrev's O(m × cost_f).
+        # For XPCS m >> n (e.g., 20K residuals, 14 params), jacfwd is ~211x faster.
+        jac = jax.jacfwd(residual_vector)(params_jnp)
+        jac_np = np.asarray(jac)
+
+        try:
+            cond_number = np.linalg.cond(jac_np)
+        except np.linalg.LinAlgError:
+            cond_number = np.inf
+
+        if cond_number > 1e6:
+            # QR-based J^T J for ill-conditioned Jacobians: more numerically stable.
+            _, R = np.linalg.qr(jac_np)
+            jtj = R.T @ R * scaling_factor
+        else:
+            jtj = jac_np.T @ jac_np * scaling_factor
+
+        col_norms = np.linalg.norm(jac_np, axis=0) * np.sqrt(scaling_factor)
+        return jtj, col_norms
+    except (ValueError, RuntimeError, np.linalg.LinAlgError):
+        return None, None
 
 
 def compute_numerical_jacobian(
