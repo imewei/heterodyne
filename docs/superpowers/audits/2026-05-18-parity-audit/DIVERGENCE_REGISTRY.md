@@ -74,7 +74,6 @@ _Populated incrementally by Phase 4 PRs 1–11 as each PR encounters D3-matching
 _Populated as the corresponding PRs land:_
 
 - (PR 5) `optimization.cmc.sampler.run_nuts_with_retry` ported from homodyne — **not a divergence**, fixed in scope. Registry entry will be deleted when PR 5 lands.
-- (PR 4) `optimization.cmc.warmstart.clamp_params_to_interior` + `clamp_to_interior` signatures preserved during absorption into `priors.py` — **not a divergence**, fixed in scope. Registry entry will be deleted when PR 4 lands.
 
 ---
 
