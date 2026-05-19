@@ -1,7 +1,9 @@
 """Regression tests for the public warm-start clamp API (P2-a).
 
-Tests :mod:`heterodyne.optimization.cmc.warmstart` directly — Python
-API users who call ``fit_cmc_jax`` outside the CLI now get the same
+Originally tested :mod:`heterodyne.optimization.cmc.warmstart` directly.
+Phase 4 PR 4 Task 4.4 (spec §7 Rule 1) absorbed warmstart.py into
+:mod:`heterodyne.optimization.cmc.priors`; imports updated accordingly.
+Python API users who call ``fit_cmc_jax`` outside the CLI get the same
 boundary-clamp protection that ``optimization_runner`` provides.
 """
 
@@ -13,7 +15,7 @@ from pathlib import Path
 import numpy as np
 
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
-from heterodyne.optimization.cmc.warmstart import (
+from heterodyne.optimization.cmc.priors import (
     BOUNDARY_INTERIOR_MARGIN,
     clamp_params_to_interior,
     clamp_to_interior,
@@ -106,7 +108,8 @@ class TestClampToInterior:
 
 class TestCLIShimRedirect:
     """The CLI's private ``_clamp_warmstart_to_interior`` must now forward
-    to the public ``cmc.warmstart`` API rather than carry its own copy.
+    to the public ``cmc.priors`` API (post Task 4.4 absorption) rather than
+    carry its own copy.
     """
 
     def test_cli_imports_public_warmstart_module(self) -> None:
@@ -117,9 +120,9 @@ class TestCLIShimRedirect:
             / "optimization_runner.py"
         )
         text = path.read_text()
-        # Allow either an inline ``from ... import`` (current style) or a
-        # module-level ``from ... import`` near the top.
-        assert "from heterodyne.optimization.cmc.warmstart import" in text, (
+        # Phase 4 PR 4 Task 4.4: warmstart.py absorbed into priors.py;
+        # CLI now imports from priors instead of warmstart.
+        assert "from heterodyne.optimization.cmc.priors import" in text, (
             "CLI must source the boundary clamp from the public "
-            "heterodyne.optimization.cmc.warmstart module"
+            "heterodyne.optimization.cmc.priors module (post Task 4.4 absorption)"
         )

@@ -654,15 +654,15 @@ def _clamp_warmstart_to_interior(
     result: NLSQResult,
     fixed_param_overrides: dict[str, float] | None = None,
 ) -> NLSQResult:
-    """CLI wrapper for ``heterodyne.optimization.cmc.warmstart.clamp_to_interior``.
+    """CLI wrapper for ``heterodyne.optimization.cmc.priors.clamp_to_interior``.
 
-    P2-a: the implementation now lives in
-    :mod:`heterodyne.optimization.cmc.warmstart` so Python API users
-    (who don't go through the CLI) get the same boundary-clamp
-    protection.  This wrapper exists only to preserve the private
-    CLI-internal symbol used by the rest of this module.
+    P2-a / Phase 4 PR 4 Task 4.4: the implementation was absorbed from
+    :mod:`heterodyne.optimization.cmc.warmstart` into
+    :mod:`heterodyne.optimization.cmc.priors` (spec §7 Rule 1).
+    This wrapper exists only to preserve the private CLI-internal symbol
+    used by the rest of this module.
     """
-    from heterodyne.optimization.cmc.warmstart import clamp_to_interior
+    from heterodyne.optimization.cmc.priors import clamp_to_interior
 
     return clamp_to_interior(result, fixed_param_overrides)
 
