@@ -309,7 +309,7 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
 
     with (
         patch(
-            "heterodyne.optimization.cmc.backends.multiprocessing_backend."
+            "heterodyne.optimization.cmc.backends.multiprocessing."
             "MultiprocessingBackend.run_shards",
             side_effect=capture_run_shards,
         ),
@@ -472,7 +472,7 @@ def test_fit_cmc_sharded_forwards_nlsq_uncertainties_to_workers():
 
     with (
         patch(
-            "heterodyne.optimization.cmc.backends.multiprocessing_backend."
+            "heterodyne.optimization.cmc.backends.multiprocessing."
             "MultiprocessingBackend.run_shards",
             side_effect=capture_run_shards,
         ),
@@ -576,7 +576,7 @@ def test_fit_cmc_sharded_omits_nlsq_priors_when_config_disables_them():
 
     with (
         patch(
-            "heterodyne.optimization.cmc.backends.multiprocessing_backend."
+            "heterodyne.optimization.cmc.backends.multiprocessing."
             "MultiprocessingBackend.run_shards",
             side_effect=capture_run_shards,
         ),

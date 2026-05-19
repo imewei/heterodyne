@@ -29,7 +29,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+from heterodyne.optimization.cmc.backends.multiprocessing import (
     _SHARD_ARRAY_SPECS,
     ArraySpec,
     SharedDataManager,

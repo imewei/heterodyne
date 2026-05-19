@@ -135,7 +135,7 @@ def test_mp_worker_model_does_not_contain_wrong_reparam_call() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb)
     # The broken call pattern: two args where first is params array
@@ -206,7 +206,7 @@ def test_mp_worker_init_params_restricted_to_physics_names() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb._run_shard_worker)
     assert "_model_sites" in source, (
@@ -229,7 +229,7 @@ def test_mp_worker_uses_varying_physics_names() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb._run_shard_worker)
     assert "varying_physics_names" in source, (
@@ -267,7 +267,7 @@ def test_failure_categories_includes_config_error() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb.MultiprocessingBackend.run_shards)
     assert '"config_error"' in source or "'config_error'" in source, (
@@ -284,7 +284,7 @@ def test_run_shards_uses_to_config_fallback() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb.MultiprocessingBackend.run_shards)
     assert "to_config()" in source, (
@@ -307,7 +307,7 @@ def test_mp_worker_init_params_broadcast_to_num_chains() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb._run_shard_worker)
     assert "_num_chains" in source, (
@@ -333,7 +333,7 @@ def test_mp_worker_seeds_sigma_in_init_params() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb._run_shard_worker)
     assert 'init_params["sigma"]' in source or "init_params['sigma']" in source, (
@@ -353,7 +353,7 @@ def test_mp_worker_clips_init_params_to_bounds() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb._run_shard_worker)
     assert "_INIT_BOUND_EPS" in source, (
@@ -382,7 +382,7 @@ def test_shard_array_keys_includes_element_wise_format_keys() -> None:
 
     Regression guard for: het_457cc550 — all shards failed [sampling].
     """
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     missing = {"t1", "t2", "time_grid"} - set(mb._SHARD_ARRAY_KEYS)
     assert not missing, (
@@ -411,7 +411,7 @@ def test_mp_worker_seeds_physics_params_without_nlsq_warmstart() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb._run_shard_worker)
     assert "parameter_space.values" in source, (
@@ -445,7 +445,7 @@ def test_run_shards_shard_builder_forwards_element_wise_keys() -> None:
     """
     import inspect
 
-    import heterodyne.optimization.cmc.backends.multiprocessing_backend as mb
+    import heterodyne.optimization.cmc.backends.multiprocessing as mb
 
     source = inspect.getsource(mb.MultiprocessingBackend.run_shards)
     for key in ("t1", "t2", "time_grid"):
@@ -477,7 +477,7 @@ class TestBugPrevention_CollectResultsGracefulDegradation:
     def test_all_shards_failed_returns_empty_list_not_raises(self) -> None:
         """_collect_results returns [] when every shard failed (regression het_c7548ee8)."""
         from heterodyne.optimization.cmc import CMCConfig
-        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+        from heterodyne.optimization.cmc.backends.multiprocessing import (
             MultiprocessingBackend,
         )
 
@@ -510,7 +510,7 @@ class TestBugPrevention_CollectResultsGracefulDegradation:
         import numpy as np
 
         from heterodyne.optimization.cmc import CMCConfig
-        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+        from heterodyne.optimization.cmc.backends.multiprocessing import (
             MultiprocessingBackend,
         )
 

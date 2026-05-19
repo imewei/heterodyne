@@ -11,7 +11,7 @@ from __future__ import annotations
 import jax.numpy as jnp
 import numpy as np
 
-from heterodyne.optimization.cmc.backends.pjit_backend import _slice_init_params
+from heterodyne.optimization.cmc.backends.pjit import _slice_init_params
 
 
 class TestSliceInitParams:

@@ -202,7 +202,7 @@ def select_backend(config: CMCConfig) -> MCMCBackend:
     import multiprocessing as _mp
 
     from heterodyne.optimization.cmc.backends.cpu_backend import CPUBackend
-    from heterodyne.optimization.cmc.backends.pjit_backend import PjitBackend
+    from heterodyne.optimization.cmc.backends.pjit import PjitBackend
 
     backend_name: str = getattr(config, "backend_name", "auto")
     # Legacy alias from older homodyne configs.
@@ -219,7 +219,7 @@ def select_backend(config: CMCConfig) -> MCMCBackend:
         # No native SLURM backend; users typically submit a multiprocessing
         # job from inside a SLURM allocation.  Fall back to MP with a warning
         # rather than crashing.
-        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+        from heterodyne.optimization.cmc.backends.multiprocessing import (
             MultiprocessingBackend,
         )
 
@@ -230,7 +230,7 @@ def select_backend(config: CMCConfig) -> MCMCBackend:
         return MultiprocessingBackend()
 
     if backend_name == "multiprocessing":
-        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+        from heterodyne.optimization.cmc.backends.multiprocessing import (
             MultiprocessingBackend,
         )
 
@@ -255,7 +255,7 @@ def select_backend(config: CMCConfig) -> MCMCBackend:
             logical = 1
         n_workers_est = max(1, logical // 2 - 1)
         if n_chains >= 3 and n_workers_est >= 2:
-            from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+            from heterodyne.optimization.cmc.backends.multiprocessing import (
                 MultiprocessingBackend,
             )
 

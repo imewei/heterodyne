@@ -1058,7 +1058,7 @@ def fit_cmc_sharded(
     if _backend_name == "jax":
         _backend_name = "multiprocessing"  # legacy alias
     if _backend_name in ("multiprocessing", "auto", "slurm"):
-        from heterodyne.optimization.cmc.backends.multiprocessing_backend import (
+        from heterodyne.optimization.cmc.backends.multiprocessing import (
             MultiprocessingBackend,
         )
 

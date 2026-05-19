@@ -1730,7 +1730,7 @@ class TestBugPrevention_DegenerateWarmstartAbort:
         # under pytest's capfd (logger handlers cache stdout FDs across
         # tests), so we assert on the exception contract instead.
         with mock.patch(
-            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+            "heterodyne.optimization.cmc.backends.multiprocessing.MultiprocessingBackend"
         ) as mock_cls:
             mock_cls.return_value.run_shards.return_value = []
             try:
@@ -1759,7 +1759,7 @@ class TestBugPrevention_DegenerateWarmstartAbort:
             alpha_sample=CMC_ALPHA_SINGULARITY - 0.1
         )
         with mock.patch(
-            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+            "heterodyne.optimization.cmc.backends.multiprocessing.MultiprocessingBackend"
         ) as mock_cls:
             mock_cls.return_value.run_shards.return_value = []
             try:
@@ -1808,7 +1808,7 @@ class TestBugPrevention_DegenerateWarmstartAbort:
             alpha_sample=CMC_ALPHA_SINGULARITY - 0.1
         )
         with mock.patch(
-            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+            "heterodyne.optimization.cmc.backends.multiprocessing.MultiprocessingBackend"
         ) as mock_cls:
             mock_cls.return_value.run_shards.side_effect = _capture_init
             try:
@@ -1851,7 +1851,7 @@ class TestBugPrevention_DegenerateWarmstartAbort:
         config = CMCConfig(use_reparam=False, allow_degenerate_warmstart=True)
 
         with mock.patch(
-            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+            "heterodyne.optimization.cmc.backends.multiprocessing.MultiprocessingBackend"
         ) as mock_cls:
             mock_cls.return_value.run_shards.return_value = []
             result = fit_cmc_sharded(
@@ -1874,7 +1874,7 @@ class TestBugPrevention_DegenerateWarmstartAbort:
         model, nlsq, c2, config = self._make_parts(f0=0.5, alpha_sample=0.0)
 
         with mock.patch(
-            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+            "heterodyne.optimization.cmc.backends.multiprocessing.MultiprocessingBackend"
         ) as mock_cls:
             mock_cls.return_value.run_shards.return_value = []
             result = fit_cmc_sharded(
@@ -1963,7 +1963,7 @@ class TestBugPrevention_ModelFallbackClamping:
         from heterodyne.optimization.cmc.core import fit_cmc_sharded
 
         with mock.patch(
-            "heterodyne.optimization.cmc.backends.multiprocessing_backend.MultiprocessingBackend"
+            "heterodyne.optimization.cmc.backends.multiprocessing.MultiprocessingBackend"
         ) as mock_cls:
             mock_cls.return_value.run_shards.return_value = []
             fit_cmc_sharded(
