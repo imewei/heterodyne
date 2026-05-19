@@ -1,8 +1,8 @@
 # Heterodyne → Homodyne Parity Audit Report
 
 - Homodyne SHA: `0368cbdb075fcff1908c0da2b59a1b0d37d5eeca`
-- Heterodyne SHA: `e50662887c4307764de5c4b9e52678f875f5c8e2`
-- Total gaps: **4036**
+- Heterodyne SHA: `62ee2c5757c17062245f9e333b5adf4df4fb31c3`
+- Total gaps: **4037**
 
 ## P0 — Silent breakage — API/config/CLI/exit-code/docs-build drift (1432 gaps)
 
@@ -1473,7 +1473,7 @@
 | `KEEP` | missing_in_heterodyne | `viz.mcmc_report.print_mcmc_summary` | homodyne has `print_mcmc_summary(result: Any) -> None`; heterodyne missing |
 | `KEEP` | missing_in_heterodyne | `viz.validation.validate_plot_arrays` | homodyne has `validate_plot_arrays(*arrays: np.ndarray, names: list[str] | None = None) -> bool`; heterodyne missing |
 
-## P1 — Structural drift — files added/missing/renamed, docs pages missing (1151 gaps)
+## P1 — Structural drift — files added/missing/renamed, docs pages missing (1133 gaps)
 
 ### cli (26)
 
@@ -1926,7 +1926,7 @@
 | `KEEP` | extra_config_key | `viz.mcmc_report.ReportConfig.include_diagnostics` | heterodyne-only config key |
 | `KEEP` | extra_config_key | `viz.mcmc_report.ReportConfig.include_timing` | heterodyne-only config key |
 
-### docs (27)
+### docs (18)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -1939,14 +1939,6 @@
 | `KEEP` | missing_doc | `api/optimization_guide.rst` | homodyne has docs page api/optimization_guide.rst; heterodyne does not |
 | `KEEP` | missing_doc | `api/theory_engine.rst` | homodyne has docs page api/theory_engine.rst; heterodyne does not |
 | `KEEP` | missing_doc | `architecture/homodyne-architecture-overview.md` | homodyne has docs page architecture/homodyne-architecture-overview.md; heterodyne does not |
-| `KEEP` | missing_doc | `developer/adrs/adr_001_jax_cpu_only.rst` | homodyne has docs page developer/adrs/adr_001_jax_cpu_only.rst; heterodyne does not |
-| `KEEP` | missing_doc | `developer/adrs/adr_002_nlsq_cmc_split.rst` | homodyne has docs page developer/adrs/adr_002_nlsq_cmc_split.rst; heterodyne does not |
-| `KEEP` | missing_doc | `developer/adrs/adr_003_anti_degeneracy.rst` | homodyne has docs page developer/adrs/adr_003_anti_degeneracy.rst; heterodyne does not |
-| `KEEP` | missing_doc | `developer/adrs/adr_004_consensus_monte_carlo.rst` | homodyne has docs page developer/adrs/adr_004_consensus_monte_carlo.rst; heterodyne does not |
-| `KEEP` | missing_doc | `developer/adrs/adr_005_per_angle_scaling.rst` | homodyne has docs page developer/adrs/adr_005_per_angle_scaling.rst; heterodyne does not |
-| `KEEP` | missing_doc | `developer/adrs/adr_006_no_consumer_gpu.rst` | homodyne has docs page developer/adrs/adr_006_no_consumer_gpu.rst; heterodyne does not |
-| `KEEP` | missing_doc | `developer/adrs/index.rst` | homodyne has docs page developer/adrs/index.rst; heterodyne does not |
-| `KEEP` | missing_doc | `theory/anti_degeneracy.rst` | homodyne has docs page theory/anti_degeneracy.rst; heterodyne does not |
 | `KEEP` | missing_doc | `theory/anti_degeneracy_defense.rst` | homodyne has docs page theory/anti_degeneracy_defense.rst; heterodyne does not |
 | `KEEP` | missing_doc | `theory/homodyne_scattering.rst` | homodyne has docs page theory/homodyne_scattering.rst; heterodyne does not |
 | `KEEP` | missing_doc | `theory/theoretical_framework.rst` | homodyne has docs page theory/theoretical_framework.rst; heterodyne does not |
@@ -1956,7 +1948,6 @@
 | `KEEP` | missing_doc | `user_guide/02_data_and_fitting/model_selection.rst` | homodyne has docs page user_guide/02_data_and_fitting/model_selection.rst; heterodyne does not |
 | `KEEP` | missing_doc | `user_guide/03_advanced_topics/laminar_flow.rst` | homodyne has docs page user_guide/03_advanced_topics/laminar_flow.rst; heterodyne does not |
 | `KEEP` | missing_doc | `user_guide/03_advanced_topics/streaming_mode.rst` | homodyne has docs page user_guide/03_advanced_topics/streaming_mode.rst; heterodyne does not |
-| `KEEP` | missing_doc | `user_guide/04_practical_guides/batch_processing.rst` | homodyne has docs page user_guide/04_practical_guides/batch_processing.rst; heterodyne does not |
 
 ### exports (17)
 
@@ -1980,7 +1971,7 @@
 | `KEEP` | extra_export | `utils` | heterodyne-only in __all__: ['ensure_directory', 'resolve_path', 'validate_file_exists', 'validate_output_path'] |
 | `KEEP` | extra_export | `viz` | heterodyne-only in __all__: ['ReportConfig', 'generate_report', 'plot_adaptation_summary', 'plot_arviz_pair', 'plot_arviz_posterior', 'plot_arviz_trace', 'plot_corner', 'plot_correlation', 'plot_diagonal_decay', 'plot_divergence_scatter', 'plot_ess_evolution', 'plot_g1_components', 'plot_multi_angle_comparison', 'plot_nlsq_fit', 'plot_nlsq_vs_cmc', 'plot_parameter_uncertainties', 'plot_phi_dependence', 'plot_posterior', 'plot_residual_map', 'plot_trace', 'to_inference_data'] |
 
-### file_inventory (40)
+### file_inventory (31)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -2006,14 +1997,6 @@
 | `KEEP` | missing_doc_file | `api/optimization_guide.rst` | homodyne has docs file `api/optimization_guide.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `api/theory_engine.rst` | homodyne has docs file `api/theory_engine.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `architecture/homodyne-architecture-overview.md` | homodyne has docs file `architecture/homodyne-architecture-overview.md`; heterodyne does not |
-| `KEEP` | missing_doc_file | `developer/adrs/adr_001_jax_cpu_only.rst` | homodyne has docs file `developer/adrs/adr_001_jax_cpu_only.rst`; heterodyne does not |
-| `KEEP` | missing_doc_file | `developer/adrs/adr_002_nlsq_cmc_split.rst` | homodyne has docs file `developer/adrs/adr_002_nlsq_cmc_split.rst`; heterodyne does not |
-| `KEEP` | missing_doc_file | `developer/adrs/adr_003_anti_degeneracy.rst` | homodyne has docs file `developer/adrs/adr_003_anti_degeneracy.rst`; heterodyne does not |
-| `KEEP` | missing_doc_file | `developer/adrs/adr_004_consensus_monte_carlo.rst` | homodyne has docs file `developer/adrs/adr_004_consensus_monte_carlo.rst`; heterodyne does not |
-| `KEEP` | missing_doc_file | `developer/adrs/adr_005_per_angle_scaling.rst` | homodyne has docs file `developer/adrs/adr_005_per_angle_scaling.rst`; heterodyne does not |
-| `KEEP` | missing_doc_file | `developer/adrs/adr_006_no_consumer_gpu.rst` | homodyne has docs file `developer/adrs/adr_006_no_consumer_gpu.rst`; heterodyne does not |
-| `KEEP` | missing_doc_file | `developer/adrs/index.rst` | homodyne has docs file `developer/adrs/index.rst`; heterodyne does not |
-| `KEEP` | missing_doc_file | `theory/anti_degeneracy.rst` | homodyne has docs file `theory/anti_degeneracy.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `theory/anti_degeneracy_defense.rst` | homodyne has docs file `theory/anti_degeneracy_defense.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `theory/homodyne_scattering.rst` | homodyne has docs file `theory/homodyne_scattering.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `theory/theoretical_framework.rst` | homodyne has docs file `theory/theoretical_framework.rst`; heterodyne does not |
@@ -2023,7 +2006,6 @@
 | `KEEP` | missing_doc_file | `user_guide/02_data_and_fitting/model_selection.rst` | homodyne has docs file `user_guide/02_data_and_fitting/model_selection.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `user_guide/03_advanced_topics/laminar_flow.rst` | homodyne has docs file `user_guide/03_advanced_topics/laminar_flow.rst`; heterodyne does not |
 | `KEEP` | missing_doc_file | `user_guide/03_advanced_topics/streaming_mode.rst` | homodyne has docs file `user_guide/03_advanced_topics/streaming_mode.rst`; heterodyne does not |
-| `KEEP` | missing_doc_file | `user_guide/04_practical_guides/batch_processing.rst` | homodyne has docs file `user_guide/04_practical_guides/batch_processing.rst`; heterodyne does not |
 
 ### signatures (626)
 
@@ -2656,9 +2638,9 @@
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_quality_report` | heterodyne-only: `plot_quality_report(quality_report: QualityReport, ax: Axes | None = None) -> Axes` |
 | `KEEP` | extra_in_heterodyne | `viz.validation.plot_validation_report` | heterodyne-only: `plot_validation_report(report: ValidationReport, ax: Axes | None = None) -> Axes` |
 
-## P2 — Observable drift — log formats, error stems, docs heading drift (1453 gaps)
+## P2 — Observable drift — log formats, error stems, docs heading drift (1472 gaps)
 
-### docs (837)
+### docs (856)
 
 | Disposition | Kind | Qualname / Path | Detail |
 |---|---|---|---|
@@ -3195,6 +3177,10 @@
 | `KEEP` | heading_drift | `configuration/templates.rst` | heading `Template Overview` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `configuration/templates.rst` | heading `Workflow Guidance` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `contributing.rst` | heading `Contributing to Homodyne` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `developer/adrs/adr_003_anti_degeneracy.rst` | heading `ADR-003: Anti-Degeneracy Layer for Laminar Flow` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `developer/adrs/adr_004_consensus_monte_carlo.rst` | heading `Chain Execution Method` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `developer/adrs/adr_004_consensus_monte_carlo.rst` | heading `Worker Environment` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `developer/adrs/adr_006_no_consumer_gpu.rst` | heading `When to Revisit` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `developer/architecture.rst` | heading `CLI Module Map` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `developer/architecture.rst` | heading `CMC Module Map` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `developer/architecture.rst` | heading `Component Overview` present in homodyne, absent in heterodyne |
@@ -3300,6 +3286,13 @@
 | `KEEP` | heading_drift | `theory/analysis_modes.rst` | heading `Total Parameter Count` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `theory/analysis_modes.rst` | heading `When to Use Laminar Flow Mode` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `theory/analysis_modes.rst` | heading `When to Use Static Mode` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `theory/anti_degeneracy.rst` | heading `Implementation Reference` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `theory/anti_degeneracy.rst` | heading `Mathematical Formulation` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `theory/anti_degeneracy.rst` | heading `Parameter Count Summary` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `theory/anti_degeneracy.rst` | heading `Per-Angle Modes` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `theory/anti_degeneracy.rst` | heading `Per-Angle Scaling and Anti-Degeneracy` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `theory/anti_degeneracy.rst` | heading `The Parameter Absorption Degeneracy` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `theory/anti_degeneracy.rst` | heading `When to Use Each Mode` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `theory/citations.rst` | heading `Acknowledgments` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `theory/citations.rst` | heading `Bayesian Methods` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `theory/citations.rst` | heading `Citing Homodyne` present in homodyne, absent in heterodyne |
@@ -3455,6 +3448,14 @@
 | `KEEP` | heading_drift | `user_guide/03_advanced_topics/per_angle_modes.rst` | heading `constant` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/03_advanced_topics/per_angle_modes.rst` | heading `fourier` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/03_advanced_topics/per_angle_modes.rst` | heading `individual` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `user_guide/04_practical_guides/batch_processing.rst` | heading `Batch Processing Multiple Datasets` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `user_guide/04_practical_guides/batch_processing.rst` | heading `Collecting SLURM Results` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `user_guide/04_practical_guides/batch_processing.rst` | heading `HPC Parallel Processing` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `user_guide/04_practical_guides/batch_processing.rst` | heading `Multiple q-Values` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `user_guide/04_practical_guides/batch_processing.rst` | heading `Overview` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `user_guide/04_practical_guides/batch_processing.rst` | heading `Result Aggregation` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `user_guide/04_practical_guides/batch_processing.rst` | heading `See Also` present in homodyne, absent in heterodyne |
+| `KEEP` | heading_drift | `user_guide/04_practical_guides/batch_processing.rst` | heading `Sequential Batch Script` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/04_practical_guides/configuration.rst` | heading `Additional Configuration Details` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/04_practical_guides/configuration.rst` | heading `Complete Configuration Schema` present in homodyne, absent in heterodyne |
 | `KEEP` | heading_drift | `user_guide/04_practical_guides/configuration.rst` | heading `Configuration Overview` present in homodyne, absent in heterodyne |

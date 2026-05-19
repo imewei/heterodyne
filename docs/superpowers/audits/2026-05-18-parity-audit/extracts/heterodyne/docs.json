@@ -863,6 +863,528 @@
     "toctree": [],
     "xrefs": []
   },
+  "developer/adrs/adr_001_jax_cpu_only.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-001: JAX CPU-Only Backend",
+      "Context",
+      "Decision",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "ref",
+        "target": "adr_no_consumer_gpu"
+      },
+      {
+        "role": "ref",
+        "target": "developer_architecture"
+      },
+      {
+        "role": "ref",
+        "target": "adr_nlsq_primary"
+      },
+      {
+        "role": "ref",
+        "target": "adr_cmc_consensus"
+      }
+    ]
+  },
+  "developer/adrs/adr_002_nlsq_cmc_split.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-002: NLSQ / CMC Architectural Split",
+      "Context",
+      "Decision",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "c_2(t_i, t_j)"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "(t_1, t_2)"
+      },
+      {
+        "role": "ref",
+        "target": "developer_architecture"
+      },
+      {
+        "role": "ref",
+        "target": "adr_cmc_consensus"
+      },
+      {
+        "role": "ref",
+        "target": "theory_computational_methods"
+      }
+    ]
+  },
+  "developer/adrs/adr_003_anti_degeneracy.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-003: Anti-Degeneracy Layer for Velocity-Phase Model",
+      "Context",
+      "Decision",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "\\phi_k"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "c_\\mathrm{offset}(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "2 \\times n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{ref}}"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{sample}}"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{ref}} \\approx 0"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{ref}}"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{sample}}"
+      },
+      {
+        "role": "math",
+        "target": "f_0"
+      },
+      {
+        "role": "math",
+        "target": "f_3"
+      },
+      {
+        "role": "math",
+        "target": "v_0"
+      },
+      {
+        "role": "math",
+        "target": "v_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha_\\mathrm{ref}"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{ref}}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha_\\mathrm{sample}"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{sample}}"
+      },
+      {
+        "role": "class",
+        "target": "~heterodyne.optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "2n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "2K+1"
+      },
+      {
+        "role": "math",
+        "target": "K=2"
+      },
+      {
+        "role": "math",
+        "target": "(\\bar{\\beta}, \\bar{c}_\\mathrm{offset})"
+      },
+      {
+        "role": "math",
+        "target": "\\|\\nabla_\\mathrm{physical}\\| / \\|\\nabla_\\mathrm{per\\text{-}angle}\\|"
+      },
+      {
+        "role": "math",
+        "target": "\\phi = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\operatorname{sinc}"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "(D_0, \\dot{\\gamma}_0)"
+      },
+      {
+        "role": "math",
+        "target": "\\operatorname{sinc}"
+      },
+      {
+        "role": "math",
+        "target": "\\cos(q\\cos\\phi_k \\int v\\,dt')"
+      },
+      {
+        "role": "math",
+        "target": "(D_0, v_0)"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_k"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "math",
+        "target": "2n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "(D_0, \\dot{\\gamma}_0)"
+      },
+      {
+        "role": "math",
+        "target": "q|\\cos\\phi_k|"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_k = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_k = \\pi/2"
+      },
+      {
+        "role": "math",
+        "target": "\\phi \\approx 0"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{ref}} \\approx 0"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{sample}} \\approx 0"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k) \\sim \\mathcal{N}(\\mu_\\beta, \\sigma_\\beta^2)"
+      },
+      {
+        "role": "math",
+        "target": "\\phi \\approx 0"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "ref",
+        "target": "adr_per_angle_scaling"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.anti_degeneracy_controller"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.fourier_reparam"
+      }
+    ]
+  },
+  "developer/adrs/adr_004_consensus_monte_carlo.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-004: Consensus Monte Carlo for Bayesian Inference",
+      "Context",
+      "Decision",
+      "Shard Size Selection",
+      "NUTS Warmup Floor",
+      "JIT Cache in Workers",
+      "Environment Isolation",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "math",
+        "target": "(t_1, t_2)"
+      },
+      {
+        "role": "math",
+        "target": "n"
+      },
+      {
+        "role": "math",
+        "target": "M"
+      },
+      {
+        "role": "math",
+        "target": "n_s \\approx n/M"
+      },
+      {
+        "role": "math",
+        "target": "K"
+      },
+      {
+        "role": "math",
+        "target": "\\{\\theta^{(k)}_s\\}"
+      },
+      {
+        "role": "math",
+        "target": "p_s(\\theta\\,|\\,\\mathcal{D}_s)"
+      },
+      {
+        "role": "math",
+        "target": "M"
+      },
+      {
+        "role": "math",
+        "target": "p(\\theta\\,|\\,\\mathcal{D})"
+      },
+      {
+        "role": "math",
+        "target": "N_\\mathrm{workers} = \\lfloor N_\\mathrm{cores}/2\\rfloor - 1"
+      },
+      {
+        "role": "math",
+        "target": "n_s"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{ref}}"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{sample}}"
+      },
+      {
+        "role": "ref",
+        "target": "adr_jax_cpu_only"
+      },
+      {
+        "role": "ref",
+        "target": "adr_nlsq_primary"
+      },
+      {
+        "role": "ref",
+        "target": "theory_computational_methods"
+      }
+    ]
+  },
+  "developer/adrs/adr_005_per_angle_scaling.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-005: Per-Angle Scaling Modes",
+      "Context",
+      "Decision",
+      "Auto-Mode Selection Logic",
+      "Rationale",
+      "Consequences",
+      "Alternatives Considered"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "ref",
+        "target": "adr_anti_degeneracy"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "c_\\mathrm{offset}(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "2 \\times (2K+1)"
+      },
+      {
+        "role": "math",
+        "target": "K=2"
+      },
+      {
+        "role": "math",
+        "target": "2 \\times n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi = 23"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "\\phi"
+      },
+      {
+        "role": "math",
+        "target": "K=2"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi) = \\beta(-\\phi)"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "c_2"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k) \\sim \\mathcal{N}(\\mu_\\beta, \\sigma_\\beta^2)"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      },
+      {
+        "role": "ref",
+        "target": "adr_anti_degeneracy"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.anti_degeneracy_controller"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.fourier_reparam"
+      }
+    ]
+  },
+  "developer/adrs/adr_006_no_consumer_gpu.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "ADR-006: No GPU Acceleration on Consumer Hardware",
+      "Context",
+      "Decision",
+      "Rationale",
+      "Future GPU Path",
+      "Consequences"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "ref",
+        "target": "adr_jax_cpu_only"
+      },
+      {
+        "role": "math",
+        "target": "\\geq"
+      },
+      {
+        "role": "ref",
+        "target": "adr_jax_cpu_only"
+      },
+      {
+        "role": "ref",
+        "target": "adr_cmc_consensus"
+      },
+      {
+        "role": "ref",
+        "target": "adr_nlsq_primary"
+      }
+    ]
+  },
+  "developer/adrs/index.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Architecture Decision Records"
+    ],
+    "toctree": [
+      "adr_001_jax_cpu_only",
+      "adr_002_nlsq_cmc_split",
+      "adr_003_anti_degeneracy",
+      "adr_004_consensus_monte_carlo",
+      "adr_005_per_angle_scaling",
+      "adr_006_no_consumer_gpu"
+    ],
+    "xrefs": []
+  },
   "developer/architecture.rst": {
     "autoclass": [],
     "autofunction": [],
@@ -932,7 +1454,8 @@
       "contributing_guide",
       "testing_guide",
       "architecture",
-      "parameter_bounds_verification"
+      "parameter_bounds_verification",
+      "adrs/index"
     ],
     "xrefs": []
   },
@@ -1231,6 +1754,310 @@
       {
         "role": "math",
         "target": "|c_1|^2"
+      }
+    ]
+  },
+  "theory/anti_degeneracy.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Anti-Degeneracy Defense System",
+      "The Degeneracy Problem",
+      "Layer 1: Fourier / Constant Reparameterization",
+      "Layer 2: Hierarchical Optimization",
+      "Layer 3: Adaptive CV-Based Regularization",
+      "Layer 4: Gradient Collapse Monitoring",
+      "Layer 5: Absent \u2014 Shear-Sensitivity Weighting",
+      "Per-Angle Mode Summary",
+      "Configuration Reference",
+      "Diagnostic Output"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "class",
+        "target": "~heterodyne.optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController"
+      },
+      {
+        "role": "ref",
+        "target": "adr_anti_degeneracy"
+      },
+      {
+        "role": "ref",
+        "target": "adr_per_angle_scaling"
+      },
+      {
+        "role": "math",
+        "target": "\\mathcal{J}_r(t_1,t_2) = \\int_{t_1}^{t_2} J_r(t')\\,dt'"
+      },
+      {
+        "role": "math",
+        "target": "J_r(t) = D_{0,\\mathrm{ref}}\\,t^{\\alpha_\\mathrm{ref}} + D_{\\mathrm{offset,ref}}"
+      },
+      {
+        "role": "math",
+        "target": "\\mathcal{J}_s(t_1,t_2) = \\int_{t_1}^{t_2} J_s(t')\\,dt'"
+      },
+      {
+        "role": "math",
+        "target": "J_s(t) = D_{0,\\mathrm{sample}}\\,t^{\\alpha_\\mathrm{sample}} + D_{\\mathrm{offset,sample}}"
+      },
+      {
+        "role": "math",
+        "target": "f_s(t_1,t_2)"
+      },
+      {
+        "role": "math",
+        "target": "[t_1, t_2]"
+      },
+      {
+        "role": "math",
+        "target": "v(t) = v_0\\,t^\\beta + v_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "c_\\mathrm{offset}(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "2n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{ref}}"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{sample}}"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi_k)"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{ref}}"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{sample}}"
+      },
+      {
+        "role": "math",
+        "target": "f_s = 0.5"
+      },
+      {
+        "role": "math",
+        "target": "f_0"
+      },
+      {
+        "role": "math",
+        "target": "f_3"
+      },
+      {
+        "role": "math",
+        "target": "v_0"
+      },
+      {
+        "role": "math",
+        "target": "v_\\mathrm{offset}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha_\\mathrm{ref}"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{ref}}"
+      },
+      {
+        "role": "math",
+        "target": "\\alpha_\\mathrm{sample}"
+      },
+      {
+        "role": "math",
+        "target": "D_{0,\\mathrm{sample}}"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.fourier_reparam"
+      },
+      {
+        "role": "math",
+        "target": "2n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "\\{(\\beta(\\phi_k), c_\\mathrm{offset}(\\phi_k))\\}"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi \\geq 8"
+      },
+      {
+        "role": "math",
+        "target": "K=2"
+      },
+      {
+        "role": "math",
+        "target": "2K+1 = 5"
+      },
+      {
+        "role": "math",
+        "target": "2n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi \\geq 8"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi = 3"
+      },
+      {
+        "role": "math",
+        "target": "\\beta(\\phi)"
+      },
+      {
+        "role": "math",
+        "target": "8"
+      },
+      {
+        "role": "math",
+        "target": "(\\bar{\\beta}, \\bar{c}_\\mathrm{offset})"
+      },
+      {
+        "role": "math",
+        "target": "3"
+      },
+      {
+        "role": "math",
+        "target": "2n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi \\geq 3"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.hierarchical"
+      },
+      {
+        "role": "math",
+        "target": "(\\hat{\\theta}_\\mathrm{phys}, \\bar{\\beta}, \\bar{c}_\\mathrm{offset})"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.adaptive_regularization"
+      },
+      {
+        "role": "math",
+        "target": "\\sigma_k"
+      },
+      {
+        "role": "math",
+        "target": "\\mu_k"
+      },
+      {
+        "role": "math",
+        "target": "r_{ij}(\\phi_k) = c_2^\\mathrm{data}(\\phi_k, t_i, t_j) - c_2^\\mathrm{model}(\\phi_k, t_i, t_j)"
+      },
+      {
+        "role": "math",
+        "target": "(t_i, t_j)"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_k"
+      },
+      {
+        "role": "math",
+        "target": "\\lambda"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.gradient_monitor"
+      },
+      {
+        "role": "math",
+        "target": "\\rho_\\mathrm{threshold}"
+      },
+      {
+        "role": "math",
+        "target": "\\phi = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\dot{\\gamma}_0"
+      },
+      {
+        "role": "math",
+        "target": "(D_0, \\dot{\\gamma}_0)"
+      },
+      {
+        "role": "math",
+        "target": "q|\\cos\\phi_k|"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_k = 0"
+      },
+      {
+        "role": "math",
+        "target": "\\phi_k = \\pi/2"
+      },
+      {
+        "role": "math",
+        "target": "\\phi \\approx 0"
+      },
+      {
+        "role": "class",
+        "target": "~heterodyne.optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController"
+      },
+      {
+        "role": "math",
+        "target": "2n_\\phi"
+      },
+      {
+        "role": "math",
+        "target": "n_\\phi \\geq 3"
+      },
+      {
+        "role": "ref",
+        "target": "adr_anti_degeneracy"
+      },
+      {
+        "role": "ref",
+        "target": "adr_per_angle_scaling"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.anti_degeneracy_controller"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.fourier_reparam"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.hierarchical"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.adaptive_regularization"
+      },
+      {
+        "role": "mod",
+        "target": "heterodyne.optimization.nlsq.gradient_monitor"
       }
     ]
   },
@@ -1985,6 +2812,7 @@
       "classical_processes",
       "computational_methods",
       "analysis_modes",
+      "anti_degeneracy",
       "citations"
     ],
     "xrefs": [
@@ -3162,6 +3990,41 @@
       }
     ]
   },
+  "user_guide/04_practical_guides/batch_processing.rst": {
+    "autoclass": [],
+    "autofunction": [],
+    "automodule": [],
+    "headings": [
+      "Batch Processing",
+      "Recommended Pattern: Shell Loop",
+      "Parallel Execution",
+      "Collecting Outputs",
+      "Exit Codes",
+      "Reproducibility",
+      "Parameter Sweep Example",
+      "CMC-Specific Batch Concerns",
+      "Cross-References"
+    ],
+    "toctree": [],
+    "xrefs": [
+      {
+        "role": "ref",
+        "target": "batch_exit_codes"
+      },
+      {
+        "role": "ref",
+        "target": "adr_cmc_consensus"
+      },
+      {
+        "role": "ref",
+        "target": "adr_cmc_consensus"
+      },
+      {
+        "role": "ref",
+        "target": "theory_anti_degeneracy"
+      }
+    ]
+  },
   "user_guide/04_practical_guides/configuration.rst": {
     "autoclass": [],
     "autofunction": [],
@@ -3199,7 +4062,8 @@
     "toctree": [
       "configuration",
       "visualization",
-      "performance_tuning"
+      "performance_tuning",
+      "batch_processing"
     ],
     "xrefs": []
   },
