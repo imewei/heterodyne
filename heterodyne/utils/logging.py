@@ -23,7 +23,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     TypeVar,
-    cast,
 )  # cast: used by log_calls/log_performance wrappers
 
 if TYPE_CHECKING:
@@ -1128,9 +1127,9 @@ def log_calls(
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             # ``resolved_logger`` is guaranteed non-None: the enclosing
             # ``decorator`` populates it via ``get_logger`` if the caller
-            # passed ``None``. Use ``cast`` instead of ``assert`` so the
-            # type narrowing survives ``python -O`` (CWE-703, B101).
-            rlog = cast("LoggerType", resolved_logger)
+            # passed ``None``.
+            assert resolved_logger is not None  # noqa: S101 — narrowing only
+            rlog = resolved_logger
             log_enabled = rlog.isEnabledFor(level)
 
             # Always compute func_name so unbound-var paths can't trip pyright.
@@ -1192,8 +1191,9 @@ def log_performance(
 
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # See log_calls.wrapper for the cast-not-assert rationale.
-            rlog = cast("LoggerType", resolved_logger)
+            # See log_calls.wrapper — resolved_logger is non-None by construction.
+            assert resolved_logger is not None  # noqa: S101 — narrowing only
+            rlog = resolved_logger
             start_time = time.perf_counter()
             func_name = f"{func.__module__}.{func.__qualname__}"
 

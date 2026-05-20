@@ -109,7 +109,8 @@ class ParameterManager:
 
         for name in ALL_PARAM_NAMES_WITH_SCALING:
             lo, hi = self.space.bounds.get(
-                name, (DEFAULT_REGISTRY[name].min_bound, DEFAULT_REGISTRY[name].max_bound)
+                name,
+                (DEFAULT_REGISTRY[name].min_bound, DEFAULT_REGISTRY[name].max_bound),
             )
             if name in self._default_bounds:
                 reg = DEFAULT_REGISTRY[name]
@@ -179,10 +180,14 @@ class ParameterManager:
         Returns:
             Array of shape (n_varying,) with initial values for varying params.
         """
-        full = np.array([
-            self._initial_values_snapshot.get(name, self.space.values.get(name, 0.0))
-            for name in ALL_PARAM_NAMES
-        ])
+        full = np.array(
+            [
+                self._initial_values_snapshot.get(
+                    name, self.space.values.get(name, 0.0)
+                )
+                for name in ALL_PARAM_NAMES
+            ]
+        )
         return full[self.varying_indices]
 
     def get_full_values(self) -> np.ndarray:

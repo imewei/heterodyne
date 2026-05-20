@@ -83,9 +83,7 @@ def apply_cli_overrides(
         logger.debug("CLI override: cmc_backend=%s", args.cmc_backend)
 
     if getattr(args, "no_nlsq_warmstart", False):
-        config_manager.update_optimization_config(
-            "cmc", "use_nlsq_warmstart", False
-        )
+        config_manager.update_optimization_config("cmc", "use_nlsq_warmstart", False)
         logger.debug("CLI override: NLSQ warm-start disabled")
 
     # Override initial parameter values (homodyne parity).

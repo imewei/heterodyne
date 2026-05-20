@@ -286,7 +286,9 @@ def plot_residual_map(
             lw=2,
             label=f"Normal(μ={mu:.2e}, σ={sigma:.2e})",
         )
-    axes[0, 1].legend()
+        # Only call legend() when an artist with a label was actually
+        # added — otherwise matplotlib emits a UserWarning.
+        axes[0, 1].legend()
 
     # Residual along diagonal
     diag_residuals = np.diag(residuals)

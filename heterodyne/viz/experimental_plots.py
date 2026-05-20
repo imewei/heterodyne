@@ -318,7 +318,10 @@ def plot_experimental_data(
         ylabel = "t₂ (s)"
         logger.debug(
             "Using time extent: t1=[%.3f, %.3f], t2=[%.3f, %.3f] seconds",
-            t1_min, t1_max, t2_min, t2_max,
+            t1_min,
+            t1_max,
+            t2_min,
+            t2_max,
         )
     else:
         extent = None
@@ -348,7 +351,8 @@ def plot_experimental_data(
 
     logger.info(
         "Plotting %d angles after filtering: %s",
-        len(filtered_indices), filtered_phi_angles,
+        len(filtered_indices),
+        filtered_phi_angles,
     )
 
     # Handle different data shapes
@@ -453,8 +457,10 @@ def _plot_3d_experimental_data(
         diagonal = np.diag(c2_exp[idx][:min_dim, :min_dim])
         phi_deg = phi_angles_list[idx] if len(phi_angles_list) > idx else idx
         ax.plot(
-            time_diagonal[:min_dim], diagonal,
-            label=f"\u03c6={phi_deg:.1f}\u00b0", alpha=0.7,
+            time_diagonal[:min_dim],
+            diagonal,
+            label=f"\u03c6={phi_deg:.1f}\u00b0",
+            alpha=0.7,
         )
 
     ax.set_xlabel("Time (s)" if t1 is not None else "Time Index")
@@ -548,7 +554,9 @@ def plot_fit_comparison(
     else:
         fit_vmin = max(float(np.nanmin(c2_exp)), 1.0)
         fit_vmax = min(float(np.nanmax(c2_exp)), 1.5)
-        im0 = axes[0].imshow(c2_exp, aspect="auto", cmap="jet", vmin=fit_vmin, vmax=fit_vmax)
+        im0 = axes[0].imshow(
+            c2_exp, aspect="auto", cmap="jet", vmin=fit_vmin, vmax=fit_vmax
+        )
         plt.colorbar(im0, ax=axes[0], label="C\u2082")
         axes[0].set_xlabel("t\u2082 Index")
         axes[0].set_ylabel("\u03c6 Index")

@@ -60,9 +60,7 @@ def _plot_experimental_data(data: dict[str, Any], plots_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _plot_fit_comparison(
-    result: Any, data: dict[str, Any], plots_dir: Path
-) -> None:
+def _plot_fit_comparison(result: Any, data: dict[str, Any], plots_dir: Path) -> None:
     """Plot fit-vs-experiment comparison.
 
     Args:
@@ -234,7 +232,10 @@ def _dispatch_simulated_plots(
             phi = nlsq_result.metadata.get("phi_angle", 0)
             # Select the data slice closest to the fitted phi angle
             if c2_data.ndim == 3:
-                if data_phi_angles is not None and len(data_phi_angles) == c2_data.shape[0]:
+                if (
+                    data_phi_angles is not None
+                    and len(data_phi_angles) == c2_data.shape[0]
+                ):
                     idx = int(np.argmin(np.abs(data_phi_angles - float(phi))))
                     c2_2d = c2_data[idx]
                 else:
@@ -305,7 +306,9 @@ def handle_plotting(
             contrast = getattr(args, "contrast", 0.3)
             offset = getattr(args, "offset_sim", 1.0)
             phi_angles_str = getattr(args, "phi_angles", None)
-            _plot_simulated_data(config, contrast, offset, phi_angles_str, plots_dir, data)
+            _plot_simulated_data(
+                config, contrast, offset, phi_angles_str, plots_dir, data
+            )
         except Exception:
             logger.exception("Failed to generate simulated data plots")
 
@@ -373,7 +376,9 @@ def dispatch_plots(
                 if data_dict is not None and "phi_angles_list" in data_dict
                 else None
             )
-            _dispatch_simulated_plots(model, c2_data, filtered_nlsq, plots_dir, _data_phi)
+            _dispatch_simulated_plots(
+                model, c2_data, filtered_nlsq, plots_dir, _data_phi
+            )
 
             # Generate per-angle fitted simulations from NLSQ results.
             # Each result is scoped to its own phi angle so that calls do not
@@ -389,7 +394,9 @@ def dispatch_plots(
                         phi = nlsq_result.metadata.get("phi_angle", 0)
                         logger.debug(
                             "Generating fitted simulations for phi=%s (result %d/%d)",
-                            phi, i + 1, len(filtered_nlsq),
+                            phi,
+                            i + 1,
+                            len(filtered_nlsq),
                         )
                         # Narrow to this angle only — prevents overwriting other
                         # angles' outputs and ensures correct per-angle parameters.
