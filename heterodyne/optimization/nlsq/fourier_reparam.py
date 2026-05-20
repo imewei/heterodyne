@@ -49,10 +49,14 @@ class FourierReparamConfig:
     """Configuration for Fourier reparameterization.
 
     Attributes:
-        mode: Per-angle parameter mode:
-            - "independent": Use n_phi independent contrast/offset values
+        mode: Per-angle parameter mode (mirrors NLSQConfig.per_angle_mode):
+            - "individual": Use n_phi independent contrast/offset values
+            - "independent": Legacy alias for "individual" (normalised in
+              __post_init__)
             - "fourier": Use truncated Fourier series
             - "auto": Use Fourier when n_phi > auto_threshold
+            - "constant": Not supported here; handled upstream by
+              _fit_joint_averaged_multi_phi. Raises ValueError if reached.
         fourier_order: Number of Fourier harmonics. Default 2.
             order=2 gives 5 coefficients per parameter (c0, c1, s1, c2, s2).
         auto_threshold: Use Fourier when n_phi > this threshold in auto mode.
@@ -62,7 +66,7 @@ class FourierReparamConfig:
         ok_bounds: Bounds for harmonic offset amplitudes.
     """
 
-    mode: Literal["independent", "fourier", "auto"] = "auto"
+    mode: Literal["individual", "constant", "fourier", "auto", "independent"] = "auto"
     fourier_order: int = 2
     auto_threshold: int = 6
 
@@ -71,6 +75,14 @@ class FourierReparamConfig:
     ck_bounds: tuple[float, float] = (-0.2, 0.2)  # Harmonic amplitudes
     o0_bounds: tuple[float, float] = (0.5, 1.5)  # Mean offset
     ok_bounds: tuple[float, float] = (-0.3, 0.3)  # Harmonic amplitudes
+
+    def __post_init__(self) -> None:
+        # Mirror NLSQConfig: 'independent' is a deprecation alias for 'individual'.
+        # We do not emit a second DeprecationWarning here because the warning
+        # already fires when NLSQConfig is constructed; this normalisation just
+        # keeps the canonical name flowing through to FourierReparameterizer.
+        if self.mode == "independent":
+            self.mode = "individual"  # type: ignore[assignment]
 
     @classmethod
     def from_dict(cls, config_dict: dict) -> FourierReparamConfig:
@@ -186,8 +198,20 @@ class FourierReparameterizer:
                 return False
             return True
 
-        elif self.config.mode == "independent":
+        elif self.config.mode in ("individual", "independent"):
+            # 'independent' is the legacy alias (normalised to 'individual' in
+            # __post_init__); both indicate one contrast/offset pair per angle.
             return False
+
+        elif self.config.mode == "constant":
+            # The dispatcher returns early via _fit_joint_averaged_multi_phi
+            # before constructing FourierReparamConfig, so this branch is a
+            # defensive guard against direct construction.
+            raise ValueError(
+                "FourierReparamConfig does not support mode='constant'; "
+                "constant scaling is handled upstream by "
+                "_fit_joint_averaged_multi_phi."
+            )
 
         else:  # auto
             use_fourier = (
