@@ -87,3 +87,34 @@ class TestModeTaxonomy:
             r for r in record if issubclass(r.category, DeprecationWarning)
         ]
         assert not deprecation_warnings, f"Unexpected: {deprecation_warnings}"
+
+    def test_deprecation_warning_attributes_to_caller(self) -> None:
+        """`stacklevel=3` makes the DeprecationWarning point to the user's
+        call site, not the dataclass-generated __init__.
+
+        Pins the empirically-verified stacklevel from the code-quality
+        review fix of 45b5a1d.  With stacklevel=2 the warning reported
+        '<string>:149' (the dataclass __init__); stacklevel=3 reports
+        this test file at the line of the NLSQConfig() call.
+        """
+        import inspect
+        import warnings as _warnings
+
+        with _warnings.catch_warnings(record=True) as record:
+            _warnings.simplefilter("always")
+            expected_lineno = inspect.currentframe().f_lineno + 1
+            NLSQConfig(per_angle_mode="independent")
+
+        deprecation = [r for r in record if issubclass(r.category, DeprecationWarning)]
+        assert len(deprecation) == 1, (
+            f"Expected 1 DeprecationWarning, got {deprecation}"
+        )
+        w = deprecation[0]
+        assert w.filename == __file__, (
+            f"DeprecationWarning filename {w.filename!r} should point to the "
+            f"test file {__file__!r}; stacklevel is probably wrong."
+        )
+        assert w.lineno == expected_lineno, (
+            f"DeprecationWarning lineno {w.lineno} should match the caller "
+            f"line {expected_lineno}; stacklevel is probably wrong."
+        )

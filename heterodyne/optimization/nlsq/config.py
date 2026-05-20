@@ -10,6 +10,7 @@ fitting of heterodyne XPCS correlation functions:
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -545,18 +546,15 @@ class NLSQConfig:
         """Validate invariants that must hold immediately after construction."""
         # Normalise deprecated mode names to their canonical homodyne form.
         if self.per_angle_mode == "independent":
-            import warnings
-
             warnings.warn(
                 "per_angle_mode='independent' is deprecated; use 'individual' "
                 "(matches homodyne's canonical name per "
                 "https://homodyne.readthedocs.io/en/latest/theory/anti_degeneracy.html). "
                 "'independent' will be removed in heterodyne v1.0.",
                 DeprecationWarning,
-                stacklevel=2,
+                stacklevel=3,
             )
-            # type: ignore[assignment] — Literal includes both names during deprecation window
-            self.per_angle_mode = "individual"
+            self.per_angle_mode = "individual"  # type: ignore[assignment]  # Literal includes both names during deprecation window
         if self.max_iterations < 1:
             raise ValueError("max_iterations must be >= 1")
         if self.tolerance <= 0:
