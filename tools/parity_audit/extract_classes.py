@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from tools.parity_audit.ast_utils import safe_parse
 from tools.parity_audit.extract_signatures import canonical_signature
 from tools.parity_audit.walker import discover_python_files
 
@@ -26,7 +27,9 @@ def _is_dataclass(cls: ast.ClassDef) -> bool:
 
 
 def extract_file(file_path: Path, *, module_path: str) -> dict[str, dict[str, Any]]:
-    tree = ast.parse(file_path.read_text())
+    tree = safe_parse(file_path)
+    if tree is None:
+        return {}
     result: dict[str, dict[str, Any]] = {}
 
     for node in tree.body:

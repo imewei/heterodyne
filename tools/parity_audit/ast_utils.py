@@ -8,6 +8,25 @@ scanners.
 from __future__ import annotations
 
 import ast
+import sys
+from pathlib import Path
+
+
+def safe_parse(file_path: Path) -> ast.Module | None:
+    """Parse ``file_path`` with ``ast.parse``; return ``None`` on SyntaxError.
+
+    Emits a single-line warning to stderr so CI logs surface the skip without
+    aborting the whole audit run. Matches the contract used by
+    ``extract_exports.extract_file`` (return-empty-on-syntax-error).
+    """
+    try:
+        return ast.parse(file_path.read_text())
+    except SyntaxError as exc:
+        print(
+            f"warning: parity_audit skipped {file_path} (SyntaxError: {exc.msg})",
+            file=sys.stderr,
+        )
+        return None
 
 
 def string_list_from_node(node: ast.expr | None) -> list[str]:

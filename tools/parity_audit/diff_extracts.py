@@ -358,6 +358,12 @@ def render_report(
     lines.append(f"- Heterodyne SHA: `{heterodyne_sha}`")
     lines.append(f"- Total gaps: **{len(all_gaps)}**")
     lines.append("")
+    lines.append(
+        "Disposition column is populated by `tools.parity_audit` from the audit"
+        " registry; rows shown as `?` are newly surfaced and have not yet been"
+        " classified (KEEP / WAIVE / DROP)."
+    )
+    lines.append("")
     by_sev: dict[str, list[Gap]] = {s: [] for s in _SEVERITY_ORDER}
     for g in all_gaps:
         by_sev.setdefault(g["severity"], []).append(g)
@@ -381,9 +387,34 @@ def render_report(
             for g in by_cat[cat]:
                 ident = g.get("qualname") or g.get("path", "")
                 detail = g["detail"].replace("\n", "<br>")
-                lines.append(f"| `KEEP` | {g['kind']} | `{ident}` | {detail} |")
+                disposition = g.get("disposition", "?")
+                lines.append(
+                    f"| `{disposition}` | {g['kind']} | `{ident}` | {detail} |"
+                )
             lines.append("")
     return "\n".join(lines) + "\n"
+
+
+# All extractors that ``run_full_diff`` requires to produce a complete audit.
+_REQUIRED_EXTRACT_FILES: tuple[str, ...] = (
+    "signatures.json",
+    "exports.json",
+    "classes.json",
+    "configs.json",
+    "cli.json",
+    "logs_errors.json",
+    "docs.json",
+    "file_inventory.json",
+)
+
+
+class MissingExtractError(RuntimeError):
+    """Raised when ``run_full_diff`` cannot find a required extract JSON file.
+
+    The CI gate compares total gap counts; a silently absent extract would
+    drop that category to zero and the gate would pass while real regressions
+    ship undetected. Raise instead of skipping.
+    """
 
 
 def run_full_diff(*, homodyne_extracts: Path, heterodyne_extracts: Path) -> list[Gap]:
@@ -397,12 +428,24 @@ def run_full_diff(*, homodyne_extracts: Path, heterodyne_extracts: Path) -> list
         ("docs.json", diff_docs),
         ("file_inventory.json", diff_file_inventory),
     ]
+    missing: list[str] = []
+    for filename in _REQUIRED_EXTRACT_FILES:
+        homo_path = homodyne_extracts / filename
+        hetero_path = heterodyne_extracts / filename
+        if not homo_path.exists():
+            missing.append(str(homo_path))
+        if not hetero_path.exists():
+            missing.append(str(hetero_path))
+    if missing:
+        raise MissingExtractError(
+            "Cannot compute parity diff; required extract files are missing "
+            "(extractor likely crashed earlier in the pipeline):\n  - "
+            + "\n  - ".join(missing)
+        )
     all_gaps: list[Gap] = []
     for filename, fn in pairs:
         homo_path = homodyne_extracts / filename
         hetero_path = heterodyne_extracts / filename
-        if not homo_path.exists() or not hetero_path.exists():
-            continue
         homo = json.loads(homo_path.read_text())
         hetero = json.loads(hetero_path.read_text())
         all_gaps.extend(fn(homodyne=homo, heterodyne=hetero))

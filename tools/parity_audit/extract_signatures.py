@@ -6,6 +6,7 @@ import ast
 import json
 from pathlib import Path
 
+from tools.parity_audit.ast_utils import safe_parse
 from tools.parity_audit.walker import discover_python_files
 
 
@@ -62,7 +63,9 @@ def _is_public(name: str) -> bool:
 
 
 def extract_file(file_path: Path, *, module_path: str) -> dict[str, str]:
-    tree = ast.parse(file_path.read_text())
+    tree = safe_parse(file_path)
+    if tree is None:
+        return {}
     result: dict[str, str] = {}
 
     for node in tree.body:

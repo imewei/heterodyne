@@ -6,14 +6,14 @@ import ast
 import json
 from pathlib import Path
 
-from tools.parity_audit.ast_utils import string_list_from_node
+from tools.parity_audit.ast_utils import safe_parse, string_list_from_node
 from tools.parity_audit.walker import discover_python_files
 
 
 def extract_file(file_path: Path, *, module_path: str) -> list[str]:
-    try:
-        tree = ast.parse(file_path.read_text())
-    except SyntaxError:
+    del module_path  # included in signature for parity with other extractors
+    tree = safe_parse(file_path)
+    if tree is None:
         return []
 
     for node in tree.body:

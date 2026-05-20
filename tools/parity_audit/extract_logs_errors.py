@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from tools.parity_audit.ast_utils import int_constant, string_constant
+from tools.parity_audit.ast_utils import int_constant, safe_parse, string_constant
 from tools.parity_audit.walker import discover_python_files
 
 _LOG_LEVELS = {"debug", "info", "warning", "error", "critical", "exception"}
@@ -53,7 +53,10 @@ class _LogsErrorsVisitor(ast.NodeVisitor):
 
 
 def extract_file(file_path: Path, *, module_path: str) -> dict[str, Any]:
-    tree = ast.parse(file_path.read_text())
+    del module_path  # included in signature for parity with other extractors
+    tree = safe_parse(file_path)
+    if tree is None:
+        return {"log_messages": {}, "raises": [], "exit_codes": []}
     visitor = _LogsErrorsVisitor()
     visitor.visit(tree)
     return {

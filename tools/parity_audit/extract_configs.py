@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from tools.parity_audit.ast_utils import string_constant
+from tools.parity_audit.ast_utils import safe_parse, string_constant
 from tools.parity_audit.walker import discover_python_files
 
 
@@ -58,7 +58,9 @@ class _RuntimeKeyVisitor(ast.NodeVisitor):
 
 
 def extract_file(file_path: Path, *, module_path: str) -> dict[str, Any]:
-    tree = ast.parse(file_path.read_text())
+    tree = safe_parse(file_path)
+    if tree is None:
+        return {}
     result: dict[str, Any] = {}
 
     for node in tree.body:
