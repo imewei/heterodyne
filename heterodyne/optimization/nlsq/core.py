@@ -542,19 +542,30 @@ def _build_anti_degen_controller(
 ) -> Any | None:
     """Construct an ``AntiDegeneracyController`` when any active layer is requested.
 
+    Sub-PR C3: broadened again to also build whenever L4 gradient-collapse
+    monitoring is enabled.  L4 is observation-only (the monitor records
+    per-iteration gradient norms and exposes a summary via
+    ``controller.monitor.get_summary()``) and is meaningful even for the
+    fixed-constant path where no per-angle scaling block exists.
+
     Sub-PR C2: broadened from the C1 marker-only guard.  The controller is
-    now built whenever anti-degeneracy is enabled and EITHER L2 hierarchical
-    OR L3 regularization is requested.  L1 (Fourier) is dispatched through
-    a separate joint-fit path and does not require a controller here.
+    built whenever anti-degeneracy is enabled and EITHER L2 hierarchical
+    OR L3 regularization OR L4 gradient monitoring is requested.  L1
+    (Fourier) is dispatched through a separate joint-fit path and does
+    not require a controller here.
 
     Returns ``None`` when no active defense layer is requested, when the
     fit is single-angle, or when controller construction fails.  Callers
-    are responsible for deriving the L2 marker and L3 callbacks from the
-    returned controller.
+    are responsible for deriving the L2 marker, L3 callbacks, and L4
+    monitor summary from the returned controller.
     """
     if not config.enable_anti_degeneracy:
         return None
-    if not (config.enable_hierarchical or config.regularization_mode != "none"):
+    if not (
+        config.enable_hierarchical
+        or config.regularization_mode != "none"
+        or config.enable_gradient_monitoring
+    ):
         return None
     if n_phi <= 1:
         return None
@@ -834,6 +845,21 @@ def _fit_joint_averaged_multi_phi(
             "No NLSQ backend available for joint auto averaged multi-angle fit."
         )
 
+    # L4 gradient collapse monitor wiring (Sub-PR C3).
+    monitor_summary: dict[str, Any] = {}
+    if (
+        anti_degen_controller is not None
+        and getattr(anti_degen_controller, "monitor", None) is not None
+        and config.enable_gradient_monitoring
+    ):
+        try:
+            monitor_summary = dict(anti_degen_controller.monitor.get_summary() or {})
+        except (AttributeError, TypeError) as exc:
+            logger.debug("L4 monitor summary unavailable: %s", exc)
+            monitor_summary = {}
+        if monitor_summary:
+            logger.info("L4 gradient monitor summary: %s", monitor_summary)
+
     fitted_all = np.asarray(joint_result.parameters, dtype=np.float64)
     fitted_physics = fitted_all[:n_physics_varying]
     fitted_contrast = float(fitted_all[n_physics_varying])
@@ -914,6 +940,7 @@ def _fit_joint_averaged_multi_phi(
                     if hierarchical_marker is not None
                     else {}
                 ),
+                **({"gradient_monitor": monitor_summary} if monitor_summary else {}),
             },
         )
         results.append(result)
@@ -1019,6 +1046,28 @@ def _fit_joint_fixed_constant_multi_phi(
         n_phi,
     )
 
+    # L4 gradient collapse monitor wiring (Sub-PR C3).
+    # Fixed-constant has no per-angle scaling block, so L2/L3 don't apply
+    # (per_angle_scaling=False), but L4 is observation-only and meaningful
+    # for the physics-only optimization.
+    anti_degen_controller: Any = None
+    if config.enable_anti_degeneracy and config.enable_gradient_monitoring:
+        try:
+            from heterodyne.optimization.nlsq.anti_degeneracy_controller import (
+                AntiDegeneracyController,
+            )
+
+            anti_degen_controller = AntiDegeneracyController.from_config(
+                config_dict=_anti_degen_dict_from_config(config),
+                n_phi=n_phi,
+                phi_angles=np.deg2rad(np.asarray(phi_angles, dtype=np.float64)),
+                n_physical=n_physics_varying,
+                per_angle_scaling=False,  # fixed-constant has no per-angle block
+            )
+        except Exception as exc:  # noqa: BLE001 — never derail the fit
+            logger.warning("Fixed-constant L4 controller construction skipped: %s", exc)
+            anti_degen_controller = None
+
     t = model.t
     q = model.q
     dt = model.dt
@@ -1109,6 +1158,21 @@ def _fit_joint_fixed_constant_multi_phi(
             "No NLSQ backend available for fixed-constant joint multi-angle fit."
         )
 
+    # L4 gradient collapse monitor wiring (Sub-PR C3).
+    monitor_summary: dict[str, Any] = {}
+    if (
+        anti_degen_controller is not None
+        and getattr(anti_degen_controller, "monitor", None) is not None
+        and config.enable_gradient_monitoring
+    ):
+        try:
+            monitor_summary = dict(anti_degen_controller.monitor.get_summary() or {})
+        except (AttributeError, TypeError) as exc:
+            logger.debug("L4 monitor summary unavailable: %s", exc)
+            monitor_summary = {}
+        if monitor_summary:
+            logger.info("L4 gradient monitor summary: %s", monitor_summary)
+
     fitted_physics = np.asarray(joint_result.parameters, dtype=np.float64)
     full_fitted = param_manager.expand_varying_to_full(fitted_physics)
     model.set_params(full_fitted)
@@ -1143,6 +1207,7 @@ def _fit_joint_fixed_constant_multi_phi(
                 "contrast_fixed": float(contrast_per_angle[i]),
                 "offset_fixed": float(offset_per_angle[i]),
                 "optimizer": "joint_fixed_constant",
+                **({"gradient_monitor": monitor_summary} if monitor_summary else {}),
             },
         )
         results.append(per_angle_result)
@@ -1873,6 +1938,21 @@ def _fit_joint_multi_phi(
             "Ensure heterodyne.optimization.nlsq.adapter is importable."
         )
 
+    # L4 gradient collapse monitor wiring (Sub-PR C3).
+    monitor_summary: dict[str, Any] = {}
+    if (
+        anti_degen_controller is not None
+        and getattr(anti_degen_controller, "monitor", None) is not None
+        and config.enable_gradient_monitoring
+    ):
+        try:
+            monitor_summary = dict(anti_degen_controller.monitor.get_summary() or {})
+        except (AttributeError, TypeError) as exc:
+            logger.debug("L4 monitor summary unavailable: %s", exc)
+            monitor_summary = {}
+        if monitor_summary:
+            logger.info("L4 gradient monitor summary: %s", monitor_summary)
+
     # Extract results
     fitted_params_full = joint_result.parameters
     fitted_physics = fitted_params_full[:n_physics_varying]
@@ -1947,6 +2027,7 @@ def _fit_joint_multi_phi(
                     if hierarchical_marker is not None
                     else {}
                 ),
+                **({"gradient_monitor": monitor_summary} if monitor_summary else {}),
             },
         )
         results.append(result)
