@@ -10,12 +10,26 @@ This module provides reusable pytest fixtures for testing the heterodyne package
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
 
-import jax
-import jax.numpy as jnp
-import numpy as np
-import pytest
+# CLAUDE.md Rule 8 — JAX_ENABLE_X64 must be set BEFORE the first JAX import.
+# The conftest is the test suite's first JAX touchpoint (line below); without
+# this env var, tests that explicitly request ``dtype=jnp.float64`` get
+# truncated to float32 and emit a ``UserWarning``.  Setting it here is
+# load-order-independent — it works whether or not the test under collection
+# imports heterodyne first.
+os.environ.setdefault("JAX_ENABLE_X64", "True")
+
+from typing import TYPE_CHECKING  # noqa: E402
+
+import jax  # noqa: E402
+import jax.numpy as jnp  # noqa: E402
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+
+# Mirror the env var into the live JAX config so the change takes effect
+# even when JAX has already been imported by a plugin earlier in the boot
+# sequence (pytest plugins, IDE harness, etc.).
+jax.config.update("jax_enable_x64", True)
 
 if TYPE_CHECKING:
     from heterodyne import CMCConfig, HeterodyneModel, NLSQConfig

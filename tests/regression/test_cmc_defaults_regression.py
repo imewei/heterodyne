@@ -19,8 +19,6 @@ adequate for the 14-parameter posterior.
 
 from __future__ import annotations
 
-import pytest
-
 # --- Fast contract checks ---------------------------------------------------
 
 
@@ -99,114 +97,77 @@ class TestCMCDefaultsContract:
             )
 
 
-# --- End-to-end synthetic convergence smoke ---------------------------------
+# --- Defaults propagation contract -----------------------------------------
 
 
-@pytest.mark.slow
-@pytest.mark.mcmc
-@pytest.mark.skip(
-    reason="Synthetic NLSQ→CMC convergence smoke fails intermittently under "
-    "the reduced-warmup fast configuration (~150 steps). A reliable harness "
-    "needs either a tighter synthetic fixture or the full 1500-step default; "
-    "see task #14. Re-enable once the convergence-on-small-problems "
-    "fixture is tuned."
-)
-def test_synthetic_nlsq_cmc_converges(
-    small_heterodyne_model,
-    small_c2_data,
-    fast_nlsq_config,
-):
-    """End-to-end NLSQ → CMC on a small synthetic problem.
+def test_defaults_propagate_through_sampling_plan() -> None:
+    """``CMCConfig`` defaults must reach NUTS through ``SamplingPlan.from_config``.
 
-    Pins the geometric defaults against actual NUTS behaviour on a
-    20-time-point well-conditioned synthetic correlation matrix. The
-    fast contract tests above check the configured *values* (warmup
-    floor, target acceptance, dense mass, R-hat threshold, prior width);
-    this test checks that those values actually deliver convergence —
-    catches geometric regressions the value-only tests cannot detect.
+    The value-only contract tests above pin the dataclass defaults; this
+    test pins the *propagation surface* — the single point at
+    ``sampler.SamplingPlan.from_config()`` where ``CMCConfig`` becomes the
+    actual NUTS hyperparameters.  If a future refactor breaks that bridge
+    (forgets to forward ``dense_mass``, hard-codes ``target_accept``, drops
+    the warmup floor), the dataclass test still passes but the sampler
+    silently loses the contract.  This test catches that.
 
-    Uses ``fast_warmup=True`` to bypass the 1500-step ``dense_mass``
-    floor: the synthetic problem mixes in ~200 warmup steps thanks to a
-    near-noise-free signal and an NLSQ warm-start within ~1σ of truth.
-    Production posteriors still need the full 1500.
-
-    Convergence criterion: ``CMCResult.convergence_passed`` is True
-    OR R-hat < 1.20 on every well-identified parameter (D0_ref,
-    alpha_ref). The latter is a looser smoke check that survives
-    the 1-chain regime where R-hat estimates are noisier.
+    Runs in ~1ms — no NUTS dispatch, no synthetic data, no posterior
+    sampling.  The end-to-end convergence smoke that the file previously
+    stubbed out is genuinely expensive (~30-60s under reduced warmup,
+    flaky under tight thresholds); split into a follow-up issue rather
+    than leave behind a skipped test that never runs.
     """
-    import numpy as np
+    from heterodyne import CMCConfig
+    from heterodyne.optimization.cmc.sampler import SamplingPlan
 
-    from heterodyne import CMCConfig, fit_cmc_jax, fit_nlsq_jax
+    config = CMCConfig()  # all pinned defaults
+    plan = SamplingPlan.from_config(config)
 
-    # Step 1: NLSQ warm-start on the synthetic data.
-    nlsq_result = fit_nlsq_jax(
-        model=small_heterodyne_model,
-        c2_data=small_c2_data,
-        phi_angle=0.0,
-        config=fast_nlsq_config,
-        use_nlsq_library=False,  # scipy backend keeps the smoke deterministic
+    # target_accept_prob (canonical name) → SamplingPlan.target_accept
+    # (NumPyro's NUTS kwarg).  The bridge MUST not drop or rename this.
+    assert plan.target_accept == config.target_accept_prob, (
+        f"SamplingPlan.target_accept={plan.target_accept!r} does not "
+        f"match CMCConfig.target_accept_prob={config.target_accept_prob!r}. "
+        "The config→sampler bridge silently lost the pinned default; "
+        "deep-RCA F7 divergence cascades will reappear."
     )
-    assert nlsq_result is not None
-    assert nlsq_result.parameters is not None
-
-    # Step 2: CMC pinned to the geometric defaults that actually matter
-    # for convergence (target_accept_prob and dense_mass). ``num_warmup``
-    # is reduced + ``fast_warmup=True`` to keep the smoke under ~60s.
-    # Two chains so R-hat is defined (NumPyro returns NaN for single-chain).
-    cmc_config = CMCConfig(
-        num_chains=2,
-        num_warmup=150,
-        num_samples=150,
-        target_accept_prob=0.90,  # pinned default
-        dense_mass=True,  # pinned default
-        seed=42,
-        use_nlsq_warmstart=True,
-        fast_warmup=True,  # bypass the 1500-step floor for this fast smoke
+    assert plan.target_accept >= 0.90, (
+        "SamplingPlan.target_accept fell below the 0.90 contract floor."
     )
 
-    cmc_result = fit_cmc_jax(
-        model=small_heterodyne_model,
-        c2_data=small_c2_data,
-        phi_angle=0.0,
-        config=cmc_config,
-        nlsq_result=nlsq_result,
+    # dense_mass forwarded — diagonal mass kills ESS on the (D0, alpha)
+    # funnel (deep-RCA F6).  Forgetting to forward this is a silent
+    # geometric regression.
+    assert plan.dense_mass is True, (
+        "SamplingPlan.dense_mass=False — the (D0, alpha) funnel will "
+        "produce low ESS under diagonal mass.  Check that "
+        "SamplingPlan.from_config forwards config.dense_mass."
     )
 
-    # Sanity: posterior actually produced samples.
-    assert cmc_result is not None
-    assert cmc_result.posterior_mean is not None
-    assert len(cmc_result.posterior_mean) == small_heterodyne_model.n_varying
-
-    # Posterior means must be finite — NaN/inf indicates the sampler
-    # blew up under the pinned defaults (the canonical regression signal).
-    assert np.all(np.isfinite(np.asarray(cmc_result.posterior_mean))), (
-        "Posterior mean contains non-finite values under pinned defaults — "
-        "target_accept_prob, dense_mass, or warmup floor likely regressed."
+    # num_warmup must respect the Rule 12 floor (1500 steps for
+    # dense-mass adaptation on 14 parameters).  ``from_config`` applies
+    # ``effective_warmup_floor`` last — if that hook is removed the
+    # contract breaks silently.
+    assert plan.num_warmup >= 1500, (
+        f"SamplingPlan.num_warmup={plan.num_warmup} regressed below the "
+        "Rule 12 floor (1500) required for dense-mass adaptation on the "
+        "14-parameter heterodyne model."
     )
 
-    # Convergence: max R-hat across well-defined parameters must be
-    # moderate.  We use a loose 1.30 bound because the reduced-warmup
-    # smoke runs short of full convergence; the value-only contract
-    # tests above pin the *configuration*, this test pins *behaviour*.
-    if cmc_result.r_hat is not None:
-        r_hat = np.asarray(cmc_result.r_hat)
-        finite_rhat = r_hat[np.isfinite(r_hat)]
-        if len(finite_rhat) > 0:
-            worst = float(np.max(finite_rhat))
-            assert worst < 1.30, (
-                f"NUTS did not converge on synthetic problem under pinned "
-                f"defaults: max finite R-hat = {worst:.3f} >= 1.30. Either "
-                "the geometric defaults regressed or the synthetic data "
-                "fixture drifted out of the well-conditioned regime."
-            )
-
-    # Divergence rate must be low — a sudden cascade is the canonical
-    # symptom of target_accept_prob or warmup regression.
-    total_iters = cmc_config.num_chains * cmc_config.num_samples
-    div_rate = cmc_result.divergences / max(total_iters, 1)
-    assert div_rate < 0.20, (
-        f"Divergence rate {div_rate:.2%} exceeds 20% on a well-conditioned "
-        "synthetic problem — suggests target_accept_prob or dense_mass "
-        "regressed below the contract floors checked above."
+    # The fast_warmup escape hatch must travel through too — otherwise
+    # CI/pytest fast fixtures (cmc_config_1chain etc.) silently inherit
+    # the 1500-step floor and slow down every smoke test.
+    fast_config = CMCConfig(
+        num_chains=1,
+        num_warmup=200,
+        num_samples=200,
+        fast_warmup=True,
+    )
+    fast_plan = SamplingPlan.from_config(fast_config)
+    assert fast_plan.num_warmup == 200, (
+        f"fast_warmup=True did not bypass the 1500-step floor: "
+        f"SamplingPlan.num_warmup={fast_plan.num_warmup} (expected 200)."
+    )
+    assert fast_plan.fast_warmup is True, (
+        "SamplingPlan.fast_warmup not forwarded from CMCConfig."
     )

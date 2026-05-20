@@ -474,8 +474,21 @@ class TestBugPrevention_JITSafeWrapper:
 
     @pytest.mark.unit
     @pytest.mark.regression
+    @pytest.mark.filterwarnings(
+        "ignore:Covariance of the parameters could not be estimated"
+    )
     def test_nlsq_adapter_fit_does_not_raise_tracer_error(self) -> None:
-        """NLSQAdapter.fit must not raise TracerArrayConversionError (nlsq 0.6.12 regression)."""
+        """NLSQAdapter.fit must not raise TracerArrayConversionError (nlsq 0.6.12 regression).
+
+        The trivial residual ``params - [1,2,3]`` converges in one step on
+        a rank-deficient Hessian, so NLSQ emits its own ``OptimizeWarning``
+        (``nlsq.result.optimize_warning.OptimizeWarning``, a ``UserWarning``
+        subclass intentionally named to mirror scipy's API for drop-in
+        compatibility) about being unable to estimate covariance.  That's
+        expected — this test only checks the JIT-tracing contract, not the
+        fit quality.  No scipy runtime is involved; NLSQ is a JAX-native
+        Levenberg-Marquardt / Trust-Region-Reflective implementation.
+        """
         import jax.numpy as jnp
 
         from heterodyne.optimization.nlsq.adapter import NLSQAdapter
@@ -496,8 +509,15 @@ class TestBugPrevention_JITSafeWrapper:
 
     @pytest.mark.unit
     @pytest.mark.regression
+    @pytest.mark.filterwarnings(
+        "ignore:Covariance of the parameters could not be estimated"
+    )
     def test_nlsq_wrapper_fit_does_not_raise_tracer_error(self) -> None:
-        """NLSQWrapper.fit must not raise TracerArrayConversionError (nlsq 0.6.12 regression)."""
+        """NLSQWrapper.fit must not raise TracerArrayConversionError (nlsq 0.6.12 regression).
+
+        See the sibling adapter test above for why the ``OptimizeWarning``
+        is expected and irrelevant to the JIT-tracing contract under test.
+        """
         import jax.numpy as jnp
 
         from heterodyne.optimization.nlsq.adapter import NLSQWrapper
