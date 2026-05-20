@@ -163,10 +163,11 @@ class TestFixedConstantSemantics:
         import heterodyne.optimization.nlsq.core as core
 
         captured: dict[str, np.ndarray] = {}
+        captured_names: list[str] = []
 
         class FakeAdapter:
             def __init__(self, parameter_names: list[str]) -> None:
-                captured["parameter_names"] = list(parameter_names)
+                captured_names[:] = list(parameter_names)
 
             def fit(
                 self,
@@ -181,7 +182,7 @@ class TestFixedConstantSemantics:
                 captured["ub"] = np.asarray(bounds[1]).copy()
                 return NLSQResult(
                     parameters=np.asarray(initial_params).copy(),
-                    parameter_names=captured["parameter_names"],
+                    parameter_names=list(captured_names),
                     success=True,
                     message="fake",
                     metadata={},
@@ -206,8 +207,8 @@ class TestFixedConstantSemantics:
         assert captured["x0"].shape == (14,)
         assert captured["lb"].shape == (14,)
         assert captured["ub"].shape == (14,)
-        assert "contrast" not in captured["parameter_names"]
-        assert "offset" not in captured["parameter_names"]
+        assert "contrast" not in captured_names
+        assert "offset" not in captured_names
 
     def test_result_metadata_carries_frozen_scaling(
         self, monkeypatch: pytest.MonkeyPatch
