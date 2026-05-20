@@ -829,22 +829,27 @@ optimization:
     # -----------------------------------------------------------------------
     # PER-ANGLE SCALING MODE
     # -----------------------------------------------------------------------
-    # Controls dimensionality reduction for per-angle contrast/offset.
+    # PER-ANGLE MODE (homodyne parity, per
+    # https://homodyne.readthedocs.io/en/latest/theory/anti_degeneracy.html):
     #
-    # MODES:
-    #   "auto" (RECOMMENDED): Auto-selects based on n_phi.
-    #     When n_phi >= fourier_auto_threshold: Uses Fourier basis
-    #     Otherwise: Independent per-angle params
+    #   "constant":   Per-angle β(φ), o(φ) FROZEN from quantile.
+    #                 Optimizer fits 14 physics params only.
+    #   "auto":       Quantile β,o averaged then OPTIMIZED jointly.
+    #                 14 physics + 2 averaged = 16 params.
+    #                 Selected automatically when n_phi >= constant_scaling_threshold.
+    #   "fourier":    β(φ), o(φ) modeled as truncated Fourier series.
+    #                 14 + 2*(2K+1) params (K = fourier_order).
+    #   "individual": Each angle gets its own free β_k, o_k.
+    #                 14 + 2*n_phi params.  Prone to absorption for many angles.
     #
-    #   "fourier": Fourier basis for smooth angle variation.
-    #     contrast(φ) = c0 + Σ_k [ck·cos(k·φ) + sk·sin(k·φ)]
+    # PARAMETER COUNT (n_phi=10, fourier_order=2):
+    #   - constant:    14 params (β,o frozen per-angle)
+    #   - auto:        16 params (14 + 2 averaged)
+    #   - fourier:     24 params (14 + 10 Fourier coeffs)
+    #   - individual:  34 params (14 + 20 per-angle)
     #
-    #   "independent": Independent per-angle params, optimized during fitting.
-    #     Prone to absorption with many angles. Use with caution.
-    #
-    # PARAMETER COUNT (n_phi=10):
-    #   - auto/fourier (order=2): 14 + 10 Fourier coeffs = 24 params
-    #   - individual:             14 + 20 per-angle = 34 params
+    # DEPRECATION: "independent" is an alias for "individual" and will
+    # be removed in heterodyne v1.0.
     #
     per_angle_mode: "auto"
     fourier_order: 2                     # Number of Fourier harmonics (>= 1)
