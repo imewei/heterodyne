@@ -55,11 +55,35 @@ class TestModeTaxonomy:
         caught after Task A1 — the original A1 widened the Literal but
         forgot to update the validate() allowlist.
         """
+        import warnings as _warnings
+
         for mode in ("individual", "constant", "fourier", "auto", "independent"):
-            cfg = NLSQConfig(per_angle_mode=mode)
+            with _warnings.catch_warnings():
+                # A2 alias: 'independent' emits DeprecationWarning at construction.
+                _warnings.simplefilter("ignore", DeprecationWarning)
+                cfg = NLSQConfig(per_angle_mode=mode)
             errors = cfg.validate()
             mode_errors = [e for e in errors if "per_angle_mode" in e]
             assert not mode_errors, (
                 f"validate() rejected per_angle_mode={mode!r} "
                 f"even though it is in the Literal: {mode_errors}"
             )
+
+    def test_independent_deprecation_alias_normalises_to_individual(self) -> None:
+        """`independent` maps to `individual` with a DeprecationWarning."""
+        with pytest.warns(DeprecationWarning, match="independent.*individual"):
+            cfg = NLSQConfig(per_angle_mode="independent")
+        assert cfg.per_angle_mode == "individual"
+
+    def test_individual_does_not_warn(self) -> None:
+        """`individual` is the canonical name and emits no DeprecationWarning."""
+        import warnings as _warnings
+
+        with _warnings.catch_warnings(record=True) as record:
+            _warnings.simplefilter("always")
+            cfg = NLSQConfig(per_angle_mode="individual")
+        assert cfg.per_angle_mode == "individual"
+        deprecation_warnings = [
+            r for r in record if issubclass(r.category, DeprecationWarning)
+        ]
+        assert not deprecation_warnings, f"Unexpected: {deprecation_warnings}"
