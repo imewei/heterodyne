@@ -741,6 +741,224 @@ def _fit_joint_averaged_multi_phi(
     return results
 
 
+def _fit_joint_fixed_constant_multi_phi(
+    model: HeterodyneModel,
+    c2_data: np.ndarray,
+    phi_angles: np.ndarray,
+    config: NLSQConfig,
+    weights: np.ndarray | None,
+) -> list[NLSQResult]:
+    """Joint multi-angle fit with FROZEN per-angle contrast/offset.
+
+    Homodyne parity for ``per_angle_mode="constant"``: per-angle β(φ) and
+    o(φ) are estimated once from quantile analysis (5 %/95 % of g2 per
+    angle) and held fixed.  The optimizer fits only the 14 physics
+    parameters.
+
+    Distinct from :func:`_fit_joint_averaged_multi_phi`, which AVERAGES
+    per-angle estimates to a single scalar β̄, ō and optimizes them
+    jointly with physics (16 params total — the homodyne ``"auto"``
+    behaviour).
+    """
+    from heterodyne.config.parameter_registry import SCALING_PARAMS
+    from heterodyne.core.quantile_scaling import compute_per_angle_quantile_scaling
+
+    t_start = time.perf_counter()
+
+    param_manager = model.param_manager
+    varying_names = list(param_manager.varying_names)
+    n_physics_varying = param_manager.n_varying
+    n_phi = len(phi_angles)
+
+    physics_initial = np.asarray(param_manager.get_initial_values(), dtype=np.float64)
+    physics_lower, physics_upper = param_manager.get_bounds()
+    physics_initial = np.clip(physics_initial, physics_lower, physics_upper)
+
+    contrast_bounds = (
+        SCALING_PARAMS["contrast"].min_bound,
+        SCALING_PARAMS["contrast"].max_bound,
+    )
+    offset_bounds = (
+        SCALING_PARAMS["offset"].min_bound,
+        SCALING_PARAMS["offset"].max_bound,
+    )
+
+    # Per-angle quantile estimates (the FREEZE step).
+    g2_flat_parts = []
+    phi_idx_parts = []
+    for i in range(n_phi):
+        flat = np.asarray(c2_data[i], dtype=np.float64).reshape(-1)
+        g2_flat_parts.append(flat)
+        phi_idx_parts.append(np.full(flat.size, i, dtype=np.int32))
+
+    quantile = compute_per_angle_quantile_scaling(
+        g2=np.concatenate(g2_flat_parts),
+        phi_indices=np.concatenate(phi_idx_parts),
+        n_phi=n_phi,
+        contrast_bounds=contrast_bounds,
+        offset_bounds=offset_bounds,
+    )
+    contrast_per_angle = quantile.contrast_per_angle
+    offset_per_angle = quantile.offset_per_angle
+
+    logger.info("=" * 60)
+    logger.info(
+        "FIXED CONSTANT scaling (homodyne 'constant' parity): "
+        "per-angle β,o frozen from quantile, n_phi=%d",
+        n_phi,
+    )
+    logger.info(
+        "  contrast range: [%.4f, %.4f]; offset range: [%.4f, %.4f]",
+        float(contrast_per_angle.min()),
+        float(contrast_per_angle.max()),
+        float(offset_per_angle.min()),
+        float(offset_per_angle.max()),
+    )
+    logger.info("=" * 60)
+
+    # Optimizer sees only the physics parameters; β,o enter the residual
+    # closure as captured constants.
+    x0 = physics_initial.copy()
+    lb = np.asarray(physics_lower, dtype=np.float64).copy()
+    ub = np.asarray(physics_upper, dtype=np.float64).copy()
+    joint_param_names = list(varying_names)
+
+    logger.info(
+        "Joint fixed-constant fit: %d physics params (frozen β,o), %d angles",
+        n_physics_varying,
+        n_phi,
+    )
+
+    t = model.t
+    q = model.q
+    dt = model.dt
+    c2_data_list = [jnp.asarray(c2_data[i], dtype=jnp.float64) for i in range(n_phi)]
+    weights_list: list[jnp.ndarray | None] = []
+    for i in range(n_phi):
+        if weights is not None and weights.ndim == 3:
+            weights_list.append(jnp.asarray(weights[i], dtype=jnp.float64))
+        elif weights is not None:
+            weights_list.append(jnp.asarray(weights, dtype=jnp.float64))
+        else:
+            weights_list.append(None)
+    c2_data_batch = jnp.stack(c2_data_list, axis=0)
+    weights_batch = jnp.stack(
+        [
+            (w if w is not None else jnp.ones_like(c2_data_list[i]))
+            for i, w in enumerate(weights_list)
+        ],
+        axis=0,
+    )
+
+    contrast_per_angle_j = jnp.asarray(contrast_per_angle, dtype=jnp.float64)
+    offset_per_angle_j = jnp.asarray(offset_per_angle, dtype=jnp.float64)
+
+    def joint_residual_fn(physics_only: np.ndarray) -> np.ndarray:
+        """Residual closure: β,o are FIXED per-angle constants."""
+        full = jnp.asarray(physics_only, dtype=jnp.float64)
+        all_res = []
+        for i, phi in enumerate(phi_angles):
+            res_i = compute_residuals(
+                full,
+                t,
+                q,
+                dt,
+                float(phi),
+                c2_data_batch[i],
+                weights_batch[i],
+                contrast=float(contrast_per_angle_j[i]),
+                offset=float(offset_per_angle_j[i]),
+            )
+            all_res.append(np.asarray(res_i).reshape(-1))
+        return np.concatenate(all_res)
+
+    joint_config = NLSQConfig(
+        method=config.method if config.method != "lm" else "trf",
+        ftol=config.ftol,
+        xtol=config.xtol,
+        gtol=config.gtol,
+        max_nfev=(config.max_nfev * n_phi if config.max_nfev is not None else None),
+        loss=config.loss,
+        use_nlsq_library=config.use_nlsq_library,
+        n_params=len(x0),
+    )
+
+    joint_result: NLSQResult | None = None
+    if HAS_ADAPTERS:
+        try:
+            joint_adapter = NLSQAdapter(parameter_names=joint_param_names)  # pyright: ignore[reportPossiblyUnbound]
+            joint_result = joint_adapter.fit(
+                residual_fn=joint_residual_fn,
+                initial_params=x0,
+                bounds=(lb, ub),
+                config=joint_config,
+            )
+            if not joint_result.success:
+                raise RuntimeError(
+                    f"Fixed-constant joint adapter returned "
+                    f"success=False: {joint_result.message}"
+                )
+        except (ValueError, RuntimeError, TypeError) as adapter_exc:
+            logger.warning(
+                "Fixed-constant NLSQAdapter failed, falling back to wrapper: %s",
+                adapter_exc,
+            )
+            joint_result = None
+
+    if joint_result is None and HAS_WRAPPER:
+        joint_wrapper = NLSQWrapper(parameter_names=joint_param_names)  # pyright: ignore[reportPossiblyUnbound]
+        joint_result = joint_wrapper.fit(
+            residual_fn=joint_residual_fn,
+            initial_params=x0,
+            bounds=(lb, ub),
+            config=joint_config,
+        )
+
+    if joint_result is None:
+        raise ImportError(
+            "No NLSQ backend available for fixed-constant joint multi-angle fit."
+        )
+
+    fitted_physics = np.asarray(joint_result.parameters, dtype=np.float64)
+    full_fitted = param_manager.expand_varying_to_full(fitted_physics)
+    model.set_params(full_fitted)
+    if hasattr(model, "scaling"):
+        # Surface the frozen per-angle β,o on the model for downstream viz.
+        try:
+            model.scaling.contrast[:] = contrast_per_angle
+            model.scaling.offset[:] = offset_per_angle
+        except (ValueError, TypeError):
+            # Length mismatch (e.g. scaling was a scalar holder): replace.
+            model.scaling.contrast = np.asarray(contrast_per_angle, dtype=np.float64)
+            model.scaling.offset = np.asarray(offset_per_angle, dtype=np.float64)
+
+    wall_time = time.perf_counter() - t_start
+
+    results: list[NLSQResult] = []
+    for i, phi in enumerate(phi_angles):
+        per_angle_result = NLSQResult(
+            parameters=fitted_physics.copy(),
+            parameter_names=list(varying_names),
+            success=joint_result.success,
+            message=joint_result.message,
+            covariance=joint_result.covariance,
+            final_cost=joint_result.final_cost,
+            n_iterations=joint_result.n_iterations,
+            n_function_evals=joint_result.n_function_evals,
+            wall_time_seconds=wall_time,
+            metadata={
+                **dict(joint_result.metadata or {}),
+                "phi_angle": float(phi),
+                "per_angle_mode_actual": "fixed_constant",
+                "contrast_fixed": float(contrast_per_angle[i]),
+                "offset_fixed": float(offset_per_angle[i]),
+                "optimizer": "joint_fixed_constant",
+            },
+        )
+        results.append(per_angle_result)
+    return results
+
+
 def _fit_joint_cmaes_multi_phi(
     model: HeterodyneModel,
     c2_data: np.ndarray,

@@ -13,10 +13,13 @@ Target mode table (heterodyne has 14 physics params; homodyne has 7):
 from __future__ import annotations
 
 import typing
+from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 
 from heterodyne.optimization.nlsq.config import NLSQConfig
+from heterodyne.optimization.nlsq.results import NLSQResult
 
 
 @pytest.mark.unit
@@ -118,3 +121,132 @@ class TestModeTaxonomy:
             f"DeprecationWarning lineno {w.lineno} should match the caller "
             f"line {expected_lineno}; stacklevel is probably wrong."
         )
+
+
+def _make_synthetic_model(n_varying: int):
+    """Mock HeterodyneModel exposing the minimal API needed by joint fits."""
+    from heterodyne.core.heterodyne_model import HeterodyneModel  # noqa: F401
+
+    model = MagicMock(spec=HeterodyneModel)
+    model.t = np.linspace(0.001, 0.005, 5, dtype=np.float64)
+    model.q = 0.01
+    model.dt = 0.001
+    pm = MagicMock()
+    pm.varying_names = [f"p{i}" for i in range(n_varying)]
+    pm.n_varying = n_varying
+    pm.get_initial_values.return_value = np.full(n_varying, 0.1, dtype=np.float64)
+    pm.get_bounds.return_value = (
+        np.full(n_varying, -1.0, dtype=np.float64),
+        np.full(n_varying, 1.0, dtype=np.float64),
+    )
+    pm.expand_varying_to_full.side_effect = lambda v: np.asarray(v)
+    model.param_manager = pm
+    model.set_params = MagicMock()
+    model.scaling = MagicMock()
+    model.scaling.contrast = np.array([0.5])
+    model.scaling.offset = np.array([1.0])
+    return model
+
+
+@pytest.mark.unit
+class TestFixedConstantSemantics:
+    """`constant` mode optimizes physics params only; β,o are frozen per-angle."""
+
+    def test_fit_joint_fixed_constant_sizes_x0_to_14_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Optimizer receives x0 of length 14 (n_varying), not 16, not 14+2·n_phi.
+
+        β_k, o_k are pre-computed from quantile and supplied to the residual
+        as closure constants, NOT as free optimizer variables.
+        """
+        import heterodyne.optimization.nlsq.core as core
+
+        captured: dict[str, np.ndarray] = {}
+
+        class FakeAdapter:
+            def __init__(self, parameter_names: list[str]) -> None:
+                captured["parameter_names"] = list(parameter_names)
+
+            def fit(
+                self,
+                *,
+                residual_fn,
+                initial_params: np.ndarray,
+                bounds: tuple[np.ndarray, np.ndarray],
+                config,
+            ) -> NLSQResult:
+                captured["x0"] = np.asarray(initial_params).copy()
+                captured["lb"] = np.asarray(bounds[0]).copy()
+                captured["ub"] = np.asarray(bounds[1]).copy()
+                return NLSQResult(
+                    parameters=np.asarray(initial_params).copy(),
+                    parameter_names=captured["parameter_names"],
+                    success=True,
+                    message="fake",
+                    metadata={},
+                )
+
+        monkeypatch.setattr(core, "NLSQAdapter", FakeAdapter, raising=False)
+        monkeypatch.setattr(core, "HAS_ADAPTERS", True, raising=False)
+
+        model = _make_synthetic_model(n_varying=14)
+        phi_angles = np.array([-5.0, 5.0, 90.0], dtype=np.float64)
+        c2_data = np.full((3, 5, 5), 1.2, dtype=np.float64)
+        cfg = NLSQConfig(per_angle_mode="constant")
+
+        core._fit_joint_fixed_constant_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=cfg,
+            weights=None,
+        )
+
+        assert captured["x0"].shape == (14,)
+        assert captured["lb"].shape == (14,)
+        assert captured["ub"].shape == (14,)
+        assert "contrast" not in captured["parameter_names"]
+        assert "offset" not in captured["parameter_names"]
+
+    def test_result_metadata_carries_frozen_scaling(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Each per-angle NLSQResult records its frozen β,o for downstream viz."""
+        import heterodyne.optimization.nlsq.core as core
+
+        class FakeAdapter:
+            def __init__(self, parameter_names: list[str]) -> None:
+                pass
+
+            def fit(self, *, residual_fn, initial_params, bounds, config):
+                return NLSQResult(
+                    parameters=np.asarray(initial_params).copy(),
+                    parameter_names=[f"p{i}" for i in range(14)],
+                    success=True,
+                    message="fake",
+                    metadata={},
+                )
+
+        monkeypatch.setattr(core, "NLSQAdapter", FakeAdapter, raising=False)
+        monkeypatch.setattr(core, "HAS_ADAPTERS", True, raising=False)
+
+        model = _make_synthetic_model(n_varying=14)
+        phi_angles = np.array([-5.0, 5.0, 90.0], dtype=np.float64)
+        c2_data = np.full((3, 5, 5), 1.2, dtype=np.float64)
+
+        results = core._fit_joint_fixed_constant_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=NLSQConfig(per_angle_mode="constant"),
+            weights=None,
+        )
+
+        assert len(results) == 3
+        for i, r in enumerate(results):
+            assert r.metadata["per_angle_mode_actual"] == "fixed_constant"
+            assert r.metadata["optimizer"] == "joint_fixed_constant"
+            assert r.metadata["phi_angle"] == float(phi_angles[i])
+            assert "contrast_fixed" in r.metadata
+            assert "offset_fixed" in r.metadata
