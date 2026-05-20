@@ -16,8 +16,8 @@
     "hash": "09d2f1fa98220cf557ecd8d801c412a1"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/conftest.py": {
-    "mtime": 1774635547.811823,
-    "hash": "e543249047916982fa59109b65e7d750"
+    "mtime": 1779246516.5768375,
+    "hash": "733343e7e7c8613d282be6299f747fb1"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/performance/test_memory_scaling.py": {
     "mtime": 1773371305.8549638,
@@ -68,8 +68,8 @@
     "hash": "417fc225a2a93d71936d79fd720db534"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_defaults_regression.py": {
-    "mtime": 1779242303.1770623,
-    "hash": "22c7eaa0d88701a3f92ff54173499421"
+    "mtime": 1779244922.3178651,
+    "hash": "0b54540db04b73a498c47d6757ae7bdd"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_warmstart_clamp.py": {
     "mtime": 1779206369.1050277,
@@ -228,8 +228,8 @@
     "hash": "54d8973948abc01f370f46dbaed1bb27"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_adapter.py": {
-    "mtime": 1778431431.4955893,
-    "hash": "0047b90051dff69d59e186fb9e11df48"
+    "mtime": 1779246817.3436565,
+    "hash": "2bb93ec972c08f098f4fc035cef0ef37"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_input_validator.py": {
     "mtime": 1773371305.7209628,
