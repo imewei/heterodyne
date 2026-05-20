@@ -362,13 +362,17 @@ def show_dry_run(verbose: bool = True) -> None:
     venv_path = get_venv_path()
     if venv_path:
         activate = venv_path / "bin" / "activate"
-        if activate.exists() and "heterodyne XLA" in activate.read_text(encoding="utf-8"):
+        if activate.exists() and "heterodyne XLA" in activate.read_text(
+            encoding="utf-8"
+        ):
             print(f"  {activate} (would modify)")
             if verbose:
                 print("    (remove XLA configuration block)")
 
         fish_activate = venv_path / "bin" / "activate.fish"
-        if fish_activate.exists() and "heterodyne XLA" in fish_activate.read_text(encoding="utf-8"):
+        if fish_activate.exists() and "heterodyne XLA" in fish_activate.read_text(
+            encoding="utf-8"
+        ):
             print(f"  {fish_activate} (would modify)")
             if verbose:
                 print("    (remove XLA configuration block)")
@@ -399,7 +403,9 @@ def interactive_cleanup() -> None:
     has_activation_mods = False
     if venv_path:
         activate = venv_path / "bin" / "activate"
-        if activate.exists() and "heterodyne XLA" in activate.read_text(encoding="utf-8"):
+        if activate.exists() and "heterodyne XLA" in activate.read_text(
+            encoding="utf-8"
+        ):
             print(f"  - {activate} contains XLA configuration")
             has_activation_mods = True
 

@@ -46,6 +46,9 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: latest
+          enable-cache: true
+          cache-dependency-glob: |
+            heterodyne/uv.lock
 
       - name: Set up Python 3.13
         run: uv python install 3.13
@@ -61,6 +64,20 @@ jobs:
               --homodyne ../homodyne/homodyne \
               --heterodyne ./heterodyne \
               --out ./pr-audit
+
+          # Assert every extractor produced its JSON. A silent skip would
+          # collapse a category's gap count to zero and let regressions pass.
+          REQUIRED=(signatures.json exports.json classes.json configs.json \
+                    cli.json logs_errors.json docs.json file_inventory.json)
+          for kind in pr-audit/extracts/homodyne pr-audit/extracts/heterodyne; do
+            for f in "${REQUIRED[@]}"; do
+              if [ ! -f "${kind}/${f}" ]; then
+                echo "::error::PR audit missing required extract: ${kind}/${f}"
+                exit 1
+              fi
+            done
+          done
+
           cp pr-audit/REPORT.md pr-audit/REPORT-pr.md
 
       - name: Checkout main baseline and run baseline audit
@@ -76,6 +93,21 @@ jobs:
               --homodyne "$WORKSPACE/homodyne/homodyne" \
               --heterodyne ./heterodyne \
               --out ./main-audit
+
+          # Same assertion for the baseline. If the baseline silently
+          # produced zero gaps, every PR would pass — that is precisely
+          # the failure mode this gate exists to prevent.
+          REQUIRED=(signatures.json exports.json classes.json configs.json \
+                    cli.json logs_errors.json docs.json file_inventory.json)
+          for kind in main-audit/extracts/homodyne main-audit/extracts/heterodyne; do
+            for f in "${REQUIRED[@]}"; do
+              if [ ! -f "${kind}/${f}" ]; then
+                echo "::error::Main baseline audit missing required extract: ${kind}/${f}"
+                exit 1
+              fi
+            done
+          done
+
           cp main-audit/REPORT.md "$WORKSPACE/heterodyne/pr-audit/REPORT-main.md"
 
       - name: Compare gap counts (no closed gap may reopen)
@@ -83,6 +115,10 @@ jobs:
         run: |
           PR_TOTAL=$(grep -oE 'Total gaps: \*\*[0-9]+\*\*' pr-audit/REPORT-pr.md | grep -oE '[0-9]+')
           MAIN_TOTAL=$(grep -oE 'Total gaps: \*\*[0-9]+\*\*' pr-audit/REPORT-main.md | grep -oE '[0-9]+')
+          if [ -z "$PR_TOTAL" ] || [ -z "$MAIN_TOTAL" ]; then
+            echo "::error::Failed to extract gap counts from report (PR=$PR_TOTAL MAIN=$MAIN_TOTAL)"
+            exit 1
+          fi
           echo "Main baseline total gaps: $MAIN_TOTAL"
           echo "PR head total gaps:       $PR_TOTAL"
           if [ "$PR_TOTAL" -gt "$MAIN_TOTAL" ]; then

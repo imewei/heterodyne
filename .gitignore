@@ -250,3 +250,8 @@ graphify-out/_COMMUNITY_*.md
 
 # Three Brain Output
 three-brain-out/
+
+# Parity audit local output (CI writes these; developers should not commit)
+pr-audit/
+main-audit/
+*-audit/
