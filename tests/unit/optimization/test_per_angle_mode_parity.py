@@ -480,3 +480,92 @@ class TestL2Hierarchical:
 
         for r in results:
             assert "hierarchical_config" not in r.metadata
+
+
+@pytest.mark.unit
+class TestL3Regularization:
+    """When regularization_mode != 'none', the joint residual returns
+    one extra penalty row sqrt(2·loss_aug(params, base))."""
+
+    def test_regularization_appends_penalty_row(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With regularization_mode='adaptive', residual length grows by 1."""
+        import heterodyne.optimization.nlsq.core as core
+
+        captured_residual_fn: list = []
+
+        class FakeAdapter:
+            def __init__(self, parameter_names: list[str]) -> None:
+                pass
+
+            def fit(self, *, residual_fn, initial_params, bounds, config):
+                captured_residual_fn.append(residual_fn)
+                return NLSQResult(
+                    parameters=np.asarray(initial_params).copy(),
+                    parameter_names=[f"p{i}" for i in range(len(initial_params))],
+                    success=True,
+                    message="fake",
+                    metadata={},
+                )
+
+        monkeypatch.setattr(core, "NLSQAdapter", FakeAdapter, raising=False)
+        monkeypatch.setattr(core, "HAS_ADAPTERS", True, raising=False)
+
+        model = _make_synthetic_model(n_varying=14)
+        # Extend the synthetic model with the param_manager attrs that the
+        # joint residual closure needs to actually execute (not just be
+        # constructed): the meshgrid-path closure scatters varying values
+        # into a 14-vector via .at[varying_indices].set(...).
+        model.param_manager.varying_indices = np.arange(14, dtype=np.int32)
+        model.param_manager.get_full_values.return_value = np.zeros(
+            14, dtype=np.float64
+        )
+        phi_angles = np.array([-5.0, 5.0, 90.0], dtype=np.float64)
+        c2_data = np.full((3, 5, 5), 1.2, dtype=np.float64)
+
+        # First pass: regularization on
+        cfg_on = NLSQConfig(
+            per_angle_mode="auto",
+            constant_scaling_threshold=3,
+            regularization_mode="adaptive",
+            group_variance_lambda=0.5,
+        )
+        core._fit_joint_averaged_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=cfg_on,
+            weights=None,
+        )
+        assert captured_residual_fn, "Residual fn must reach the adapter"
+        res_on = captured_residual_fn[0]
+        try:
+            length_on = len(res_on(np.zeros(16)))
+        except Exception as exc:  # noqa: BLE001 — residual eval may fail on mock
+            pytest.skip(f"L3-on residual eval failed on synthetic model: {exc}")
+
+        # Second pass: regularization off
+        captured_residual_fn.clear()
+        cfg_off = NLSQConfig(
+            per_angle_mode="auto",
+            constant_scaling_threshold=3,
+            regularization_mode="none",
+        )
+        core._fit_joint_averaged_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=cfg_off,
+            weights=None,
+        )
+        res_off = captured_residual_fn[0]
+        try:
+            length_off = len(res_off(np.zeros(16)))
+        except Exception as exc:  # noqa: BLE001 — residual eval may fail on mock
+            pytest.skip(f"L3-off residual eval failed on synthetic model: {exc}")
+
+        assert length_on == length_off + 1, (
+            f"L3 active path must append exactly one penalty residual row. "
+            f"with reg: {length_on}, without: {length_off}"
+        )

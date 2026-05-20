@@ -533,33 +533,28 @@ def _anti_degen_dict_from_config(config: NLSQConfig) -> dict[str, Any]:
     }
 
 
-def _build_l2_hierarchical_marker(
+def _build_anti_degen_controller(
     *,
     config: NLSQConfig,
     n_phi: int,
     phi_angles: np.ndarray,
     n_physical: int,
-) -> dict[str, Any] | None:
-    """Construct an ``AntiDegeneracyController`` and surface its L2 request.
+) -> Any | None:
+    """Construct an ``AntiDegeneracyController`` when any active layer is requested.
 
-    Sub-PR C1 marker wiring.  ``HierarchicalFitter`` is a single-angle,
-    stage-based parameter-unfreezing strategy (transport → velocity →
-    fraction → all) that requires an ``NLSQAdapterBase`` at construction
-    time — it is **not** the multi-phi outer/inner alternation implied by
-    ``max_outer_iterations``.  Wiring it directly into the joint residual
-    path is out of scope here, so this function returns a metadata marker
-    that downstream callers can use to observe that L2 was REQUESTED.
+    Sub-PR C2: broadened from the C1 marker-only guard.  The controller is
+    now built whenever anti-degeneracy is enabled and EITHER L2 hierarchical
+    OR L3 regularization is requested.  L1 (Fourier) is dispatched through
+    a separate joint-fit path and does not require a controller here.
 
-    Returns ``None`` when L2 is not requested (anti-degeneracy disabled,
-    hierarchical disabled, or single-angle fit).  Otherwise returns the
-    dict that will be embedded in ``result.metadata["hierarchical_config"]``.
-
-    TODO(C1-followup): replace this marker with an active outer/inner loop
-    once the controller learns to drive the joint residual via callbacks
-    (see ``create_nlsq_callbacks`` comment in
-    ``anti_degeneracy_controller.py``).
+    Returns ``None`` when no active defense layer is requested, when the
+    fit is single-angle, or when controller construction fails.  Callers
+    are responsible for deriving the L2 marker and L3 callbacks from the
+    returned controller.
     """
-    if not (config.enable_anti_degeneracy and config.enable_hierarchical):
+    if not config.enable_anti_degeneracy:
+        return None
+    if not (config.enable_hierarchical or config.regularization_mode != "none"):
         return None
     if n_phi <= 1:
         return None
@@ -569,7 +564,7 @@ def _build_l2_hierarchical_marker(
             AntiDegeneracyController,
         )
 
-        controller = AntiDegeneracyController.from_config(
+        return AntiDegeneracyController.from_config(
             config_dict=_anti_degen_dict_from_config(config),
             n_phi=n_phi,
             phi_angles=np.deg2rad(np.asarray(phi_angles, dtype=np.float64)),
@@ -578,12 +573,35 @@ def _build_l2_hierarchical_marker(
         )
     except Exception as exc:  # noqa: BLE001 — controller failure must not derail fit
         logger.warning(
-            "L2 hierarchical marker wiring skipped (controller build failed): %s",
+            "Anti-degeneracy controller construction skipped: %s",
             exc,
         )
         return None
 
-    if not controller.use_hierarchical:
+
+def _hierarchical_marker_from_controller(
+    controller: Any | None,
+) -> dict[str, Any] | None:
+    """Derive the L2 hierarchical-request marker dict from a built controller.
+
+    Sub-PR C1 marker (now plumbed through C2's broadened controller).
+    Returns ``None`` if the controller did not enable hierarchical mode,
+    otherwise returns the dict embedded in
+    ``result.metadata["hierarchical_config"]``.
+
+    ``HierarchicalFitter`` is a single-angle, stage-based parameter-
+    unfreezing strategy (transport → velocity → fraction → all) that
+    requires an ``NLSQAdapterBase`` at construction time — it is **not**
+    the multi-phi outer/inner alternation implied by ``max_outer_iterations``.
+    Wiring it directly into the joint residual path is out of scope here,
+    so this is observe-only.
+
+    TODO(C1-followup): replace this marker with an active outer/inner loop
+    once the controller learns to drive the joint residual via callbacks
+    (see ``create_nlsq_callbacks`` comment in
+    ``anti_degeneracy_controller.py``).
+    """
+    if controller is None or not getattr(controller, "use_hierarchical", False):
         return None
 
     cfg_dict = dict(controller._hierarchical_config_dict)
@@ -689,14 +707,15 @@ def _fit_joint_averaged_multi_phi(
         n_phi,
     )
 
-    # L2 hierarchical optimization wiring (Sub-PR C1, marker-only).
-    # See ``_build_l2_hierarchical_marker`` for why this is observe-only.
-    hierarchical_marker = _build_l2_hierarchical_marker(
+    # Anti-degeneracy controller construction (Sub-PR C1 + C2).
+    # Built whenever EITHER L2 hierarchical OR L3 regularization is requested.
+    anti_degen_controller = _build_anti_degen_controller(
         config=config,
         n_phi=n_phi,
         phi_angles=np.asarray(phi_angles, dtype=np.float64),
         n_physical=n_physics_varying,
     )
+    hierarchical_marker = _hierarchical_marker_from_controller(anti_degen_controller)
 
     c2_data_batch = jnp.asarray(c2_data, dtype=jnp.float64)
     weights_batch = (
@@ -733,6 +752,41 @@ def _fit_joint_averaged_multi_phi(
             contrasts_jax,
             offsets_jax,
         )
+
+    # L3 adaptive regularization wiring (Sub-PR C2).
+    # When regularization_mode != "none", append a single Tikhonov penalty
+    # row to the residual vector so the active fit penalises per-angle
+    # scaling variance via the controller's loss-augmentation callback.
+    if (
+        anti_degen_controller is not None
+        and getattr(anti_degen_controller, "regularizer", None) is not None
+        and config.regularization_mode != "none"
+    ):
+        callbacks = anti_degen_controller.create_nlsq_callbacks()
+        loss_aug = callbacks.get("loss_augmentation")
+
+        if loss_aug is not None:
+            _inner_residual_fn = joint_residual_fn
+
+            def joint_residual_fn_with_penalty(x: np.ndarray) -> Any:  # type: ignore[return-value]
+                """Residual + appended penalty row from controller's loss_aug."""
+                base = _inner_residual_fn(x)
+                base_np = np.asarray(base)
+                penalty_value = float(loss_aug(np.asarray(x), base_np))
+                penalty_row = float(np.sqrt(max(2.0 * penalty_value, 0.0)))
+                return jnp.concatenate(
+                    [
+                        jnp.asarray(base, dtype=jnp.float64),
+                        jnp.array([penalty_row], dtype=jnp.float64),
+                    ]
+                )
+
+            joint_residual_fn = joint_residual_fn_with_penalty
+            logger.info(
+                "L3 adaptive regularization active (mode=%s, lambda=%.4e)",
+                config.regularization_mode,
+                config.group_variance_lambda,
+            )
 
     joint_config = NLSQConfig(
         method=config.method if config.method != "lm" else "trf",
@@ -1664,14 +1718,15 @@ def _fit_joint_multi_phi(
         n_phi,
     )
 
-    # L2 hierarchical optimization wiring (Sub-PR C1, marker-only).
-    # See ``_build_l2_hierarchical_marker`` for why this is observe-only.
-    hierarchical_marker = _build_l2_hierarchical_marker(
+    # Anti-degeneracy controller construction (Sub-PR C1 + C2).
+    # Built whenever EITHER L2 hierarchical OR L3 regularization is requested.
+    anti_degen_controller = _build_anti_degen_controller(
         config=config,
         n_phi=n_phi,
         phi_angles=np.asarray(phi_angles, dtype=np.float64),
         n_physical=n_physics_varying,
     )
+    hierarchical_marker = _hierarchical_marker_from_controller(anti_degen_controller)
 
     # Pre-convert data to JAX arrays (outside closure — constants)
     t, q, dt = model.t, model.q, model.dt
@@ -1738,6 +1793,37 @@ def _fit_joint_multi_phi(
                 offsets_jax,
             )
         )
+
+    # L3 adaptive regularization wiring (Sub-PR C2).
+    # When regularization_mode != "none", append a single Tikhonov penalty
+    # row to the residual vector so the active Fourier/individual fit
+    # penalises per-angle scaling variance via the controller's
+    # loss-augmentation callback.
+    if (
+        anti_degen_controller is not None
+        and getattr(anti_degen_controller, "regularizer", None) is not None
+        and config.regularization_mode != "none"
+    ):
+        callbacks = anti_degen_controller.create_nlsq_callbacks()
+        loss_aug = callbacks.get("loss_augmentation")
+
+        if loss_aug is not None:
+            _inner_residual_fn = joint_residual_fn
+
+            def joint_residual_fn_with_penalty(x: np.ndarray) -> np.ndarray:
+                """Residual + appended penalty row from controller's loss_aug."""
+                base = _inner_residual_fn(x)
+                base_np = np.asarray(base)
+                penalty_value = float(loss_aug(np.asarray(x), base_np))
+                penalty_row = float(np.sqrt(max(2.0 * penalty_value, 0.0)))
+                return np.concatenate([base_np, [penalty_row]])
+
+            joint_residual_fn = joint_residual_fn_with_penalty
+            logger.info(
+                "L3 adaptive regularization active (mode=%s, lambda=%.4e)",
+                config.regularization_mode,
+                config.group_variance_lambda,
+            )
 
     # Run optimization via NLSQAdapter (primary) with NLSQWrapper fallback
     joint_config = NLSQConfig(
