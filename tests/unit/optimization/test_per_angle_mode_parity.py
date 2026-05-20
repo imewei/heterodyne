@@ -251,3 +251,119 @@ class TestFixedConstantSemantics:
             assert r.metadata["phi_angle"] == float(phi_angles[i])
             assert "contrast_fixed" in r.metadata
             assert "offset_fixed" in r.metadata
+
+
+@pytest.mark.unit
+class TestDispatchPredicates:
+    """`constant` triggers the fixed-constant path; `auto`+threshold triggers averaged."""
+
+    def test_explicit_constant_is_fixed_not_averaged(self) -> None:
+        from heterodyne.optimization.nlsq.core import (
+            _use_averaged_constant_scaling_mode,
+            _use_fixed_constant_scaling_mode,
+        )
+
+        cfg = NLSQConfig(per_angle_mode="constant", constant_scaling_threshold=3)
+        assert _use_fixed_constant_scaling_mode(cfg, n_phi=5) is True
+        assert _use_averaged_constant_scaling_mode(cfg, n_phi=5) is False
+
+    def test_auto_above_threshold_is_averaged_not_fixed(self) -> None:
+        from heterodyne.optimization.nlsq.core import (
+            _use_averaged_constant_scaling_mode,
+            _use_fixed_constant_scaling_mode,
+        )
+
+        cfg = NLSQConfig(per_angle_mode="auto", constant_scaling_threshold=3)
+        assert _use_averaged_constant_scaling_mode(cfg, n_phi=5) is True
+        assert _use_fixed_constant_scaling_mode(cfg, n_phi=5) is False
+
+    def test_auto_below_threshold_is_neither(self) -> None:
+        from heterodyne.optimization.nlsq.core import (
+            _use_averaged_constant_scaling_mode,
+            _use_fixed_constant_scaling_mode,
+        )
+
+        cfg = NLSQConfig(per_angle_mode="auto", constant_scaling_threshold=5)
+        assert _use_averaged_constant_scaling_mode(cfg, n_phi=3) is False
+        assert _use_fixed_constant_scaling_mode(cfg, n_phi=3) is False
+
+    def test_fourier_and_individual_trigger_neither(self) -> None:
+        from heterodyne.optimization.nlsq.core import (
+            _use_averaged_constant_scaling_mode,
+            _use_fixed_constant_scaling_mode,
+        )
+
+        for mode in ("fourier", "individual"):
+            cfg = NLSQConfig(per_angle_mode=mode)
+            assert _use_fixed_constant_scaling_mode(cfg, n_phi=10) is False
+            assert _use_averaged_constant_scaling_mode(cfg, n_phi=10) is False
+
+
+@pytest.mark.unit
+class TestDispatchRouting:
+    """Verify `fit_nlsq_multi_phi` routes each mode to the correct joint fit."""
+
+    @pytest.mark.parametrize(
+        ("mode", "n_phi", "expected_dispatch_attr"),
+        [
+            ("constant", 3, "_fit_joint_fixed_constant_multi_phi"),
+            ("auto", 5, "_fit_joint_averaged_multi_phi"),
+            ("fourier", 5, "_fit_joint_multi_phi"),
+            ("individual", 5, "_fit_joint_multi_phi"),
+        ],
+    )
+    def test_mode_dispatches_to_expected_function(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mode: str,
+        n_phi: int,
+        expected_dispatch_attr: str,
+    ) -> None:
+        import heterodyne.optimization.nlsq.core as core
+
+        phi_angles = np.linspace(-90.0, 90.0, n_phi, dtype=np.float64)
+        c2_data = np.zeros((n_phi, 4, 4), dtype=np.float64)
+        cfg = NLSQConfig(
+            per_angle_mode=mode,
+            constant_scaling_threshold=3,
+            fourier_order=2,
+            fourier_auto_threshold=999,
+        )
+
+        calls = {
+            "_fit_joint_fixed_constant_multi_phi": 0,
+            "_fit_joint_averaged_multi_phi": 0,
+            "_fit_joint_multi_phi": 0,
+        }
+
+        def make_fake(name: str):
+            def _fake(*args, **kwargs):
+                calls[name] += 1
+                return [
+                    NLSQResult(
+                        parameters=np.zeros(1),
+                        success=True,
+                        message="ok",
+                        metadata={},
+                        parameter_names=[],
+                    )
+                ] * n_phi
+
+            return _fake
+
+        for name in calls:
+            monkeypatch.setattr(core, name, make_fake(name), raising=False)
+
+        core.fit_nlsq_multi_phi(
+            model=MagicMock(),
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=cfg,
+        )
+
+        assert calls[expected_dispatch_attr] == 1, (
+            f"Mode {mode!r} must dispatch to {expected_dispatch_attr}; "
+            f"actual call counts: {calls}"
+        )
+        leaks = {k: v for k, v in calls.items() if k != expected_dispatch_attr and v}
+        assert not leaks, f"Mode {mode!r} leaked into other dispatch paths: {leaks}"

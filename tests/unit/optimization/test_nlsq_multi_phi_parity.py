@@ -116,10 +116,16 @@ def test_cmaes_enabled_multi_phi_uses_joint_cmaes_path(
 
 
 @pytest.mark.unit
-def test_explicit_constant_mode_uses_joint_constant_fit(
+def test_explicit_constant_mode_uses_joint_fixed_constant_fit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Explicit constant mode should use homodyne-style averaged scaling."""
+    """Homodyne parity: explicit constant mode uses the FROZEN per-angle path.
+
+    Previously this test asserted that constant routed to
+    _fit_joint_averaged_multi_phi (the averaged path) — that was the
+    pre-parity behaviour.  Constant now routes to
+    _fit_joint_fixed_constant_multi_phi (B3 dispatch split).
+    """
     import heterodyne.optimization.nlsq.core as core
 
     phi_angles = np.array([-5.0, 5.0])
@@ -135,18 +141,24 @@ def test_explicit_constant_mode_uses_joint_constant_fit(
     )
     calls: list[dict[str, object]] = []
 
-    def fake_joint_constant(**kwargs):
+    def fake_joint_fixed(**kwargs):
         calls.append(kwargs)
         return [result, result]
+
+    def fail_averaged(**kwargs):
+        raise AssertionError("constant mode must use FIXED per-angle β,o, not averaged")
 
     def fail_fourier(**kwargs):
         raise AssertionError("constant mode should not use Fourier joint fitting")
 
     monkeypatch.setattr(
         core,
-        "_fit_joint_averaged_multi_phi",
-        fake_joint_constant,
+        "_fit_joint_fixed_constant_multi_phi",
+        fake_joint_fixed,
         raising=False,
+    )
+    monkeypatch.setattr(
+        core, "_fit_joint_averaged_multi_phi", fail_averaged, raising=False
     )
     monkeypatch.setattr(core, "_fit_joint_multi_phi", fail_fourier, raising=False)
 

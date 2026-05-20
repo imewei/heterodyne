@@ -243,7 +243,6 @@ def fit_nlsq_multi_phi(
     # ------------------------------------------------------------------
     # Determine whether to use homodyne-style joint multi-angle fitting.
     # ------------------------------------------------------------------
-    use_constant = False
     use_joint = False
     fourier: Any = None
     if config is not None and len(phi_angles) > 1:
@@ -260,8 +259,21 @@ def fit_nlsq_multi_phi(
         constant_threshold = max(
             int(getattr(config, "constant_scaling_threshold", 3)), 1
         )
-        use_constant = _use_constant_scaling_mode(config, len(phi_angles))
-        if use_constant:
+        if _use_fixed_constant_scaling_mode(config, len(phi_angles)):
+            logger.info(
+                "Fixed-constant scaling selected (homodyne 'constant' parity): "
+                "per-angle β,o frozen from quantile, n_phi=%d "
+                "(joint fit of 14 physics only)",
+                len(phi_angles),
+            )
+            return _fit_joint_fixed_constant_multi_phi(
+                model=model,
+                c2_data=c2_data,
+                phi_angles=phi_angles,
+                config=config,
+                weights=weights,
+            )
+        if _use_averaged_constant_scaling_mode(config, len(phi_angles)):
             logger.info(
                 "Auto averaged scaling selected: mode=%s, n_phi=%d, threshold=%d "
                 "(joint fit of 14 physics + 2 averaged β,o = 16 params)",
@@ -1309,12 +1321,28 @@ def _fit_joint_cmaes_multi_phi(
     return results
 
 
-def _use_constant_scaling_mode(config: NLSQConfig, n_phi: int) -> bool:
-    """Return whether joint multi-angle scaling should be constant averaged."""
+def _use_fixed_constant_scaling_mode(config: NLSQConfig, n_phi: int) -> bool:
+    """True when per-angle β,o must be FROZEN (homodyne `constant` parity)."""
+    del n_phi  # explicit mode is threshold-independent
+    return config.per_angle_mode == "constant"
+
+
+def _use_averaged_constant_scaling_mode(config: NLSQConfig, n_phi: int) -> bool:
+    """True when β,o are averaged across angles and OPTIMIZED (homodyne `auto`)."""
     constant_threshold = max(int(getattr(config, "constant_scaling_threshold", 3)), 1)
-    return config.per_angle_mode == "constant" or (
-        config.per_angle_mode == "auto" and n_phi >= constant_threshold
-    )
+    return config.per_angle_mode == "auto" and n_phi >= constant_threshold
+
+
+def _use_constant_scaling_mode(config: NLSQConfig, n_phi: int) -> bool:
+    """Legacy union predicate; retained for backward compatibility.
+
+    True if EITHER the fixed-constant or averaged-constant path applies.
+    New code should call the specific predicate; this wrapper exists so
+    legacy importers do not break.
+    """
+    return _use_fixed_constant_scaling_mode(
+        config, n_phi
+    ) or _use_averaged_constant_scaling_mode(config, n_phi)
 
 
 def _run_input_validation(
