@@ -263,12 +263,13 @@ def fit_nlsq_multi_phi(
         use_constant = _use_constant_scaling_mode(config, len(phi_angles))
         if use_constant:
             logger.info(
-                "Constant averaged scaling selected: mode=%s, n_phi=%d, threshold=%d",
+                "Auto averaged scaling selected: mode=%s, n_phi=%d, threshold=%d "
+                "(joint fit of 14 physics + 2 averaged β,o = 16 params)",
                 config.per_angle_mode,
                 len(phi_angles),
                 constant_threshold,
             )
-            return _fit_joint_constant_multi_phi(
+            return _fit_joint_averaged_multi_phi(
                 model=model,
                 c2_data=c2_data,
                 phi_angles=phi_angles,
@@ -480,19 +481,24 @@ def _compute_per_angle_chi2(
     return per_angle_cost, reduced_chi2
 
 
-def _fit_joint_constant_multi_phi(
+def _fit_joint_averaged_multi_phi(
     model: HeterodyneModel,
     c2_data: np.ndarray,
     phi_angles: np.ndarray,
     config: NLSQConfig,
     weights: np.ndarray | None,
 ) -> list[NLSQResult]:
-    """Joint multi-angle fit with averaged contrast/offset scaling.
+    """Joint multi-angle fit with AVERAGED contrast/offset scaling.
 
-    This is the heterodyne analogue of homodyne's auto-averaged
-    anti-degeneracy path: per-angle quantile estimates are computed first,
-    averaged to one contrast and one offset, and those two scaling parameters
-    are optimized jointly with the physical model parameters.
+    Homodyne parity for ``per_angle_mode="auto"`` (when n_phi >= threshold):
+    per-angle quantile estimates are computed first, averaged to one
+    contrast and one offset, and those two scalars are optimized jointly
+    with the 14 physics parameters (16 total).
+
+    This is distinct from :func:`_fit_joint_fixed_constant_multi_phi`
+    (added in Sub-PR B), which implements the true homodyne
+    ``"constant"`` semantics by FREEZING per-angle β,o and optimizing
+    only the 14 physics parameters.
     """
     from heterodyne.config.parameter_registry import SCALING_PARAMS
     from heterodyne.core.scaling_utils import compute_averaged_scaling
@@ -773,7 +779,7 @@ def _fit_joint_cmaes_multi_phi(
     )
 
     if use_constant:
-        warmstart_results = _fit_joint_constant_multi_phi(
+        warmstart_results = _fit_joint_averaged_multi_phi(
             model=model,
             c2_data=c2_data,
             phi_angles=phi_angles,

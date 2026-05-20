@@ -226,7 +226,7 @@ class TestFitNLSQMultiPhi:
     ) -> None:
         """Joint fit must not duplicate the aggregate chi2 to every per-angle result.
 
-        Regression for the bug where _fit_joint_constant_multi_phi copied
+        Regression for the bug where _fit_joint_averaged_multi_phi copied
         joint_result.reduced_chi_squared to all per-angle NLSQResult objects,
         making all three values identical.
         """

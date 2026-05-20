@@ -40,7 +40,7 @@ def test_auto_mode_uses_joint_constant_fit_at_threshold(
 
     monkeypatch.setattr(
         core,
-        "_fit_joint_constant_multi_phi",
+        "_fit_joint_averaged_multi_phi",
         fake_joint_constant,
         raising=False,
     )
@@ -98,7 +98,7 @@ def test_cmaes_enabled_multi_phi_uses_joint_cmaes_path(
     )
     monkeypatch.setattr(
         core,
-        "_fit_joint_constant_multi_phi",
+        "_fit_joint_averaged_multi_phi",
         fail_local_joint,
         raising=False,
     )
@@ -144,7 +144,7 @@ def test_explicit_constant_mode_uses_joint_constant_fit(
 
     monkeypatch.setattr(
         core,
-        "_fit_joint_constant_multi_phi",
+        "_fit_joint_averaged_multi_phi",
         fake_joint_constant,
         raising=False,
     )
@@ -214,7 +214,7 @@ def test_joint_cmaes_uses_off_diagonal_data_count(
             final_cost=2.0,
         )
 
-    monkeypatch.setattr(core, "_fit_joint_constant_multi_phi", fake_warmstart)
+    monkeypatch.setattr(core, "_fit_joint_averaged_multi_phi", fake_warmstart)
     monkeypatch.setattr(core, "fit_with_cmaes", fake_fit_with_cmaes)
 
     results = core._fit_joint_cmaes_multi_phi(
