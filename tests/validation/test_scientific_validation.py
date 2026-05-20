@@ -50,7 +50,9 @@ class TestPhysicalLimits:
         model = _make_model(n_times=30)
         c2 = model.compute_correlation(phi_angle=0.0)
         np.testing.assert_allclose(
-            c2, c2.T, rtol=1e-10,
+            c2,
+            c2.T,
+            rtol=1e-10,
             err_msg="C2 matrix is not symmetric",
         )
 
@@ -181,6 +183,4 @@ class TestParameterCount:
         }
         for group_name, params in groups.items():
             for p in params:
-                assert p in ALL_PARAM_NAMES, (
-                    f"Missing {p} from {group_name} group"
-                )
+                assert p in ALL_PARAM_NAMES, f"Missing {p} from {group_name} group"

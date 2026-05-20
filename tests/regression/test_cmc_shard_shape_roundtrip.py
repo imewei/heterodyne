@@ -103,7 +103,7 @@ class TestShardDispatch:
     The actual worker-dispatch (``if _shard_grid is not None``) lives
     inside a NumPyro model closure that's not directly mockable without
     significant scaffolding.  See the ``# CONTRACT:`` comment at the
-    dispatch site in multiprocessing_backend.py.  This test pins the
+    dispatch site in backends/multiprocessing.py.  This test pins the
     necessary precondition: pack/unpack must preserve the 1-D arrays
     that drive the dispatch.
     """

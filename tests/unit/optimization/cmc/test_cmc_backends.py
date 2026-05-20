@@ -141,7 +141,7 @@ def test_mp_worker_model_does_not_contain_wrong_reparam_call() -> None:
     # The broken call pattern: two args where first is params array
     assert "reparam_to_physics_jax(params, reparam_config)" not in source, (
         "Found broken reparam_to_physics_jax(params, reparam_config) call in "
-        "multiprocessing_backend. This crashes at runtime — remove the block."
+        "backends/multiprocessing.py. This crashes at runtime — remove the block."
     )
 
 

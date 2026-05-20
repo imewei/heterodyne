@@ -29,10 +29,9 @@ class TestDocumentationFilesExist:
     @pytest.mark.unit
     def test_readme_exists(self) -> None:
         """README exists (README.md or README.rst)."""
-        has_readme = (
-            (PROJECT_ROOT / "README.md").is_file()
-            or (PROJECT_ROOT / "README.rst").is_file()
-        )
+        has_readme = (PROJECT_ROOT / "README.md").is_file() or (
+            PROJECT_ROOT / "README.rst"
+        ).is_file()
         assert has_readme, "No README.md or README.rst found"
 
     @pytest.mark.unit

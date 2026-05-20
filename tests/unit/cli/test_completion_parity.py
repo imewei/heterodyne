@@ -16,9 +16,7 @@ from heterodyne.post_install import install_zsh_completion
 class TestZshWrapper:
     """Zsh completion wrapper must use env vars, not hardcoded paths."""
 
-    def test_zsh_wrapper_uses_env_var_not_hardcoded_path(
-        self, tmp_path: Path
-    ) -> None:
+    def test_zsh_wrapper_uses_env_var_not_hardcoded_path(self, tmp_path: Path) -> None:
         """The generated zsh wrapper must reference the bash completion
         via an environment variable, not a hardcoded absolute path."""
         venv = tmp_path / "fakevenv"

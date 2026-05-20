@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+import pytest
+
 from tools.parity_audit.diff_extracts import (
+    MissingExtractError,
     diff_classes,
     diff_cli,
     diff_configs,
@@ -11,6 +17,8 @@ from tools.parity_audit.diff_extracts import (
     diff_file_inventory,
     diff_logs_errors,
     diff_signatures,
+    render_report,
+    run_full_diff,
 )
 
 
@@ -157,3 +165,103 @@ def test_diff_classes_missing_method_is_p0() -> None:
     hetero = {"m.Cls": {"bases": [], "methods": [], "dataclass_fields": []}}
     gaps = diff_classes(homodyne=homo, heterodyne=hetero)
     assert gaps[0]["severity"] == "P0"
+
+
+# ---------------------------------------------------------------------------
+# Integration tests for run_full_diff + render_report (closes review N4).
+# ---------------------------------------------------------------------------
+
+
+_EMPTY_EXTRACTS: dict[str, object] = {
+    "signatures.json": {},
+    "exports.json": {},
+    "classes.json": {},
+    "configs.json": {},
+    "cli.json": {},
+    "logs_errors.json": {},
+    "docs.json": {},
+    "file_inventory.json": {
+        "python_files_non_physics": [],
+        "doc_files": [],
+    },
+}
+
+
+def _materialise_extracts(directory: Path, contents: dict[str, object]) -> None:
+    """Write each ``filename -> payload`` pair as JSON under ``directory``."""
+    directory.mkdir(parents=True, exist_ok=True)
+    for name, payload in contents.items():
+        (directory / name).write_text(json.dumps(payload))
+
+
+def test_run_full_diff_zero_gaps_when_inputs_match(tmp_path: Path) -> None:
+    """Identical extracts on both sides → empty gap list, no exceptions."""
+    homo_dir = tmp_path / "homo"
+    hetero_dir = tmp_path / "hetero"
+    _materialise_extracts(homo_dir, _EMPTY_EXTRACTS)
+    _materialise_extracts(hetero_dir, _EMPTY_EXTRACTS)
+
+    gaps = run_full_diff(
+        homodyne_extracts=homo_dir,
+        heterodyne_extracts=hetero_dir,
+    )
+    assert gaps == []
+
+
+def test_run_full_diff_raises_on_missing_extract(tmp_path: Path) -> None:
+    """Silent-skip regression guard: missing extracts must raise (not return [])."""
+    homo_dir = tmp_path / "homo"
+    hetero_dir = tmp_path / "hetero"
+    # Only populate the heterodyne side; homodyne side is empty → MissingExtractError.
+    _materialise_extracts(hetero_dir, _EMPTY_EXTRACTS)
+    homo_dir.mkdir()
+
+    with pytest.raises(MissingExtractError) as excinfo:
+        run_full_diff(
+            homodyne_extracts=homo_dir,
+            heterodyne_extracts=hetero_dir,
+        )
+
+    msg = str(excinfo.value)
+    # The error message must enumerate the missing files so CI logs
+    # point at the broken extractor instead of silently passing.
+    assert "signatures.json" in msg
+    assert "configs.json" in msg
+
+
+def test_render_report_emits_severity_buckets_and_no_keep_hardcoding() -> None:
+    """render_report must surface severity headers and stop hardcoding ``KEEP``."""
+    gaps: list[dict[str, object]] = [
+        {
+            "category": "signatures",
+            "severity": "P0",
+            "kind": "missing_in_heterodyne",
+            "qualname": "m.foo",
+            "detail": "homodyne has `foo()`; heterodyne missing",
+        },
+        {
+            "category": "docs",
+            "severity": "P2",
+            "kind": "heading_drift",
+            "qualname": "api/nlsq.rst",
+            "detail": "heading `Bounds` present in homodyne, absent in heterodyne",
+            "disposition": "WAIVE",
+        },
+    ]
+    report = render_report(gaps, homodyne_sha="abc123", heterodyne_sha="def456")
+
+    # SHA pinning and total appear in the header.
+    assert "abc123" in report
+    assert "def456" in report
+    assert "Total gaps: **2**" in report
+
+    # Severity sections both render with their counts.
+    assert "P0 —" in report
+    assert "(1 gaps)" in report
+
+    # Disposition column uses the gap's value when supplied, ``?`` otherwise.
+    assert "| `WAIVE` |" in report
+    assert "| `?` |" in report
+
+    # Regression guard: KEEP must not be hardcoded for every row (N6).
+    assert "| `KEEP` |" not in report

@@ -1,5 +1,12 @@
 """Tests for CMC prior construction."""
 
+# pyright: reportArgumentType=false, reportAttributeAccessIssue=false
+# These tests intentionally pass duck-typed Mock dataclasses
+# (``MockParameterSpace``, ``MockNLSQResult``, ``MockParamInfo``) where the
+# production API expects the real types. The Mocks expose the minimum
+# attribute surface the priors module reads; suppressing the strict-type
+# checks lets us keep the tests focused on behaviour.
+
 from __future__ import annotations
 
 import math
@@ -501,7 +508,7 @@ def test_fit_cmc_sharded_forwards_nlsq_uncertainties_to_workers():
                     num_warmup=10,
                     num_samples=10,
                     use_nlsq_informed_priors=True,
-                    prior_width_factor=2.5,
+                    nlsq_prior_width_factor=2.5,
                 ),
             )
         except Exception:

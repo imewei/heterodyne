@@ -12,9 +12,16 @@ These tests verify that:
 3. NLSQ warmstart properly propagates to CMC initialization
 """
 
+# pyright: reportArgumentType=false, reportAttributeAccessIssue=false, reportCallIssue=false, reportOptionalOperand=false
+# These tests intentionally use Mock objects and ``SimpleNamespace`` stand-ins
+# where the production code expects strict types (``NLSQResult``, ``CMCResult``,
+# ``ParameterSpace``).  The Mocks expose the minimum attribute surface the
+# code under test reads; suppressing Pyright's strict checks keeps the tests
+# focused on behaviour rather than type-fixture noise.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import jax.numpy as jnp
 import numpy as np
@@ -1621,7 +1628,7 @@ class TestBugPrevention_DegenerateWarmstart:
             "stats": {"num_divergent": 0, "n_warmup": 500},
             "duration": 1.0,
         }
-        config = CMCConfig(r_hat_threshold=1.1, min_ess=400)
+        config = CMCConfig(max_r_hat=1.1, min_ess=400)
 
         warning_calls: list[str] = []
         _orig = cmc_core.logger.warning
@@ -1795,13 +1802,22 @@ class TestBugPrevention_DegenerateWarmstartAbort:
         captured_init: dict[str, dict[str, float]] = {}
 
         def _capture_init(*args, **kwargs):  # noqa: ANN001 — pytest sig
-            # Find the per-shard config dict passed to the backend.
-            for arg in args:
-                if isinstance(arg, dict) and "initial_values" in arg:
-                    captured_init["call"] = dict(arg["initial_values"])
-            for v in kwargs.values():
-                if isinstance(v, dict) and "initial_values" in v:
-                    captured_init["call"] = dict(v["initial_values"])
+            # ``fit_cmc_sharded`` calls ``backend.run_shards(initial_values=...)``
+            # with the dict directly as the kwarg value (not nested under
+            # another key).  Capture from kwargs first, then fall back to
+            # scanning positional args for a dict that "looks like" the
+            # initial-values map.
+            if "initial_values" in kwargs and isinstance(
+                kwargs["initial_values"], dict
+            ):
+                captured_init["call"] = dict(kwargs["initial_values"])
+            else:
+                # Positional-args fallback: look for a dict containing the
+                # canonical heterodyne parameter names.
+                for arg in args:
+                    if isinstance(arg, dict) and "alpha_sample" in arg and "f0" in arg:
+                        captured_init["call"] = dict(arg)
+                        break
             return []
 
         model, nlsq, c2, config = self._make_parts(
@@ -1824,12 +1840,17 @@ class TestBugPrevention_DegenerateWarmstartAbort:
                 # exactly; we only care that the guard ran without raising
                 # the het_bb97531f abort.
                 pass
-        # If captured_init never got populated, the run failed before the
-        # backend dispatch — that's a separate test signal but doesn't
-        # invalidate the no-abort contract.  Skip the value check in that
-        # branch rather than mask an unrelated failure.
-        if not captured_init:
-            pytest.skip("backend dispatch did not surface initial_values")
+        # The capture above is the contract: ``initial_values`` MUST be
+        # surfaced through the run_shards dispatch path, otherwise the
+        # auto-clamp would never reach the worker.  If the capture comes
+        # up empty after fit_cmc_sharded ran, that's a real regression
+        # in the dispatch wiring — fail loudly rather than skip.
+        assert captured_init, (
+            "Backend dispatch did not surface initial_values through "
+            "run_shards(initial_values=...) — the auto-clamp regression "
+            "guard cannot run. Check that fit_cmc_sharded still calls "
+            "backend.run_shards(initial_values=...) as a keyword arg."
+        )
         clamped = captured_init["call"].get("alpha_sample")
         assert clamped is not None
         assert clamped >= CMC_ALPHA_SINGULARITY, (
