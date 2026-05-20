@@ -1,1666 +1,1666 @@
 {
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/conf.py": {
-    "mtime": 1779264214.6143727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/conf.py": {
+    "mtime": 1773448411.9900575,
     "hash": "036614eb6099aeeadec9f5583e399a44"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/__init__.py": {
-    "mtime": 1779264214.6773727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/__init__.py": {
+    "mtime": 1770953401.6176028,
     "hash": "09d2f1fa98220cf557ecd8d801c412a1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/conftest.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/conftest.py": {
+    "mtime": 1779246516.5768375,
     "hash": "733343e7e7c8613d282be6299f747fb1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/performance/test_memory_scaling.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/performance/test_memory_scaling.py": {
+    "mtime": 1773371305.8549638,
     "hash": "21fad68be81d68642954af0519ecde3d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/performance/__init__.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/performance/__init__.py": {
+    "mtime": 1773091744.42664,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/performance/test_jit_compilation.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/performance/test_jit_compilation.py": {
+    "mtime": 1773371305.7249627,
     "hash": "ece8d72888ca0c29341e14d2d48912c3"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/scientific/test_numerical_validation.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/scientific/test_numerical_validation.py": {
+    "mtime": 1772909768.32724,
     "hash": "c0c4da392a4d8574417ab40c65a3b82c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/scientific/__init__.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/scientific/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/scientific/test_property_based.py": {
-    "mtime": 1779264214.6823726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/scientific/test_property_based.py": {
+    "mtime": 1779058780.979283,
     "hash": "a6aef52fca9245f496c8eeb4d7830788"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/documentation/test_docs_content.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/documentation/test_docs_content.py": {
+    "mtime": 1779235242.462534,
     "hash": "0383b02060d1f34440cb7924e3ce653d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/documentation/__init__.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/documentation/__init__.py": {
+    "mtime": 1774638875.6988277,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_prior_builder.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_prior_builder.py": {
+    "mtime": 1779208253.3577683,
     "hash": "531dc9fbdd56b8ecccc2a3346c8c5b4e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_numerical_stability.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_numerical_stability.py": {
+    "mtime": 1773371305.8239636,
     "hash": "c756060f64ea00d13d683a4ce4f032a9"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_pbs_security.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_pbs_security.py": {
+    "mtime": 1779140300.0405622,
     "hash": "6ed3c32f2a86849c97b53ae0d0efe8a6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/__init__.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/__init__.py": {
+    "mtime": 1773023741.8207326,
     "hash": "417fc225a2a93d71936d79fd720db534"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_defaults_regression.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_defaults_regression.py": {
+    "mtime": 1779244922.3178651,
     "hash": "0b54540db04b73a498c47d6757ae7bdd"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_warmstart_clamp.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_warmstart_clamp.py": {
+    "mtime": 1779206369.1050277,
     "hash": "3285637fdf0b0e420df9cc32209182ad"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_kernel_parity.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_kernel_parity.py": {
+    "mtime": 1779137086.9169934,
     "hash": "f58d6c4f4c8d7f98e2d78a18972c2c32"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_nlsq_regression.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_nlsq_regression.py": {
+    "mtime": 1773371305.8169634,
     "hash": "13606825cff333989fc3baca561b1582"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_log_space_priors.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_log_space_priors.py": {
+    "mtime": 1779123795.851,
     "hash": "8fcdd8594852d122588e421374266f69"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_parameter_sensitivity.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_parameter_sensitivity.py": {
+    "mtime": 1779058721.7829359,
     "hash": "69ffc253538a5d67c5c67bc8ba73d4e2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_status_reporting_regression.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_status_reporting_regression.py": {
+    "mtime": 1779066892.8580687,
     "hash": "c1823b1101d167fafe3e6d963c52333a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_pbs_worker_env.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_pbs_worker_env.py": {
+    "mtime": 1779073471.2659554,
     "hash": "f4abdbda35b21f05ee37f7e066188ad5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_warmup_floor.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_warmup_floor.py": {
+    "mtime": 1779090610.32217,
     "hash": "be970d48151f64b67255a19add9889d4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/regression/test_cmc_shard_shape_roundtrip.py": {
-    "mtime": 1779264214.6813726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/regression/test_cmc_shard_shape_roundtrip.py": {
+    "mtime": 1779232460.1613119,
     "hash": "8e369e4743416ccde0e78bd4e30a3e2d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/factories/test_cmc_fixtures.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/factories/test_cmc_fixtures.py": {
+    "mtime": 1773371305.6989625,
     "hash": "76c0bdcd3fc6346eb6bfe9f344296d1c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/factories/__init__.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/factories/__init__.py": {
+    "mtime": 1773023577.1495702,
     "hash": "c75ced05fe71de8a15d6c869cf61fa32"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/factories/config_factory.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/factories/config_factory.py": {
+    "mtime": 1773023614.487344,
     "hash": "b026e28c2cbda9e99d816ec886eed27d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/factories/conftest.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/factories/conftest.py": {
+    "mtime": 1773023580.7927475,
     "hash": "2c263485a168ff8bc5b432f24e2fe5e7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/factories/data_factory.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/factories/data_factory.py": {
+    "mtime": 1773371305.6909626,
     "hash": "04e088c0433c3501b62e3a2535fffce4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/api/__init__.py": {
-    "mtime": 1779264214.6773727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/api/__init__.py": {
+    "mtime": 1774638874.8198547,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/api/test_compatibility.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/api/test_compatibility.py": {
+    "mtime": 1779058721.7829359,
     "hash": "7d35373c7393bb0dd1c2d75f43a658c5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/parity/__init__.py": {
-    "mtime": 1779280689.5175638,
+  "/home/wei/Documents/GitHub/heterodyne/tests/parity/__init__.py": {
+    "mtime": 1779288514.0050368,
     "hash": "e1c26555a168c0343796d56e5ce51ead"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/parity/test_homodyne_mode_taxonomy.py": {
-    "mtime": 1779280702.0935307,
+  "/home/wei/Documents/GitHub/heterodyne/tests/parity/test_homodyne_mode_taxonomy.py": {
+    "mtime": 1779288514.0050368,
     "hash": "58979960c876524a070b614883fdb4ac"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/__init__.py": {
-    "mtime": 1779264214.6823726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/device/test_device_config.py": {
-    "mtime": 1779264214.6863725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/device/test_device_config.py": {
+    "mtime": 1773371305.855964,
     "hash": "f1e350ff19890e1cad4bb23a30dd1c0c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/device/__init__.py": {
-    "mtime": 1779264214.6853726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/device/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/device/test_cpu.py": {
-    "mtime": 1779264214.6853726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/device/test_cpu.py": {
+    "mtime": 1773371895.746694,
     "hash": "240c6266126406e23df37354ac424be6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/utils/test_path_validation.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/utils/test_path_validation.py": {
+    "mtime": 1770953401.6206028,
     "hash": "fc07d7e281545cab7dbabf997c71178b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/utils/__init__.py": {
-    "mtime": 1779264214.6963725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/utils/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/utils/test_logging_coverage.py": {
-    "mtime": 1779264214.6963725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/utils/test_logging_coverage.py": {
+    "mtime": 1773371305.855964,
     "hash": "b61602d19b028350826fb83963413c8b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/utils/test_async_io.py": {
-    "mtime": 1779264214.6963725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/utils/test_async_io.py": {
+    "mtime": 1773371305.8569639,
     "hash": "e14e734efdfdeb25f1b35dbb03d7d58e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/utils/test_memory.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/utils/test_memory.py": {
+    "mtime": 1773063057.3789926,
     "hash": "84e2784f80f9e9eb440dff1c2820d370"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/utils/test_logging.py": {
-    "mtime": 1779264214.6963725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/utils/test_logging.py": {
+    "mtime": 1772206968.1697185,
     "hash": "fff13c78bf5275a2dde8fc8cc293d0aa"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/test_optimization_exceptions.py": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/test_optimization_exceptions.py": {
+    "mtime": 1772909778.458294,
     "hash": "9e2774b78e1b24c8247ee1fd5a6668dd"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/__init__.py": {
-    "mtime": 1779264214.6863725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/test_per_angle_mode_parity.py": {
-    "mtime": 1779275256.4365299,
-    "hash": "38c241cc7eaffcf8f903f37ccd47e31d"
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/test_per_angle_mode_parity.py": {
+    "mtime": 1779290625.432731,
+    "hash": "64d685890b77f3358a6623b9061be334"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/test_checkpoint_manager.py": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/test_checkpoint_manager.py": {
+    "mtime": 1773371305.7119627,
     "hash": "895a380c56ca521e7ce6796ec6c92447"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/test_gradient_diagnostics.py": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/test_gradient_diagnostics.py": {
+    "mtime": 1773371305.849964,
     "hash": "1520466163c71e24a4e90e7cb5d29c00"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/test_nlsq_multi_phi_parity.py": {
-    "mtime": 1779272025.8348997,
-    "hash": "b303aaadbbbcc5ae9bd6f2ae19ff78e1"
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/test_nlsq_multi_phi_parity.py": {
+    "mtime": 1779289759.6847265,
+    "hash": "4dbc9777ca079fb258c0869197a181a4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_core_coverage.py": {
-    "mtime": 1779265947.8011346,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_core_coverage.py": {
+    "mtime": 1779288514.0050368,
     "hash": "44e440b9b05ec70d7cf0e017271bf886"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_wrapper_port.py": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_wrapper_port.py": {
+    "mtime": 1779173200.4895213,
     "hash": "46268caff7d3dc6a327e3d08f2a5b812"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_core.py": {
-    "mtime": 1779264214.6923726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_core.py": {
+    "mtime": 1773371305.7119627,
     "hash": "24290dcc7a467e02852aa561e5c073b8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_config_nlsq.py": {
-    "mtime": 1779264214.6903725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_config_nlsq.py": {
+    "mtime": 1778104596.4086487,
     "hash": "887c01f03ce6baa15639943d651b55d2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_fit_quality.py": {
-    "mtime": 1779264214.6923726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_fit_quality.py": {
+    "mtime": 1773371305.7189627,
     "hash": "4f99d7881e63dd39ad92ff81d8a2b719"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_memory.py": {
-    "mtime": 1779264214.6923726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_memory.py": {
+    "mtime": 1773371305.8329637,
     "hash": "4d12241ee039ebff5275d9963cf2d69a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_strategies.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_strategies.py": {
+    "mtime": 1773371873.8805234,
     "hash": "05ce85fc770cecfad6439f11f24f96b8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_data_prep.py": {
-    "mtime": 1779264214.6903725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_data_prep.py": {
+    "mtime": 1773371305.8449638,
     "hash": "54d8973948abc01f370f46dbaed1bb27"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_adapter.py": {
-    "mtime": 1779264214.6913726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_adapter.py": {
+    "mtime": 1779246817.3436565,
     "hash": "2bb93ec972c08f098f4fc035cef0ef37"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_input_validator.py": {
-    "mtime": 1779264214.6923726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_input_validator.py": {
+    "mtime": 1773371305.7209628,
     "hash": "6ccf248da935faf3bc97a3e5c9598260"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_internals.py": {
-    "mtime": 1779264214.6923726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_internals.py": {
+    "mtime": 1773371921.1068916,
     "hash": "cae4602ac1ae390ac10a90f5e754a7d4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/__init__.py": {
-    "mtime": 1779264214.6893725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_validation_bounds.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_validation_bounds.py": {
+    "mtime": 1773371305.8309636,
     "hash": "0c101dfe8c30f07f611c899c3e15264b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_result_validator.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_result_validator.py": {
+    "mtime": 1773371305.849964,
     "hash": "13a35717cd3511ba919ae8c32a6a2051"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_fallback_chain.py": {
-    "mtime": 1779264214.6913726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_fallback_chain.py": {
+    "mtime": 1779196898.2278204,
     "hash": "a1d0c55a833fea73c9dd6dc6c8022176"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_cmaes.py": {
-    "mtime": 1779264214.6903725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_cmaes.py": {
+    "mtime": 1779198930.8048031,
     "hash": "4e42be4ee2a1de8009761f2fedc4a010"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_core_nlsq.py": {
-    "mtime": 1779264214.6903725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_core_nlsq.py": {
+    "mtime": 1777182590.8748438,
     "hash": "15d19b2a77d324adb94a02bcd20a33e3"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_multistart.py": {
-    "mtime": 1779264214.6913726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_multistart.py": {
+    "mtime": 1773371305.6989625,
     "hash": "368133b8ba18ea835611857590b09b64"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_validation_result.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_validation_result.py": {
+    "mtime": 1773371305.8439639,
     "hash": "d0985e2900f4c0bad48a6ddf1c5ab99c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_hybrid_streaming.py": {
-    "mtime": 1779264214.6913726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_hybrid_streaming.py": {
+    "mtime": 1773371305.855964,
     "hash": "dbdb328499761eeb10e08ae4375b64e9"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_no_scipy.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_no_scipy.py": {
+    "mtime": 1773371305.7229626,
     "hash": "24bc6bb92efef2eb909fb1624f83279e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_hierarchical.py": {
-    "mtime": 1779264214.6913726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_hierarchical.py": {
+    "mtime": 1773371899.1527205,
     "hash": "7bbb6e0205662db9e4681bb6a4a4789e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_result_builder_nlsq.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_result_builder_nlsq.py": {
+    "mtime": 1773371305.8449638,
     "hash": "8eae00e862c14033fb968408040b328a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_results.py": {
-    "mtime": 1779264214.6923726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_results.py": {
+    "mtime": 1773371305.7239628,
     "hash": "1ed3e3799f9f4d4a1b5977c752121d6e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_adapter_coverage.py": {
-    "mtime": 1779264214.6923726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_adapter_coverage.py": {
+    "mtime": 1773371305.8259635,
     "hash": "47ec63b4baf665ba1904fae66def7853"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_nlsq_wrapper.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_nlsq_wrapper.py": {
+    "mtime": 1779196884.0679095,
     "hash": "f5b62c5fe773f461c6d99e03d47ce807"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_strategies_nlsq.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_strategies_nlsq.py": {
+    "mtime": 1773376510.4209275,
     "hash": "fac2b52ba62f2436936bbfa7ef150a24"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_anti_degeneracy_controller_active.py": {
-    "mtime": 1779264214.6903725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_anti_degeneracy_controller_active.py": {
+    "mtime": 1779175887.2889142,
     "hash": "eccb55a9489281c98664e3e8f561751b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_adapter.py": {
-    "mtime": 1779264214.6893725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_adapter.py": {
+    "mtime": 1779196928.1476367,
     "hash": "fc57b90eed67888373e18c35178af020"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_cmaes_fixes.py": {
-    "mtime": 1779264214.6903725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_cmaes_fixes.py": {
+    "mtime": 1773371305.8479638,
     "hash": "325b15f5a5dcb1ef338ee3d0b353b0fd"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_validation_convergence.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_validation_convergence.py": {
+    "mtime": 1773371305.8369637,
     "hash": "66a31ce77ab209e452f3edcc75fd979a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_memory_strategy.py": {
-    "mtime": 1779264214.6913726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_memory_strategy.py": {
+    "mtime": 1779196210.8800466,
     "hash": "318ffcd0cc2a5d0a4dd5348811ae2475"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_result_builder.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_result_builder.py": {
+    "mtime": 1777276863.9015882,
     "hash": "6aca82d626b56c55a5b170e23ea9e026"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_strategies_base.py": {
-    "mtime": 1779264214.6933725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_strategies_base.py": {
+    "mtime": 1773371305.855964,
     "hash": "0a6f792e7fc16470074993f8f48c9b46"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/nlsq/test_anti_degeneracy.py": {
-    "mtime": 1779264214.6903725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/nlsq/test_anti_degeneracy.py": {
+    "mtime": 1779176412.3289769,
     "hash": "3814c57dac129edffb6b58bcc84f1663"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_sharding.py": {
-    "mtime": 1779264214.6893725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_sharding.py": {
+    "mtime": 1778629904.9062645,
     "hash": "b5227a8f9ddeb98b781fe268a7adcb4c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_backends.py": {
-    "mtime": 1779264214.6863725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_backends.py": {
+    "mtime": 1779232449.8883011,
     "hash": "3d466bd31d55d3748e356e3787fa6bfd"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cluster_modes.py": {
-    "mtime": 1779264214.6863725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cluster_modes.py": {
+    "mtime": 1773371305.8269637,
     "hash": "672c1255b1fac00e60f152831d7f52f1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_priors.py": {
-    "mtime": 1779264214.6883726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_priors.py": {
+    "mtime": 1779236972.55355,
     "hash": "ad65793737dd006355153dafe372aaa8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_worker_pool.py": {
-    "mtime": 1779264214.6883726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_worker_pool.py": {
+    "mtime": 1778602936.7730198,
     "hash": "65742fd6c77df85ccbe4851e0f8183c1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/__init__.py": {
-    "mtime": 1779264214.6863725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_scaling.py": {
-    "mtime": 1779264214.6893725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_scaling.py": {
+    "mtime": 1773371305.7249627,
     "hash": "1c7bee97a3e6f4a0f4271697bff72eec"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_data_prep.py": {
-    "mtime": 1779264214.6873727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_data_prep.py": {
+    "mtime": 1773371305.8209636,
     "hash": "4e4b91792a91565bf33457d10e143ba7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_core.py": {
-    "mtime": 1779264214.6873727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_core.py": {
+    "mtime": 1779238453.107684,
     "hash": "8b09e43622f3c0209f5754332fda69a4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_scaling_estimation.py": {
-    "mtime": 1779264214.6893725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_scaling_estimation.py": {
+    "mtime": 1773371305.7299628,
     "hash": "2537bcc60a0e6129486aa6bfbcf994e8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_diagnostics_scientific.py": {
-    "mtime": 1779264214.6873727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_diagnostics_scientific.py": {
+    "mtime": 1778277389.689901,
     "hash": "1e8a65df3e314da31b7d7ebc705d97e8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_model_validation.py": {
-    "mtime": 1779264214.6883726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_model_validation.py": {
+    "mtime": 1778543169.565694,
     "hash": "b97d5f89d3f51c35bc363c1c84f50838"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_min_success_rate.py": {
-    "mtime": 1779264214.6883726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_min_success_rate.py": {
+    "mtime": 1779090706.5737073,
     "hash": "bc9aaca742d6ee138e42adaa50be7ee2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_results.py": {
-    "mtime": 1779264214.6883726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_results.py": {
+    "mtime": 1778223624.0815814,
     "hash": "bcadad0a0c19122a7cda20337242b638"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_pjit_chain_split.py": {
-    "mtime": 1779264214.6893725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_pjit_chain_split.py": {
+    "mtime": 1779204937.873093,
     "hash": "874cb03c74d56ec8dd022076476d31a1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_reparameterization.py": {
-    "mtime": 1779264214.6893725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_reparameterization.py": {
+    "mtime": 1773371305.7229626,
     "hash": "13ff068ce96ad910b22cd2da48308d3f"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_sampler.py": {
-    "mtime": 1779264214.6883726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_sampler.py": {
+    "mtime": 1778224290.3121915,
     "hash": "7689a734b4972cd8833dc2a27f6d4cfe"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_io.py": {
-    "mtime": 1779264214.6873727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_io.py": {
+    "mtime": 1778224289.0041945,
     "hash": "1bd834b43f641b05b60e8dba4e01f079"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/optimization/cmc/test_cmc_failure_mask.py": {
-    "mtime": 1779264214.6873727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/optimization/cmc/test_cmc_failure_mask.py": {
+    "mtime": 1779138501.5376518,
     "hash": "ba1d64f2a748a9a9d79c5f80aa552d4c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/data/test_angle_filtering.py": {
-    "mtime": 1779264214.6853726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/data/test_angle_filtering.py": {
+    "mtime": 1773371305.852964,
     "hash": "82d50b83ebd37cb58daa906d03f319d5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/data/test_data_loader.py": {
-    "mtime": 1779264214.6853726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/data/test_data_loader.py": {
+    "mtime": 1778104596.4086487,
     "hash": "1b2e11bfe75c440f99798bdb9a7849a1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/data/__init__.py": {
-    "mtime": 1779264214.6853726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/data/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/data/test_filtering_utils.py": {
-    "mtime": 1779264214.6853726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/data/test_filtering_utils.py": {
+    "mtime": 1773375986.2515454,
     "hash": "216ffeed2ec65df4f1e5d86c8c60ade0"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_extract_cli.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_extract_cli.py": {
+    "mtime": 1779169252.1243935,
     "hash": "1a9d2032ac01d64be23a38fcae76c2da"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_cli.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_cli.py": {
+    "mtime": 1779169966.5527995,
     "hash": "00d9d543d21e385316a79a15905e9f1b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/__init__.py": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/__init__.py": {
+    "mtime": 1779167332.9292948,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_extract_docs.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_extract_docs.py": {
+    "mtime": 1779169521.170851,
     "hash": "5c0448fa2d565b686497cec17ee1e466"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_extract_logs_errors.py": {
-    "mtime": 1779264214.6963725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_extract_logs_errors.py": {
+    "mtime": 1779169374.6921587,
     "hash": "7572d58057bef576637a1daebd58cd85"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_extract_configs.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_extract_configs.py": {
+    "mtime": 1779169113.5536268,
     "hash": "c192956cc8229d4d941a0384e935968c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_extract_signatures.py": {
-    "mtime": 1779264214.6963725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_extract_signatures.py": {
+    "mtime": 1779168625.19599,
     "hash": "342452b033acf804c4e3811daa655d13"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_walker.py": {
-    "mtime": 1779264214.6963725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_walker.py": {
+    "mtime": 1779167320.243403,
     "hash": "8073091f41c8adf237f0384a162e091d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_diff_extracts.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_diff_extracts.py": {
+    "mtime": 1779234332.5044813,
     "hash": "f3724e6b86f8c0d17a77b1ee79a8a1d8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_extract_file_inventory.py": {
-    "mtime": 1779264214.6963725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_extract_file_inventory.py": {
+    "mtime": 1779168502.5468988,
     "hash": "3c05d4aa869e6a419e7137c5a3036604"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_extract_exports.py": {
-    "mtime": 1779264214.6963725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_extract_exports.py": {
+    "mtime": 1779168799.194969,
     "hash": "61c9a9d238ff9532f166e39e49cba1e6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_ast_utils.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_ast_utils.py": {
+    "mtime": 1779167561.8035848,
     "hash": "29095ee9aecd6ba645afce139da5e5f9"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/test_extract_classes.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/test_extract_classes.py": {
+    "mtime": 1779168977.173813,
     "hash": "13af5bd20482d56a71837e6c8c8f89ad"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/fixtures/sample_logs_errors.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/fixtures/sample_logs_errors.py": {
+    "mtime": 1779169368.0971718,
     "hash": "6209d04356bbc8c1f38a66beac6bc462"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/fixtures/__init__.py": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/fixtures/__init__.py": {
+    "mtime": 1779167333.387291,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/fixtures/sample_classes.py": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/fixtures/sample_classes.py": {
+    "mtime": 1779168969.425822,
     "hash": "174c30df99dc84251008af08d12927bb"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/fixtures/sample_init.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/fixtures/sample_init.py": {
+    "mtime": 1779168899.0698953,
     "hash": "592b97b79e07b9d5874c606b216e9b9c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/fixtures/sample_cli.py": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/fixtures/sample_cli.py": {
+    "mtime": 1779169244.9504066,
     "hash": "7f96a15a23304ac36e1940202bef116a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/fixtures/sample_signatures.py": {
-    "mtime": 1779264214.6953726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/fixtures/sample_signatures.py": {
+    "mtime": 1779168710.7959988,
     "hash": "b8e125d20c6e3ba5dbf92b83b4065d26"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/fixtures/sample_config.py": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/fixtures/sample_config.py": {
+    "mtime": 1779169107.1256366,
     "hash": "a69f5f4b1bcbd7bcdd3b48669fd71741"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/config/test_physics_validators.py": {
-    "mtime": 1779264214.6833725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/config/test_physics_validators.py": {
+    "mtime": 1773371305.7019625,
     "hash": "df995b92a3c5b96cc21d918daf90a27b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/config/test_config_manager.py": {
-    "mtime": 1779264214.6833725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/config/test_config_manager.py": {
+    "mtime": 1774635643.062323,
     "hash": "f622deabf72d8026d836f837260fa054"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/config/__init__.py": {
-    "mtime": 1779264214.6823726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/config/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/config/test_parameter_registry_coverage.py": {
-    "mtime": 1779264214.6833725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/config/test_parameter_registry_coverage.py": {
+    "mtime": 1779005969.975469,
     "hash": "318e4915875c41ed9440895a398dc382"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/config/test_parameter_recovery.py": {
-    "mtime": 1779264214.6833725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/config/test_parameter_recovery.py": {
+    "mtime": 1773371305.8579638,
     "hash": "333fa0295e31c39d7c060c3b5e01eaaf"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/config/test_parameter_manager_coverage.py": {
-    "mtime": 1779264214.6833725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/config/test_parameter_manager_coverage.py": {
+    "mtime": 1773382615.398784,
     "hash": "339c4a6206545bae21755c1c404277fc"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/config/test_parameter_space_coverage.py": {
-    "mtime": 1779264214.6833725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/config/test_parameter_space_coverage.py": {
+    "mtime": 1773371305.6979625,
     "hash": "a2de4f094d90ddb38bc1fc714529de9f"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/config/test_parameter_names.py": {
-    "mtime": 1779264214.6833725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/config/test_parameter_names.py": {
+    "mtime": 1773371305.7099626,
     "hash": "6d405f6877bb634d4482bb32c4b4af69"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/io/test_json_utils.py": {
-    "mtime": 1779264214.6863725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/io/test_json_utils.py": {
+    "mtime": 1773371305.8549638,
     "hash": "0520ee7911ad2e370abebffa20fffebe"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/io/__init__.py": {
-    "mtime": 1779264214.6863725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/io/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/io/test_writers.py": {
-    "mtime": 1779264214.6863725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/io/test_writers.py": {
+    "mtime": 1778730943.2582903,
     "hash": "8ddf3ba0a3d8d1f1ca73dcaaa56075e8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/cli/test_commands.py": {
-    "mtime": 1779264214.6823726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/cli/test_commands.py": {
+    "mtime": 1773371305.7109625,
     "hash": "b7de1bc0fecee721f33e8b9981a676df"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/cli/test_data_pipeline.py": {
-    "mtime": 1779264214.6823726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/cli/test_data_pipeline.py": {
+    "mtime": 1777670186.58418,
     "hash": "2982621f0c01e8e0d15e51bfd092a2cd"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/cli/test_completion_parity.py": {
-    "mtime": 1779264214.6823726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/cli/test_completion_parity.py": {
+    "mtime": 1779235242.481534,
     "hash": "7d31ee87b59ba023c2e93d68816ba823"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/cli/__init__.py": {
-    "mtime": 1779264214.6823726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/cli/__init__.py": {
+    "mtime": 1773090119.3588495,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/cli/test_args_parser.py": {
-    "mtime": 1779264214.6823726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/cli/test_args_parser.py": {
+    "mtime": 1773371445.8891182,
     "hash": "03e976c5d6d53457548ac34812ddd7a2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/cli/test_optimization_runner.py": {
-    "mtime": 1779264214.6823726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/cli/test_optimization_runner.py": {
+    "mtime": 1778983284.0578895,
     "hash": "6ef6116c6f8501def4a48fc4083a6053"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_model_mixins.py": {
-    "mtime": 1779264214.6843727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_model_mixins.py": {
+    "mtime": 1773371305.8419638,
     "hash": "9b49e39d054d793fe9409c160647ba62"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_physics_utils.py": {
-    "mtime": 1779264214.6853726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_physics_utils.py": {
+    "mtime": 1773382615.398784,
     "hash": "6c29fcd37595405c17464816673970b5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_diagonal_correction.py": {
-    "mtime": 1779264214.6843727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_diagonal_correction.py": {
+    "mtime": 1778104596.4086487,
     "hash": "a13f9ee8444b826d1a1a1a188bd43a48"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_theory_scientific.py": {
-    "mtime": 1779264214.6853726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_theory_scientific.py": {
+    "mtime": 1773371305.7179627,
     "hash": "4766a779d6c29abc92d2c2a07001112c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_physics_cmc_elementwise.py": {
-    "mtime": 1779264214.6853726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_physics_cmc_elementwise.py": {
+    "mtime": 1778311031.133068,
     "hash": "474dd7bc1e2b658406134b7ce584aae2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/__init__.py": {
-    "mtime": 1779264214.6833725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_quantile_scaling.py": {
-    "mtime": 1779268737.7797334,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_quantile_scaling.py": {
+    "mtime": 1779288514.0050368,
     "hash": "47b118194fc6e17e54286259c2f87c3b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_jax_config.py": {
-    "mtime": 1779264214.6843727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_jax_config.py": {
+    "mtime": 1773371305.7049625,
     "hash": "8c48f38ede9c531f59e2c832ec671ec8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_jax_backend_scientific.py": {
-    "mtime": 1779264214.6843727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_jax_backend_scientific.py": {
+    "mtime": 1779008791.1375017,
     "hash": "3be25ca154768f47afd0b0a5b869ed89"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_backend_api.py": {
-    "mtime": 1779264214.6833725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_backend_api.py": {
+    "mtime": 1773456075.3375287,
     "hash": "5c372518703dd6d24786c95f39aea833"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_heterodyne_model.py": {
-    "mtime": 1779264214.6843727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_heterodyne_model.py": {
+    "mtime": 1778104596.4086487,
     "hash": "19cc02ddcf166c6f4ca0d16e7447d040"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_fitting.py": {
-    "mtime": 1779264214.6843727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_fitting.py": {
+    "mtime": 1773371305.7089627,
     "hash": "8d9243a2b9d47fcedf8411a13badcb2f"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_no_gradient_killing_clip.py": {
-    "mtime": 1779264214.6843727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_no_gradient_killing_clip.py": {
+    "mtime": 1779006195.5966022,
     "hash": "158d63c46bf49cb86913caad45714c84"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_core.py": {
-    "mtime": 1779264214.6843727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_core.py": {
+    "mtime": 1774635563.4499035,
     "hash": "f93d3751acf28253ebc22640d8841e79"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/core/test_model_modes.py": {
-    "mtime": 1779264214.6843727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/core/test_model_modes.py": {
+    "mtime": 1773371305.7099626,
     "hash": "de311a56bfd85e2e71e9e2e5b5f57449"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/viz/test_mcmc_arviz.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/viz/test_mcmc_arviz.py": {
+    "mtime": 1773371880.0365715,
     "hash": "84b31328841ae9f20ef503b714b14297"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/viz/test_diagnostics.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/viz/test_diagnostics.py": {
+    "mtime": 1773371305.7029626,
     "hash": "218ce4ea5ae64d0b4fb8389ba3b0523b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/viz/test_validation.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/viz/test_validation.py": {
+    "mtime": 1773371305.7079625,
     "hash": "0804dd9ff5468d17b765f99ba311c955"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/viz/test_nlsq_plots.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/viz/test_nlsq_plots.py": {
+    "mtime": 1778431481.0104868,
     "hash": "ef2f5251a4c7b1bc6d6d516c3e3b4f36"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/viz/__init__.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/viz/__init__.py": {
+    "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/viz/test_viz_params.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/viz/test_viz_params.py": {
+    "mtime": 1777182653.3667753,
     "hash": "a2dbf416fc12af50361fd18131e7de21"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/validation/__init__.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/validation/__init__.py": {
+    "mtime": 1774638875.3208394,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/validation/test_scientific_validation.py": {
-    "mtime": 1779264214.6973727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/validation/test_scientific_validation.py": {
+    "mtime": 1779235242.482534,
     "hash": "b9673f4d8ac1c23c5d518a5e3c86cec5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/mcmc/test_statistical_validation.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/mcmc/test_statistical_validation.py": {
+    "mtime": 1773371305.855964,
     "hash": "430c665c2f7851be36c19aff607e6e6b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/mcmc/__init__.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/mcmc/__init__.py": {
+    "mtime": 1773091804.9194918,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/test_nlsq_cmc_consistency.py": {
-    "mtime": 1779264214.6793725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/test_nlsq_cmc_consistency.py": {
+    "mtime": 1773371305.8419638,
     "hash": "a9b01f2b668290b9473579e9f3aeebfd"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/test_hdf5_pipeline.py": {
-    "mtime": 1779264214.6793725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/test_hdf5_pipeline.py": {
+    "mtime": 1778104596.4086487,
     "hash": "86ed90318d8c0a1926afb9bd41718efc"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/__init__.py": {
-    "mtime": 1779264214.6783726,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/__init__.py": {
+    "mtime": 1773023577.6725957,
     "hash": "c3e29c7213032a1f7fc49bef8331377c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/test_error_recovery.py": {
-    "mtime": 1779264214.6793725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/test_error_recovery.py": {
+    "mtime": 1773371305.8409636,
     "hash": "5a1e528d3db92d525d1d302e89c979d4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/test_integration.py": {
-    "mtime": 1779264214.6793725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/test_integration.py": {
+    "mtime": 1770953401.618603,
     "hash": "d850dd174c2d2418d78e3b23f7385577"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/test_nlsq_pipeline.py": {
-    "mtime": 1779264214.6803727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/test_nlsq_pipeline.py": {
+    "mtime": 1773371305.8489637,
     "hash": "9c5dfef68ba58b94bff0c73babbef5a3"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/test_cmc_reparameterization.py": {
-    "mtime": 1779264214.6793725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/test_cmc_reparameterization.py": {
+    "mtime": 1773371858.3224018,
     "hash": "0b691a5219842c9e10cf672153a1b6e4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/test_cli_pipeline.py": {
-    "mtime": 1779264214.6793725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/test_cli_pipeline.py": {
+    "mtime": 1773371305.8269637,
     "hash": "853ccffcc64e986f12c1538c54c6bf8a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/test_full_pipeline.py": {
-    "mtime": 1779264214.6793725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/test_full_pipeline.py": {
+    "mtime": 1774635605.7201245,
     "hash": "c36de8a6d10ad6c0d0b94f96ded4b3fb"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/integration/test_cmc_pipeline.py": {
-    "mtime": 1779264214.6793725,
+  "/home/wei/Documents/GitHub/heterodyne/tests/integration/test_cmc_pipeline.py": {
+    "mtime": 1773371893.9206798,
     "hash": "297a7775529fabcdf794ad5ef4518dc5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/post_install.py": {
-    "mtime": 1779264214.6743727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/post_install.py": {
+    "mtime": 1774628096.841896,
     "hash": "66dadfb16415344d8f968ae89a728863"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/__init__.py": {
-    "mtime": 1779264214.6513727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/__init__.py": {
+    "mtime": 1774629825.8580523,
     "hash": "0226c705dfe8a17e1b285a44b18adf9c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/_version.py": {
-    "mtime": 1779280710.5345085,
-    "hash": "7886983e1e1886a207ed5d05ad7adfd4"
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/_version.py": {
+    "mtime": 1779288521.0670066,
+    "hash": "9da88b7e9377ec75b01cf1ec3d11ee5d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/uninstall_scripts.py": {
-    "mtime": 1779264214.6753726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/uninstall_scripts.py": {
+    "mtime": 1779235242.465534,
     "hash": "db8ab877e5b7387120edd9d22eb9bc75"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/device/__init__.py": {
-    "mtime": 1779264214.6603727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/device/__init__.py": {
+    "mtime": 1772207363.6829739,
     "hash": "fd4afd3ec856b25fb4737119f6e0411f"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/device/config.py": {
-    "mtime": 1779264214.6603727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/device/config.py": {
+    "mtime": 1773371305.7099626,
     "hash": "32e0dce903fd6b21649ad35af61cf9da"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/device/cpu.py": {
-    "mtime": 1779264214.6613727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/device/cpu.py": {
+    "mtime": 1773371305.7139626,
     "hash": "d3397fd55fe079f70bba050cd09db0f0"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/utils/logging.py": {
-    "mtime": 1779264214.6753726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/utils/logging.py": {
+    "mtime": 1779235927.6880007,
     "hash": "4fb2c335b9a601c3456d13b2ae201c44"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/utils/__init__.py": {
-    "mtime": 1779264214.6753726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/utils/__init__.py": {
+    "mtime": 1772998624.003571,
     "hash": "d6f4d08bf90f388015c91dc3e462f94c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/utils/async_io.py": {
-    "mtime": 1779264214.6753726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/utils/async_io.py": {
+    "mtime": 1773403928.100323,
     "hash": "815ee592f06ef1d74fe5b1c8bd3c534e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/utils/path_validation.py": {
-    "mtime": 1779264214.6763725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/utils/path_validation.py": {
+    "mtime": 1772216578.8411093,
     "hash": "fdd17fa9b69eea172ae0f0eb3aab7b08"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/exceptions.py": {
-    "mtime": 1779264214.6663725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/exceptions.py": {
+    "mtime": 1773452275.2857578,
     "hash": "c89810d0f278281819f95c8a323ee833"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/batch_statistics.py": {
-    "mtime": 1779264214.6613727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/batch_statistics.py": {
+    "mtime": 1773371305.7189627,
     "hash": "cff6a4a0490266eafd7b5cbd7303297a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/recovery_strategies.py": {
-    "mtime": 1779264214.6743727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/recovery_strategies.py": {
+    "mtime": 1773371305.737963,
     "hash": "c0314ab3c282aa0103efd2b77982a1fa"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/__init__.py": {
-    "mtime": 1779264214.6613727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/__init__.py": {
+    "mtime": 1778537810.28874,
     "hash": "e94e883393828abf99ded7f1acdd2f9e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/numerical_validation.py": {
-    "mtime": 1779264214.6733725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/numerical_validation.py": {
+    "mtime": 1773371305.737963,
     "hash": "e25560a1ee0f542b07e1229930ed9adb"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/checkpoint_manager.py": {
-    "mtime": 1779264214.6613727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/checkpoint_manager.py": {
+    "mtime": 1773371305.7219627,
     "hash": "e52af843acfc1bb2b9e37337a5efc448"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/gradient_diagnostics.py": {
-    "mtime": 1779264214.6673727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/gradient_diagnostics.py": {
+    "mtime": 1773371305.7359629,
     "hash": "1913d611b1b9e186115f9212a4931035"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/gradient_monitor.py": {
-    "mtime": 1779264214.6693726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/gradient_monitor.py": {
+    "mtime": 1772909778.455294,
     "hash": "0c37d73a9ed22b0ef5a4c1dee9d949ee"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/fit_computation.py": {
-    "mtime": 1779264214.6693726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/fit_computation.py": {
+    "mtime": 1773371305.737963,
     "hash": "b5976c7a55fe7bd9e8e099e3c70c56cb"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/transforms.py": {
-    "mtime": 1779264214.6723726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/transforms.py": {
+    "mtime": 1773371305.7369628,
     "hash": "5a1d7cea95d6663ebfa560f61900cb2c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/fourier_reparam.py": {
-    "mtime": 1779266136.1816895,
-    "hash": "f7adb76e28a044679ba90adc3e41d38e"
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/fourier_reparam.py": {
+    "mtime": 1779290504.5099702,
+    "hash": "6189523e854cc38baf6f4c3ed7cbac04"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/adapter.py": {
-    "mtime": 1779264214.6673727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/adapter.py": {
+    "mtime": 1779233643.1612797,
     "hash": "d7e5213600bb1e6d340045d3fadf6602"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/__init__.py": {
-    "mtime": 1779264214.6673727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/__init__.py": {
+    "mtime": 1779233968.6486492,
     "hash": "7f4f59f0c8dab4de570f707b56019844"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/cmaes_wrapper.py": {
-    "mtime": 1779264214.6683726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/cmaes_wrapper.py": {
+    "mtime": 1779198877.1205938,
     "hash": "e4d311a06cee1f25b93af86bfef3a72d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/adapter_base.py": {
-    "mtime": 1779264214.6673727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/adapter_base.py": {
+    "mtime": 1779235621.5894601,
     "hash": "b34c1871af2b1637591cd26a81df9134"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/recovery.py": {
-    "mtime": 1779264214.6703727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/recovery.py": {
+    "mtime": 1779199018.2780945,
     "hash": "718a6b7b0ea4f78ed14350cbef49ac28"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/progress.py": {
-    "mtime": 1779264214.6703727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/progress.py": {
+    "mtime": 1772909778.455294,
     "hash": "5e9ad1dfae34e2f583876a4f4c9ac9db"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/anti_degeneracy_controller.py": {
-    "mtime": 1779264214.6683726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/anti_degeneracy_controller.py": {
+    "mtime": 1779235375.3315952,
     "hash": "e9f3072682856352b744e1808ad8684b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/config.py": {
-    "mtime": 1779265620.430911,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/config.py": {
+    "mtime": 1779288514.004037,
     "hash": "1f2315869e89c3e2fc5df5d6d5ddf8cc"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/parallel_accumulator.py": {
-    "mtime": 1779264214.6703727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/parallel_accumulator.py": {
+    "mtime": 1779235723.551335,
     "hash": "21dc757da0bad53b5c3467ee1054d035"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/core.py": {
-    "mtime": 1779275232.0418248,
-    "hash": "8c3a0dab7e8ffb99a5dffe4dfb42e73a"
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/core.py": {
+    "mtime": 1779290596.1417904,
+    "hash": "bca98d30dbbff46f976dd4226651b69c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/adaptive_regularization.py": {
-    "mtime": 1779264214.6673727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/adaptive_regularization.py": {
+    "mtime": 1772909778.454294,
     "hash": "a9a2572b2ec62c761e3ae0fa7dbe3a43"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/results.py": {
-    "mtime": 1779264214.6713727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/results.py": {
+    "mtime": 1779202265.3469183,
     "hash": "1bea9e6eee435e0c9fa7bc1797877256"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/memory.py": {
-    "mtime": 1779264214.6703727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/memory.py": {
+    "mtime": 1779196175.7946663,
     "hash": "4c49796be0ab39fa93bd40828ac37dd4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/fallback_chain.py": {
-    "mtime": 1779264214.6693726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/fallback_chain.py": {
+    "mtime": 1779233663.3940876,
     "hash": "fd08ea9c0c81b1982705ad63172fc521"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/parameter_index_mapper.py": {
-    "mtime": 1779264214.6703727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/parameter_index_mapper.py": {
+    "mtime": 1773371305.7309628,
     "hash": "caa7be49eda21e27a045e459c9484176"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/result_builder.py": {
-    "mtime": 1779264214.6713727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/result_builder.py": {
+    "mtime": 1779235971.1969178,
     "hash": "8bff24569d7e2e131ce965f67370d747"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/multistart.py": {
-    "mtime": 1779264214.6703727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/multistart.py": {
+    "mtime": 1779234059.7140498,
     "hash": "611cdb43c2d52f7510acdc2e8ee49f35"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/wrapper.py": {
-    "mtime": 1779264214.6733725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/wrapper.py": {
+    "mtime": 1779235242.470534,
     "hash": "5148a092051d01c95973377d4e8b1596"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/jacobian.py": {
-    "mtime": 1779264214.6703727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/jacobian.py": {
+    "mtime": 1779196055.0381064,
     "hash": "11ba6a9923e50fed67ecc943196905e2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/parameter_utils.py": {
-    "mtime": 1779264214.6703727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/parameter_utils.py": {
+    "mtime": 1772909778.455294,
     "hash": "4bfc391392bb6812b2a015dd3a215c23"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/data_prep.py": {
-    "mtime": 1779264214.6693726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/data_prep.py": {
+    "mtime": 1779197604.5776474,
     "hash": "67896f51322bfdad10a514f5499e6082"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/hierarchical.py": {
-    "mtime": 1779264214.6693726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/hierarchical.py": {
+    "mtime": 1773371305.7269628,
     "hash": "48fc9e2cadb929dc7c799dae40c01478"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/residual_jit.py": {
-    "mtime": 1779264214.6723726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/residual_jit.py": {
+    "mtime": 1773410911.2939672,
     "hash": "f1ea1cbed22fc56f39b667f324f09e4b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/executors.py": {
-    "mtime": 1779264214.6713727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/executors.py": {
+    "mtime": 1772909778.456294,
     "hash": "0c1644abda07eda243d3c5709cebc5ad"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/jit_strategy.py": {
-    "mtime": 1779264214.6723726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/jit_strategy.py": {
+    "mtime": 1773452292.6798337,
     "hash": "836731e10fbe56eb45e3ce29c4687255"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/base.py": {
-    "mtime": 1779264214.6713727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/base.py": {
+    "mtime": 1773404089.9351752,
     "hash": "3e5e2d45b7b694b4f3067f4523d95677"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/__init__.py": {
-    "mtime": 1779264214.6713727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/__init__.py": {
+    "mtime": 1772953742.9895208,
     "hash": "2202d4666b3ec4a277444f847fc4c35e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/chunked.py": {
-    "mtime": 1779264214.6713727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/chunked.py": {
+    "mtime": 1773410934.4651206,
     "hash": "4d71917692384baf93cdb2c7b3413efe"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/stratified_ls.py": {
-    "mtime": 1779264214.6723726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/stratified_ls.py": {
+    "mtime": 1773410899.0788863,
     "hash": "88a204a6230ff915a3fa8fca979d2d8d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/out_of_core.py": {
-    "mtime": 1779264214.6723726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/out_of_core.py": {
+    "mtime": 1773410903.9429185,
     "hash": "47f64f11f2096221944d0e629b7296b2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/residual.py": {
-    "mtime": 1779264214.6723726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/residual.py": {
+    "mtime": 1773410927.4720743,
     "hash": "7a16881fe473bfcec9a3cf15d13af33e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/sequential.py": {
-    "mtime": 1779264214.6723726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/sequential.py": {
+    "mtime": 1773371305.737963,
     "hash": "028bf60d1f9c013d7c431d2678a6c57b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/strategies/hybrid_streaming.py": {
-    "mtime": 1779264214.6713727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/strategies/hybrid_streaming.py": {
+    "mtime": 1773404059.5510166,
     "hash": "ae264aba3ce56320a683cb781353c16d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/validation/__init__.py": {
-    "mtime": 1779264214.6723726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/__init__.py": {
+    "mtime": 1779203174.8591046,
     "hash": "1cf22169859ec08070ea50aa2c08dc49"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/validation/result_validator.py": {
-    "mtime": 1779264214.6733725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/result_validator.py": {
+    "mtime": 1779234252.526912,
     "hash": "75a74670e1c232c839eca9262e07a41b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/validation/convergence.py": {
-    "mtime": 1779264214.6733725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/convergence.py": {
+    "mtime": 1773371305.7299628,
     "hash": "bec69e655870c6df760f3978869eb039"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/validation/fit_quality.py": {
-    "mtime": 1779264214.6733725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/fit_quality.py": {
+    "mtime": 1778537799.3998377,
     "hash": "2674de686f3d58e2b2aa0b323a5b71db"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/validation/bounds.py": {
-    "mtime": 1779264214.6733725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/bounds.py": {
+    "mtime": 1773371305.737963,
     "hash": "fbd2a4a7ff1d7d94d9b16659e9f83756"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/validation/input_validator.py": {
-    "mtime": 1779264214.6733725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/input_validator.py": {
+    "mtime": 1779234209.661152,
     "hash": "dbf7f7b23e85a95bff445d8f6143e0ff"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/nlsq/validation/result.py": {
-    "mtime": 1779264214.6733725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/result.py": {
+    "mtime": 1773371305.7359629,
     "hash": "8546bf8112b40d061be6d02db01b59e7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/io.py": {
-    "mtime": 1779264214.6653726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/io.py": {
+    "mtime": 1778537098.4250805,
     "hash": "f57f0d91af83f7d5d66ae8a65e51f09a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/model.py": {
-    "mtime": 1779264214.6653726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/model.py": {
+    "mtime": 1779072560.545434,
     "hash": "1f9a43a1d2a7c7334eb47b5484711643"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/sampler.py": {
-    "mtime": 1779264214.6663725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/sampler.py": {
+    "mtime": 1779217110.2104979,
     "hash": "a60d04e7d19d45a33921f31e57dded6c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/diagnostics.py": {
-    "mtime": 1779264214.6653726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/diagnostics.py": {
+    "mtime": 1779210222.595666,
     "hash": "9d5a6d23e8b456599d3f34a59a39faf4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/__init__.py": {
-    "mtime": 1779264214.6623726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/__init__.py": {
+    "mtime": 1779233990.1615033,
     "hash": "15648e669adee71aca66fec972b347c7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/scaling.py": {
-    "mtime": 1779264214.6663725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/scaling.py": {
+    "mtime": 1778309370.237176,
     "hash": "e77ef71b815ad20d6c3783cf34a09126"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/priors.py": {
-    "mtime": 1779264214.6653726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/priors.py": {
+    "mtime": 1779233950.256776,
     "hash": "570d593232bd2c1bb9fe537afcbe5ec6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/config.py": {
-    "mtime": 1779264214.6633728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/config.py": {
+    "mtime": 1779232833.492723,
     "hash": "937ea5f8f03429c982b4b16282046374"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/core.py": {
-    "mtime": 1779264214.6643727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/core.py": {
+    "mtime": 1779243290.0837235,
     "hash": "b86bd72e2993885b31fa53b2a565b85e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/results.py": {
-    "mtime": 1779264214.6663725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/results.py": {
+    "mtime": 1778691750.305818,
     "hash": "185d782a9726797ba4c39d0b73326d7c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/reparameterization.py": {
-    "mtime": 1779264214.6663725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/reparameterization.py": {
+    "mtime": 1778548800.3537989,
     "hash": "7e489418e50e41f737ac3daaadffb4ab"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/plotting.py": {
-    "mtime": 1779264214.6653726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/plotting.py": {
+    "mtime": 1778544615.2962785,
     "hash": "391b8a6a157ab03554d4d22feaa83b9e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/data_prep.py": {
-    "mtime": 1779264214.6643727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/data_prep.py": {
+    "mtime": 1773371305.7219627,
     "hash": "97e62cf4a23eef4bacc8cd9b7a622fc1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/backends/pjit.py": {
-    "mtime": 1779264214.6633728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/backends/pjit.py": {
+    "mtime": 1779235355.6425931,
     "hash": "21aec7859eb93adeb6e8895083bbc1f3"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/backends/cpu_backend.py": {
-    "mtime": 1779264214.6623726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/backends/cpu_backend.py": {
+    "mtime": 1779235441.9715865,
     "hash": "bc1cd01fd100d7427a98bb275e3878ee"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/backends/pbs.py": {
-    "mtime": 1779264214.6633728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/backends/pbs.py": {
+    "mtime": 1779140327.7487152,
     "hash": "33b6dfe57757c1e6208154dda34a8af5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/backends/base.py": {
-    "mtime": 1779264214.6623726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/backends/base.py": {
+    "mtime": 1779204937.8710928,
     "hash": "475c5eaab9d8b1fa8c02cc9fa68a7c05"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/backends/__init__.py": {
-    "mtime": 1779264214.6623726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/backends/__init__.py": {
+    "mtime": 1779204937.8710928,
     "hash": "72fded54c3ec19bbd46a5a5df65cf1cc"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/backends/worker_pool.py": {
-    "mtime": 1779264214.6633728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/backends/worker_pool.py": {
+    "mtime": 1778552400.0475266,
     "hash": "06e6146cf63e8dd396002ec052813200"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/optimization/cmc/backends/multiprocessing.py": {
-    "mtime": 1779264214.6633728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/backends/multiprocessing.py": {
+    "mtime": 1779235607.5644746,
     "hash": "a49b3fdaa17f4d5aff71221995be3b30"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/angle_filtering.py": {
-    "mtime": 1779264214.6583726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/angle_filtering.py": {
+    "mtime": 1778309355.4040823,
     "hash": "728a84ff494f041466daac2c6816fc19"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/phi_filtering.py": {
-    "mtime": 1779264214.6593726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/phi_filtering.py": {
+    "mtime": 1773371305.7179627,
     "hash": "a3fc578c37b9d6b69cecdd6ed520388c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/memory_manager.py": {
-    "mtime": 1779264214.6593726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/memory_manager.py": {
+    "mtime": 1773371305.7179627,
     "hash": "a648ab720d245fc1412af1a40e02b429"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/quality_controller.py": {
-    "mtime": 1779264214.6593726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/quality_controller.py": {
+    "mtime": 1773371305.7339628,
     "hash": "7980bfa74f7a1bab13d79ac04597a001"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/preprocessing.py": {
-    "mtime": 1779264214.6593726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/preprocessing.py": {
+    "mtime": 1778309335.7329557,
     "hash": "42358e3262493772970b40ebf443acf1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/__init__.py": {
-    "mtime": 1779264214.6583726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/__init__.py": {
+    "mtime": 1773111626.627323,
     "hash": "789a5b8711abcd4e20d7f7b1d135d29c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/types.py": {
-    "mtime": 1779264214.6593726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/types.py": {
+    "mtime": 1772692108.7971768,
     "hash": "74f69bc6598f30904667b4be27d462d7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/optimization.py": {
-    "mtime": 1779264214.6593726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/optimization.py": {
+    "mtime": 1773403883.518085,
     "hash": "a6b122fc07d5b70bdf2429cb18cfcb8a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/config.py": {
-    "mtime": 1779264214.6583726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/config.py": {
+    "mtime": 1773371305.7109625,
     "hash": "36506cd34190075f47616e03f3aec05d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/validators.py": {
-    "mtime": 1779264214.6603727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/validators.py": {
+    "mtime": 1773371305.728963,
     "hash": "827fba5e551fe99690ae92fa7d0f152e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/xpcs_loader.py": {
-    "mtime": 1779264214.6603727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/xpcs_loader.py": {
+    "mtime": 1778104596.4066489,
     "hash": "5208c94509807df7b0b287827453b5b1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/filtering_utils.py": {
-    "mtime": 1779264214.6583726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/filtering_utils.py": {
+    "mtime": 1773375114.5122607,
     "hash": "f02ee93aa06a42096b7b24f525896ee2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/validation.py": {
-    "mtime": 1779264214.6603727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/validation.py": {
+    "mtime": 1773371305.734963,
     "hash": "28d606fb26406f0edfb573be743816d6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/data/performance_engine.py": {
-    "mtime": 1779264214.6593726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/data/performance_engine.py": {
+    "mtime": 1773371305.7159626,
     "hash": "55129ca7a403dcc1eb0fcf0a277c08f6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/config/physics_validators.py": {
-    "mtime": 1779264214.6543727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/config/physics_validators.py": {
+    "mtime": 1773371305.7019625,
     "hash": "9aaccbaf03108e6f6ed8c39a9df0ad7f"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/config/parameter_manager.py": {
-    "mtime": 1779264214.6543727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/config/parameter_manager.py": {
+    "mtime": 1779235242.469534,
     "hash": "01a19cf107afadf0e27251083743f972"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/config/parameter_registry.py": {
-    "mtime": 1779264214.6543727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/config/parameter_registry.py": {
+    "mtime": 1779008219.9497144,
     "hash": "389ff7093eafd6a8f30b6e11e2f16295"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/config/__init__.py": {
-    "mtime": 1779264214.6533728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/config/__init__.py": {
+    "mtime": 1772998623.9965708,
     "hash": "15eea2defca3268f0c4488d5885a587e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/config/types.py": {
-    "mtime": 1779264214.6553726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/config/types.py": {
+    "mtime": 1773452271.2627406,
     "hash": "9171df6a3e39583477c9732c81455f4c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/config/manager.py": {
-    "mtime": 1779264214.6543727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/config/manager.py": {
+    "mtime": 1774667628.7772782,
     "hash": "3f27ed614d1d64f77eaa2328538a3621"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/config/parameter_space.py": {
-    "mtime": 1779264214.6543727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/config/parameter_space.py": {
+    "mtime": 1779008224.798586,
     "hash": "9d7ec556df17eb9158c49099c0190e02"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/config/parameter_names.py": {
-    "mtime": 1779264214.6543727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/config/parameter_names.py": {
+    "mtime": 1772697418.403204,
     "hash": "b0a2e7f59975ed52d21bb231f6fbd7f0"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/io/__init__.py": {
-    "mtime": 1779264214.6613727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/io/__init__.py": {
+    "mtime": 1772206968.1757188,
     "hash": "f5f33b43e86d0bd36804ce2846d7f0e5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/io/json_utils.py": {
-    "mtime": 1779264214.6613727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/io/json_utils.py": {
+    "mtime": 1773407534.2279558,
     "hash": "0f91a46d0e06abe22ca98100284f97ab"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/io/nlsq_writers.py": {
-    "mtime": 1779264214.6613727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/io/nlsq_writers.py": {
+    "mtime": 1778355600.5054579,
     "hash": "a6f97d92da386c09655266378ef4b7ba"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/io/mcmc_writers.py": {
-    "mtime": 1779264214.6613727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/io/mcmc_writers.py": {
+    "mtime": 1778730878.947691,
     "hash": "d8c9ae399d5184a948c412bf5f16bedf"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/main.py": {
-    "mtime": 1779264214.6523726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/main.py": {
+    "mtime": 1774662228.0612879,
     "hash": "b4763a01e2db0b6c5459d0e57a63d810"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/data_pipeline.py": {
-    "mtime": 1779264214.6523726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/data_pipeline.py": {
+    "mtime": 1778309136.9945207,
     "hash": "5a3648abf0498f208fe43a892f9efdbd"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/plot_dispatch.py": {
-    "mtime": 1779264214.6533728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/plot_dispatch.py": {
+    "mtime": 1779235242.478534,
     "hash": "eae9e3b4a076b3ed700d786c87835a63"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/__init__.py": {
-    "mtime": 1779264214.6513727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/__init__.py": {
+    "mtime": 1773371305.6949625,
     "hash": "89254c1eed73cf93fdf724c4154148a5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/optimization_runner.py": {
-    "mtime": 1779264214.6533728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/optimization_runner.py": {
+    "mtime": 1779206330.1771355,
     "hash": "c8bb18946d8b01a4cb7c6871546a6533"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/args_parser.py": {
-    "mtime": 1779264214.6523726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/args_parser.py": {
+    "mtime": 1779066817.1592364,
     "hash": "8c71cf3f14adbcb51928d8f62b86e2c5"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/config_handling.py": {
-    "mtime": 1779264214.6523726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/config_handling.py": {
+    "mtime": 1779235242.471534,
     "hash": "ece3b56a3ec39a7bdcbe7b2ab21fc2e0"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/commands.py": {
-    "mtime": 1779264214.6523726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/commands.py": {
+    "mtime": 1779066817.1602364,
     "hash": "cb1f55ec9eaf83d2c1d97de0efe27f10"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/config_generator.py": {
-    "mtime": 1779264214.6523726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/config_generator.py": {
+    "mtime": 1774636421.701825,
     "hash": "db7279c60d89562edb763f1518b807ef"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/xla_config.py": {
-    "mtime": 1779264214.6533728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/xla_config.py": {
+    "mtime": 1773452216.1555126,
     "hash": "e0c890164b8523a5ad3a8d7f110bc28e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/cli/result_saving.py": {
-    "mtime": 1779264214.6533728,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/result_saving.py": {
+    "mtime": 1778287246.7585366,
     "hash": "0a59d0c619dffd5473d563374392c0e7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/runtime/__init__.py": {
-    "mtime": 1779264214.6743727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/runtime/__init__.py": {
+    "mtime": 1772206968.1687183,
     "hash": "ff04277612b44a088c56ad0757b75ac7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/runtime/utils/system_validator.py": {
-    "mtime": 1779264214.6753726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/runtime/utils/system_validator.py": {
+    "mtime": 1773371305.7329628,
     "hash": "cf9d9e504725d9e277a95d21aafd2051"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/runtime/utils/__init__.py": {
-    "mtime": 1779264214.6753726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/runtime/utils/__init__.py": {
+    "mtime": 1772206968.1687183,
     "hash": "fe3efff409a24579b2b3b56eecd761c7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/runtime/shell/__init__.py": {
-    "mtime": 1779264214.6743727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/runtime/shell/__init__.py": {
+    "mtime": 1774627598.7740324,
     "hash": "73a01d1327bcc87bd52cca66b71301d9"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/runtime/shell/activation/__init__.py": {
-    "mtime": 1779264214.6743727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/runtime/shell/activation/__init__.py": {
+    "mtime": 1770953401.615603,
     "hash": "c0adb0d2e00135410fa7f3baa742c387"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/jax_backend.py": {
-    "mtime": 1779264214.6563725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/jax_backend.py": {
+    "mtime": 1779235899.9400516,
     "hash": "7fd745ec281cef9c522baecd07f1b501"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/theory.py": {
-    "mtime": 1779264214.6583726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/theory.py": {
+    "mtime": 1779235523.547546,
     "hash": "b4a867a265dd237c3cad1673f2d947ca"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/scaling_utils.py": {
-    "mtime": 1779264214.6583726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/scaling_utils.py": {
+    "mtime": 1773403872.707027,
     "hash": "ec75725aec6f26dc5550137b2f386264"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/physics_cmc.py": {
-    "mtime": 1779264214.6573727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/physics_cmc.py": {
+    "mtime": 1779235759.990283,
     "hash": "69c0cbd64271a87eb17d65069de67999"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/models.py": {
-    "mtime": 1779264214.6563725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/models.py": {
+    "mtime": 1779235562.1735165,
     "hash": "bfd14d2571da84f8e4b0cf27685d7f24"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/physics_factors.py": {
-    "mtime": 1779264214.6573727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/physics_factors.py": {
+    "mtime": 1778104596.4066489,
     "hash": "211752fe7cba9debe3ab89ca63eea30c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/backend_api.py": {
-    "mtime": 1779264214.6553726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/backend_api.py": {
+    "mtime": 1773452274.9627564,
     "hash": "715592e71d7dea0fd5f786a55f1bdac6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/physics_utils.py": {
-    "mtime": 1779264214.6573727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/physics_utils.py": {
+    "mtime": 1779004613.1761708,
     "hash": "9b49c0f3c210ba68f26eab9c5c086ac1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/physics.py": {
-    "mtime": 1779264214.6573727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/physics.py": {
+    "mtime": 1772909778.450294,
     "hash": "fc47cc6737cfc5f28c8369041221f22c"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/__init__.py": {
-    "mtime": 1779264214.6553726,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/__init__.py": {
+    "mtime": 1773064526.485002,
     "hash": "91208122eb2e652f70c238ba90f2729a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/fitting.py": {
-    "mtime": 1779264214.6563725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/fitting.py": {
+    "mtime": 1773403866.8309956,
     "hash": "7436276c3c2dab87d07f12ac78b957bf"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/quantile_scaling.py": {
-    "mtime": 1779268674.095856,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/quantile_scaling.py": {
+    "mtime": 1779288514.004037,
     "hash": "ff206d9e4b1666d528e3785ed72518f2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/numpy_gradients.py": {
-    "mtime": 1779264214.6573727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/numpy_gradients.py": {
+    "mtime": 1773371305.7159626,
     "hash": "10e6912fd50fd826f2a60d8848b4b7e8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/physics_kernel.py": {
-    "mtime": 1779264214.6573727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/physics_kernel.py": {
+    "mtime": 1779137613.8325999,
     "hash": "e60d4a97149aa15733e3226833d80aa7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/model_mixins.py": {
-    "mtime": 1779264214.6563725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/model_mixins.py": {
+    "mtime": 1773371305.7039626,
     "hash": "b496770c0aac1f8a8064955e20a98a36"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/diagonal_correction.py": {
-    "mtime": 1779264214.6563725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/diagonal_correction.py": {
+    "mtime": 1778309358.9391046,
     "hash": "5d7ef24109b6fc02da270cd376571988"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/physics_nlsq.py": {
-    "mtime": 1779264214.6573727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/physics_nlsq.py": {
+    "mtime": 1779235538.5145352,
     "hash": "b7c327d8f6c2706993ac7226fa862fbb"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/core/heterodyne_model.py": {
-    "mtime": 1779264214.6563725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/core/heterodyne_model.py": {
+    "mtime": 1779235578.6375022,
     "hash": "f9dab1dd43d2f1816c2c64868bdcc5ea"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/experimental_plots.py": {
-    "mtime": 1779264214.6763725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/experimental_plots.py": {
+    "mtime": 1779235242.466534,
     "hash": "4742c17409d344ae917aada29420ec82"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/datashader_backend.py": {
-    "mtime": 1779264214.6763725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/datashader_backend.py": {
+    "mtime": 1773371305.6949625,
     "hash": "824d1bf4a48da2151450580d438498d7"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/mcmc_arviz.py": {
-    "mtime": 1779264214.6763725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/mcmc_arviz.py": {
+    "mtime": 1773371305.6919625,
     "hash": "bdc11159512df889a6886f1ccd47cdd2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/mcmc_dashboard.py": {
-    "mtime": 1779264214.6763725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/mcmc_dashboard.py": {
+    "mtime": 1773371305.6959624,
     "hash": "656868bb8e11f8ad57f36794a16e6ce8"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/nlsq_plots.py": {
-    "mtime": 1779264214.6773727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/nlsq_plots.py": {
+    "mtime": 1779239245.22267,
     "hash": "81e905fda9f103b33ad2beeb9ea7e64d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/mcmc_plots.py": {
-    "mtime": 1779264214.6773727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/mcmc_plots.py": {
+    "mtime": 1773375149.322346,
     "hash": "92c5b95406e660cfac33895aa763c47f"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/diagnostics.py": {
-    "mtime": 1779264214.6763725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/diagnostics.py": {
+    "mtime": 1778191916.1868799,
     "hash": "975c5058b6cf26104366d51d8a3c70ae"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/__init__.py": {
-    "mtime": 1779264214.6763725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/__init__.py": {
+    "mtime": 1773039708.2470276,
     "hash": "7a01b315c3a77df20c4ed477a7d6bc54"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/mcmc_comparison.py": {
-    "mtime": 1779264214.6763725,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/mcmc_comparison.py": {
+    "mtime": 1773371305.6919625,
     "hash": "329a1723a35e1f782c0e085824db022a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/mcmc_report.py": {
-    "mtime": 1779264214.6773727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/mcmc_report.py": {
+    "mtime": 1773371305.7109625,
     "hash": "acb4a4785532323fb4a5c4ad2eee1656"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/validation.py": {
-    "mtime": 1779264214.6773727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/validation.py": {
+    "mtime": 1773418588.181933,
     "hash": "45b366411c41867c3fd86374f0cadb45"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/viz/mcmc_diagnostics.py": {
-    "mtime": 1779264214.6773727,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/viz/mcmc_diagnostics.py": {
+    "mtime": 1773371305.6949625,
     "hash": "d84469714245ec206f2a58a6b354de2d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/Algorithm Inventory.txt": {
-    "mtime": 1779264214.6073728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/Algorithm Inventory.txt": {
+    "mtime": 1773367049.6379993,
     "hash": "489952267ff996559f6191f44027d0c4"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/architecture/cmc-fitting-architecture.md": {
-    "mtime": 1779264214.6083727,
-    "hash": "024cedcd7c48692fea7411f637d7045a"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/architecture/physical-model-architecture.md": {
-    "mtime": 1779264214.6103728,
-    "hash": "786e6300566d9224b958b5246e48f850"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/architecture/data-handler-architecture.md": {
-    "mtime": 1779264214.6093729,
-    "hash": "593afd59b466e7f6b93194d70b9b9401"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/architecture/nlsq-fitting-architecture.md": {
-    "mtime": 1779264214.6103728,
-    "hash": "ec8c37557fbb2027fd51fa17bbc55145"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/architecture/heterodyne-architecture-overview.md": {
-    "mtime": 1779264214.6093729,
-    "hash": "ef6e739811013032096ad90fc49d9597"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/quickstart.rst": {
-    "mtime": 1779264214.6173728,
-    "hash": "7f774139a54090f7f6ce5d96a908d6c5"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/installation.rst": {
-    "mtime": 1779264214.6173728,
-    "hash": "c4af17853239d735a3a4114dfbd1b261"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/contributing.rst": {
-    "mtime": 1779264214.6143727,
-    "hash": "b590838f6eb3046d1177cd8a638c4a9a"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/index.rst": {
-    "mtime": 1779264214.6163728,
-    "hash": "3d90141cb66591a4a623bc15e187f8c2"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/index.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "be4e39aea4075da0a95762a9cdc32f95"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/04_practical_guides/performance_tuning.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "10cd5aed84251de5f2dc6b7391fcc5c0"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/04_practical_guides/batch_processing.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "ff5845777a3833941649ed21b8eb6367"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/04_practical_guides/visualization.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "c65a032d87f2aedd3426b291af55344c"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/04_practical_guides/index.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "50b958397db7be57b6f6c2d5986216ea"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/04_practical_guides/configuration.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "f9ded5f3059e2bbce8494f9510516fad"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/02_data_and_fitting/data_loading.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "2af822d754d2da2a87002f3dde5c71ee"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/02_data_and_fitting/nlsq_fitting.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "e417592f04d1389b0c3b1a8281a98e73"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/02_data_and_fitting/result_interpretation.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "48568008af6684f0a96dc9c185cbbf2a"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/02_data_and_fitting/index.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "119eb5548a283dec68f75f4369ff9165"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/03_advanced_topics/per_angle_modes.rst": {
-    "mtime": 1779280492.0110807,
-    "hash": "6fe93b7ed99b8ae743b5d29e6963f8e8"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/03_advanced_topics/bayesian_inference.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "31686ad6d7f8c6b549a41fcf0bce62c8"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/03_advanced_topics/cmaes_optimization.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "255520c2b5bb7d0b6f6c5f86c626f63a"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/03_advanced_topics/diagnostics.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "4948612aba648566c9e0ce18ec0dbbf3"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/03_advanced_topics/index.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "41abef99d4ea5d1a89eba11cf56c2d66"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/05_appendices/faq.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "ae05172ac385bea8d5d6716019b21fd5"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/05_appendices/troubleshooting.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "00aa15e8c66ef441d5746545b47a31d1"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/05_appendices/index.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "ac7d5deb91d4d161ee1315c9bf5a5fd0"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/05_appendices/glossary.rst": {
-    "mtime": 1779264214.6203728,
-    "hash": "6b45a9c2bc130ada6a37313dcdb5f534"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/01_fundamentals/heterodyne_overview.rst": {
-    "mtime": 1779264214.6183727,
-    "hash": "bada858a7e5f6e7b9c5d389faf535ce8"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/01_fundamentals/what_is_xpcs.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "fd9feb17db31040eec73d57333c376f2"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/01_fundamentals/parameter_guide.rst": {
-    "mtime": 1779264214.6193728,
-    "hash": "f0ebe3f8c073b61737b98b6823b49962"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/user_guide/01_fundamentals/index.rst": {
-    "mtime": 1779264214.6183727,
-    "hash": "53ff42ccddab8e3fd4c182bc35949402"
-  },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/architecture/cmc-fitting-architecture.md": {
+  "/home/wei/Documents/GitHub/heterodyne/docs/architecture/cmc-fitting-architecture.md": {
     "mtime": 1778272434.6022682,
     "hash": "024cedcd7c48692fea7411f637d7045a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/architecture/physical-model-architecture.md": {
+  "/home/wei/Documents/GitHub/heterodyne/docs/architecture/physical-model-architecture.md": {
     "mtime": 1778272418.1663053,
     "hash": "786e6300566d9224b958b5246e48f850"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/architecture/data-handler-architecture.md": {
+  "/home/wei/Documents/GitHub/heterodyne/docs/architecture/data-handler-architecture.md": {
     "mtime": 1778288322.559769,
     "hash": "593afd59b466e7f6b93194d70b9b9401"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/architecture/nlsq-fitting-architecture.md": {
+  "/home/wei/Documents/GitHub/heterodyne/docs/architecture/nlsq-fitting-architecture.md": {
     "mtime": 1778288346.4237146,
     "hash": "ec8c37557fbb2027fd51fa17bbc55145"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/architecture/heterodyne-architecture-overview.md": {
+  "/home/wei/Documents/GitHub/heterodyne/docs/architecture/heterodyne-architecture-overview.md": {
     "mtime": 1778272537.158036,
     "hash": "ef6e739811013032096ad90fc49d9597"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/architecture/index.rst": {
-    "mtime": 1779264214.6133728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/quickstart.rst": {
+    "mtime": 1773303080.4878402,
+    "hash": "7f774139a54090f7f6ce5d96a908d6c5"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/installation.rst": {
+    "mtime": 1774629223.2329383,
+    "hash": "c4af17853239d735a3a4114dfbd1b261"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/contributing.rst": {
+    "mtime": 1773303091.5349019,
+    "hash": "b590838f6eb3046d1177cd8a638c4a9a"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/index.rst": {
+    "mtime": 1773433083.3402812,
+    "hash": "3d90141cb66591a4a623bc15e187f8c2"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/index.rst": {
+    "mtime": 1773445242.978095,
+    "hash": "be4e39aea4075da0a95762a9cdc32f95"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/04_practical_guides/performance_tuning.rst": {
+    "mtime": 1773439720.5993984,
+    "hash": "10cd5aed84251de5f2dc6b7391fcc5c0"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/04_practical_guides/batch_processing.rst": {
+    "mtime": 1779229915.6272087,
+    "hash": "ff5845777a3833941649ed21b8eb6367"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/04_practical_guides/visualization.rst": {
+    "mtime": 1773439729.1454563,
+    "hash": "c65a032d87f2aedd3426b291af55344c"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/04_practical_guides/index.rst": {
+    "mtime": 1779229938.0594518,
+    "hash": "50b958397db7be57b6f6c2d5986216ea"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/04_practical_guides/configuration.rst": {
+    "mtime": 1773439711.7123377,
+    "hash": "f9ded5f3059e2bbce8494f9510516fad"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/02_data_and_fitting/data_loading.rst": {
+    "mtime": 1778184434.670704,
+    "hash": "2af822d754d2da2a87002f3dde5c71ee"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/02_data_and_fitting/nlsq_fitting.rst": {
+    "mtime": 1778188064.7401316,
+    "hash": "e417592f04d1389b0c3b1a8281a98e73"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/02_data_and_fitting/result_interpretation.rst": {
+    "mtime": 1773439678.6411123,
+    "hash": "48568008af6684f0a96dc9c185cbbf2a"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/02_data_and_fitting/index.rst": {
+    "mtime": 1773445236.208035,
+    "hash": "119eb5548a283dec68f75f4369ff9165"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/03_advanced_topics/per_angle_modes.rst": {
+    "mtime": 1779288513.979037,
+    "hash": "6fe93b7ed99b8ae743b5d29e6963f8e8"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/03_advanced_topics/bayesian_inference.rst": {
+    "mtime": 1773439688.864182,
+    "hash": "31686ad6d7f8c6b549a41fcf0bce62c8"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/03_advanced_topics/cmaes_optimization.rst": {
+    "mtime": 1773433515.093645,
+    "hash": "255520c2b5bb7d0b6f6c5f86c626f63a"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/03_advanced_topics/diagnostics.rst": {
+    "mtime": 1773450070.6606839,
+    "hash": "4948612aba648566c9e0ce18ec0dbbf3"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/03_advanced_topics/index.rst": {
+    "mtime": 1773445236.211035,
+    "hash": "41abef99d4ea5d1a89eba11cf56c2d66"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/05_appendices/faq.rst": {
+    "mtime": 1773439739.9705298,
+    "hash": "ae05172ac385bea8d5d6716019b21fd5"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/05_appendices/troubleshooting.rst": {
+    "mtime": 1773439750.5416014,
+    "hash": "00aa15e8c66ef441d5746545b47a31d1"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/05_appendices/index.rst": {
+    "mtime": 1773445236.2180352,
+    "hash": "ac7d5deb91d4d161ee1315c9bf5a5fd0"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/05_appendices/glossary.rst": {
+    "mtime": 1773303601.8587127,
+    "hash": "6b45a9c2bc130ada6a37313dcdb5f534"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/01_fundamentals/heterodyne_overview.rst": {
+    "mtime": 1773439623.1157312,
+    "hash": "bada858a7e5f6e7b9c5d389faf535ce8"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/01_fundamentals/what_is_xpcs.rst": {
+    "mtime": 1773439649.7799146,
+    "hash": "fd9feb17db31040eec73d57333c376f2"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/01_fundamentals/parameter_guide.rst": {
+    "mtime": 1773439639.1548417,
+    "hash": "f0ebe3f8c073b61737b98b6823b49962"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/user_guide/01_fundamentals/index.rst": {
+    "mtime": 1773445236.196035,
+    "hash": "53ff42ccddab8e3fd4c182bc35949402"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/cmc-fitting-architecture.md": {
+    "mtime": 1778272434.6022682,
+    "hash": "024cedcd7c48692fea7411f637d7045a"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/physical-model-architecture.md": {
+    "mtime": 1778272418.1663053,
+    "hash": "786e6300566d9224b958b5246e48f850"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/data-handler-architecture.md": {
+    "mtime": 1778288322.559769,
+    "hash": "593afd59b466e7f6b93194d70b9b9401"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/nlsq-fitting-architecture.md": {
+    "mtime": 1778288346.4237146,
+    "hash": "ec8c37557fbb2027fd51fa17bbc55145"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/heterodyne-architecture-overview.md": {
+    "mtime": 1778272537.158036,
+    "hash": "ef6e739811013032096ad90fc49d9597"
+  },
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/architecture/index.rst": {
+    "mtime": 1773432697.9003708,
     "hash": "3d3d2a3187540d2010d325ba620f77e2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/core.rst": {
-    "mtime": 1779264214.6113727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/core.rst": {
+    "mtime": 1773303056.5207064,
     "hash": "1c81a956b6909fdca6dbc8090d545cd1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/heterodyne_model.rst": {
-    "mtime": 1779264214.6123729,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/heterodyne_model.rst": {
+    "mtime": 1773303062.7647412,
     "hash": "28e87820f8428363aaf584b41a65face"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/utils.rst": {
-    "mtime": 1779264214.6133728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/utils.rst": {
+    "mtime": 1773303184.4164183,
     "hash": "2fdde9a677ac944a67d7f27abe1bc122"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/cli.rst": {
-    "mtime": 1779264214.6113727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/cli.rst": {
+    "mtime": 1774629215.167823,
     "hash": "85cb1e37a8b9a2b2e4639b596cb60ab0"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/cmc.rst": {
-    "mtime": 1779264214.6113727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/cmc.rst": {
+    "mtime": 1779224243.7299514,
     "hash": "fcdbc30b3ad8d74a2d240b80415fd78d"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/jax_backend.rst": {
-    "mtime": 1779264214.6123729,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/jax_backend.rst": {
+    "mtime": 1773452885.1060693,
     "hash": "d5fb56b91125ec4251155ebdc4f80108"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/config.rst": {
-    "mtime": 1779264214.6113727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/config.rst": {
+    "mtime": 1773303129.9611158,
     "hash": "c88e4442c9cf65e2c1dcc6144f7d29a0"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/io.rst": {
-    "mtime": 1779264214.6123729,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/io.rst": {
+    "mtime": 1778291652.7848303,
     "hash": "f0c0fe892edfd3427e1bd82efbcc3137"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/viz.rst": {
-    "mtime": 1779264214.6133728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/viz.rst": {
+    "mtime": 1778291645.0457296,
     "hash": "621f297f9f60a4ef4b53dfe8d30eb19e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/nlsq.rst": {
-    "mtime": 1779264214.6123729,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/nlsq.rst": {
+    "mtime": 1778612625.3896444,
     "hash": "02f6317b3da8ec37d649f7ccf7f50c0b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/device.rst": {
-    "mtime": 1779264214.6123729,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/device.rst": {
+    "mtime": 1773303151.7052367,
     "hash": "f56d43f2a99142af4aebb355a6274ffb"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/data.rst": {
-    "mtime": 1779264214.6123729,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/data.rst": {
+    "mtime": 1773303119.9660602,
     "hash": "5622a2bd3c8a49a170415680bb200f7f"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/models.rst": {
-    "mtime": 1779264214.6123729,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/models.rst": {
+    "mtime": 1773303077.0198207,
     "hash": "827f5f148040aa24dc7bf00aa5bb8869"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/optimization.rst": {
-    "mtime": 1779264214.6133728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/optimization.rst": {
+    "mtime": 1773303085.491868,
     "hash": "9710dbd39a811b156624d164ebf7d187"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/api/index.rst": {
-    "mtime": 1779264214.6123729,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/api/index.rst": {
+    "mtime": 1773432732.710725,
     "hash": "c3dabfd6497178d7e33da7fdda0659a6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/architecture.rst": {
-    "mtime": 1779264214.6163728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/architecture.rst": {
+    "mtime": 1773303273.5119112,
     "hash": "2cf5d56df60d5e8834dd22f968766c95"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/contributing_guide.rst": {
-    "mtime": 1779264214.6163728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/contributing_guide.rst": {
+    "mtime": 1773303231.7416804,
     "hash": "8bba8f62659e8229d89e210591f58868"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/testing_guide.rst": {
-    "mtime": 1779264214.6163728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/testing_guide.rst": {
+    "mtime": 1773303249.6417794,
     "hash": "95742039b763592e1d62e9c8b8285c9f"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/parameter_bounds_verification.rst": {
-    "mtime": 1779264214.6163728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/parameter_bounds_verification.rst": {
+    "mtime": 1773303288.2159925,
     "hash": "fcef5ec7f7c2e6e938efc2c09aa33338"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/index.rst": {
-    "mtime": 1779264214.6163728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/index.rst": {
+    "mtime": 1779229923.3712938,
     "hash": "68754c01391ee54dd0abc902fa7fa6ae"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/adrs/adr_001_jax_cpu_only.rst": {
-    "mtime": 1779264214.6153727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/adrs/adr_001_jax_cpu_only.rst": {
+    "mtime": 1779229508.2127464,
     "hash": "c29b2afa1eac914f6074fb469d19e9d6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/adrs/adr_002_nlsq_cmc_split.rst": {
-    "mtime": 1779264214.6153727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/adrs/adr_002_nlsq_cmc_split.rst": {
+    "mtime": 1779229548.6896114,
     "hash": "c7d7be285ff3ddbd0004d650b99d2a04"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/adrs/adr_005_per_angle_scaling.rst": {
-    "mtime": 1779264214.6153727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/adrs/adr_005_per_angle_scaling.rst": {
+    "mtime": 1779229709.3254962,
     "hash": "ed4343706fd8c4f8d91f42821802d4c1"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/adrs/adr_004_consensus_monte_carlo.rst": {
-    "mtime": 1779264214.6153727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/adrs/adr_004_consensus_monte_carlo.rst": {
+    "mtime": 1779229661.0407124,
     "hash": "8d9ccc215cf3a3e3d51b17c716ca3c92"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/adrs/adr_003_anti_degeneracy.rst": {
-    "mtime": 1779264214.6153727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/adrs/adr_003_anti_degeneracy.rst": {
+    "mtime": 1779229608.1907756,
     "hash": "ed2b7757efbe121682a8ac42f1261736"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/adrs/index.rst": {
-    "mtime": 1779264214.6153727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/adrs/index.rst": {
+    "mtime": 1779229467.5528119,
     "hash": "9078caaeba4e0e4189a4ee28a849e993"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/developer/adrs/adr_006_no_consumer_gpu.rst": {
-    "mtime": 1779264214.6153727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/adrs/adr_006_no_consumer_gpu.rst": {
+    "mtime": 1779229745.605044,
     "hash": "06ccb23cf22e7f3bf7ff233313db893e"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/examples/index.rst": {
-    "mtime": 1779264214.6163728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/examples/index.rst": {
+    "mtime": 1773428553.9501042,
     "hash": "cb659ef1e43ceaaf9780ca40e2bfce19"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/_templates/autosummary/module.rst": {
-    "mtime": 1779264214.6113727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/_templates/autosummary/module.rst": {
+    "mtime": 1773302895.7808022,
     "hash": "76832c3edac7c40e6e187d32ffa799df"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/configuration/options.rst": {
-    "mtime": 1779264214.6143727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/configuration/options.rst": {
+    "mtime": 1773303206.198539,
     "hash": "570b90cc51a426d4c3cd76b7e476e970"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/configuration/templates.rst": {
-    "mtime": 1779264214.6143727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/configuration/templates.rst": {
+    "mtime": 1773303185.3694236,
     "hash": "195ec4da9516cbb47384e8a0db29fd4a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/configuration/index.rst": {
-    "mtime": 1779264214.6143727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/configuration/index.rst": {
+    "mtime": 1773303166.8983212,
     "hash": "bcd877734bce2445d244d7f104ae777a"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/theory/computational_methods.rst": {
-    "mtime": 1779264214.6183727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/computational_methods.rst": {
+    "mtime": 1773319618.4094498,
     "hash": "a4e26d502824a7f46f02c0cd908eefb2"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/theory/heterodyne_scattering.rst": {
-    "mtime": 1779264214.6183727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/heterodyne_scattering.rst": {
+    "mtime": 1773427448.4475353,
     "hash": "9ebedf15f1abe89a9b2ce81feda9c9b6"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/theory/classical_processes.rst": {
-    "mtime": 1779264214.6173728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/classical_processes.rst": {
+    "mtime": 1773319475.6962006,
     "hash": "50b73b395526b4a005ae1a77ce186e3b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/theory/correlation_functions.rst": {
-    "mtime": 1779264214.6183727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/correlation_functions.rst": {
+    "mtime": 1773432792.351331,
     "hash": "a0922daab8680ba65152706d3e788491"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/theory/analysis_modes.rst": {
-    "mtime": 1779264214.6173728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/analysis_modes.rst": {
+    "mtime": 1773427453.8015678,
     "hash": "1b15633247f982a3d81c160d31292848"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/theory/anti_degeneracy.rst": {
-    "mtime": 1779264214.6173728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/anti_degeneracy.rst": {
+    "mtime": 1779229826.2611473,
     "hash": "43f16a05d9613abbf34f26007f1308fe"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/theory/transport_coefficient.rst": {
-    "mtime": 1779264214.6183727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/transport_coefficient.rst": {
+    "mtime": 1773432780.3732095,
     "hash": "138a799fba7a6e3f2e473a1135560d39"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/theory/index.rst": {
-    "mtime": 1779264214.6183727,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/index.rst": {
+    "mtime": 1779229931.435381,
     "hash": "54701bce7b0cc65b4c9a102b8392289b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/tests/unit/parity_audit/fixtures/sample_docs.rst": {
-    "mtime": 1779264214.6943727,
+  "/home/wei/Documents/GitHub/heterodyne/tests/unit/parity_audit/fixtures/sample_docs.rst": {
+    "mtime": 1779169512.913869,
     "hash": "8a39ff523cc6c696af70638e184c1bb0"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/heterodyne/config/templates/heterodyne_master_template.yaml": {
-    "mtime": 1779280594.6418128,
+  "/home/wei/Documents/GitHub/heterodyne/heterodyne/config/templates/heterodyne_master_template.yaml": {
+    "mtime": 1779288514.004037,
     "hash": "d2b724ccd6d468761082908f2f3a012b"
   },
-  "/home/wei/Documents/GitHub/heterodyne/.worktrees/feat-per-angle-mode-parity/docs/source/theory/citations.rst": {
-    "mtime": 1779264214.6173728,
+  "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/citations.rst": {
+    "mtime": 1773303234.7906973,
     "hash": "1974fdc39a0caccfd8198352df88d944"
   }
 }
