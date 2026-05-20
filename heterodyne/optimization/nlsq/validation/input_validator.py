@@ -105,7 +105,7 @@ class InputValidator:
                 )
             else:
                 for error in self._validation_errors:
-                    logger.warning(f"Input validation warning: {error}")
+                    logger.warning("Input validation warning: %s", error)
                 return False
 
         return True
@@ -343,7 +343,7 @@ def validate_bounds_consistency(
 
     if not np.all(lower <= upper):
         violations = np.where(lower > upper)[0]
-        logger.warning(f"Lower > upper at indices: {violations}")
+        logger.warning("Lower > upper at indices: %s", violations)
         return False
 
     return True
@@ -374,7 +374,7 @@ def validate_initial_params(
 
     if not np.all(np.isfinite(initial_params)):
         non_finite = np.where(~np.isfinite(initial_params))[0]
-        logger.warning(f"Non-finite initial params at indices: {non_finite}")
+        logger.warning("Non-finite initial params at indices: %s", non_finite)
         return False
 
     below_lower = initial_params < lower
@@ -382,12 +382,12 @@ def validate_initial_params(
 
     if np.any(below_lower):
         indices = np.where(below_lower)[0]
-        logger.warning(f"Params below lower bound at indices: {indices}")
+        logger.warning("Params below lower bound at indices: %s", indices)
         return False
 
     if np.any(above_upper):
         indices = np.where(above_upper)[0]
-        logger.warning(f"Params above upper bound at indices: {indices}")
+        logger.warning("Params above upper bound at indices: %s", indices)
         return False
 
     return True

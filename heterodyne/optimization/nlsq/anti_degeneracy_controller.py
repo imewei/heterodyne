@@ -598,7 +598,7 @@ class AntiDegeneracyController:
 
             def loss_augmentation(params: np.ndarray, residuals: np.ndarray) -> float:
                 """Add regularization penalty to loss."""
-                mse = float(np.nanmean(residuals**2))
+                del residuals  # signature contract, not used by this regularizer
                 # Use current_lambda from the regularizer
                 lambda_val = self.regularizer.current_lambda  # type: ignore[union-attr]
                 # Simple L2 regularization on per-angle parameters
@@ -659,10 +659,11 @@ class AntiDegeneracyController:
         kwargs: dict[str, Any] = {}
 
         # Group variance regularization
-        if self._reg_group_indices and self.regularizer:
+        reg_indices = getattr(self, "_reg_group_indices", [])
+        if reg_indices and self.regularizer:
             kwargs["enable_group_variance_regularization"] = True
             kwargs["group_variance_lambda"] = self.regularizer.current_lambda
-            kwargs["group_variance_indices"] = self._reg_group_indices
+            kwargs["group_variance_indices"] = reg_indices
 
         logger.debug("Created HybridStreamingConfig kwargs: %s", list(kwargs.keys()))
         return kwargs
@@ -723,7 +724,7 @@ class AntiDegeneracyController:
         if self.regularizer:
             diag["regularization"] = {
                 "lambda": self.regularizer.current_lambda,
-                "group_indices": self._reg_group_indices,
+                "group_indices": getattr(self, "_reg_group_indices", []),
             }
 
         if self.monitor:

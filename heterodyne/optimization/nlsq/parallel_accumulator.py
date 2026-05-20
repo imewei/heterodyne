@@ -61,7 +61,7 @@ class GaussNewtonAccumulation:
 
 def accumulate_chunks_sequential(
     chunks: list[tuple[np.ndarray, np.ndarray]],
-    residual_fn: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]],
+    residual_fn: Callable[[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]],
     params: np.ndarray,
 ) -> GaussNewtonAccumulation:
     """Accumulate Gauss-Newton quantities sequentially over chunks.
@@ -69,8 +69,12 @@ def accumulate_chunks_sequential(
     Args:
         chunks: List of (data_chunk, weight_chunk) tuples. Each data_chunk
             has shape (chunk_size, ...) and weight_chunk matches or is None.
-        residual_fn: Function taking params and returning (residuals, jacobian)
-            for a given chunk. The function is called once per chunk.
+        residual_fn: ``residual_fn(data_chunk, params) -> (residuals, jacobian)``
+            evaluated once per chunk. The chunk-slice argument is required —
+            evaluating residuals over the full dataset for every chunk would
+            accumulate the same ``J^T J`` n_chunks times and produce a
+            grossly wrong normal-equation matrix (the bug this signature
+            now prevents).
         params: Current parameter values, shape (n_params,).
 
     Returns:
@@ -82,9 +86,9 @@ def accumulate_chunks_sequential(
     cost = 0.0
     n_data = 0
 
-    for chunk_idx, (_data_chunk, weight_chunk) in enumerate(chunks):
+    for chunk_idx, (data_chunk, weight_chunk) in enumerate(chunks):
         try:
-            residuals, jacobian = residual_fn(params)
+            residuals, jacobian = residual_fn(data_chunk, params)
 
             # Apply weights if provided
             if weight_chunk is not None:
@@ -117,7 +121,7 @@ def accumulate_chunks_sequential(
 
 def accumulate_chunks_parallel(
     chunks: list[tuple[np.ndarray, np.ndarray]],
-    residual_fn: Callable[[np.ndarray], tuple[np.ndarray, np.ndarray]],
+    residual_fn: Callable[[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]],
     params: np.ndarray,
     n_workers: int = 2,
 ) -> GaussNewtonAccumulation:
@@ -128,7 +132,9 @@ def accumulate_chunks_parallel(
 
     Args:
         chunks: List of (data_chunk, weight_chunk) tuples.
-        residual_fn: Residual+Jacobian function.
+        residual_fn: ``residual_fn(data_chunk, params) -> (residuals, jacobian)``.
+            See :func:`accumulate_chunks_sequential` for why the chunk-slice
+            argument is mandatory.
         params: Current parameter values.
         n_workers: Number of parallel workers.
 
@@ -148,7 +154,7 @@ def accumulate_chunks_parallel(
     ) -> tuple[np.ndarray, np.ndarray, float, int]:
         """Process a single chunk and return partial results."""
         data_chunk, weight_chunk = chunk_data
-        residuals, jacobian = residual_fn(params)
+        residuals, jacobian = residual_fn(data_chunk, params)
 
         if weight_chunk is not None:
             w = np.asarray(weight_chunk).ravel()
@@ -374,7 +380,7 @@ def _ooc_compute_chunk(
     t1_c = _w_t1[start:end]  # type: ignore[index]
     t2_c = _w_t2[start:end]  # type: ignore[index]
     g2_c = _w_g2[start:end]  # type: ignore[index]
-    sigma_c = _w_sigma[start:end] if _w_sigma is not None else 1.0  # type: ignore[index]
+    sigma_c = _w_sigma[start:end] if _w_sigma is not None else 1.0
 
     p = jnp.asarray(params_np)
     JtJ, Jtr, chi2 = _w_compute_accumulators(  # type: ignore[misc]
@@ -410,7 +416,7 @@ def _ooc_compute_chi2_chunk(
     t1_c = _w_t1[start:end]  # type: ignore[index]
     t2_c = _w_t2[start:end]  # type: ignore[index]
     g2_c = _w_g2[start:end]  # type: ignore[index]
-    sigma_c = _w_sigma[start:end] if _w_sigma is not None else 1.0  # type: ignore[index]
+    sigma_c = _w_sigma[start:end] if _w_sigma is not None else 1.0
 
     p = jnp.asarray(params_np)
     chi2 = _w_compute_chi2(  # type: ignore[misc]

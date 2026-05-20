@@ -422,7 +422,6 @@ class NLSQWrapper:
         if isinstance(config, NLSQConfig):
             return config
 
-
         _loss_raw = str(nlsq_settings.get("loss", "soft_l1"))
         # Validate against allowed literals; fall back to "soft_l1" for unknown values.
         _allowed_losses = {"linear", "soft_l1", "huber", "cauchy", "arctan"}

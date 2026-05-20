@@ -287,7 +287,15 @@ def _run_strategy(
     Returns:
         Normalized ``(popt, pcov, info)`` tuple.
     """
-    from heterodyne.optimization.nlsq.adapter import NLSQAdapter, NLSQWrapper
+    # ``NLSQWrapper`` here is the LOW-LEVEL adapter (adapter.NLSQWrapper);
+    # alias it to make the routing distinction with wrapper.NLSQWrapper
+    # (the public high-level stable-fallback) explicit at the import site.
+    from heterodyne.optimization.nlsq.adapter import (
+        LowLevelNLSQWrapper as NLSQWrapper,
+    )
+    from heterodyne.optimization.nlsq.adapter import (
+        NLSQAdapter,
+    )
 
     parameter_names = list(model.param_manager.varying_names)
 

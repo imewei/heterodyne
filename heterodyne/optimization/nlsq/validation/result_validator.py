@@ -335,7 +335,7 @@ class ResultValidator:
                 )
             else:
                 for warning in self._validation_warnings:
-                    logger.warning(f"Result validation warning: {warning}")
+                    logger.warning("Result validation warning: %s", warning)
                 return False
 
         return True
@@ -369,7 +369,9 @@ def validate_optimized_params(
     """
     if not np.all(np.isfinite(params)):
         non_finite = np.where(~np.isfinite(params))[0]
-        logger.warning(f"Non-finite optimized params at indices: {non_finite.tolist()}")
+        logger.warning(
+            "Non-finite optimized params at indices: %s", non_finite.tolist()
+        )
         return False
 
     if bounds is None:
@@ -387,7 +389,7 @@ def validate_optimized_params(
         if np.any(above_upper):
             indices = np.where(above_upper)[0]
             violations.append(f"above upper at {indices.tolist()}")
-        logger.warning(f"Params outside bounds: {', '.join(violations)}")
+        logger.warning("Params outside bounds: %s", ", ".join(violations))
         return False
 
     return True
@@ -456,19 +458,19 @@ def validate_result_consistency(
         return False
 
     if not np.isfinite(chi_squared):
-        logger.warning(f"Chi-squared is non-finite: {chi_squared}")
+        logger.warning("Chi-squared is non-finite: %s", chi_squared)
         return False
 
     if chi_squared < 0:
-        logger.warning(f"Chi-squared is negative: {chi_squared:.4e}")
+        logger.warning("Chi-squared is negative: %.4e", chi_squared)
         return False
 
     # Soft warnings (do not fail)
     if chi_squared < 1e-15:
-        logger.warning(f"Chi-squared suspiciously low: {chi_squared:.2e}")
+        logger.warning("Chi-squared suspiciously low: %.2e", chi_squared)
 
     if chi_squared > 1e10:
-        logger.warning(f"Chi-squared very high: {chi_squared:.2e}")
+        logger.warning("Chi-squared very high: %.2e", chi_squared)
 
     return True
 

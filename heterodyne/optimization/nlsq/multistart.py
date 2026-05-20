@@ -242,7 +242,6 @@ class MultiStartResult:
     strategy_used: str = "full"
     n_unique_basins: int = 1
     degeneracy_detected: bool = False
-    total_wall_time: float = 0.0
     wall_time_total: float = 0.0
     screening_costs: NDArray[np.float64] | None = None
     basin_labels: NDArray[np.int64] | None = None
@@ -251,6 +250,17 @@ class MultiStartResult:
     def best(self) -> NLSQResult:
         """Homodyne-parity alias: best result by cost."""
         return self.best_result
+
+    @property
+    def total_wall_time(self) -> float:
+        """Homodyne-parity alias for :attr:`wall_time_total`.
+
+        Was a duplicate dataclass field; now a derived property so
+        callers using either name always see the same value (previously
+        ``total_wall_time`` was always 0.0 because ``fit()`` only set
+        ``wall_time_total``).
+        """
+        return self.wall_time_total
 
     @property
     def all_results(self) -> list[NLSQResult]:
@@ -506,27 +516,45 @@ class MultiStartOptimizer:
         starting_points = self.generate_starting_points(initial_params, bounds)
         n_points = len(starting_points)
 
+        # JAX closures cannot cross process boundaries — the production path
+        # is always sequential. ``_force_parallel`` is the explicit test-only
+        # opt-in for exercising ``_run_parallel`` with a process-safe
+        # residual function (no JAX tracers, no live config managers).
+        force_parallel = bool(getattr(self, "_force_parallel", False))
+        use_parallel = force_parallel and self._config.parallel
+
         logger.info(
-            "Multi-start: %d starts, parallel=%s",
+            "Multi-start: %d starts, parallel=%s%s",
             n_points,
-            self._config.parallel,
+            use_parallel,
+            " (force-flag set)" if force_parallel else "",
         )
 
-        # JAX closures cannot cross process boundaries — always sequential.
-        if self._config.parallel:
+        if self._config.parallel and not force_parallel:
             logger.warning(
                 "Parallel multi-start requested but JAX closures cannot be "
                 "transmitted across process boundaries. "
-                "Falling back to sequential execution."
+                "Falling back to sequential execution. "
+                "(Set ``optimizer._force_parallel = True`` to exercise the "
+                "parallel path explicitly — test-only.)"
             )
 
-        all_starts = self._run_sequential(
-            starting_points=starting_points,
-            residual_fn=residual_fn,
-            bounds=bounds,
-            config=config,
-            jacobian_fn=jacobian_fn,
-        )
+        if use_parallel:
+            all_starts = self._run_parallel(
+                starting_points=starting_points,
+                residual_fn=residual_fn,
+                bounds=bounds,
+                config=config,
+                jacobian_fn=jacobian_fn,
+            )
+        else:
+            all_starts = self._run_sequential(
+                starting_points=starting_points,
+                residual_fn=residual_fn,
+                bounds=bounds,
+                config=config,
+                jacobian_fn=jacobian_fn,
+            )
 
         # Identify best result
         best: NLSQResult | None = None

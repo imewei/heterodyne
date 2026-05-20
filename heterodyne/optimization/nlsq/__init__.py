@@ -64,6 +64,7 @@ from heterodyne.optimization.nlsq.result_builder import (
     TimedContext,
     build_failed_result,
     build_result_from_arrays,
+    build_result_from_nlsq,
     build_result_from_scipy,
 )
 from heterodyne.optimization.nlsq.results import NLSQResult
@@ -131,6 +132,7 @@ __all__ = [
     # Result building
     "build_result_from_scipy",
     "build_result_from_arrays",
+    "build_result_from_nlsq",
     "build_failed_result",
     "TimedContext",
     # Transforms

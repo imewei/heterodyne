@@ -414,7 +414,7 @@ class NLSQAdapterBase(ABC):
         Returns:
             NLSQResult with optimization results
         """
-        return self.fit(  # type: ignore[return-value]
+        return self.fit(  # type: ignore[no-any-return]
             residual_fn,
             initial_params,
             bounds,

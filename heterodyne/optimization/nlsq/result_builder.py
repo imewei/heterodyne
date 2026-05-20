@@ -169,7 +169,9 @@ def normalize_nlsq_result(
         elif len(result) == 3:
             popt, pcov, info = result
             if not isinstance(info, dict):
-                _log.warning(
+                # Defensive runtime guard: NLSQ versions occasionally return
+                # ``(popt, pcov, scalar_or_namedtuple)`` instead of a dict.
+                _log.warning(  # type: ignore[unreachable]
                     "Info object is not a dict: %s. Converting to dict.", type(info)
                 )
                 info = {"raw_info": info}

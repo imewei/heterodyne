@@ -1083,6 +1083,23 @@ def is_adapter_available() -> bool:
         return False
 
 
+# ---------------------------------------------------------------------------
+# Disambiguation alias
+# ---------------------------------------------------------------------------
+#
+# ``adapter.NLSQWrapper`` is the LOW-LEVEL wrapper (residual_fn → result).
+# ``wrapper.NLSQWrapper`` (re-exported as ``heterodyne.optimization.nlsq.NLSQWrapper``)
+# is the HIGH-LEVEL stable-fallback adapter (data + config → result) that
+# delegates internally to this low-level class.
+#
+# The two share the homodyne-parity name "NLSQWrapper" but have different
+# signatures and roles. Internal callers (``core.py``, ``fallback_chain.py``,
+# ``wrapper.py``) should prefer the explicit alias below to make the routing
+# unambiguous at the import site.
+
+LowLevelNLSQWrapper = NLSQWrapper
+
+
 __all__ = [
     "AdapterConfig",
     "CachedModel",

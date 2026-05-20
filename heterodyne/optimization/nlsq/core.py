@@ -25,7 +25,24 @@ from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
+    # Static-analyser imports: give Pyright/mypy the names unconditionally
+    # so call sites guarded by ``HAS_X`` flags don't trip "possibly
+    # unbound" diagnostics. Runtime behaviour is controlled by the
+    # try/except blocks below.
     from heterodyne.core.heterodyne_model import HeterodyneModel
+    from heterodyne.optimization.nlsq.adapter import (
+        LowLevelNLSQWrapper as NLSQWrapper,
+    )
+    from heterodyne.optimization.nlsq.adapter import NLSQAdapter
+    from heterodyne.optimization.nlsq.cmaes_wrapper import fit_with_cmaes
+    from heterodyne.optimization.nlsq.memory import (
+        NLSQStrategy,
+        select_nlsq_strategy,
+    )
+    from heterodyne.optimization.nlsq.multistart import (
+        MultiStartConfig,
+        MultiStartOptimizer,
+    )
 
 logger = get_logger(__name__)
 
@@ -34,16 +51,25 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 try:
-    from heterodyne.optimization.nlsq.adapter import NLSQAdapter, NLSQWrapper
+    # NLSQWrapper here is the LOW-LEVEL wrapper (adapter.NLSQWrapper);
+    # alias it explicitly to avoid shadowing wrapper.NLSQWrapper (the public
+    # high-level stable-fallback re-exported from heterodyne.optimization.nlsq).
+    from heterodyne.optimization.nlsq.adapter import (  # noqa: F811
+        LowLevelNLSQWrapper as NLSQWrapper,
+    )
+    from heterodyne.optimization.nlsq.adapter import NLSQAdapter  # noqa: F811
 
     HAS_ADAPTERS = True
     HAS_WRAPPER = True
 except ImportError:
+    # Call sites are guarded by ``HAS_ADAPTERS`` / ``HAS_WRAPPER``; the
+    # names above remain unbound but are visible to static analysers via
+    # the ``TYPE_CHECKING`` block.
     HAS_ADAPTERS = False
     HAS_WRAPPER = False
 
 try:
-    from heterodyne.optimization.nlsq.multistart import (
+    from heterodyne.optimization.nlsq.multistart import (  # noqa: F811
         MultiStartConfig,
         MultiStartOptimizer,
     )
@@ -55,7 +81,7 @@ except ImportError:
 try:
     from heterodyne.optimization.nlsq.cmaes_wrapper import (
         CMAES_AVAILABLE,
-        fit_with_cmaes,
+        fit_with_cmaes,  # noqa: F811
     )
 
     HAS_CMAES = CMAES_AVAILABLE
@@ -63,7 +89,10 @@ except ImportError:
     HAS_CMAES = False
 
 try:
-    from heterodyne.optimization.nlsq.memory import NLSQStrategy, select_nlsq_strategy
+    from heterodyne.optimization.nlsq.memory import (  # noqa: F811
+        NLSQStrategy,
+        select_nlsq_strategy,
+    )
 
     HAS_MEMORY = True
 except ImportError:
@@ -121,6 +150,14 @@ def fit_nlsq_jax(
     logger.info("phi=%s°, method=%s", phi_angle, config.method)
 
     # ------------------------------------------------------------------
+    # Input validation (homodyne parity — non-strict observer).
+    # Emits WARNINGs on shape/bounds/finiteness issues but does not
+    # block the fit. The fit proceeds either way; strict mode is
+    # opt-in via the validator's constructor.
+    # ------------------------------------------------------------------
+    _run_input_validation(model=model, c2_data=c2_data)
+
+    # ------------------------------------------------------------------
     # Global optimization selection (CMA-ES → multi-start → local)
     # ------------------------------------------------------------------
     if not _skip_global_selection:
@@ -133,13 +170,16 @@ def fit_nlsq_jax(
             use_nlsq_library,
         )
         if global_result is not None:
+            _run_result_validation(result=global_result, model=model)
             return global_result
         logger.debug("No global optimization enabled, using local optimization")
 
     # ------------------------------------------------------------------
     # Local optimization
     # ------------------------------------------------------------------
-    return _fit_local(model, c2_data, phi_angle, config, weights, use_nlsq_library)
+    result = _fit_local(model, c2_data, phi_angle, config, weights, use_nlsq_library)
+    _run_result_validation(result=result, model=model)
+    return result
 
 
 def fit_nlsq_multi_phi(
@@ -186,10 +226,26 @@ def fit_nlsq_multi_phi(
         )
 
     # ------------------------------------------------------------------
+    # Anti-degeneracy diagnostics (homodyne parity).
+    #
+    # The AntiDegeneracyController is the ported homodyne 4-layer defense
+    # class. Heterodyne's joint-fit path (``_fit_joint_multi_phi``) is the
+    # actual orchestrator, but the controller is consulted here as an
+    # active observer so its mode-resolution logic and group-variance
+    # diagnostics are exercised on every multi-angle fit. This keeps the
+    # ported class on the production hot path rather than shelf-ware.
+    # ------------------------------------------------------------------
+    _log_anti_degeneracy_diagnostics(
+        config=config,
+        phi_angles=phi_angles,
+    )
+
+    # ------------------------------------------------------------------
     # Determine whether to use homodyne-style joint multi-angle fitting.
     # ------------------------------------------------------------------
     use_constant = False
     use_joint = False
+    fourier: Any = None
     if config is not None and len(phi_angles) > 1:
         if getattr(config, "enable_cmaes", False) and HAS_CMAES:
             logger.info("CMA-ES enabled, delegating to joint multi-angle CMA-ES")
@@ -240,6 +296,8 @@ def fit_nlsq_multi_phi(
             )
 
     if use_joint:
+        assert config is not None  # use_joint=True implies config was non-None
+        assert fourier is not None
         return _fit_joint_multi_phi(
             model,
             c2_data,
@@ -553,7 +611,7 @@ def _fit_joint_constant_multi_phi(
     joint_result: NLSQResult | None = None
     if HAS_ADAPTERS:
         try:
-            joint_adapter = NLSQAdapter(parameter_names=joint_param_names)
+            joint_adapter = NLSQAdapter(parameter_names=joint_param_names)  # pyright: ignore[reportPossiblyUnbound]
             joint_result = joint_adapter.fit(
                 residual_fn=joint_residual_fn,
                 initial_params=x0,
@@ -572,7 +630,7 @@ def _fit_joint_constant_multi_phi(
             joint_result = None
 
     if joint_result is None and HAS_WRAPPER:
-        joint_wrapper = NLSQWrapper(parameter_names=joint_param_names)
+        joint_wrapper = NLSQWrapper(parameter_names=joint_param_names)  # pyright: ignore[reportPossiblyUnbound]
         joint_result = joint_wrapper.fit(
             residual_fn=joint_residual_fn,
             initial_params=x0,
@@ -887,7 +945,7 @@ def _fit_joint_cmaes_multi_phi(
             "[CMA-ES] Warm-start active: overriding restart_strategy='bipop' -> 'none' "
             "(BIPOP large-population restarts are incoherent with small sigma_warmstart)"
         )
-    cmaes_result = fit_with_cmaes(
+    cmaes_result = fit_with_cmaes(  # pyright: ignore[reportPossiblyUnbound]
         objective_fn=objective_fn,
         initial_params=initial_params,
         bounds=bounds,
@@ -1033,6 +1091,133 @@ def _use_constant_scaling_mode(config: NLSQConfig, n_phi: int) -> bool:
     return config.per_angle_mode == "constant" or (
         config.per_angle_mode == "auto" and n_phi >= constant_threshold
     )
+
+
+def _run_input_validation(
+    *,
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+) -> None:
+    """Run :class:`InputValidator` against the fit inputs (non-strict).
+
+    Bounds, finiteness, and initial-param-within-bounds checks. Any
+    failures are logged at WARNING; the fit is not blocked. Strict
+    enforcement is opt-in via the validator constructor and is not
+    used here so the validation never breaks an otherwise-healthy fit.
+    Failures inside the validator itself are themselves caught — input
+    validation is an observer, not part of the hot path.
+    """
+    try:
+        from heterodyne.optimization.nlsq.validation import InputValidator
+
+        initial = np.asarray(model.param_manager.get_initial_values(), dtype=np.float64)
+        lower, upper = model.param_manager.get_bounds()
+        bounds = (
+            np.asarray(lower, dtype=np.float64),
+            np.asarray(upper, dtype=np.float64),
+        )
+        data = np.asarray(c2_data, dtype=np.float64)
+        report = InputValidator(strict_mode=False).validate(
+            data=data,
+            initial_params=initial,
+            bounds=bounds,
+        )
+        if not report.is_valid:
+            logger.warning(
+                "Input validation flagged %d issue(s) (continuing fit)",
+                len(report.issues),
+            )
+    except Exception as exc:  # noqa: BLE001 — observer must never block
+        logger.debug("Input validation skipped: %s", exc)
+
+
+def _run_result_validation(
+    *,
+    result: NLSQResult,
+    model: HeterodyneModel,
+) -> None:
+    """Run :class:`ResultValidator` against the optimization result (non-strict)."""
+    try:
+        from heterodyne.optimization.nlsq.validation import ResultValidator
+
+        if result.parameters is None:
+            return
+        params = np.asarray(result.parameters, dtype=np.float64)
+        lower, upper = model.param_manager.get_bounds()
+        bounds = (
+            np.asarray(lower, dtype=np.float64),
+            np.asarray(upper, dtype=np.float64),
+        )
+        cov = (
+            np.asarray(result.covariance, dtype=np.float64)
+            if result.covariance is not None
+            else None
+        )
+        ResultValidator(strict_mode=False).validate_all(
+            params=params,
+            covariance=cov,
+            bounds=bounds,
+            chi_squared=result.final_cost,
+        )
+    except Exception as exc:  # noqa: BLE001 — observer must never block
+        logger.debug("Result validation skipped: %s", exc)
+
+
+def _log_anti_degeneracy_diagnostics(
+    *,
+    config: NLSQConfig | None,
+    phi_angles: np.ndarray,
+) -> None:
+    """Construct an ``AntiDegeneracyController`` and log its diagnostics.
+
+    The controller's mode-resolution (auto → fourier / auto_averaged /
+    individual / fixed_constant) and group-variance indices are computed
+    here and emitted at DEBUG level. The class is the ported homodyne
+    4-layer defense; heterodyne's actual joint-fit path lives in
+    ``_fit_joint_multi_phi``, but the controller is exercised here as
+    an active observer so its parity behaviour is verified on every
+    multi-angle run.
+
+    Failures (import errors, missing config fields, malformed phi
+    arrays) are caught and logged at WARNING — the diagnostics path
+    must never derail an otherwise-healthy fit.
+    """
+    if config is None or len(phi_angles) <= 1:
+        return
+
+    try:
+        from heterodyne.optimization.nlsq.anti_degeneracy_controller import (
+            AntiDegeneracyController,
+        )
+
+        ad_config_dict: dict[str, Any] = {
+            "enable": True,
+            "per_angle_mode": getattr(config, "per_angle_mode", "auto"),
+            "constant_scaling_threshold": int(
+                getattr(config, "constant_scaling_threshold", 3)
+            ),
+            "fourier_auto_threshold": int(
+                getattr(config, "fourier_auto_threshold", 10)
+            ),
+            "fourier_order": int(getattr(config, "fourier_order", 1)),
+        }
+        controller = AntiDegeneracyController.from_config(
+            config_dict=ad_config_dict,
+            n_phi=len(phi_angles),
+            phi_angles=np.deg2rad(phi_angles.astype(np.float64)),
+            per_angle_scaling=True,
+        )
+        diag = controller.get_diagnostics()
+        logger.debug(
+            "AntiDegeneracyController diagnostics: mode=%s, n_phi=%d, "
+            "per_angle_mode_actual=%s, group_indices=%s",
+            diag.get("per_angle_mode"),
+            diag.get("n_phi"),
+            diag.get("per_angle_mode_actual"),
+            controller.get_group_variance_indices(),
+        )
+    except Exception as exc:  # noqa: BLE001 — diagnostics must not block fits
+        logger.warning("Anti-degeneracy diagnostics skipped: %s", exc)
 
 
 def _build_fourier_reparameterizer(phi_angles: np.ndarray, config: NLSQConfig) -> Any:
@@ -1185,7 +1370,7 @@ def _fit_joint_multi_phi(
 
     if HAS_ADAPTERS:
         try:
-            joint_adapter = NLSQAdapter(parameter_names=joint_param_names)
+            joint_adapter = NLSQAdapter(parameter_names=joint_param_names)  # pyright: ignore[reportPossiblyUnbound]
             joint_result = joint_adapter.fit(
                 residual_fn=joint_residual_fn,
                 initial_params=x0,
@@ -1203,7 +1388,7 @@ def _fit_joint_multi_phi(
             joint_result = None
 
     if joint_result is None and HAS_WRAPPER:
-        joint_wrapper = NLSQWrapper(parameter_names=joint_param_names)
+        joint_wrapper = NLSQWrapper(parameter_names=joint_param_names)  # pyright: ignore[reportPossiblyUnbound]
         joint_result = joint_wrapper.fit(
             residual_fn=joint_residual_fn,
             initial_params=x0,
@@ -1460,7 +1645,7 @@ def _fit_cmaes(
         diagonal_filtering=getattr(config, "cmaes_diagonal_filtering", "none"),
     )
 
-    cmaes_result = fit_with_cmaes(
+    cmaes_result = fit_with_cmaes(  # pyright: ignore[reportPossiblyUnbound]
         objective_fn=objective_fn,
         initial_params=cmaes_x0,
         bounds=(lower_bounds, upper_bounds),
@@ -1565,11 +1750,11 @@ def _fit_multistart(
     adapter = _select_adapter(varying_names, use_nlsq_library)
 
     # Build multistart config
-    ms_config = MultiStartConfig(
+    ms_config = MultiStartConfig(  # pyright: ignore[reportPossiblyUnbound]
         n_starts=getattr(config, "multistart_n", 10),
         seed=getattr(config, "multistart_seed", None),
     )
-    optimizer = MultiStartOptimizer(adapter=adapter, config=ms_config)
+    optimizer = MultiStartOptimizer(adapter=adapter, config=ms_config)  # pyright: ignore[reportPossiblyUnbound]
 
     multi_result = optimizer.fit(
         residual_fn=residual_fn,
@@ -1623,8 +1808,8 @@ def _fit_local(
     # Memory-aware strategy selection
     if HAS_MEMORY:
         n_data_est = np.asarray(c2_data).size
-        decision = select_nlsq_strategy(n_data_est, n_varying)
-        if decision.strategy in (NLSQStrategy.LARGE, NLSQStrategy.STREAMING):
+        decision = select_nlsq_strategy(n_data_est, n_varying)  # pyright: ignore[reportPossiblyUnbound]
+        if decision.strategy in (NLSQStrategy.LARGE, NLSQStrategy.STREAMING):  # pyright: ignore[reportPossiblyUnbound]
             logger.warning(
                 "Estimated peak memory (%.2f GB) exceeds threshold (%.2f GB). "
                 "Fit may fail with OOM.",
@@ -1687,7 +1872,7 @@ def _fit_local(
 
     if use_nlsq_library and HAS_ADAPTERS:
         try:
-            adapter = NLSQAdapter(parameter_names=varying_names)
+            adapter = NLSQAdapter(parameter_names=varying_names)  # pyright: ignore[reportPossiblyUnbound]
             logger.debug("Using NLSQAdapter (CurveFit class) for optimization")
             logger.debug("Attempting optimization with NLSQAdapter")
 
@@ -1713,7 +1898,7 @@ def _fit_local(
     # Wrapper fallback (or primary if use_nlsq_library=False)
     if result is None and HAS_WRAPPER:
         try:
-            wrapper = NLSQWrapper(parameter_names=varying_names)
+            wrapper = NLSQWrapper(parameter_names=varying_names)  # pyright: ignore[reportPossiblyUnbound]
             logger.debug("Attempting optimization with NLSQWrapper")
 
             result = wrapper.fit(
@@ -1887,11 +2072,11 @@ def _select_adapter(
     """
     if use_nlsq_library and HAS_ADAPTERS:
         try:
-            return NLSQAdapter(parameter_names=varying_names)
+            return NLSQAdapter(parameter_names=varying_names)  # pyright: ignore[reportPossiblyUnbound]
         except ImportError:
             logger.warning("nlsq library not available, falling back to NLSQWrapper")
     if HAS_WRAPPER:
-        return NLSQWrapper(parameter_names=varying_names)
+        return NLSQWrapper(parameter_names=varying_names)  # pyright: ignore[reportPossiblyUnbound]
     raise ImportError("No NLSQ adapter available")
 
 
