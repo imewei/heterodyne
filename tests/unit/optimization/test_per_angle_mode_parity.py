@@ -33,7 +33,7 @@ class TestModeTaxonomy:
         cfg = NLSQConfig(per_angle_mode="constant")
         assert cfg.per_angle_mode == "constant"
 
-    def test_literal_lists_exactly_four_modes(self) -> None:
+    def test_literal_contains_four_canonical_modes(self) -> None:
         """`get_args` returns the four canonical homodyne mode names.
 
         The Literal may additionally include `"independent"` as a deprecation
@@ -47,3 +47,19 @@ class TestModeTaxonomy:
         assert args - canonical <= {"independent"}, (
             f"Unexpected mode names in Literal: {args - canonical - {'independent'}}"
         )
+
+    def test_validate_accepts_all_literal_modes(self) -> None:
+        """`validate()` must accept every value the Literal allows.
+
+        Catches the validate-vs-Literal drift that the code-quality review
+        caught after Task A1 — the original A1 widened the Literal but
+        forgot to update the validate() allowlist.
+        """
+        for mode in ("individual", "constant", "fourier", "auto", "independent"):
+            cfg = NLSQConfig(per_angle_mode=mode)
+            errors = cfg.validate()
+            mode_errors = [e for e in errors if "per_angle_mode" in e]
+            assert not mode_errors, (
+                f"validate() rejected per_angle_mode={mode!r} "
+                f"even though it is in the Literal: {mode_errors}"
+            )

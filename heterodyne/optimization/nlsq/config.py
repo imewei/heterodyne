@@ -625,7 +625,13 @@ class NLSQConfig:
                 f"must be one of {sorted(_VALID_ANALYSIS_MODES)}"
             )
 
-        valid_per_angle_modes = ("independent", "fourier", "auto")
+        valid_per_angle_modes = (
+            "individual",
+            "constant",
+            "fourier",
+            "auto",
+            "independent",
+        )
         if self.per_angle_mode not in valid_per_angle_modes:
             errors.append(
                 f"per_angle_mode={self.per_angle_mode!r} is not valid; "
