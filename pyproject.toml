@@ -306,6 +306,7 @@ markers = [
     "arviz: marks tests as ArviZ integration tests",
     "visualization: marks tests as visualization tests",
     "regression: marks tests as regression tests",
+    "parity: cross-package parity guards against homodyne reference behaviour",
 ]
 filterwarnings = [
     # JAX warnings
