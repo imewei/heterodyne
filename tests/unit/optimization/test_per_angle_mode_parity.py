@@ -370,3 +370,113 @@ class TestDispatchRouting:
         )
         leaks = {k: v for k, v in calls.items() if k != expected_dispatch_attr and v}
         assert not leaks, f"Mode {mode!r} leaked into other dispatch paths: {leaks}"
+
+
+@pytest.mark.unit
+class TestL2Hierarchical:
+    """L2 marker wiring: when enable_hierarchical=True, the joint fit
+    must construct the controller and surface the hierarchical config
+    in per-angle result metadata.
+
+    Note: this is the MARKER variant of L2 wiring (Sub-PR C1) — the
+    controller is built and observed, but HierarchicalFitter is not
+    actively driving the fit (its single-angle API does not compose
+    cleanly with the joint multi-angle path).  A future C1-follow-up
+    can extend this to active driving once HierarchicalFitter is
+    refactored or wrapped.
+    """
+
+    def test_enable_hierarchical_surfaces_marker_in_result_metadata(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With enable_hierarchical=True, every per-angle result carries
+        result.metadata['hierarchical_config'] with the configured
+        max_outer_iterations."""
+        import heterodyne.optimization.nlsq.core as core
+
+        # Stub adapter so the joint fit completes without a real solver
+        class FakeAdapter:
+            def __init__(self, parameter_names: list[str]) -> None:
+                pass
+
+            def fit(self, *, residual_fn, initial_params, bounds, config):
+                return NLSQResult(
+                    parameters=np.asarray(initial_params).copy(),
+                    parameter_names=[f"p{i}" for i in range(len(initial_params))],
+                    success=True,
+                    message="fake",
+                    metadata={},
+                )
+
+        monkeypatch.setattr(core, "NLSQAdapter", FakeAdapter, raising=False)
+        monkeypatch.setattr(core, "HAS_ADAPTERS", True, raising=False)
+
+        model = _make_synthetic_model(n_varying=14)
+        phi_angles = np.array([-5.0, 5.0, 90.0], dtype=np.float64)
+        c2_data = np.full((3, 5, 5), 1.2, dtype=np.float64)
+        cfg = NLSQConfig(
+            per_angle_mode="auto",
+            constant_scaling_threshold=3,
+            enable_hierarchical=True,
+            hierarchical_max_outer_iterations=4,
+        )
+
+        results = core._fit_joint_averaged_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=cfg,
+            weights=None,
+        )
+
+        assert len(results) == 3
+        for r in results:
+            marker = r.metadata.get("hierarchical_config")
+            assert marker is not None, (
+                f"L2 marker missing from metadata; keys: {list(r.metadata)}"
+            )
+            assert marker.get("max_outer_iterations") == 4, (
+                f"L2 marker max_outer_iterations should be 4; got {marker}"
+            )
+
+    def test_disabled_hierarchical_omits_marker(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With enable_hierarchical=False (default), no marker is set."""
+        import heterodyne.optimization.nlsq.core as core
+
+        class FakeAdapter:
+            def __init__(self, parameter_names: list[str]) -> None:
+                pass
+
+            def fit(self, *, residual_fn, initial_params, bounds, config):
+                return NLSQResult(
+                    parameters=np.asarray(initial_params).copy(),
+                    parameter_names=[f"p{i}" for i in range(len(initial_params))],
+                    success=True,
+                    message="fake",
+                    metadata={},
+                )
+
+        monkeypatch.setattr(core, "NLSQAdapter", FakeAdapter, raising=False)
+        monkeypatch.setattr(core, "HAS_ADAPTERS", True, raising=False)
+
+        model = _make_synthetic_model(n_varying=14)
+        phi_angles = np.array([-5.0, 5.0, 90.0], dtype=np.float64)
+        c2_data = np.full((3, 5, 5), 1.2, dtype=np.float64)
+        cfg = NLSQConfig(
+            per_angle_mode="auto",
+            constant_scaling_threshold=3,
+            enable_hierarchical=False,
+        )
+
+        results = core._fit_joint_averaged_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=cfg,
+            weights=None,
+        )
+
+        for r in results:
+            assert "hierarchical_config" not in r.metadata

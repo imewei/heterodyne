@@ -493,6 +493,116 @@ def _compute_per_angle_chi2(
     return per_angle_cost, reduced_chi2
 
 
+def _anti_degen_dict_from_config(config: NLSQConfig) -> dict[str, Any]:
+    """Project ``NLSQConfig`` fields onto the ``AntiDegeneracyConfig`` schema.
+
+    Mirrors the shape consumed by
+    :meth:`AntiDegeneracyController.from_config` so the joint-fit code paths
+    can construct a controller from the active ``NLSQConfig`` without
+    duplicating the projection logic.
+
+    Returns a nested ``dict`` matching the YAML structure under
+    ``optimization.nlsq.anti_degeneracy``.
+    """
+    return {
+        "enable": config.enable_anti_degeneracy,
+        "per_angle_mode": config.per_angle_mode,
+        "fourier_order": config.fourier_order,
+        "fourier_auto_threshold": config.fourier_auto_threshold,
+        "constant_scaling_threshold": getattr(config, "constant_scaling_threshold", 3),
+        "hierarchical": {
+            "enable": config.enable_hierarchical,
+            "max_outer_iterations": config.hierarchical_max_outer_iterations,
+            "outer_tolerance": config.hierarchical_outer_tolerance,
+            "physical_max_iterations": config.hierarchical_physical_max_iterations,
+            "per_angle_max_iterations": config.hierarchical_per_angle_max_iterations,
+        },
+        "regularization": {
+            "mode": config.regularization_mode,
+            "lambda": config.group_variance_lambda,
+            "target_cv": config.regularization_target_cv,
+            "target_contribution": config.regularization_target_contribution,
+            "max_cv": config.regularization_max_cv,
+        },
+        "gradient_monitoring": {
+            "enable": config.enable_gradient_monitoring,
+            "ratio_threshold": config.gradient_ratio_threshold,
+            "consecutive_triggers": config.gradient_consecutive_triggers,
+            "response": config.gradient_collapse_response,
+        },
+    }
+
+
+def _build_l2_hierarchical_marker(
+    *,
+    config: NLSQConfig,
+    n_phi: int,
+    phi_angles: np.ndarray,
+    n_physical: int,
+) -> dict[str, Any] | None:
+    """Construct an ``AntiDegeneracyController`` and surface its L2 request.
+
+    Sub-PR C1 marker wiring.  ``HierarchicalFitter`` is a single-angle,
+    stage-based parameter-unfreezing strategy (transport → velocity →
+    fraction → all) that requires an ``NLSQAdapterBase`` at construction
+    time — it is **not** the multi-phi outer/inner alternation implied by
+    ``max_outer_iterations``.  Wiring it directly into the joint residual
+    path is out of scope here, so this function returns a metadata marker
+    that downstream callers can use to observe that L2 was REQUESTED.
+
+    Returns ``None`` when L2 is not requested (anti-degeneracy disabled,
+    hierarchical disabled, or single-angle fit).  Otherwise returns the
+    dict that will be embedded in ``result.metadata["hierarchical_config"]``.
+
+    TODO(C1-followup): replace this marker with an active outer/inner loop
+    once the controller learns to drive the joint residual via callbacks
+    (see ``create_nlsq_callbacks`` comment in
+    ``anti_degeneracy_controller.py``).
+    """
+    if not (config.enable_anti_degeneracy and config.enable_hierarchical):
+        return None
+    if n_phi <= 1:
+        return None
+
+    try:
+        from heterodyne.optimization.nlsq.anti_degeneracy_controller import (
+            AntiDegeneracyController,
+        )
+
+        controller = AntiDegeneracyController.from_config(
+            config_dict=_anti_degen_dict_from_config(config),
+            n_phi=n_phi,
+            phi_angles=np.deg2rad(np.asarray(phi_angles, dtype=np.float64)),
+            n_physical=n_physical,
+            per_angle_scaling=True,
+        )
+    except Exception as exc:  # noqa: BLE001 — controller failure must not derail fit
+        logger.warning(
+            "L2 hierarchical marker wiring skipped (controller build failed): %s",
+            exc,
+        )
+        return None
+
+    if not controller.use_hierarchical:
+        return None
+
+    cfg_dict = dict(controller._hierarchical_config_dict)
+    logger.info(
+        "L2 hierarchical requested but not actively wired (see C1 follow-up); "
+        "marker: max_outer_iterations=%d, outer_tolerance=%.1e",
+        cfg_dict.get("max_outer_iterations", -1),
+        cfg_dict.get("outer_tolerance", float("nan")),
+    )
+    return {
+        "requested": True,
+        "active": False,
+        "max_outer_iterations": int(cfg_dict.get("max_outer_iterations", 0)),
+        "outer_tolerance": float(cfg_dict.get("outer_tolerance", 0.0)),
+        "physical_max_iterations": int(cfg_dict.get("physical_max_iterations", 0)),
+        "per_angle_max_iterations": int(cfg_dict.get("per_angle_max_iterations", 0)),
+    }
+
+
 def _fit_joint_averaged_multi_phi(
     model: HeterodyneModel,
     c2_data: np.ndarray,
@@ -577,6 +687,15 @@ def _fit_joint_averaged_multi_phi(
         n_physics_varying,
         len(x0),
         n_phi,
+    )
+
+    # L2 hierarchical optimization wiring (Sub-PR C1, marker-only).
+    # See ``_build_l2_hierarchical_marker`` for why this is observe-only.
+    hierarchical_marker = _build_l2_hierarchical_marker(
+        config=config,
+        n_phi=n_phi,
+        phi_angles=np.asarray(phi_angles, dtype=np.float64),
+        n_physical=n_physics_varying,
     )
 
     c2_data_batch = jnp.asarray(c2_data, dtype=jnp.float64)
@@ -736,6 +855,11 @@ def _fit_joint_averaged_multi_phi(
                 "optimizer": "joint_auto_averaged",
                 "n_angles_joint": n_phi,
                 "wall_time_total": wall_time,
+                **(
+                    {"hierarchical_config": hierarchical_marker}
+                    if hierarchical_marker is not None
+                    else {}
+                ),
             },
         )
         results.append(result)
@@ -1540,6 +1664,15 @@ def _fit_joint_multi_phi(
         n_phi,
     )
 
+    # L2 hierarchical optimization wiring (Sub-PR C1, marker-only).
+    # See ``_build_l2_hierarchical_marker`` for why this is observe-only.
+    hierarchical_marker = _build_l2_hierarchical_marker(
+        config=config,
+        n_phi=n_phi,
+        phi_angles=np.asarray(phi_angles, dtype=np.float64),
+        n_physical=n_physics_varying,
+    )
+
     # Pre-convert data to JAX arrays (outside closure — constants)
     t, q, dt = model.t, model.q, model.dt
     c2_data_list = [jnp.asarray(c2_data[i], dtype=jnp.float64) for i in range(n_phi)]
@@ -1723,6 +1856,11 @@ def _fit_joint_multi_phi(
                 "fourier_reduction": fourier.get_diagnostics()["reduction_ratio"],
                 "n_angles_joint": n_phi,
                 "wall_time_total": wall_time,
+                **(
+                    {"hierarchical_config": hierarchical_marker}
+                    if hierarchical_marker is not None
+                    else {}
+                ),
             },
         )
         results.append(result)
