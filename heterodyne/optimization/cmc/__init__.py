@@ -25,7 +25,13 @@ from heterodyne.optimization.cmc.model import (
     validate_model_output,
 )
 from heterodyne.optimization.cmc.priors import (
+    BOUNDARY_INTERIOR_MARGIN,
+    PriorBuilder,
+    build_default_priors_via_builder,
     build_init_values_dict,
+    build_log_space_priors_via_builder,
+    clamp_params_to_interior,
+    clamp_to_interior,
     estimate_per_angle_scaling,
     extract_nlsq_values_for_cmc,
     get_param_names_in_order,
@@ -79,6 +85,12 @@ __all__ = [
     "build_init_values_dict",
     "estimate_per_angle_scaling",
     "extract_nlsq_values_for_cmc",
+    "BOUNDARY_INTERIOR_MARGIN",
+    "clamp_to_interior",
+    "clamp_params_to_interior",
+    "PriorBuilder",
+    "build_default_priors_via_builder",
+    "build_log_space_priors_via_builder",
     # Sampler (parity)
     "SamplingStats",
     "run_nuts_with_retry",

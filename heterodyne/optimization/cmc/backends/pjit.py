@@ -17,6 +17,7 @@ from numpyro.infer import MCMC, NUTS
 from numpyro.infer import initialization as numpyro_init
 
 from heterodyne.optimization.cmc.backends.base import (
+    _NUTS_EXTRA_FIELDS,
     BackendCapabilities,
     CMCBackend,
 )

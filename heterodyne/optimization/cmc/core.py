@@ -10,6 +10,9 @@ from __future__ import annotations
 import math
 import secrets
 import time
+import warnings
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import arviz as az
@@ -49,6 +52,34 @@ if TYPE_CHECKING:
     from heterodyne.core.heterodyne_model import HeterodyneModel
 
 logger = get_logger(__name__)
+
+
+@contextmanager
+def _silence_arviz_diagnostic_warnings() -> Generator[None]:
+    """Silence two third-party warnings that fire on every CMC diagnostic call.
+
+    1. ``arviz_stats`` ``UserWarning``: "Computing filter_vars on DataTree
+       named None which doesn't match the group argument sample_stats" —
+       cosmetic naming concern in arviz's group resolution that doesn't
+       affect the computed values.
+    2. ``arviz_stats`` ``RuntimeWarning``: "invalid value encountered in
+       scalar divide" — energy / R-hat variance is zero on degenerate
+       chains; the resulting NaN is propagated and handled downstream by
+       :func:`_extract_posterior_stats` and the divergence-rate gate.
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=UserWarning,
+            message=".*filter_vars on DataTree named None.*",
+        )
+        warnings.filterwarnings(
+            "ignore",
+            category=RuntimeWarning,
+            message="invalid value encountered in scalar divide",
+        )
+        yield
+
 
 # ---------------------------------------------------------------------------
 # Degenerate warm-start thresholds — shared with optimization_runner.py.
@@ -466,15 +497,17 @@ def fit_cmc_jax(
         physics_samples = transform_to_physics_space(raw_samples, reparam_config)
         output_names = varying_names
         available_names = [n for n in output_names if n in idata.posterior]
-        summary = (
-            az.summary(idata, var_names=available_names, ci_prob=0.95)
-            if available_names
-            else None
-        )
+        with _silence_arviz_diagnostic_warnings():
+            summary = (
+                az.summary(idata, var_names=available_names, ci_prob=0.95)
+                if available_names
+                else None
+            )
     else:
         physics_samples = {k: np.asarray(v) for k, v in samples.items()}
         output_names = varying_names
-        summary = az.summary(idata, var_names=output_names, ci_prob=0.95)
+        with _silence_arviz_diagnostic_warnings():
+            summary = az.summary(idata, var_names=output_names, ci_prob=0.95)
 
     posterior_mean, posterior_std, r_hat, ess_bulk, ess_tail = _extract_posterior_stats(
         output_names,
@@ -1145,16 +1178,26 @@ def fit_cmc_sharded(
             _fb_rh = _first_bad.r_hat
             _fb_ess = _first_bad.ess_bulk
             _fb_bfmi = _first_bad.bfmi
-            _fb_max_rhat = (
-                float(np.nanmax(_fb_rh))
-                if _fb_rh is not None and len(_fb_rh) > 0
-                else float("nan")
-            )
-            _fb_min_ess = (
-                float(np.nanmin(_fb_ess))
-                if _fb_ess is not None and len(_fb_ess) > 0
-                else float("nan")
-            )
+            # Suppress the "All-NaN slice encountered" RuntimeWarning that
+            # numpy emits when ``_fb_rh`` is all-NaN (single-chain shards,
+            # all-divergent posteriors). NaN propagation is the intended
+            # behaviour here — the diagnostic just reports it downstream.
+            with np.errstate(invalid="ignore"), warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=RuntimeWarning,
+                    message="All-NaN slice encountered",
+                )
+                _fb_max_rhat = (
+                    float(np.nanmax(_fb_rh))
+                    if _fb_rh is not None and len(_fb_rh) > 0
+                    else float("nan")
+                )
+                _fb_min_ess = (
+                    float(np.nanmin(_fb_ess))
+                    if _fb_ess is not None and len(_fb_ess) > 0
+                    else float("nan")
+                )
             _fb_min_bfmi = (
                 float(np.nanmin(np.asarray(_fb_bfmi, dtype=float)))
                 if _fb_bfmi is not None
@@ -2093,7 +2136,8 @@ def _result_dict_to_cmc_result(
                 pass
         idata = az.from_dict(idata_kwargs)
         if param_names:
-            summary = az.summary(idata, var_names=param_names, ci_prob=0.95)
+            with _silence_arviz_diagnostic_warnings():
+                summary = az.summary(idata, var_names=param_names, ci_prob=0.95)
     except Exception as _exc:  # noqa: BLE001
         logger.warning("ArviZ summary failed for shard result: %s", _exc)
 
@@ -2316,7 +2360,8 @@ def _compute_bfmi(idata: az.InferenceData) -> tuple[list[float] | None, bool]:
     bfmi: list[float] | None = None
     bfmi_compute_failed = False
     try:
-        bfmi_result = az.bfmi(idata)
+        with _silence_arviz_diagnostic_warnings():
+            bfmi_result = az.bfmi(idata)
         # az.bfmi() return type varies across ArviZ versions:
         #   - xr.DataArray  → .values is a numpy array attribute (non-callable)
         #   - dict          → .values is a bound method (callable)

@@ -1168,7 +1168,7 @@ def _run_shard_worker(
 
         # Free large JAX arrays before serialisation to reduce peak memory
         del c2_jax, sigma_jax, t_jax, extra_raw, samples_raw
-        mcmc = None  # type: ignore[assignment]
+        mcmc = None
 
         divergence_str = f", divergences: {num_divergent}" if num_divergent > 0 else ""
         worker_logger.info(

@@ -98,18 +98,97 @@ def build_nlsq_informed_priors(
     return priors
 
 
+def _check_registry_spec_sync(registry: ParameterRegistry) -> None:
+    """Walk registry vs ``_DEFAULT_PRIOR_SPECS``; raise on drift.
+
+    Inlined sync check used by both :func:`_verify_dual_prior_sync` (the
+    ``build_default_priors`` side-effect path) and
+    :meth:`PriorBuilder._verify_registry_spec_sync` (the explicit-builder
+    path).  Keeping the implementation in a module-level function avoids
+    the previous recursion trap where ``_verify_dual_prior_sync``
+    constructed a ``PriorBuilder``, which called ``build_default_priors``,
+    which called ``_verify_dual_prior_sync`` again.
+
+    Tolerance is ``rel_tol=1e-6, abs_tol=1e-9`` — tight enough to catch
+    real desync, generous enough to survive ``0.1 + 0.2`` rounding.
+    """
+    # Lazy import to avoid an import cycle at module load:
+    # parameter_space.py imports parameter_registry; this module imports
+    # both at runtime so we don't add to the import graph.
+    from heterodyne.config.parameter_space import _DEFAULT_PRIOR_SPECS
+
+    mismatches: list[str] = []
+
+    for name, (spec_loc, spec_scale) in _DEFAULT_PRIOR_SPECS.items():
+        try:
+            info = registry[name]
+        except KeyError:
+            mismatches.append(
+                f"{name!r}: present in _DEFAULT_PRIOR_SPECS "
+                f"({spec_loc}, {spec_scale}) but absent from the registry"
+            )
+            continue
+        if info.prior_mean is None or info.prior_std is None:
+            mismatches.append(
+                f"{name!r}: registry has prior_mean={info.prior_mean!r}, "
+                f"prior_std={info.prior_std!r}; spec wants "
+                f"({spec_loc}, {spec_scale})"
+            )
+            continue
+        mean_ok = math.isclose(
+            info.prior_mean,
+            spec_loc,
+            rel_tol=_DEFAULT_SYNC_REL_TOL,
+            abs_tol=_DEFAULT_SYNC_ABS_TOL,
+        )
+        std_ok = math.isclose(
+            info.prior_std,
+            spec_scale,
+            rel_tol=_DEFAULT_SYNC_REL_TOL,
+            abs_tol=_DEFAULT_SYNC_ABS_TOL,
+        )
+        if not (mean_ok and std_ok):
+            mismatches.append(
+                f"{name!r}: registry=({info.prior_mean}, {info.prior_std}), "
+                f"spec=({spec_loc}, {spec_scale})"
+            )
+
+    spec_names = set(_DEFAULT_PRIOR_SPECS.keys())
+    for name in registry:
+        if name in spec_names:
+            continue
+        info = registry[name]
+        if info.prior_mean is not None or info.prior_std is not None:
+            mismatches.append(
+                f"{name!r}: registry has prior "
+                f"(prior_mean={info.prior_mean}, prior_std={info.prior_std}) "
+                "but is missing from _DEFAULT_PRIOR_SPECS"
+            )
+
+    if mismatches:
+        raise RuntimeError(
+            "Dual-prior sync violation (CLAUDE.md Rule 9). "
+            "parameter_registry.py and parameter_space._DEFAULT_PRIOR_SPECS "
+            "must agree on (prior_mean, prior_std) vs (loc, scale) per "
+            "parameter, within rel_tol=1e-6 / abs_tol=1e-9. Mismatches:\n  - "
+            + "\n  - ".join(mismatches)
+        )
+
+    logger.debug(
+        "Registry/spec sync verified (%d parameters)",
+        len(_DEFAULT_PRIOR_SPECS),
+    )
+
+
 def _verify_dual_prior_sync(registry: ParameterRegistry | None) -> None:
-    """Run the PriorBuilder construction-time sync gate.
+    """Run the construction-time dual-prior sync gate (CLAUDE.md Rule 9).
 
     Built as a side-effect of :func:`build_default_priors` so every prior-
-    construction call validates Rule 9.  :class:`PriorBuilder` is defined
-    later in this same module (absorbed from prior_builder.py; Phase 4 PR 4
-    Task 4.5).
+    construction call validates Rule 9 without instantiating the
+    :class:`PriorBuilder` (which would cause unbounded recursion through
+    ``PriorBuilder.build`` → ``build_default_priors`` → here).
     """
-    # PriorBuilder.__init__ runs the dual-source comparison; we drop the
-    # instance immediately because we already have the implementation
-    # below — only the side-effect matters.
-    PriorBuilder(registry=registry, use_log_space_priors=True)
+    _check_registry_spec_sync(registry if registry is not None else DEFAULT_REGISTRY)
 
 
 def build_default_priors(
@@ -1344,89 +1423,13 @@ class PriorBuilder:
     def _verify_registry_spec_sync(self) -> None:
         """Walk registry vs ``_DEFAULT_PRIOR_SPECS``; raise on drift.
 
-        The two sources are:
-
-        * ``parameter_registry.py`` — per-``ParameterInfo``
-          ``prior_mean``/``prior_std`` (the source of truth for CMC
-          prior construction via :func:`build_default_priors`).
-
-        * ``parameter_space.py`` — ``_DEFAULT_PRIOR_SPECS`` dict of
-          ``(loc, scale)`` per name (the source used by
-          :func:`ParameterSpace._default_prior` to seed
-          TruncatedNormal/Beta priors during ``ParameterSpace.__init__``).
-
-        Both must agree, or the same parameter would receive different
-        priors depending on which code path constructed it.  We use
-        ``math.isclose(rel_tol=1e-6, abs_tol=1e-9)`` — tight enough to
-        catch real desync (someone forgot to update one file),
-        generous enough to survive ``0.1 + 0.2`` rounding artefacts.
+        Delegates to the module-level :func:`_check_registry_spec_sync`
+        so the same comparison logic powers both the function-style
+        :func:`build_default_priors` side-effect path and this
+        builder-style entry point.  See that function for the two
+        sources of truth and the tolerance rationale.
         """
-        # Lazy import to avoid an import cycle at module load:
-        # parameter_space.py imports parameter_registry; this module
-        # imports both at runtime so we don't add to the import graph.
-        from heterodyne.config.parameter_space import _DEFAULT_PRIOR_SPECS
-
-        mismatches: list[str] = []
-
-        for name, (spec_loc, spec_scale) in _DEFAULT_PRIOR_SPECS.items():
-            try:
-                info = self._registry[name]
-            except KeyError:
-                mismatches.append(
-                    f"{name!r}: present in _DEFAULT_PRIOR_SPECS "
-                    f"({spec_loc}, {spec_scale}) but absent from the registry"
-                )
-                continue
-            if info.prior_mean is None or info.prior_std is None:
-                mismatches.append(
-                    f"{name!r}: registry has prior_mean={info.prior_mean!r}, "
-                    f"prior_std={info.prior_std!r}; spec wants "
-                    f"({spec_loc}, {spec_scale})"
-                )
-                continue
-            mean_ok = math.isclose(
-                info.prior_mean,
-                spec_loc,
-                rel_tol=_DEFAULT_SYNC_REL_TOL,
-                abs_tol=_DEFAULT_SYNC_ABS_TOL,
-            )
-            std_ok = math.isclose(
-                info.prior_std,
-                spec_scale,
-                rel_tol=_DEFAULT_SYNC_REL_TOL,
-                abs_tol=_DEFAULT_SYNC_ABS_TOL,
-            )
-            if not (mean_ok and std_ok):
-                mismatches.append(
-                    f"{name!r}: registry=({info.prior_mean}, {info.prior_std}), "
-                    f"spec=({spec_loc}, {spec_scale})"
-                )
-
-        spec_names = set(_DEFAULT_PRIOR_SPECS.keys())
-        for name in self._registry:
-            if name in spec_names:
-                continue
-            info = self._registry[name]
-            if info.prior_mean is not None or info.prior_std is not None:
-                mismatches.append(
-                    f"{name!r}: registry has prior "
-                    f"(prior_mean={info.prior_mean}, prior_std={info.prior_std}) "
-                    "but is missing from _DEFAULT_PRIOR_SPECS"
-                )
-
-        if mismatches:
-            raise RuntimeError(
-                "Dual-prior sync violation (CLAUDE.md Rule 9). "
-                "parameter_registry.py and parameter_space._DEFAULT_PRIOR_SPECS "
-                "must agree on (prior_mean, prior_std) vs (loc, scale) per "
-                "parameter, within rel_tol=1e-6 / abs_tol=1e-9. Mismatches:\n  - "
-                + "\n  - ".join(mismatches)
-            )
-
-        logger.debug(
-            "PriorBuilder: registry/spec sync verified (%d parameters)",
-            len(_DEFAULT_PRIOR_SPECS),
-        )
+        _check_registry_spec_sync(self._registry)
 
 
 def build_default_priors_via_builder(
