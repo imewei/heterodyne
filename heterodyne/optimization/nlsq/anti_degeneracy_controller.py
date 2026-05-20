@@ -597,14 +597,25 @@ class AntiDegeneracyController:
         if self.regularizer is not None:
 
             def loss_augmentation(params: np.ndarray, residuals: np.ndarray) -> float:
-                """Add regularization penalty to loss."""
+                """Add regularization penalty to loss.
+
+                The joint parameter vector is laid out as
+                ``[physics | per_angle_scaling]`` (see ``core.py``:
+                _fit_joint_averaged_multi_phi / _fit_joint_multi_phi).
+                Penalize the trailing per-angle block, NOT the leading
+                physics block — slicing from the head would regularize
+                physics parameters, which is incorrect.
+
+                Post-Codex-review fix: previously sliced ``params[:n_per]``
+                which inadvertently penalized the first n_per physics
+                parameters.  Now slices ``params[n_physical:n_physical+n_per]``.
+                """
                 del residuals  # signature contract, not used by this regularizer
-                # Use current_lambda from the regularizer
                 lambda_val = self.regularizer.current_lambda  # type: ignore[union-attr]
-                # Simple L2 regularization on per-angle parameters
                 n_per = self.n_per_angle_params
-                if n_per > 0 and len(params) > n_per:
-                    per_angle = params[:n_per]
+                n_physical = self.n_physical
+                if n_per > 0 and len(params) >= n_physical + n_per:
+                    per_angle = params[n_physical : n_physical + n_per]
                     reg_term = lambda_val * float(np.var(per_angle))
                     return reg_term
                 return 0.0

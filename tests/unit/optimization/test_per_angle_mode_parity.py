@@ -686,6 +686,71 @@ class TestL3Regularization:
             f"with reg: {length_on}, without: {length_off}"
         )
 
+    def test_loss_augmentation_penalizes_scaling_not_physics(self) -> None:
+        """L3 penalty must come from per-angle SCALING params (tail), not PHYSICS (head).
+
+        Joint parameter vector layout is ``[physics | per_angle_scaling]``
+        (see ``_fit_joint_averaged_multi_phi``: ``x0 = np.concatenate([physics_initial, [avg_contrast, avg_offset]])``).
+        A naive ``params[:n_per]`` slice would penalize the FIRST n_per
+        physics params instead of the scaling block — this test pins the
+        Codex-flagged fix (post-review) that switches to a tail slice
+        ``params[n_physical:n_physical+n_per]``.
+        """
+        from heterodyne.optimization.nlsq.anti_degeneracy_controller import (
+            AntiDegeneracyController,
+        )
+
+        controller = AntiDegeneracyController.from_config(
+            config_dict={
+                "enable": True,
+                "per_angle_mode": "auto",
+                "constant_scaling_threshold": 3,
+                "regularization": {"mode": "adaptive", "lambda": 1.0},
+            },
+            n_phi=5,
+            phi_angles=np.linspace(-90.0, 90.0, 5, dtype=np.float64),
+            n_physical=14,
+        )
+
+        callbacks = controller.create_nlsq_callbacks()
+        loss_aug = callbacks.get("loss_augmentation")
+        assert loss_aug is not None, "L3 callback must be registered"
+
+        # Build two parameter vectors of shape [physics | per_angle_scaling].
+        # Vector A: physics has HIGH variance, scaling is constant -> penalty should be ~0
+        # Vector B: physics is constant, scaling has HIGH variance -> penalty should be large
+        # n_per_angle_params == 2 for auto_averaged mode (1 contrast + 1 offset).
+        n_phys = 14
+        n_per = controller.n_per_angle_params
+        assert n_per == 2, f"auto_averaged expects 2 per-angle params; got {n_per}"
+
+        params_high_physics_var = np.concatenate(
+            [np.linspace(-1.0, 1.0, n_phys), [0.5, 0.5]]  # scaling constant
+        )
+        params_high_scaling_var = np.concatenate(
+            [np.ones(n_phys), [0.0, 1.0]]  # physics constant, scaling spread
+        )
+        dummy_residuals = np.zeros(10)
+
+        penalty_phys = float(loss_aug(params_high_physics_var, dummy_residuals))
+        penalty_scaling = float(loss_aug(params_high_scaling_var, dummy_residuals))
+
+        # Physics-variance vector should yield essentially zero penalty —
+        # the L3 callback ignores physics params entirely.
+        assert penalty_phys == pytest.approx(0.0, abs=1e-9), (
+            f"L3 must IGNORE physics-param variance; got penalty={penalty_phys}. "
+            "If non-zero, the slice is inverted (penalizing physics instead of scaling)."
+        )
+        # Scaling-variance vector should yield a strictly positive penalty
+        # (lambda * var([0.0, 1.0]) = 1.0 * 0.25 = 0.25).
+        assert penalty_scaling > 0.0, (
+            f"L3 must penalize per-angle scaling variance; got penalty={penalty_scaling}"
+        )
+        assert penalty_scaling == pytest.approx(0.25, abs=1e-9), (
+            f"L3 penalty should be lambda*var(scaling) = 1.0*0.25 = 0.25; "
+            f"got {penalty_scaling}"
+        )
+
 
 @pytest.mark.unit
 class TestL4GradientMonitor:
