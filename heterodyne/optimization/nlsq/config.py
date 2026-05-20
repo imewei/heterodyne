@@ -328,7 +328,9 @@ class NLSQConfig:
     # Fourier reparameterization for per-angle scaling
     # ------------------------------------------------------------------
 
-    per_angle_mode: Literal["independent", "fourier", "auto"] = "auto"
+    per_angle_mode: Literal[
+        "individual", "constant", "fourier", "auto", "independent"
+    ] = "auto"
     fourier_order: int = 2
     fourier_auto_threshold: int = 6
 
