@@ -69,7 +69,7 @@ def compute_flat_residuals(
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     c2_model_flat = c2_model[triu_i, triu_j]
-    return (c2_model_flat - c2_data_flat) * sqrt_weights_flat  # type: ignore[no-any-return]
+    return (c2_model_flat - c2_data_flat) * sqrt_weights_flat
 
 
 def make_residual_fn(

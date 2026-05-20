@@ -132,7 +132,7 @@ class TwoComponentModel(HeterodyneModelBase):
         Returns:
             Correlation matrix c2(t1, t2), shape (N, N)
         """
-        return compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)  # type: ignore[no-any-return]
+        return compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
 
     def get_default_params(self) -> np.ndarray:
         """Get default parameter values as array."""
@@ -353,7 +353,7 @@ class ReducedModel(HeterodyneModelBase):
             Correlation matrix c2(t1, t2), shape (N, N)
         """
         full_params = self._expand_to_full(params)
-        return compute_c2_heterodyne(full_params, t, q, dt, phi_angle, contrast, offset)  # type: ignore[no-any-return]
+        return compute_c2_heterodyne(full_params, t, q, dt, phi_angle, contrast, offset)
 
 
 # ---------------------------------------------------------------------------

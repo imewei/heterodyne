@@ -243,7 +243,7 @@ def compute_c2_elementwise(
     # single-truth-of-math module and depends only on physics_utils.
     from heterodyne.core.physics_kernel import compute_c2_unified
 
-    return compute_c2_unified(
+    return compute_c2_unified(  # type: ignore[no-any-return]
         params,
         q,
         dt,
@@ -559,8 +559,8 @@ def compute_posterior_predictive(
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     if rng_key is not None:
         noise = jax.random.normal(rng_key, shape=c2_model.shape) * sigma
-        return c2_model + noise  # type: ignore[no-any-return]
-    return c2_model  # type: ignore[no-any-return]
+        return c2_model + noise
+    return c2_model
 
 
 # ---------------------------------------------------------------------------

@@ -197,11 +197,11 @@ def compute_transport_integral_matrix(
 def compute_c2_heterodyne(
     params: jnp.ndarray,
     t: jnp.ndarray,
-    q: float,
-    dt: float,
-    phi_angle: float,
-    contrast: float = 1.0,
-    offset: float = 1.0,
+    q: float | jnp.ndarray,
+    dt: float | jnp.ndarray,
+    phi_angle: float | jnp.ndarray,
+    contrast: float | jnp.ndarray = 1.0,
+    offset: float | jnp.ndarray = 1.0,
 ) -> jnp.ndarray:
     """JIT-compiled two-time heterodyne correlation (meshgrid path).
 
@@ -230,7 +230,7 @@ def compute_c2_heterodyne(
     # before some downstream test helpers expect it.
     from heterodyne.core.physics_kernel import compute_c2_unified
 
-    return compute_c2_unified(
+    return compute_c2_unified(  # type: ignore[no-any-return]
         params,
         q,
         dt,
@@ -299,7 +299,7 @@ def _compute_residuals_jit(
     n_time = c2_data.shape[0]
     non_diagonal = ~jnp.eye(n_time, dtype=bool)
     rows, cols = jnp.nonzero(non_diagonal, size=n_time * (n_time - 1))
-    return residuals[rows, cols]  # type: ignore[no-any-return]
+    return residuals[rows, cols]
 
 
 # Jacobian of residuals with respect to parameters (for NLSQ).
@@ -448,7 +448,7 @@ def compute_multi_angle_residuals(
         n_time = c2_exp.shape[0]
         non_diagonal = ~jnp.eye(n_time, dtype=bool)
         rows, cols = jnp.nonzero(non_diagonal, size=n_time * (n_time - 1))
-        return residuals[rows, cols]  # type: ignore[no-any-return]
+        return residuals[rows, cols]
 
     compute_all = jax.vmap(single_angle_residual, in_axes=(0, 0, 0, 0, 0))
     residuals_batch = compute_all(

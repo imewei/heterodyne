@@ -289,7 +289,7 @@ class TheoryEngine:
 
         if not jnp.isfinite(c2).all():
             raise ValueError("Non-finite values in computed c2 — check parameters")
-        return c2  # type: ignore[no-any-return]
+        return c2
 
     def compute_residuals(
         self,
