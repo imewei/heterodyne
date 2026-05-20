@@ -97,12 +97,12 @@ class TestModeTaxonomy:
         '<string>:149' (the dataclass __init__); stacklevel=3 reports
         this test file at the line of the NLSQConfig() call.
         """
-        import inspect
+        import sys
         import warnings as _warnings
 
         with _warnings.catch_warnings(record=True) as record:
             _warnings.simplefilter("always")
-            expected_lineno = inspect.currentframe().f_lineno + 1
+            expected_lineno = sys._getframe(0).f_lineno + 1
             NLSQConfig(per_angle_mode="independent")
 
         deprecation = [r for r in record if issubclass(r.category, DeprecationWarning)]
