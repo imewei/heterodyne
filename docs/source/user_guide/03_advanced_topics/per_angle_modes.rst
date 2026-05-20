@@ -25,44 +25,68 @@ Total free parameters: :math:`14 + 2 N_\phi`.
 For a typical 8-angle dataset: :math:`14 + 16 = 30`.
 
 
-ScalingConfig and PerAngleScaling
-----------------------------------
+Per-Angle Modes
+---------------
 
-The :class:`~heterodyne.core.scaling_utils.ScalingConfig` dataclass
-controls scaling behaviour:
+Heterodyne's NLSQ optimizer supports four per-angle scaling modes, with
+identical semantics to the homodyne reference at
+`homodyne anti-degeneracy theory
+<https://homodyne.readthedocs.io/en/latest/theory/anti_degeneracy.html>`_.
+For :math:`n_\phi` angles and Fourier truncation order :math:`K`:
 
-.. code-block:: python
+.. list-table::
+   :header-rows: 1
+   :widths: 16 24 22 38
 
-   from heterodyne.core.scaling_utils import ScalingConfig
+   * - Mode
+     - Optimizer params
+     - β(φ), o(φ) status
+     - Behaviour
+   * - ``"constant"``
+     - 14 (physics only)
+     - Frozen per angle
+     - β,o pre-estimated by quantile and held fixed in the residual.
+       The optimizer never sees β, o as free variables.
+   * - ``"auto"`` (default)
+     - 16 = 14 + 2
+     - Averaged, then optimized
+     - Per-angle quantile estimates averaged to one β̄, ō and
+       optimized jointly with physics.  Selected automatically when
+       ``n_phi >= constant_scaling_threshold`` (default 3).
+   * - ``"fourier"`` (K=2)
+     - :math:`14 + 2(2K+1)` = 24
+     - Optimized as Fourier coeffs
+     - β(φ), o(φ) modeled as truncated Fourier series in φ.
+       The :math:`2K+1` coefficients per scalar are optimized jointly.
+   * - ``"individual"``
+     - :math:`14 + 2 n_\phi`
+     - Per-angle, fully free
+     - Each angle gets its own free β_k, o_k.  Use with caution:
+       prone to scaling absorption for many angles.
 
-   config = ScalingConfig(
-       n_angles=8,
-       mode="individual",  # Each angle gets independent contrast/offset
-   )
+.. note::
 
-Available scaling modes:
+   Heterodyne uses 14 physics parameters (homodyne uses 7) — the
+   per-angle parameter counts above add the same per-angle blocks on
+   top of the larger physics block.
 
-``"constant"``
-   A single contrast and offset shared across all angles.
-   Free scaling parameters: 2.
+.. deprecated:: 0.7
+   ``per_angle_mode="independent"`` is a deprecation alias for
+   ``"individual"`` (homodyne's canonical name).  It will be removed
+   in heterodyne v1.0.
 
-``"individual"``
-   Independent contrast and offset for every angle.
-   Free scaling parameters: :math:`2 N_\phi`.
+Layer 5 (shear weighting) — intentionally excluded
+--------------------------------------------------
 
-``"auto"``
-   Automatically selects between ``"constant"`` and ``"individual"``
-   based on the number of angles and data quality.
-
-``"constant_averaged"``
-   Fits individual values, then averages them post-hoc.  Useful for
-   diagnostics (checking angle-to-angle consistency) while reporting
-   a single representative value.
-
-The :class:`~heterodyne.core.scaling_utils.PerAngleScaling` manager
-tracks which scaling parameters are varying in the optimiser and
-provides ``expand`` / ``compress`` operations to convert between the
-flat optimiser vector and the per-angle representation.
+Homodyne's anti-degeneracy theory defines a fifth defense layer that
+re-weights the residual by the shear-sensitivity sinc term in the g₂
+formula.  Heterodyne uses a velocity-phase physics model: the g₂
+expression contains no shear sinc term and there is nothing for L5 to
+re-weight.  The exclusion is enforced at the code level —
+:class:`~heterodyne.optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController`
+has no ``shear_weighter`` field, and
+:meth:`~heterodyne.optimization.nlsq.anti_degeneracy_controller.AntiDegeneracyController.use_shear_weighting`
+always returns ``False``.
 
 
 Fourier Reparameterisation
