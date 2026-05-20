@@ -852,6 +852,15 @@ def _fit_joint_averaged_multi_phi(
         and getattr(anti_degen_controller, "monitor", None) is not None
         and config.enable_gradient_monitoring
     ):
+        # TODO(L4-followup): The current adapter loop does not expose a
+        # per-iteration gradient callback to the controller, so
+        # monitor.get_summary() is observation-passive — it returns empty
+        # history.  To activate L4 we need either (a) the NLSQAdapter to
+        # call back into the controller via iteration_callback from
+        # create_nlsq_callbacks(), or (b) post-fit gradient-norm sampling
+        # driven by the joint solve's iteration trace.  The metadata key
+        # 'gradient_monitor' is currently set only as a placeholder to
+        # surface that L4 was REQUESTED.
         try:
             monitor_summary = dict(anti_degen_controller.monitor.get_summary() or {})
         except (AttributeError, TypeError) as exc:
@@ -1165,6 +1174,15 @@ def _fit_joint_fixed_constant_multi_phi(
         and getattr(anti_degen_controller, "monitor", None) is not None
         and config.enable_gradient_monitoring
     ):
+        # TODO(L4-followup): The current adapter loop does not expose a
+        # per-iteration gradient callback to the controller, so
+        # monitor.get_summary() is observation-passive — it returns empty
+        # history.  To activate L4 we need either (a) the NLSQAdapter to
+        # call back into the controller via iteration_callback from
+        # create_nlsq_callbacks(), or (b) post-fit gradient-norm sampling
+        # driven by the joint solve's iteration trace.  The metadata key
+        # 'gradient_monitor' is currently set only as a placeholder to
+        # surface that L4 was REQUESTED.
         try:
             monitor_summary = dict(anti_degen_controller.monitor.get_summary() or {})
         except (AttributeError, TypeError) as exc:
@@ -1967,6 +1985,15 @@ def _fit_joint_multi_phi(
         and getattr(anti_degen_controller, "monitor", None) is not None
         and config.enable_gradient_monitoring
     ):
+        # TODO(L4-followup): The current adapter loop does not expose a
+        # per-iteration gradient callback to the controller, so
+        # monitor.get_summary() is observation-passive — it returns empty
+        # history.  To activate L4 we need either (a) the NLSQAdapter to
+        # call back into the controller via iteration_callback from
+        # create_nlsq_callbacks(), or (b) post-fit gradient-norm sampling
+        # driven by the joint solve's iteration trace.  The metadata key
+        # 'gradient_monitor' is currently set only as a placeholder to
+        # surface that L4 was REQUESTED.
         try:
             monitor_summary = dict(anti_degen_controller.monitor.get_summary() or {})
         except (AttributeError, TypeError) as exc:
