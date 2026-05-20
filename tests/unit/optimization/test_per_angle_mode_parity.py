@@ -371,6 +371,68 @@ class TestDispatchRouting:
         leaks = {k: v for k, v in calls.items() if k != expected_dispatch_attr and v}
         assert not leaks, f"Mode {mode!r} leaked into other dispatch paths: {leaks}"
 
+    def test_cmaes_with_constant_uses_fixed_constant_warmstart(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """CMA-ES warmstart must respect per_angle_mode='constant'.
+
+        Pins the post-review fix (commit-after-108694b) — previously the
+        warmstart used the legacy _use_constant_scaling_mode union predicate
+        and silently routed 'constant' to the averaged path.
+        """
+        import heterodyne.optimization.nlsq.core as core
+
+        calls = {
+            "_fit_joint_fixed_constant_multi_phi": 0,
+            "_fit_joint_averaged_multi_phi": 0,
+        }
+
+        def make_fake(name: str):
+            def _fake(**kwargs):
+                calls[name] += 1
+                return [
+                    NLSQResult(
+                        parameters=np.zeros(14),
+                        success=True,
+                        message="ok",
+                        metadata={},
+                        parameter_names=[],
+                    )
+                ] * 3
+
+            return _fake
+
+        for name in calls:
+            monkeypatch.setattr(core, name, make_fake(name), raising=False)
+
+        phi_angles = np.array([-5.0, 5.0, 90.0], dtype=np.float64)
+        c2_data = np.zeros((3, 4, 4), dtype=np.float64)
+        cfg = NLSQConfig(
+            per_angle_mode=cast(ModeLiteral, "constant"),
+            enable_cmaes=True,
+            constant_scaling_threshold=3,
+        )
+
+        try:
+            core._fit_joint_cmaes_multi_phi(
+                model=MagicMock(),
+                c2_data=c2_data,
+                phi_angles=phi_angles,
+                config=cfg,
+                weights=None,
+            )
+        except Exception:
+            # CMA-ES phase may raise on the mock model — we only need
+            # to verify the warmstart dispatched correctly before it ran.
+            pass
+
+        assert calls["_fit_joint_fixed_constant_multi_phi"] == 1, (
+            f"constant + CMA-ES must use fixed-constant warmstart; actual: {calls}"
+        )
+        assert calls["_fit_joint_averaged_multi_phi"] == 0, (
+            f"averaged path must not be invoked for constant mode; actual: {calls}"
+        )
+
 
 @pytest.mark.unit
 class TestL2Hierarchical:

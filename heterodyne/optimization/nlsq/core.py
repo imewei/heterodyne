@@ -1231,7 +1231,12 @@ def _fit_joint_cmaes_multi_phi(
     from heterodyne.config.parameter_registry import SCALING_PARAMS
     from heterodyne.optimization.nlsq.cmaes_wrapper import CMAESConfig
 
-    use_constant = _use_constant_scaling_mode(config, len(phi_angles))
+    use_fixed_constant = _use_fixed_constant_scaling_mode(config, len(phi_angles))
+    use_averaged_constant = _use_averaged_constant_scaling_mode(config, len(phi_angles))
+    # legacy alias retained for downstream CMA-ES setup (residual closure,
+    # bounds construction, result reconstruction) which all share the
+    # averaged-style search-space layout regardless of warmstart path.
+    use_constant = use_fixed_constant or use_averaged_constant
     fourier = (
         None
         if use_constant
@@ -1241,17 +1246,32 @@ def _fit_joint_cmaes_multi_phi(
         )
     )
 
+    if use_fixed_constant:
+        warmstart_label = "fixed-constant (per-angle β,o frozen)"
+    elif use_averaged_constant:
+        warmstart_label = "averaged constant (β̄,ō jointly fit)"
+    else:
+        warmstart_label = "fourier/independent"
+
     logger.info("=" * 60)
     logger.info("CMA-ES GLOBAL OPTIMIZATION")
     logger.info("=" * 60)
     logger.info("Analysis mode: %s", config.analysis_mode)
     logger.info(
         "Anti-degeneracy scaling mode: %s%s",
-        "constant averaged" if use_constant else "fourier/independent",
+        warmstart_label,
         f" ({config.per_angle_mode})",
     )
 
-    if use_constant:
+    if use_fixed_constant:
+        warmstart_results = _fit_joint_fixed_constant_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=config,
+            weights=weights,
+        )
+    elif use_averaged_constant:
         warmstart_results = _fit_joint_averaged_multi_phi(
             model=model,
             c2_data=c2_data,
@@ -1376,6 +1396,8 @@ def _fit_joint_cmaes_multi_phi(
     fixed_values_jax = jnp.asarray(param_manager.get_full_values(), dtype=jnp.float64)
     varying_indices_jax = jnp.array(param_manager.varying_indices, dtype=jnp.int32)
 
+    # CMA-ES phase searches in averaged-style space (14 physics + 2 averaged β̄,ō);
+    # fixed-constant warmstart hands off seeds in this space.
     # NOTE: must return a JAX array. NLSQ's masked_residual_func JIT-traces this
     # closure; np.asarray() on a traced result raises TracerArrayConversionError.
     def residual_fn(x: np.ndarray) -> Any:  # type: ignore[return-value]

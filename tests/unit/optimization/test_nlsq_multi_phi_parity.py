@@ -226,7 +226,10 @@ def test_joint_cmaes_uses_off_diagonal_data_count(
             final_cost=2.0,
         )
 
-    monkeypatch.setattr(core, "_fit_joint_averaged_multi_phi", fake_warmstart)
+    # Post-review parity fix: per_angle_mode="constant" now routes CMA-ES
+    # warmstart through _fit_joint_fixed_constant_multi_phi (was incorrectly
+    # using _fit_joint_averaged_multi_phi via the legacy union predicate).
+    monkeypatch.setattr(core, "_fit_joint_fixed_constant_multi_phi", fake_warmstart)
     monkeypatch.setattr(core, "fit_with_cmaes", fake_fit_with_cmaes)
 
     results = core._fit_joint_cmaes_multi_phi(
