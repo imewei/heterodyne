@@ -56,7 +56,7 @@ class FourierReparamConfig:
             - "fourier": Use truncated Fourier series
             - "auto": Use Fourier when n_phi > auto_threshold
             - "constant": Not supported here; handled upstream by
-              _fit_joint_averaged_multi_phi. Raises ValueError if reached.
+              _fit_joint_fixed_constant_multi_phi. Raises ValueError if reached.
         fourier_order: Number of Fourier harmonics. Default 2.
             order=2 gives 5 coefficients per parameter (c0, c1, s1, c2, s2).
         auto_threshold: Use Fourier when n_phi > this threshold in auto mode.
@@ -204,13 +204,13 @@ class FourierReparameterizer:
             return False
 
         elif self.config.mode == "constant":
-            # The dispatcher returns early via _fit_joint_averaged_multi_phi
+            # The dispatcher returns early via _fit_joint_fixed_constant_multi_phi
             # before constructing FourierReparamConfig, so this branch is a
             # defensive guard against direct construction.
             raise ValueError(
                 "FourierReparamConfig does not support mode='constant'; "
                 "constant scaling is handled upstream by "
-                "_fit_joint_averaged_multi_phi."
+                "_fit_joint_fixed_constant_multi_phi."
             )
 
         else:  # auto
