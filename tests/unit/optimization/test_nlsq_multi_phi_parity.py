@@ -330,7 +330,9 @@ def test_joint_cmaes_independent_mode_runs_global_search(
         "offset[0]",
         "offset[1]",
     ]
-    assert np.allclose(captured["initial_params"], [1.0, 0.25, 0.35, 0.95, 1.05])
+    assert np.allclose(
+        np.asarray(captured["initial_params"]), [1.0, 0.25, 0.35, 0.95, 1.05]
+    )
     assert results == warmstart_results
 
 

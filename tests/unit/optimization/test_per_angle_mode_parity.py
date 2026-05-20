@@ -13,6 +13,7 @@ Target mode table (heterodyne has 14 physics params; homodyne has 7):
 from __future__ import annotations
 
 import typing
+from typing import Literal, cast
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -20,6 +21,8 @@ import pytest
 
 from heterodyne.optimization.nlsq.config import NLSQConfig
 from heterodyne.optimization.nlsq.results import NLSQResult
+
+ModeLiteral = Literal["individual", "constant", "fourier", "auto", "independent"]
 
 
 @pytest.mark.unit
@@ -324,7 +327,7 @@ class TestDispatchRouting:
         phi_angles = np.linspace(-90.0, 90.0, n_phi, dtype=np.float64)
         c2_data = np.zeros((n_phi, 4, 4), dtype=np.float64)
         cfg = NLSQConfig(
-            per_angle_mode=mode,
+            per_angle_mode=cast(ModeLiteral, mode),
             constant_scaling_threshold=3,
             fourier_order=2,
             fourier_auto_threshold=999,
