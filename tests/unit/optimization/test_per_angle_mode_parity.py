@@ -255,6 +255,60 @@ class TestFixedConstantSemantics:
             assert "contrast_fixed" in r.metadata
             assert "offset_fixed" in r.metadata
 
+    def test_result_carries_fitted_correlation_and_chi2(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Each per-angle NLSQResult from fixed-constant has fitted_correlation,
+        residuals, and reduced_chi_squared populated (parity with averaged path).
+
+        Pins the post-review fix — _fit_joint_fixed_constant_multi_phi
+        previously left these three fields as None, creating a silent data
+        gap in downstream quality gates and residual visualization.
+        """
+        import heterodyne.optimization.nlsq.core as core
+
+        class FakeAdapter:
+            def __init__(self, parameter_names: list[str]) -> None:
+                pass
+
+            def fit(self, *, residual_fn, initial_params, bounds, config):
+                return NLSQResult(
+                    parameters=np.asarray(initial_params).copy(),
+                    parameter_names=[f"p{i}" for i in range(14)],
+                    success=True,
+                    message="fake",
+                    metadata={},
+                )
+
+        monkeypatch.setattr(core, "NLSQAdapter", FakeAdapter, raising=False)
+        monkeypatch.setattr(core, "HAS_ADAPTERS", True, raising=False)
+
+        model = _make_synthetic_model(n_varying=14)
+        phi_angles = np.array([-5.0, 5.0, 90.0], dtype=np.float64)
+        c2_data = np.full((3, 5, 5), 1.2, dtype=np.float64)
+
+        results = core._fit_joint_fixed_constant_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=NLSQConfig(per_angle_mode=cast(ModeLiteral, "constant")),
+            weights=None,
+        )
+
+        for r in results:
+            assert r.fitted_correlation is not None, (
+                "fixed-constant must populate fitted_correlation (parity with averaged)"
+            )
+            assert r.residuals is not None, (
+                "fixed-constant must populate residuals (parity with averaged)"
+            )
+            assert r.reduced_chi_squared is not None, (
+                "fixed-constant must populate reduced_chi_squared (parity with averaged)"
+            )
+            assert r.fitted_correlation.shape == (5, 5), (
+                f"fitted_correlation shape should match c2_data; got {r.fitted_correlation.shape}"
+            )
+
 
 @pytest.mark.unit
 class TestDispatchPredicates:

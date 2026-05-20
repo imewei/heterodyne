@@ -1208,13 +1208,46 @@ def _fit_joint_fixed_constant_multi_phi(
 
     results: list[NLSQResult] = []
     for i, phi in enumerate(phi_angles):
+        # Post-review backfill: populate fitted_correlation, residuals,
+        # reduced_chi_squared per-angle (parity with _fit_joint_averaged_multi_phi).
+        # KEY DIFFERENCE from averaged path: β,o are per-angle frozen constants,
+        # not averaged scalars.
+        fitted_c2 = compute_c2_heterodyne(
+            jnp.asarray(full_fitted),
+            t,
+            q,
+            dt,
+            float(phi),
+            contrast=float(contrast_per_angle[i]),
+            offset=float(offset_per_angle[i]),
+        )
+        residuals_i = np.asarray(
+            compute_residuals(
+                jnp.asarray(full_fitted),
+                t,
+                q,
+                dt,
+                float(phi),
+                c2_data_batch[i],
+                weights_batch[i],
+                contrast=float(contrast_per_angle[i]),
+                offset=float(offset_per_angle[i]),
+            )
+        )
+        per_angle_cost_i, per_angle_chi2_i = _compute_per_angle_chi2(
+            residuals_i, np.asarray(c2_data_batch[i]), n_physics_varying
+        )
+
         per_angle_result = NLSQResult(
             parameters=fitted_physics.copy(),
             parameter_names=list(varying_names),
             success=joint_result.success,
             message=joint_result.message,
             covariance=joint_result.covariance,
-            final_cost=joint_result.final_cost,
+            residuals=residuals_i,
+            final_cost=per_angle_cost_i,
+            reduced_chi_squared=per_angle_chi2_i,
+            fitted_correlation=np.asarray(fitted_c2),
             n_iterations=joint_result.n_iterations,
             n_function_evals=joint_result.n_function_evals,
             wall_time_seconds=wall_time,
