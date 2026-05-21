@@ -11,9 +11,9 @@ import math
 import secrets
 import time
 import warnings
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import arviz as az
 import jax
@@ -189,14 +189,20 @@ def fit_cmc_jax(
             _MAX_SINGLE_SHARD,
         )
 
+    sigma_resolved: np.ndarray | jnp.ndarray | float
     if sigma is None:
-        sigma = estimate_sigma(c2_jax, method="diagonal")
-        # estimate_sigma always returns a jnp.ndarray; assertion narrows the
-        # union for pyright so jnp.mean below doesn't reject Optional.
-        assert sigma is not None
-        logger.info("[CMC] Estimated sigma = %.4e", float(jnp.mean(sigma)))
+        sigma_resolved = estimate_sigma(c2_jax, method="diagonal")
+        logger.info(
+            "[CMC] Estimated sigma = %.4e", float(jnp.mean(jnp.asarray(sigma_resolved)))
+        )
+    else:
+        sigma_resolved = sigma
 
-    sigma_jax = jnp.asarray(sigma) if isinstance(sigma, np.ndarray) else sigma
+    sigma_jax = (
+        jnp.asarray(sigma_resolved)
+        if isinstance(sigma_resolved, np.ndarray)
+        else sigma_resolved
+    )
     # Scalar prior centre for the sampled sigma site (homodyne parity).
     noise_scale = float(jnp.mean(jnp.asarray(sigma_jax)))
 
@@ -247,8 +253,11 @@ def fit_cmc_jax(
             "(success=False); falling back to default initialization"
         )
 
+    from heterodyne.optimization.cmc.scaling import ParameterScaling
+
     reparam_config: ReparamConfig | None = None
-    scalings: dict[str, Any] | None = None
+    scalings: dict[str, ParameterScaling] | None = None
+    reparam_values: dict[str, float] = {}
     prior_std_dict: dict[str, float] = {}
 
     if use_reparam:
@@ -286,12 +295,12 @@ def fit_cmc_jax(
             for name in varying_names
             if name in nlsq_result.parameter_names
         }
-        nlsq_uncertainties = {
-            name: float(nlsq_result.get_uncertainty(name))
-            for name in varying_names
-            if name in nlsq_result.parameter_names
-            and nlsq_result.get_uncertainty(name) is not None
-        }
+        nlsq_uncertainties = {}
+        for _unc_name in varying_names:
+            if _unc_name in nlsq_result.parameter_names:
+                _unc_val = nlsq_result.get_uncertainty(_unc_name)
+                if _unc_val is not None:
+                    nlsq_uncertainties[_unc_name] = float(_unc_val)
 
         reparam_values, reparam_uncertainties = transform_nlsq_to_reparam_space(
             nlsq_values,
@@ -300,9 +309,7 @@ def fit_cmc_jax(
             reparam_config,
         )
 
-        from heterodyne.optimization.cmc.scaling import ParameterScaling
-
-        scalings: dict[str, ParameterScaling] = {}
+        scalings = {}
         prefactor_to_log: dict[str, str] = {}
         for prefactor, exponent in reparam_config.enabled_pairs:
             if prefactor in varying_names and exponent in varying_names:
@@ -489,7 +496,7 @@ def fit_cmc_jax(
     if not hasattr(_numpyro_infer, "initialization"):
         _init_mod = _sys.modules.get("numpyro.infer.initialization")
         if _init_mod is not None:
-            _numpyro_infer.initialization = _init_mod
+            setattr(_numpyro_infer, "initialization", _init_mod)  # noqa: B010
     idata = az.from_numpyro(mcmc)
 
     if use_reparam and reparam_config is not None:
@@ -1237,8 +1244,10 @@ def fit_cmc_sharded(
     if len(successful_with_samples) >= 2:
         from heterodyne.optimization.cmc.diagnostics import check_shard_bimodality
 
-        shard_sample_dict = {
-            i: sr.samples  # type: ignore[misc]
+        # successful_with_samples is filtered so sr.samples is never None;
+        # the cast narrows the comprehension type for Pyright.
+        shard_sample_dict: dict[int, dict[str, np.ndarray]] = {
+            i: cast("dict[str, np.ndarray]", sr.samples)
             for i, sr in enumerate(successful_with_samples)
         }
         bimodal_results = check_shard_bimodality(
@@ -1557,8 +1566,6 @@ def _combine_shard_posteriors(
         # has a finite positive std. Per-parameter masking inside the
         # consensus loops then excludes the specific NaN/zero entries
         # without dropping the whole shard's contribution (codex W1).
-        if sr.posterior_std is None:
-            return False
         std = np.asarray(sr.posterior_std)
         return bool(np.any(np.isfinite(std) & (std > 0)))
 
@@ -2370,7 +2377,8 @@ def _compute_bfmi(idata: az.InferenceData) -> tuple[list[float] | None, bool]:
             bfmi = list(bfmi_result.values())
         elif hasattr(bfmi_result, "values"):
             attr = bfmi_result.values
-            bfmi = list(attr() if callable(attr) else attr)
+            materialized = attr() if callable(attr) else attr
+            bfmi = list(cast("Iterable[float]", materialized))
         elif isinstance(bfmi_result, (list, np.ndarray)):
             bfmi = list(bfmi_result)
     except (TypeError, KeyError) as e:
@@ -2397,6 +2405,211 @@ def _create_failed_result(parameter_names: list[str], message: str) -> CMCResult
         credible_intervals={},
         convergence_passed=False,
         metadata={"error": message},
+    )
+
+
+def fit_mcmc_jax(
+    data: np.ndarray,
+    t1: np.ndarray,
+    t2: np.ndarray,
+    phi: np.ndarray,
+    q: float,
+    L: float,  # noqa: ARG001 — accepted for homodyne parity
+    analysis_mode: str,  # noqa: ARG001 — accepted for homodyne parity
+    method: str = "mcmc",  # noqa: ARG001 — accepted for homodyne parity
+    cmc_config: dict[str, Any] | CMCConfig | None = None,
+    initial_values: dict[str, float] | None = None,
+    parameter_space: Any | None = None,
+    dt: float | None = None,
+    output_dir: Any | None = None,  # noqa: ARG001 — accepted for homodyne parity
+    progress_bar: bool = True,  # noqa: ARG001 — accepted for homodyne parity
+    run_id: str | None = None,  # noqa: ARG001 — accepted for homodyne parity
+    nlsq_result: NLSQResult | dict | None = None,
+    **kwargs: Any,
+) -> CMCResult:
+    """Homodyne-parity entry point for heterodyne CMC.
+
+    Mirrors ``homodyne.optimization.cmc.fit_mcmc_jax``'s pooled-array call
+    signature and routes to heterodyne's native ``fit_cmc_jax`` /
+    ``fit_cmc_sharded``. This adapter exists so cross-package CLI / driver
+    code that follows homodyne's pooled-data convention can call
+    heterodyne's CMC pipeline without reshaping by hand.
+
+    Heterodyne's native API is ``fit_cmc_jax(model, c2_data, phi_angle,
+    config, ...)`` — new heterodyne code should prefer that directly.
+
+    Parameters
+    ----------
+    data, t1, t2, phi : np.ndarray
+        Pooled C2 values and time/angle coordinates, all shape ``(n_total,)``.
+        ``(t1, t2)`` must be a flattened regular meshgrid for the reverse
+        reshape to succeed.
+    q : float
+        Wavevector magnitude (Å⁻¹).
+    L : float
+        Stator-rotor gap. Accepted for homodyne parity; heterodyne's physics
+        model uses absolute time scaling, not L-normalised dimensionless time.
+    analysis_mode : str
+        Accepted for homodyne parity; heterodyne always uses its
+        two-component model regardless of this value.
+    method, output_dir, progress_bar, run_id :
+        Accepted for homodyne parity; consumed by heterodyne's native
+        pipeline where applicable.
+    cmc_config : dict or CMCConfig, optional
+        CMC configuration. Dicts are converted via ``CMCConfig.from_dict``.
+    initial_values : dict[str, float], optional
+        Initial parameter values applied to the constructed model.
+    parameter_space : ParameterSpace, optional
+        Pre-built ParameterSpace. When ``None``, a default one is built
+        from ``DEFAULT_REGISTRY``.
+    dt : float, optional
+        Time step. When ``None``, inferred from
+        ``np.diff(np.unique(t1 ∪ t2))``.
+    nlsq_result : NLSQResult or dict, optional
+        Optional NLSQ warm-start. Dicts are ignored with a warning since
+        heterodyne's native warm-start requires an ``NLSQResult`` instance.
+
+    Returns
+    -------
+    CMCResult
+        Result of the CMC fit.
+
+    Raises
+    ------
+    ValueError
+        If input shapes mismatch or the (t1, t2) pooled grid is not
+        recoverable.
+    NotImplementedError
+        If pooled data contains multiple distinct phi angles; call this
+        adapter once per angle, or use
+        ``heterodyne.cli.optimization_runner.run_cmc`` for orchestrated
+        multi-angle CMC.
+    """
+    if kwargs:
+        logger.debug(
+            "fit_mcmc_jax ignoring kwargs (homodyne parity): %s",
+            sorted(kwargs.keys()),
+        )
+
+    if isinstance(cmc_config, CMCConfig):
+        config = cmc_config
+    else:
+        config = CMCConfig.from_dict(cmc_config or {})
+
+    data_arr = np.asarray(data, dtype=np.float64)
+    t1_arr = np.asarray(t1, dtype=np.float64)
+    t2_arr = np.asarray(t2, dtype=np.float64)
+    phi_arr = np.asarray(phi, dtype=np.float64)
+    if not (data_arr.shape == t1_arr.shape == t2_arr.shape == phi_arr.shape):
+        raise ValueError(
+            "fit_mcmc_jax: pooled data/t1/t2/phi shape mismatch: "
+            f"data={data_arr.shape} t1={t1_arr.shape} "
+            f"t2={t2_arr.shape} phi={phi_arr.shape}"
+        )
+
+    unique_phi = np.unique(phi_arr)
+    if unique_phi.size > 1:
+        raise NotImplementedError(
+            "fit_mcmc_jax: pooled data with multiple phi angles is not "
+            "supported. Call this adapter once per angle, or use "
+            "heterodyne.cli.optimization_runner.run_cmc for orchestrated "
+            "multi-angle CMC."
+        )
+    phi_angle = float(unique_phi[0])
+
+    # Recover the regular (t, t) grid the pooled arrays were flattened from.
+    t_unique = np.unique(np.concatenate([t1_arr, t2_arr]))
+    n_t = int(t_unique.size)
+    if data_arr.size != n_t * n_t:
+        raise ValueError(
+            f"fit_mcmc_jax: pooled data size {data_arr.size} does not match "
+            f"recovered grid {n_t}x{n_t}={n_t * n_t}; heterodyne CMC requires "
+            "a regular meshgrid of (t1, t2)."
+        )
+    i1 = np.searchsorted(t_unique, t1_arr)
+    i2 = np.searchsorted(t_unique, t2_arr)
+    c2_matrix = np.full((n_t, n_t), np.nan, dtype=np.float64)
+    c2_matrix[i1, i2] = data_arr
+    if np.isnan(c2_matrix).any():
+        raise ValueError(
+            "fit_mcmc_jax: pooled (data, t1, t2) does not cover the full "
+            f"({n_t}, {n_t}) grid; cannot reconstruct C2 matrix."
+        )
+
+    inferred_dt = float(np.median(np.diff(t_unique))) if n_t > 1 else 1.0
+    dt_value = float(dt) if dt is not None else inferred_dt
+    t_start_value = float(t_unique[0])
+
+    # Local imports avoid the import cycle that would arise from importing
+    # heterodyne.core.heterodyne_model at module top (HeterodyneModel
+    # transitively depends on optimization.cmc through other code paths).
+    from heterodyne.config.parameter_manager import ParameterManager
+    from heterodyne.config.parameter_space import ParameterSpace
+    from heterodyne.core.heterodyne_model import HeterodyneModel
+    from heterodyne.core.models import TwoComponentModel
+    from heterodyne.core.physics_factors import create_physics_factors
+    from heterodyne.core.scaling_utils import PerAngleScaling, ScalingConfig
+
+    space = parameter_space if parameter_space is not None else ParameterSpace()
+    if initial_values:
+        for name, val in initial_values.items():
+            if name in space.values:
+                space.values[name] = float(val)
+
+    param_manager = ParameterManager(space=space)
+    factors = create_physics_factors(
+        n_times=n_t,
+        dt=dt_value,
+        q=float(q),
+        phi_angle=0.0,
+        t_start=t_start_value,
+    )
+    scaling_values = getattr(space, "scaling_values", None) or {}
+    scaling = PerAngleScaling.from_config(
+        ScalingConfig(
+            n_angles=1,
+            mode="constant",
+            initial_contrast=float(scaling_values.get("contrast", 1.0)),
+            initial_offset=float(scaling_values.get("offset", 1.0)),
+        )
+    )
+    model = HeterodyneModel(
+        _model=TwoComponentModel(),
+        param_manager=param_manager,
+        _factors=factors,
+        scaling=scaling,
+        _t=factors.t,
+    )
+
+    nlsq_obj: NLSQResult | None = None
+    if isinstance(nlsq_result, NLSQResult):
+        nlsq_obj = nlsq_result
+    elif nlsq_result is not None:
+        logger.warning(
+            "fit_mcmc_jax: nlsq_result is %s, not NLSQResult; warm-start disabled.",
+            type(nlsq_result).__name__,
+        )
+
+    n_pts = int(data_arr.size)
+    use_sharded = (
+        config.should_enable_cmc(n_pts) and config.get_num_shards(n_pts, n_phi=1) >= 2
+    )
+    if use_sharded:
+        num_shards = config.get_num_shards(n_pts, n_phi=1)
+        return fit_cmc_sharded(
+            model=model,
+            c2_data=c2_matrix,
+            phi_angle=phi_angle,
+            config=config,
+            nlsq_result=nlsq_obj,
+            num_shards=num_shards,
+        )
+    return fit_cmc_jax(
+        model=model,
+        c2_data=c2_matrix,
+        phi_angle=phi_angle,
+        config=config,
+        nlsq_result=nlsq_obj,
     )
 
 

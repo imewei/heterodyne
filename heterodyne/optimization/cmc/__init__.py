@@ -4,6 +4,7 @@ from heterodyne.optimization.cmc.config import CMCConfig
 from heterodyne.optimization.cmc.core import (
     fit_cmc_jax,
     fit_cmc_sharded,
+    fit_mcmc_jax,
     run_cmc_analysis,
 )
 from heterodyne.optimization.cmc.diagnostics import (
@@ -48,16 +49,11 @@ from heterodyne.optimization.cmc.sampler import (
 )
 from heterodyne.optimization.cmc.scaling import ParameterScaling
 
-# Homodyne-parity alias.  Homodyne's public entry point is named
-# ``fit_mcmc_jax``; heterodyne renamed it to ``fit_cmc_jax``.  Expose the
-# legacy name so cross-package CLI / driver code keeps working.
-fit_mcmc_jax = fit_cmc_jax
-
 __all__ = [
     "fit_cmc_jax",
     "fit_cmc_sharded",
     "run_cmc_analysis",
-    "fit_mcmc_jax",  # homodyne-parity alias
+    "fit_mcmc_jax",  # homodyne-parity adapter (pooled-array entry point)
     "CMCConfig",
     "CMCResult",
     "ParameterStats",

@@ -94,10 +94,34 @@ class CMCResult:
     mean_offset: np.ndarray | None = None  # Per-angle posterior offset means
     std_offset: np.ndarray | None = None  # Per-angle posterior offset stds
 
+    # Homodyne-parity surface — populated by ``from_mcmc_samples`` /
+    # ``cmc_result_to_arviz`` callers that want a top-level idata handle.
+    inference_data: Any | None = None  # az.InferenceData when arviz is installed
+
     @property
     def n_params(self) -> int:
         """Number of parameters."""
         return len(self.parameter_names)
+
+    # ------------------------------------------------------------------
+    # Homodyne-parity aliases (read-only properties over the canonical
+    # heterodyne fields so cross-package callers can use either name).
+    # ------------------------------------------------------------------
+
+    @property
+    def parameters(self) -> np.ndarray:
+        """Homodyne-parity alias for :attr:`posterior_mean`."""
+        return self.posterior_mean
+
+    @property
+    def uncertainties(self) -> np.ndarray:
+        """Homodyne-parity alias for :attr:`posterior_std`."""
+        return self.posterior_std
+
+    @property
+    def param_names(self) -> list[str]:
+        """Homodyne-parity alias for :attr:`parameter_names`."""
+        return self.parameter_names
 
     def get_param_summary(self, name: str) -> dict[str, float]:
         """Get summary statistics for a parameter.
@@ -284,6 +308,95 @@ class CMCResult:
                 "ess_tail": ess_tail_val,
             }
         return stats
+
+    @classmethod
+    def from_mcmc_samples(
+        cls,
+        mcmc_samples: Any,
+        stats: Any,
+        analysis_mode: str = "static",
+        n_warmup: int = 500,
+        min_ess: float | None = None,  # noqa: ARG003 — accepted for homodyne parity
+    ) -> CMCResult:
+        """Build a :class:`CMCResult` from raw MCMC samples (homodyne parity).
+
+        Mirrors ``homodyne.optimization.cmc.results.CMCResult.from_mcmc_samples``.
+        Duck-typed: ``mcmc_samples`` must expose ``.samples`` (dict[str,
+        ndarray]), ``.param_names`` (list[str]), ``.n_chains`` (int),
+        ``.n_samples`` (int); ``stats`` must expose ``.num_divergent`` (int)
+        and may expose ``.wall_time`` / ``.warmup_time``.
+
+        Diagnostics (R-hat, ESS) are not computed here — they require
+        per-chain reshaping and ArviZ.  Callers that need diagnostics should
+        run :func:`cmc_result_to_arviz` and overwrite ``.r_hat`` / ``.ess_*``
+        after construction.
+
+        Parameters
+        ----------
+        mcmc_samples:
+            Object holding posterior draws; see duck-typed surface above.
+        stats:
+            Sampling statistics object; see duck-typed surface above.
+        analysis_mode:
+            Stored on the result for plot / report consumers.  Default
+            ``"static"`` mirrors homodyne.
+        n_warmup:
+            Number of warmup draws (recorded on the result).
+        min_ess:
+            Accepted for homodyne parity; ignored here because diagnostics
+            are not computed by this factory.
+
+        Returns
+        -------
+        CMCResult
+            Populated result with ``parameter_names``, ``posterior_mean``,
+            ``posterior_std``, ``samples``, and basic sampling/divergence
+            metadata.  ``credible_intervals`` is left empty; downstream
+            consumers can populate it via ``get_posterior_stats``.
+        """
+        del min_ess  # parity-only; convergence checks are not run here
+
+        samples_dict = dict(mcmc_samples.samples)
+        param_names = list(mcmc_samples.param_names)
+        n_params = len(param_names)
+        n_chains = int(getattr(mcmc_samples, "n_chains", 4))
+        n_samples = int(getattr(mcmc_samples, "n_samples", 0))
+        num_shards = int(getattr(mcmc_samples, "num_shards", 1))
+
+        posterior_mean = np.zeros(n_params)
+        posterior_std = np.zeros(n_params)
+        for i, name in enumerate(param_names):
+            if name in samples_dict:
+                flat = np.asarray(samples_dict[name]).ravel()
+                posterior_mean[i] = float(np.nanmean(flat))
+                posterior_std[i] = float(np.nanstd(flat))
+
+        divergences = int(getattr(stats, "num_divergent", 0))
+        wall_time_raw = getattr(stats, "wall_time", None)
+        warmup_time_raw = getattr(stats, "warmup_time", None)
+        wall_time_seconds = float(wall_time_raw) if wall_time_raw is not None else None
+        warmup_time = float(warmup_time_raw) if warmup_time_raw is not None else None
+
+        convergence_passed = divergences == 0
+        convergence_status = "converged" if convergence_passed else "divergences"
+
+        return cls(
+            parameter_names=param_names,
+            posterior_mean=posterior_mean,
+            posterior_std=posterior_std,
+            credible_intervals={},
+            convergence_passed=convergence_passed,
+            samples=samples_dict,
+            num_warmup=n_warmup,
+            num_samples=n_samples,
+            num_chains=n_chains,
+            num_shards=num_shards,
+            divergences=divergences,
+            wall_time_seconds=wall_time_seconds,
+            warmup_time=warmup_time,
+            convergence_status=convergence_status,
+            per_angle_mode=analysis_mode,
+        )
 
 
 # ---------------------------------------------------------------------------
