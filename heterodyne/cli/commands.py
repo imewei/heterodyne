@@ -167,7 +167,12 @@ def _run_optimization(
 
         summary.start_phase("cmc_optimization")
         with log_phase("cmc_optimization", logger=logger, track_memory=True) as phase:
-            cmc_results = run_cmc(
+            # run_cmc returns a single joint multi-phi CMCResult (homodyne
+            # parity). The local list wrapper keeps downstream consumers
+            # (result_saving, plot_dispatch) iterating over results without
+            # changes; the single wrapped result still represents ONE joint
+            # NUTS inference across all phi angles.
+            _cmc_joint_result = run_cmc(
                 model=model,
                 c2_data=data.c2,
                 phi_angles=phi_angles,
@@ -180,6 +185,7 @@ def _run_optimization(
                 summary=summary,
                 data_phi_angles=_data_phi_angles,
             )
+            cmc_results = [_cmc_joint_result]
         summary.end_phase("cmc_optimization", memory_peak_gb=phase.memory_peak_gb)
 
     return {"nlsq_results": nlsq_results, "cmc_results": cmc_results}

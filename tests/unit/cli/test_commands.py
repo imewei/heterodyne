@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
 
@@ -55,7 +56,18 @@ class TestDispatchCommand:
         mock_load_data.return_value = (mock_data, [0.0])
 
         mock_run_nlsq.return_value = []
-        mock_run_cmc.return_value = []
+        # run_cmc now returns a single CMCResult (homodyne parity).
+        from heterodyne.optimization.cmc.results import CMCResult as _CMCResult
+
+        mock_run_cmc.return_value = _CMCResult(
+            parameter_names=[],
+            posterior_mean=np.zeros(0),
+            posterior_std=np.zeros(0),
+            credible_intervals={},
+            convergence_passed=True,
+            samples={},
+            metadata={},
+        )
 
         args = self._make_args(method="nlsq")
         result = dispatch_command(args)
@@ -90,7 +102,18 @@ class TestDispatchCommand:
         mock_data.c2.shape = (10, 10)
         mock_load_data.return_value = (mock_data, [0.0])
 
-        mock_run_cmc.return_value = []
+        # run_cmc now returns a single CMCResult (homodyne parity).
+        from heterodyne.optimization.cmc.results import CMCResult as _CMCResult
+
+        mock_run_cmc.return_value = _CMCResult(
+            parameter_names=[],
+            posterior_mean=np.zeros(0),
+            posterior_std=np.zeros(0),
+            credible_intervals={},
+            convergence_passed=True,
+            samples={},
+            metadata={},
+        )
         mock_run_nlsq.return_value = []
 
         args = self._make_args(method="cmc")
@@ -127,7 +150,18 @@ class TestDispatchCommand:
         mock_load_data.return_value = (mock_data, [0.0])
 
         mock_run_nlsq.return_value = []
-        mock_run_cmc.return_value = []
+        # run_cmc now returns a single CMCResult (homodyne parity).
+        from heterodyne.optimization.cmc.results import CMCResult as _CMCResult
+
+        mock_run_cmc.return_value = _CMCResult(
+            parameter_names=[],
+            posterior_mean=np.zeros(0),
+            posterior_std=np.zeros(0),
+            credible_intervals={},
+            convergence_passed=True,
+            samples={},
+            metadata={},
+        )
 
         args = self._make_args(method="both")
         result = dispatch_command(args)

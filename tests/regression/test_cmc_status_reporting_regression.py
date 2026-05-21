@@ -127,29 +127,28 @@ class TestRunCMCShortCircuit:
 
     @patch("heterodyne.cli.optimization_runner.save_mcmc_results")
     @patch("heterodyne.cli.optimization_runner.format_mcmc_summary", return_value="")
-    @patch("heterodyne.cli.optimization_runner.fit_cmc_sharded")
-    @patch("heterodyne.cli.optimization_runner.fit_cmc_jax")
+    @patch("heterodyne.cli.optimization_runner.fit_cmc_multi_phi")
     @patch("heterodyne.cli.optimization_runner.CMCConfig")
-    def test_three_angle_run_short_circuits_after_first_degenerate(
+    def test_joint_engine_runs_once_for_multi_phi_degenerate(
         self,
         mock_cmc_config_cls: MagicMock,
-        mock_fit_cmc_jax: MagicMock,
-        mock_fit_cmc_sharded: MagicMock,
+        mock_fit_joint: MagicMock,
         _mock_fmt: MagicMock,
         _mock_save: MagicMock,
         tmp_path,
     ) -> None:
+        """Joint multi-phi engine receives ALL angles in one call; if the
+        joint result is degenerate, no remaining per-angle work is queued
+        (there is no per-angle loop under homodyne parity)."""
         from heterodyne.cli.optimization_runner import run_cmc
 
-        # Force the small-data path (fit_cmc_jax) so we don't depend on
-        # ``should_enable_cmc``/``get_num_shards`` returning a sharded run.
         cmc_cfg = MagicMock()
-        cmc_cfg.should_enable_cmc.return_value = False
-        cmc_cfg.get_num_shards.return_value = 1
         cmc_cfg.num_samples = 1000
+        cmc_cfg.num_warmup = 500
+        cmc_cfg.num_chains = 4
         mock_cmc_config_cls.from_dict.return_value = cmc_cfg
 
-        mock_fit_cmc_jax.return_value = _make_degenerate_cmc_result()
+        mock_fit_joint.return_value = _make_degenerate_cmc_result()
 
         model = MagicMock()
         model.get_params_dict.return_value = {}
@@ -170,34 +169,39 @@ class TestRunCMCShortCircuit:
             data_phi_angles=None,
         )
 
-        # Only 1 angle should have been fit; remaining 2 must be skipped.
-        assert mock_fit_cmc_jax.call_count == 1
-        assert mock_fit_cmc_sharded.call_count == 0
-        assert len(results) == 1
-        assert results[0].convergence_passed is False
+        # Joint inference: ONE call to fit_cmc_multi_phi regardless of n_phi.
+        assert mock_fit_joint.call_count == 1
+        # Stacked c2 of shape (n_phi, N, N) is passed positionally/by kwarg.
+        call_kwargs = mock_fit_joint.call_args.kwargs
+        assert call_kwargs["c2_data"].shape == (3, 4, 4)
+        assert list(call_kwargs["phi_angles"]) == [-5.79, 4.88, 90.0]
+        # run_cmc returns a single CMCResult (homodyne parity).
+        assert results.convergence_passed is False
 
     @patch("heterodyne.cli.optimization_runner.save_mcmc_results")
     @patch("heterodyne.cli.optimization_runner.format_mcmc_summary", return_value="")
-    @patch("heterodyne.cli.optimization_runner.fit_cmc_jax")
+    @patch("heterodyne.cli.optimization_runner.fit_cmc_multi_phi")
     @patch("heterodyne.cli.optimization_runner.CMCConfig")
-    def test_converged_first_angle_still_runs_remaining_angles(
+    def test_joint_engine_runs_once_for_multi_phi_converged(
         self,
         mock_cmc_config_cls: MagicMock,
-        mock_fit_cmc_jax: MagicMock,
+        mock_fit_joint: MagicMock,
         _mock_fmt: MagicMock,
         _mock_save: MagicMock,
         tmp_path,
     ) -> None:
-        """Short-circuit must NOT trigger when the first angle converged."""
+        """Joint multi-phi engine handles converged result the same way:
+        ONE call regardless of n_phi. The per-angle-loop short-circuit no
+        longer applies under homodyne parity."""
         from heterodyne.cli.optimization_runner import run_cmc
 
         cmc_cfg = MagicMock()
-        cmc_cfg.should_enable_cmc.return_value = False
-        cmc_cfg.get_num_shards.return_value = 1
         cmc_cfg.num_samples = 1000
+        cmc_cfg.num_warmup = 500
+        cmc_cfg.num_chains = 4
         mock_cmc_config_cls.from_dict.return_value = cmc_cfg
 
-        mock_fit_cmc_jax.return_value = _make_converged_cmc_result()
+        mock_fit_joint.return_value = _make_converged_cmc_result()
 
         model = MagicMock()
         model.get_params_dict.return_value = {}
@@ -218,9 +222,8 @@ class TestRunCMCShortCircuit:
             data_phi_angles=None,
         )
 
-        assert mock_fit_cmc_jax.call_count == 3
-        assert len(results) == 3
-        assert all(r.convergence_passed for r in results)
+        assert mock_fit_joint.call_count == 1
+        assert results.convergence_passed is True
 
 
 @pytest.mark.regression
@@ -366,7 +369,7 @@ class TestDispatchExitCode:
         mock_load_data.return_value = (mock_data, [0.0])
 
         # Return a degenerate CMC result (convergence_passed=False, no samples)
-        mock_run_cmc.return_value = [_make_degenerate_cmc_result()]
+        mock_run_cmc.return_value = _make_degenerate_cmc_result()
 
         rc = dispatch_command(self._make_args())
         assert rc == 2, (
@@ -398,7 +401,7 @@ class TestDispatchExitCode:
         mock_data.c2.shape = (10, 10)
         mock_load_data.return_value = (mock_data, [0.0])
 
-        mock_run_cmc.return_value = [_make_converged_cmc_result()]
+        mock_run_cmc.return_value = _make_converged_cmc_result()
 
         rc = dispatch_command(self._make_args())
         assert rc == 0

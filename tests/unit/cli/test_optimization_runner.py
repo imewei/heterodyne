@@ -304,14 +304,15 @@ class TestRunCMC:
     @patch(
         "heterodyne.cli.optimization_runner.format_mcmc_summary", return_value="summary"
     )
-    @patch("heterodyne.cli.optimization_runner.fit_cmc_jax")
-    def test_calls_fit_cmc_for_each_angle(
+    @patch("heterodyne.cli.optimization_runner.fit_cmc_multi_phi")
+    def test_calls_joint_engine_once_for_multi_phi(
         self,
         mock_fit: MagicMock,
         mock_fmt: MagicMock,
         mock_save: MagicMock,
     ) -> None:
-        """run_cmc calls fit_cmc_jax once per phi angle."""
+        """run_cmc calls fit_cmc_multi_phi ONCE with stacked multi-phi data
+        (homodyne parity: joint inference, not per-angle loop)."""
         from heterodyne.cli.optimization_runner import run_cmc
         from heterodyne.optimization.cmc.results import CMCResult
 
@@ -341,8 +342,11 @@ class TestRunCMC:
             output_dir=Path("/tmp/test_out"),
         )
 
-        assert mock_fit.call_count == len(phi_angles)
-        assert len(results) == len(phi_angles)
+        assert mock_fit.call_count == 1  # joint inference: ONE call regardless of n_phi
+        # run_cmc now returns a single CMCResult (homodyne parity).
+        from heterodyne.optimization.cmc.results import CMCResult as _CMCResult
+
+        assert isinstance(results, _CMCResult)
 
     @patch("heterodyne.cli.optimization_runner.save_mcmc_results")
     @patch(
@@ -353,7 +357,7 @@ class TestRunCMC:
         return_value=True,
     )
     @patch("heterodyne.cli.optimization_runner._log_warmstart_physical_params")
-    @patch("heterodyne.cli.optimization_runner.fit_cmc_jax")
+    @patch("heterodyne.cli.optimization_runner.fit_cmc_multi_phi")
     def test_validates_warmstart_quality(
         self,
         mock_fit: MagicMock,

@@ -17,16 +17,14 @@ from heterodyne.io.nlsq_writers import (
     save_nlsq_json_files,
     save_nlsq_npz_file,
 )
-from heterodyne.optimization.cmc import CMCConfig, fit_cmc_jax
+from heterodyne.optimization.cmc import CMCConfig
 from heterodyne.optimization.cmc.core import (
     CMC_ALPHA_SINGULARITY as _ALPHA_SINGULARITY,
 )
 from heterodyne.optimization.cmc.core import (
     CMC_F0_DEGEN_THRESHOLD as _F0_DEGEN_THRESHOLD,
 )
-from heterodyne.optimization.cmc.core import (
-    fit_cmc_sharded,
-)
+from heterodyne.optimization.cmc.core import fit_cmc_multi_phi
 from heterodyne.optimization.nlsq import NLSQConfig, fit_nlsq_multi_phi
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import AnalysisSummaryLogger, get_logger, log_phase
@@ -236,7 +234,7 @@ def run_cmc(
     nlsq_results: list[NLSQResult] | None = None,
     summary: AnalysisSummaryLogger | None = None,
     data_phi_angles: np.ndarray | None = None,
-) -> list[CMCResult]:
+) -> CMCResult:
     """Run CMC Bayesian analysis for all phi angles.
 
     Args:
@@ -250,9 +248,12 @@ def run_cmc(
         summary: Optional summary logger for phase tracking.
 
     Returns:
-        List of CMCResult objects, one per phi angle.
+        Joint multi-phi :class:`CMCResult` (homodyne parity). Reflects ONE
+        NUTS inference across all phi angles with shared 14 physics params
+        and per-angle scaling in ``mean_contrast`` / ``std_contrast`` /
+        ``mean_offset`` / ``std_offset`` arrays of length ``n_phi``.
     """
-    logger.info("Starting CMC analysis")
+    logger.info("Starting CMC analysis (joint multi-phi, homodyne parity)")
 
     if getattr(args, "num_samples", None) is not None:
         logger.info("Overriding CMC num_samples from CLI: %s", args.num_samples)
@@ -265,144 +266,99 @@ def run_cmc(
 
     cmc_config = CMCConfig.from_dict(config_manager.cmc_config)
 
-    results: list[CMCResult] = []
+    # ---- Stack per-angle c2 slices into (n_phi, N, N) for joint inference ----
+    c2_stack_list: list[np.ndarray] = []
+    nlsq_stack: list[NLSQResult] = []
+    has_nlsq = bool(nlsq_results)
+    fixed_overrides: dict[str, float] | None = None
+    if has_nlsq:
+        _varying_set = set(model.varying_names)
+        fixed_overrides = {
+            name: float(val)
+            for name, val in model.get_params_dict().items()
+            if name not in _varying_set
+        } or None
 
     for i, phi in enumerate(phi_angles):
-        logger.info("CMC for phi=%s° (%d/%d)", phi, i + 1, len(phi_angles))
-
         if c2_data.ndim == 3:
             if data_phi_angles is not None and len(data_phi_angles) == c2_data.shape[0]:
                 idx = _closest_phi_index(data_phi_angles, phi)
-                logger.info(
-                    "Selected data slice %d (phi=%.2f°) for CMC phi=%.2f°",
-                    idx,
-                    float(data_phi_angles[idx]),
-                    phi,
-                )
                 c2_phi = c2_data[idx]
             else:
                 c2_phi = c2_data[i]
         else:
             c2_phi = c2_data
+        c2_stack_list.append(np.asarray(c2_phi))
 
-        nlsq_result_i = (
-            nlsq_results[i] if nlsq_results and i < len(nlsq_results) else None
-        )
-
-        if nlsq_result_i is not None:
-            if _validate_warmstart_quality(nlsq_result_i):
-                _log_warmstart_physical_params(nlsq_result_i)
+        if has_nlsq and nlsq_results is not None and i < len(nlsq_results):
+            nr = nlsq_results[i]
+            if _validate_warmstart_quality(nr):
+                _log_warmstart_physical_params(nr)
             else:
                 logger.warning(
                     "Warm-start quality below threshold for phi=%s°; using anyway", phi
                 )
-            # Build fixed-parameter overrides from the current model config.
-            # Parameters not in model.varying_names are fixed; their model
-            # values override whatever the (possibly stale) NLSQ result holds.
-            _varying_set = set(model.varying_names)
-            _fixed_overrides: dict[str, float] = {
-                name: float(val)
-                for name, val in model.get_params_dict().items()
-                if name not in _varying_set
-            }
-            nlsq_result_i = _clamp_warmstart_to_interior(
-                nlsq_result_i,
-                fixed_param_overrides=_fixed_overrides or None,
-            )
-            # Warn about degenerate sample-transport regime using the clamped
-            # values so the message reflects what will actually be passed to NUTS.
-            _warn_degenerate_sample_regime(nlsq_result_i)
+            nr = _clamp_warmstart_to_interior(nr, fixed_param_overrides=fixed_overrides)
+            _warn_degenerate_sample_regime(nr)
+            nlsq_stack.append(nr)
 
-        # Dispatch to sharded CMC for large per-angle datasets, single-run CMC
-        # otherwise.  ``cmc_config.should_enable_cmc`` returns True only when the
-        # per-angle dataset has at least ``min_points_for_cmc`` elements
-        # (default 100K) and ``enable`` is "auto"/"always".
-        n_points_phi = int(np.asarray(c2_phi).size)
-        use_sharded = (
-            cmc_config.should_enable_cmc(n_points_phi)
-            and cmc_config.get_num_shards(n_points_phi, n_phi=1) >= 2
-        )
-        with log_phase(f"cmc_phi_{i}", logger=logger, track_memory=True) as phase:
-            if use_sharded:
-                num_shards = cmc_config.get_num_shards(n_points_phi, n_phi=1)
-                logger.info(
-                    "CMC phi=%s°: using sharded Consensus Monte Carlo "
-                    "(num_shards=%d, n_points=%d, strategy=%s)",
-                    phi,
-                    num_shards,
-                    n_points_phi,
-                    cmc_config.sharding_strategy,
-                )
-                result = fit_cmc_sharded(
-                    model=model,
-                    c2_data=c2_phi,
-                    phi_angle=phi,
-                    config=cmc_config,
-                    nlsq_result=nlsq_result_i,
-                    num_shards=num_shards,
-                    sharding_strategy=(
-                        cmc_config.sharding_strategy
-                        if cmc_config.sharding_strategy in ("random", "contiguous")
-                        else "random"
-                    ),
-                )
-            else:
-                result = fit_cmc_jax(
-                    model=model,
-                    c2_data=c2_phi,
-                    phi_angle=phi,
-                    config=cmc_config,
-                    nlsq_result=nlsq_result_i,
-                )
+    c2_stacked = np.stack(c2_stack_list, axis=0)
+    nlsq_for_engine: list[NLSQResult] | None = nlsq_stack if has_nlsq else None
 
-        result.metadata["phi_angle"] = phi
-        results.append(result)
+    n_points = int(c2_stacked.size)
+    logger.info(
+        "[CMC joint] n_phi=%d, total_points=%d, num_warmup=%d, num_samples=%d, "
+        "num_chains=%d",
+        len(phi_angles),
+        n_points,
+        cmc_config.num_warmup,
+        cmc_config.num_samples,
+        cmc_config.num_chains,
+    )
 
-        logger.info(
-            "CMC phi=%s° completed in %.2fs",
-            phi,
-            phase.duration,
+    with log_phase("cmc_joint_multi_phi", logger=logger, track_memory=True) as phase:
+        result = fit_cmc_multi_phi(
+            model=model,
+            c2_data=c2_stacked,
+            phi_angles=list(phi_angles),
+            config=cmc_config,
+            nlsq_results=nlsq_for_engine,
         )
 
-        if summary is not None:
-            summary.record_metric(
-                f"cmc_n_samples_phi{int(phi)}", float(cmc_config.num_samples)
-            )
+    result.metadata["phi_angles"] = [float(p) for p in phi_angles]
+    result.metadata["joint_multi_phi_runtime_s"] = phase.duration
 
-        logger.info(
-            "\n%s\nCMC Results for phi=%s°\n%s",
-            "=" * 50,
-            phi,
-            format_mcmc_summary(result),
+    logger.info(
+        "CMC joint multi-phi completed in %.2fs (n_phi=%d)",
+        phase.duration,
+        len(phi_angles),
+    )
+
+    if summary is not None:
+        summary.record_metric("cmc_n_samples", float(cmc_config.num_samples))
+        summary.record_metric("cmc_n_phi", float(len(phi_angles)))
+
+    logger.info(
+        "\n%s\nCMC Results (joint multi-phi)\n%s",
+        "=" * 50,
+        format_mcmc_summary(result),
+    )
+
+    prefix = "cmc"
+    save_mcmc_results(result, output_dir, prefix=prefix)
+    logger.info("Saved CMC results → %s (prefix=%s)", output_dir, prefix)
+
+    if _is_degenerate_cmc_result(result):
+        logger.error(
+            "[CMC] Joint multi-phi result is degenerate (no usable samples). "
+            "The warm-start parameters may be degenerate or the model is "
+            "unidentifiable for this dataset. Fixes: freeze degenerate params "
+            "in YAML (optimization.cmc.fixed_params), tighten NLSQ bounds, or "
+            "use allow_degenerate_warmstart: true to override."
         )
-
-        prefix = f"cmc_phi{int(phi)}" if len(phi_angles) > 1 else "cmc"
-        save_mcmc_results(result, output_dir, prefix=prefix)
-        logger.info("Saved CMC results → %s (prefix=%s)", output_dir, prefix)
-
-        # Short-circuit on fully-degenerate result: when 100% of shards failed
-        # the consensus combiner returns a CMCResult with no samples and
-        # convergence_passed=False. The remaining angles share the same warm-
-        # start regime and will fail identically (run het_a10cf27e burned 11h
-        # producing 3 identical degenerate results). Stop and surface the
-        # failure immediately.
-        if _is_degenerate_cmc_result(result) and i + 1 < len(phi_angles):
-            remaining = len(phi_angles) - (i + 1)
-            logger.error(
-                "[CMC] All shards failed for phi=%s° — aborting remaining "
-                "%d angle(s). The warm-start parameters are degenerate or the "
-                "model is unidentifiable for this dataset; running additional "
-                "angles will produce identical empty results. "
-                "Fixes: freeze degenerate params in YAML "
-                "(optimization.cmc.fixed_params), tighten NLSQ bounds, or "
-                "use allow_degenerate_warmstart: true to override.",
-                phi,
-                remaining,
-            )
-            break
 
     logger.info("CMC analysis complete")
-    return results
+    return result
 
 
 def _is_degenerate_cmc_result(result: CMCResult) -> bool:
