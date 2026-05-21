@@ -88,6 +88,159 @@ class PreparedData:
 
 
 # ---------------------------------------------------------------------------
+# Pooled multi-phi data prep (homodyne parity)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class PooledCMCData:
+    """Pooled multi-phi data container for joint CMC (homodyne parity).
+
+    Mirrors ``homodyne.optimization.cmc.data_prep.PreparedData`` so heterodyne
+    can run ONE NUTS pass conditioned on all phi angles with shared physics
+    parameters. The pooled layout is `(n_total,)`-flat over angles + (t1, t2)
+    grid; `phi_indices` maps each pooled point to its angle in `phi_unique`.
+
+    Attributes:
+        data: Pooled C2 values, shape ``(n_total,)``.
+        t1, t2: Pooled time coordinates, shape ``(n_total,)``.
+        phi: Pooled phi angles per point, shape ``(n_total,)``.
+        phi_unique: Sorted unique phi angles, shape ``(n_phi,)``.
+        phi_indices: Per-point index into ``phi_unique``, shape ``(n_total,)``.
+        n_total: Number of pooled data points (after diagonal filtering).
+        n_phi: Cardinality of ``phi_unique``.
+        noise_scale: MAD-based noise estimate, used to centre the sampled
+            sigma prior.
+    """
+
+    data: np.ndarray
+    t1: np.ndarray
+    t2: np.ndarray
+    phi: np.ndarray
+    phi_unique: np.ndarray
+    phi_indices: np.ndarray
+    n_total: int
+    n_phi: int
+    noise_scale: float
+
+
+def validate_pooled_data(
+    data: np.ndarray, t1: np.ndarray, t2: np.ndarray, phi: np.ndarray
+) -> None:
+    """Validate pooled arrays have matching length, finite values, sane shapes."""
+    if not (data.shape == t1.shape == t2.shape == phi.shape):
+        raise ValueError(
+            "Pooled arrays must share shape; got "
+            f"data={data.shape}, t1={t1.shape}, t2={t2.shape}, phi={phi.shape}"
+        )
+    if data.ndim != 1:
+        raise ValueError(f"Pooled data must be 1-D; got ndim={data.ndim}")
+    if data.size == 0:
+        raise ValueError("Pooled data is empty")
+    for name, arr in (("data", data), ("t1", t1), ("t2", t2), ("phi", phi)):
+        if not np.all(np.isfinite(arr)):
+            raise ValueError(f"Pooled {name!r} contains non-finite values")
+
+
+def extract_phi_info(phi: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return ``(phi_unique, phi_indices)`` with tolerance-aware matching.
+
+    Mirrors ``homodyne.optimization.cmc.data_prep.extract_phi_info`` exactly.
+    For ``n_phi <= 256`` uses ``argmin(|phi - phi_unique|, axis=1)`` so float
+    rounding doesn't misassign points to neighbour angles; for larger phi
+    counts falls back to ``searchsorted`` with a left-neighbour check.
+    """
+    phi_unique = np.unique(phi)
+    n_phi = int(phi_unique.size)
+    if n_phi <= 256:
+        phi_indices = np.argmin(
+            np.abs(phi[:, None] - phi_unique[None, :]), axis=1
+        ).astype(np.int32)
+    else:
+        idx = np.searchsorted(phi_unique, phi)
+        idx = np.clip(idx, 0, n_phi - 1)
+        left = np.clip(idx - 1, 0, n_phi - 1)
+        use_left = np.abs(phi - phi_unique[left]) < np.abs(phi - phi_unique[idx])
+        phi_indices = np.where(use_left, left, idx).astype(np.int32)
+    return phi_unique, phi_indices
+
+
+def prepare_mcmc_data(
+    data: np.ndarray,
+    t1: np.ndarray,
+    t2: np.ndarray,
+    phi: np.ndarray,
+    filter_diagonal: bool = True,
+) -> PooledCMCData:
+    """Validate + filter pooled XPCS data for joint multi-phi CMC.
+
+    Mirrors ``homodyne.optimization.cmc.data_prep.prepare_mcmc_data``. With
+    ``filter_diagonal=True`` (default), removes ``t1 == t2`` rows using an
+    epsilon-based comparison sized to the smallest positive dt in the
+    arrays. The diagonal is loaded and plotted but excluded from likelihood
+    fitting — same boundary contract as the t=0 row/col.
+
+    Parameters
+    ----------
+    data, t1, t2, phi:
+        Pooled (n_total,) arrays. Each entry is one (C2 value, t1, t2, phi)
+        observation.
+    filter_diagonal:
+        When ``True``, drop entries where ``|t1 - t2| <= ε``.
+
+    Returns
+    -------
+    PooledCMCData
+        Filtered + indexed container ready for the NumPyro model.
+    """
+    data = np.asarray(data, dtype=np.float64)
+    t1 = np.asarray(t1, dtype=np.float64)
+    t2 = np.asarray(t2, dtype=np.float64)
+    phi = np.asarray(phi, dtype=np.float64)
+
+    validate_pooled_data(data, t1, t2, phi)
+
+    if filter_diagonal:
+        n_before = int(data.size)
+        t_all = np.unique(np.concatenate([t1, t2]))
+        diffs = np.diff(t_all)
+        dt_min = float(diffs[diffs > 0].min()) if np.any(diffs > 0) else 1.0
+        diag_eps = max(dt_min * 1e-6, 1e-12)
+        non_diag = np.abs(t1 - t2) > diag_eps
+        data = data[non_diag]
+        t1 = t1[non_diag]
+        t2 = t2[non_diag]
+        phi = phi[non_diag]
+        n_filtered = n_before - int(data.size)
+        if n_filtered > 0:
+            logger.info(
+                "prepare_mcmc_data: filtered %d diagonal points, %d remain",
+                n_filtered,
+                int(data.size),
+            )
+        if data.size == 0:
+            raise ValueError(
+                "prepare_mcmc_data: all data points were diagonal (t1==t2). "
+                "Use filter_diagonal=False or check upstream pooling."
+            )
+
+    phi_unique, phi_indices = extract_phi_info(phi)
+    noise_scale = _estimate_noise_scale(data)
+
+    return PooledCMCData(
+        data=data,
+        t1=t1,
+        t2=t2,
+        phi=phi,
+        phi_unique=phi_unique,
+        phi_indices=phi_indices,
+        n_total=int(data.size),
+        n_phi=int(phi_unique.size),
+        noise_scale=float(noise_scale),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Legacy helpers (kept for backward compatibility)
 # ---------------------------------------------------------------------------
 
