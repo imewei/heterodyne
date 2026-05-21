@@ -14,7 +14,7 @@ from heterodyne.config.parameter_names import ALL_PARAM_NAMES, PARAM_INDICES
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
 from heterodyne.core.jax_backend import (
     compute_c2_heterodyne,
-    compute_c2_heterodyne_multiphi,
+    compute_c2_heterodyne_pooled,
 )
 from heterodyne.core.physics_cmc import ShardGrid, compute_c2_elementwise
 from heterodyne.optimization.cmc.reparameterization import (
@@ -69,18 +69,27 @@ def _heterodyne_pooled_likelihood(
     noise_scale: float,
     num_shards: int,
 ) -> None:
-    """Shared physics → gather → boundary mask → likelihood (joint multi-phi).
+    """Shared physics → boundary mask → likelihood (joint multi-phi).
 
-    Composes ``compute_c2_heterodyne_multiphi`` (returning ``(n_phi, N, N)``)
-    with a gather-by-(phi_idx, i1_idx, i2_idx) pattern and the pooled
-    Normal likelihood with t=0 boundary mask via ``numpyro.handlers.mask``.
-    All 4 joint variants (scaled, constant, averaged, constant_averaged)
-    delegate the last 3 stages to this helper.
+    Phase 4 of the joint multi-phi refactor: calls
+    :func:`compute_c2_heterodyne_pooled` directly to obtain the
+    ``(n_total,)`` c2 vector at the pooled ``(phi, t1, t2)`` points without
+    ever materializing the ``(n_phi, N, N)`` stack that the older
+    vmap+gather path required. All 4 joint variants (scaled, constant,
+    averaged, constant_averaged) delegate the last stages to this helper.
     """
-    c2_stack = compute_c2_heterodyne_multiphi(
-        params, t, q, dt, phi_unique, contrast_arr, offset_arr
+    c2_per_point = compute_c2_heterodyne_pooled(
+        params,
+        t,
+        q,
+        dt,
+        i1_indices,
+        i2_indices,
+        phi_indices,
+        phi_unique,
+        contrast_arr,
+        offset_arr,
     )
-    c2_per_point = c2_stack[phi_indices, i1_indices, i2_indices]
 
     n_nan = jnp.sum(~jnp.isfinite(c2_per_point))
     numpyro.deterministic("n_numerical_issues", n_nan)
@@ -316,8 +325,8 @@ def get_heterodyne_pooled_model_for_mode(
     i2_indices: jnp.ndarray,
     noise_scale: float,
     space: ParameterSpace,
-    fixed_contrast: jnp.ndarray | float | None = None,
-    fixed_offset: jnp.ndarray | float | None = None,
+    fixed_contrast: np.ndarray | jnp.ndarray | float | None = None,
+    fixed_offset: np.ndarray | jnp.ndarray | float | None = None,
     num_shards: int = 1,
 ) -> Callable[[], None]:
     """Dispatch to the joint multi-phi model variant for ``per_angle_mode``.

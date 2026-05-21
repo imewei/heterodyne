@@ -36,6 +36,7 @@ from heterodyne.optimization.cmc.model import (
     estimate_sigma,
     get_heterodyne_model,
     get_heterodyne_model_reparam,
+    get_heterodyne_pooled_model_for_mode,
 )
 from heterodyne.optimization.cmc.priors import (
     build_default_priors,

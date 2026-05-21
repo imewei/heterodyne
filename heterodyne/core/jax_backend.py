@@ -14,6 +14,16 @@ The 14 model parameters in canonical order are
 D0_ref, alpha_ref, D_offset_ref,
 D0_sample, alpha_sample, D_offset_sample,
 v0, beta, v_offset, f0, f1, f2, f3, phi0.
+
+Three evaluation strategies are exposed (all dispatch through
+:func:`heterodyne.core.physics_kernel.compute_c2_unified`):
+
+- :func:`compute_c2_heterodyne` — full ``(N, N)`` meshgrid output for NLSQ.
+- ``compute_c2_elementwise`` (re-exported from :mod:`heterodyne.core.physics_cmc`)
+  — sharded per-pair ``(n_pairs,)`` output for CMC.
+- :func:`compute_c2_heterodyne_pooled` — per-pooled-point ``(n_total,)``
+  output for joint multi-phi CMC (Phase 4; replaces the older
+  vmap+gather pattern in :func:`compute_c2_heterodyne_multiphi`).
 """
 
 from __future__ import annotations
@@ -251,13 +261,22 @@ def compute_c2_heterodyne_multiphi(
     contrast_arr: jnp.ndarray,
     offset_arr: jnp.ndarray,
 ) -> jnp.ndarray:
-    """Joint multi-phi c2 evaluator for pooled-data CMC (homodyne parity).
+    """Joint multi-phi c2 evaluator (vmap reference path — not used in CMC hot path).
 
     Vmap wrapper over :func:`compute_c2_heterodyne` that evaluates the
     heterodyne two-component model for every angle in ``phi_unique`` with
     the matching per-angle ``contrast_arr`` / ``offset_arr``. Returns a
     stacked tensor that can be gathered by ``(phi_indices, i1, i2)`` to
     recover c2 at each pooled (t1, t2, phi) tuple.
+
+    .. note::
+        The joint multi-phi CMC likelihood (Phase 4) now calls
+        :func:`compute_c2_heterodyne_pooled` directly, which computes c2
+        at the pooled points without ever materializing the
+        ``(n_phi, N, N)`` stack this function returns. This helper is
+        retained as a vmap reference path for parity tests
+        (``tests/regression/test_cmc_pooled_kernel_parity.py``) and ad-hoc
+        diagnostics.
 
     Args:
         params: Parameter array of shape ``(14,)`` (same canonical order as
@@ -281,6 +300,70 @@ def compute_c2_heterodyne_multiphi(
         return compute_c2_heterodyne(params, t, q, dt, phi, contrast, offset)
 
     return jax.vmap(_single, in_axes=(0, 0, 0))(phi_unique, contrast_arr, offset_arr)
+
+
+def compute_c2_heterodyne_pooled(
+    params: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float | jnp.ndarray,
+    dt: float | jnp.ndarray,
+    idx1: jnp.ndarray,
+    idx2: jnp.ndarray,
+    phi_indices: jnp.ndarray,
+    phi_unique: jnp.ndarray,
+    contrast_arr: jnp.ndarray,
+    offset_arr: jnp.ndarray,
+) -> jnp.ndarray:
+    """Pooled-data c2 evaluator for joint multi-phi CMC (homodyne parity).
+
+    Thin shim around :func:`heterodyne.core.physics_kernel.compute_c2_unified`
+    with ``eval_strategy="pooled"``.  Computes c2 directly at every pooled
+    ``(phi_indices[k], idx1[k], idx2[k])`` tuple — never materializes the
+    ``(n_phi, N, N)`` stack that the vmap+gather path required.  For
+    N=1000, n_phi=4 this eliminates a ~256 MB float64 intermediate at every
+    NUTS leapfrog step.
+
+    Phase 4 of the joint multi-phi CMC refactor — replaces the per-step
+    materialise-then-gather pattern in
+    :func:`heterodyne.optimization.cmc.model._heterodyne_pooled_likelihood`.
+
+    Args:
+        params: Parameter array of shape ``(14,)`` (same canonical order as
+            :func:`compute_c2_heterodyne`).
+        t: Time grid array, shape ``(N,)``.
+        q: Scattering wavevector magnitude.
+        dt: Time step.
+        idx1: Per-pooled-point index into ``t`` for the first time
+            coordinate, shape ``(n_total,)``. Typically built via
+            ``np.searchsorted(t, t1_flat)``.
+        idx2: Per-pooled-point index into ``t`` for the second time
+            coordinate, shape ``(n_total,)``.
+        phi_indices: Per-pooled-point index into ``phi_unique``, shape
+            ``(n_total,)``.
+        phi_unique: Sorted unique phi angles, shape ``(n_phi,)``.
+        contrast_arr: Per-angle contrast values, shape ``(n_phi,)``.
+        offset_arr: Per-angle offset values, shape ``(n_phi,)``.
+
+    Returns:
+        Pooled correlation values, shape ``(n_total,)``. ``c2[k]`` is the
+        model at ``phi=phi_unique[phi_indices[k]]``, ``t1=t[idx1[k]]``,
+        ``t2=t[idx2[k]]`` with the matching per-angle scaling.
+    """
+    from heterodyne.core.physics_kernel import compute_c2_unified
+
+    return compute_c2_unified(  # type: ignore[no-any-return]
+        params,
+        q,
+        dt,
+        eval_strategy="pooled",
+        time_grid=t,
+        idx1=idx1,
+        idx2=idx2,
+        phi_unique=phi_unique,
+        phi_indices=phi_indices,
+        contrast_arr=contrast_arr,
+        offset_arr=offset_arr,
+    )
 
 
 def compute_residuals(

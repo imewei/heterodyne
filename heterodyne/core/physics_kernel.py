@@ -13,6 +13,10 @@ This module factors the **physics** out of the **evaluation strategy**.
 
 - ``"meshgrid"``: full N×N two-time matrix (NLSQ path, ``compute_residuals``).
 - ``"elementwise"``: O(n_pairs) lookup using a :class:`ShardGrid` (CMC path).
+- ``"pooled"``: O(n_total) pooled-data lookup for joint multi-phi CMC
+  (Phase 4 of the joint refactor — homodyne parity). Computes c2 directly
+  at every pooled ``(phi, t1, t2)`` point without materializing the
+  ``(n_phi, N, N)`` intermediate that the vmap+gather path produced.
 
 Both strategies consume the same primitives from
 :mod:`heterodyne.core.physics_utils` (``compute_transport_rate``,
@@ -52,7 +56,7 @@ if TYPE_CHECKING:
     from heterodyne.core.physics_cmc import ShardGrid
 
 
-EvalStrategy = Literal["meshgrid", "elementwise"]
+EvalStrategy = Literal["meshgrid", "elementwise", "pooled"]
 
 
 def _half_transport_meshgrid(
@@ -143,39 +147,62 @@ def compute_c2_unified(
     params: jnp.ndarray,
     q: float,
     dt: float,
-    phi_angle: float,
+    phi_angle: float = 0.0,
     contrast: float = 1.0,
     offset: float = 1.0,
     *,
     eval_strategy: EvalStrategy,
     t: jnp.ndarray | None = None,
     shard_grid: Any = None,
+    time_grid: jnp.ndarray | None = None,
+    idx1: jnp.ndarray | None = None,
+    idx2: jnp.ndarray | None = None,
+    phi_unique: jnp.ndarray | None = None,
+    phi_indices: jnp.ndarray | None = None,
+    contrast_arr: jnp.ndarray | None = None,
+    offset_arr: jnp.ndarray | None = None,
 ) -> jnp.ndarray:
     """Two-component heterodyne c2 via the shared kernel.
 
-    The math is identical to both legacy kernels — they are now thin shims
-    pinning ``eval_strategy`` and forwarding here.  The two paths share
-    every primitive call, every clip range, every order of arithmetic
-    operations that's structurally common; they differ only where the
-    output shape forces a different reduction (outer products in meshgrid
-    vs element-wise products in elementwise).
+    The math is identical to all three evaluation strategies — they share
+    every primitive call, every clip range, and every order of arithmetic
+    operations that's structurally common. They differ only where the
+    output shape forces a different reduction:
+
+    - ``"meshgrid"``: outer products → ``(N, N)``
+    - ``"elementwise"``: element-wise products → ``(n_pairs,)``
+    - ``"pooled"``: per-point gather of per-angle scaling → ``(n_total,)``
 
     Args:
         params: 14-parameter array.
         q: Scattering wavevector magnitude.
         dt: Time step.
-        phi_angle: Detector phi angle (degrees).
-        contrast: Speckle contrast (β).
-        offset: Baseline offset.
+        phi_angle: Detector phi angle (degrees). Used by ``"meshgrid"`` and
+            ``"elementwise"``; ignored for ``"pooled"``.
+        contrast: Speckle contrast (β). Used by ``"meshgrid"`` and
+            ``"elementwise"``; ignored for ``"pooled"``.
+        offset: Baseline offset. Used by ``"meshgrid"`` and ``"elementwise"``;
+            ignored for ``"pooled"``.
         eval_strategy: ``"meshgrid"`` for full ``(N, N)`` output (NLSQ);
-            ``"elementwise"`` for per-pair ``(n_pairs,)`` (CMC sharded).
+            ``"elementwise"`` for per-pair ``(n_pairs,)`` (CMC sharded);
+            ``"pooled"`` for per-pooled-point ``(n_total,)`` (joint multi-phi CMC).
         t: Time array shape ``(N,)`` — required when ``eval_strategy="meshgrid"``.
         shard_grid: :class:`ShardGrid` pytree — required when
             ``eval_strategy="elementwise"``.
+        time_grid: Time array shape ``(N,)`` — required for ``"pooled"``.
+        idx1, idx2: Per-point indices into ``time_grid``, shape ``(n_total,)``
+            each — required for ``"pooled"``.
+        phi_unique: Unique phi angles, shape ``(n_phi,)`` — required for
+            ``"pooled"``.
+        phi_indices: Per-point index into ``phi_unique``, shape ``(n_total,)``
+            — required for ``"pooled"``.
+        contrast_arr, offset_arr: Per-angle scaling arrays of shape
+            ``(n_phi,)`` — required for ``"pooled"``.
 
     Returns:
         For ``eval_strategy="meshgrid"``: ``(N, N)`` array.
         For ``eval_strategy="elementwise"``: ``(n_pairs,)`` array.
+        For ``eval_strategy="pooled"``: ``(n_total,)`` array.
 
     Raises:
         ValueError: Wrong combination of strategy-input arguments.
@@ -195,8 +222,36 @@ def compute_c2_unified(
         return _compute_c2_elementwise(
             params, shard_grid, q, dt, phi_angle, contrast, offset
         )
+    if eval_strategy == "pooled":
+        if (
+            time_grid is None
+            or idx1 is None
+            or idx2 is None
+            or phi_unique is None
+            or phi_indices is None
+            or contrast_arr is None
+            or offset_arr is None
+        ):
+            raise ValueError(
+                "compute_c2_unified(eval_strategy='pooled', ...) requires "
+                "time_grid, idx1, idx2, phi_unique, phi_indices, contrast_arr, "
+                "and offset_arr."
+            )
+        return _compute_c2_pooled(
+            params,
+            time_grid,
+            q,
+            dt,
+            idx1,
+            idx2,
+            phi_indices,
+            phi_unique,
+            contrast_arr,
+            offset_arr,
+        )
     raise ValueError(
-        f"eval_strategy must be 'meshgrid' or 'elementwise', got {eval_strategy!r}"
+        "eval_strategy must be 'meshgrid', 'elementwise', or 'pooled', "
+        f"got {eval_strategy!r}"
     )
 
 
@@ -299,3 +354,122 @@ def _compute_c2_elementwise(
     normalization = jnp.where(_norm_prod > 1e-10, _norm_prod, 1e-10)
 
     return offset + contrast * (ref_term + sample_term + cross_term) / normalization
+
+
+def _half_transport_pooled(
+    time_grid: jnp.ndarray,
+    idx1: jnp.ndarray,
+    idx2: jnp.ndarray,
+    D0: jnp.ndarray,
+    alpha: jnp.ndarray,
+    D_offset: jnp.ndarray,
+    q: float,
+    dt: float,
+) -> jnp.ndarray:
+    """Per-pooled-point half-transport ``(n_total,)`` via cumsum-index lookup.
+
+    Same ``jnp.exp(jnp.clip(...))`` overflow-guard pattern as the meshgrid
+    and elementwise siblings (see allow-list in
+    ``test_no_unguarded_clip_in_physics_module``).  Cumsum is shared across
+    all pooled points; only the index gather differs from the element-wise
+    sibling (no ``ShardGrid`` indirection).
+    """
+    rate = compute_transport_rate(time_grid, D0, alpha, D_offset)
+    cumsum = trapezoid_cumsum(rate, dt)
+    integral = smooth_abs(cumsum[idx2] - cumsum[idx1])
+    return jnp.exp(jnp.clip(-0.5 * q * q * integral, -700.0, 0.0))
+
+
+def _velocity_integral_pooled(
+    time_grid: jnp.ndarray,
+    idx1: jnp.ndarray,
+    idx2: jnp.ndarray,
+    v0: jnp.ndarray,
+    beta: jnp.ndarray,
+    v_offset: jnp.ndarray,
+    dt: float,
+) -> jnp.ndarray:
+    """Per-pooled-point signed velocity integral ``(n_total,)``."""
+    velocity = compute_velocity_rate(time_grid, v0, beta, v_offset)
+    v_cumsum = trapezoid_cumsum(velocity, dt)
+    return v_cumsum[idx2] - v_cumsum[idx1]
+
+
+def _compute_c2_pooled(
+    params: jnp.ndarray,
+    time_grid: jnp.ndarray,
+    q: float,
+    dt: float,
+    idx1: jnp.ndarray,
+    idx2: jnp.ndarray,
+    phi_indices: jnp.ndarray,
+    phi_unique: jnp.ndarray,
+    contrast_arr: jnp.ndarray,
+    offset_arr: jnp.ndarray,
+) -> jnp.ndarray:
+    """Pooled-data evaluation — produces ``(n_total,)`` array directly.
+
+    Phase 4 of the joint multi-phi CMC refactor: evaluates the heterodyne
+    two-component c2 at every pooled ``(phi, t1, t2)`` tuple without ever
+    materializing the ``(n_phi, N, N)`` intermediate that the vmap+gather
+    path produced.  Line-by-line equivalent to
+    :func:`_compute_c2_elementwise` substituting ``phi_indices[k]`` lookups
+    for the scalar ``phi_angle`` / ``contrast`` / ``offset``.
+
+    Each cumsum (transport ref, transport sample, velocity) is computed
+    ONCE along ``time_grid`` (length N) and then gathered at the pooled
+    ``(idx1, idx2)`` pairs.  Memory is O(N + n_total) rather than
+    O(n_phi · N²).
+    """
+    D0_ref, alpha_ref, D_offset_ref = params[0], params[1], params[2]
+    D0_sample, alpha_sample, D_offset_sample = params[3], params[4], params[5]
+    v0, beta, v_offset = params[6], params[7], params[8]
+    f0, f1, f2, f3 = params[9], params[10], params[11], params[12]
+    phi0 = params[13]
+
+    half_tr_ref = _half_transport_pooled(
+        time_grid, idx1, idx2, D0_ref, alpha_ref, D_offset_ref, q, dt
+    )
+    half_tr_sample = _half_transport_pooled(
+        time_grid, idx1, idx2, D0_sample, alpha_sample, D_offset_sample, q, dt
+    )
+
+    v_integral = _velocity_integral_pooled(
+        time_grid, idx1, idx2, v0, beta, v_offset, dt
+    )
+
+    # Per-point phi: gather from the n_phi-length unique array.
+    phi_per_point = phi_unique[phi_indices]
+    total_phi = phi_per_point + phi0
+    phi_rad = jnp.deg2rad(total_phi)
+    phase = q * jnp.cos(phi_rad) * v_integral
+
+    t1_vals = time_grid[idx1]
+    t2_vals = time_grid[idx2]
+    f_sample_1 = _fraction(t1_vals, f0, f1, f2, f3)
+    f_sample_2 = _fraction(t2_vals, f0, f1, f2, f3)
+    f_ref_1 = 1.0 - f_sample_1
+    f_ref_2 = 1.0 - f_sample_2
+
+    f_ref_prod = f_ref_1 * f_ref_2
+    f_sample_prod = f_sample_1 * f_sample_2
+    f_cross_1 = f_ref_1 * f_sample_1
+    f_cross_2 = f_ref_2 * f_sample_2
+    f_cross_prod = f_cross_1 * f_cross_2
+
+    ref_term = f_ref_prod**2 * half_tr_ref**2
+    sample_term = f_sample_prod**2 * half_tr_sample**2
+    cross_term = 2.0 * f_cross_prod * half_tr_ref * half_tr_sample * jnp.cos(phase)
+
+    norm_1 = f_sample_1**2 + f_ref_1**2
+    norm_2 = f_sample_2**2 + f_ref_2**2
+    _norm_prod = norm_1 * norm_2
+    normalization = jnp.where(_norm_prod > 1e-10, _norm_prod, 1e-10)
+
+    # Per-point scaling: gather from the n_phi-length arrays.
+    contrast_pp = contrast_arr[phi_indices]
+    offset_pp = offset_arr[phi_indices]
+
+    return (
+        offset_pp + contrast_pp * (ref_term + sample_term + cross_term) / normalization
+    )
