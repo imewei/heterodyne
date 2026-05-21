@@ -2033,3 +2033,296 @@ class TestBugPrevention_ModelFallbackClamping:
         assert abs(iv.get("alpha_ref", -999.0)) < 1e-6, (
             f"alpha_ref=0.0 (interior) must not be modified; got {iv.get('alpha_ref')}"
         )
+
+
+class TestFitCMCMultiPhiIntegration:
+    """End-to-end NUTS integration smoke tests for the joint multi-phi path.
+
+    These tests run :func:`fit_cmc_multi_phi` through the full pipeline:
+
+        fit_cmc_multi_phi
+            → prepare_mcmc_data
+            → get_heterodyne_pooled_model_for_mode
+            → xpcs_model_heterodyne_*
+            → _heterodyne_pooled_likelihood
+            → compute_c2_heterodyne_pooled
+            → compute_c2_unified(eval_strategy="pooled")
+            → NUTS sampler
+
+    Why this class exists: every other test of ``fit_cmc_multi_phi`` in the
+    suite uses ``@patch(...)`` to mock the engine. As a result, two latent
+    NameError bugs slipped past 439 CMC tests during Phase 4 validation —
+    missing imports for ``compute_c2_heterodyne_pooled`` (model.py) and
+    ``get_heterodyne_pooled_model_for_mode`` (cmc/core.py). These smoke
+    tests actually drive NUTS so that future drift in the joint path is
+    caught immediately.
+
+    NUTS is intentionally tiny (warmup=10, samples=20, N=8 per angle).
+    The tests assert structural invariants — not convergence quality.
+    """
+
+    @staticmethod
+    def _build_multi_phi_model() -> HeterodyneModel:
+        """Build a minimal 8-time-bin HeterodyneModel for fast NUTS."""
+        from heterodyne import HeterodyneModel
+
+        config = {
+            "analyzer_parameters": {
+                "dt": 0.001,
+                "start_frame": 1,
+                "end_frame": 8,
+                "scattering": {"wavevector_q": 0.0054},
+            },
+            "parameters": {},
+        }
+        return HeterodyneModel.from_config(config)
+
+    @staticmethod
+    def _build_multi_phi_c2_data(
+        model: HeterodyneModel, phi_angles: np.ndarray
+    ) -> np.ndarray:
+        """Synthetic c2 of shape (n_phi, N, N).
+
+        Uses the model's own forward computation per angle so the data is
+        smooth and consistent with the physics, then adds a tiny per-angle
+        offset so the angles are not identical. NUTS doesn't need to
+        converge — we only need a non-degenerate, finite log-likelihood.
+        """
+        import jax
+
+        n_phi = phi_angles.size
+        rng_key = jax.random.PRNGKey(0)
+        slices = []
+        for i, phi in enumerate(phi_angles):
+            c2 = np.asarray(model.compute_correlation(phi_angle=float(phi)))
+            rng_key, sub = jax.random.split(rng_key)
+            noise = (
+                np.asarray(jax.random.normal(sub, c2.shape))
+                * 0.001
+                * float(np.max(np.abs(c2)))
+            )
+            slices.append(c2 + noise + 1e-4 * i)
+        return np.stack(slices, axis=0)
+
+    @pytest.mark.integration
+    @pytest.mark.mcmc
+    @pytest.mark.slow
+    def test_fit_cmc_multi_phi_smoke_1_chain(self) -> None:
+        """Smoke: cold-start joint multi-phi NUTS runs end-to-end.
+
+        Exercises the cold-start path (no NLSQ warmstart) — this is exactly
+        where the original Phase-3 NameError on
+        ``get_heterodyne_pooled_model_for_mode`` lurked.
+        """
+        from heterodyne import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_multi_phi
+        from heterodyne.optimization.cmc.results import CMCResult
+
+        model = self._build_multi_phi_model()
+        phi_angles = np.array([0.0, 90.0])
+        c2_data = self._build_multi_phi_c2_data(model, phi_angles)
+        assert c2_data.shape == (2, 8, 8)
+
+        config = CMCConfig(
+            num_chains=1,
+            num_warmup=10,
+            num_samples=20,
+            seed=42,
+            use_nlsq_warmstart=False,
+        )
+
+        result = fit_cmc_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=config,
+            nlsq_results=None,
+        )
+
+        # Type / shape / structure invariants
+        assert isinstance(result, CMCResult)
+        assert result.num_chains == 1
+        assert result.num_samples == 20
+        assert result.num_warmup == 10
+        assert result.num_shards == 1
+
+        # Joint multi-phi was actually instantiated (recorded in metadata)
+        assert result.metadata.get("joint_multi_phi") is True, (
+            "Expected metadata['joint_multi_phi']=True from fit_cmc_multi_phi; "
+            f"got metadata={result.metadata}"
+        )
+        assert result.metadata.get("n_phi") == 2
+
+        # Per-angle contrast/offset arrays have shape (n_phi,)
+        assert result.mean_contrast is not None
+        assert result.mean_contrast.shape == (2,)
+        assert result.mean_offset is not None
+        assert result.mean_offset.shape == (2,)
+
+        # All posterior samples are finite (no NaN/inf leak through likelihood)
+        assert result.samples is not None and len(result.samples) > 0
+        for name, samples in result.samples.items():
+            assert np.all(np.isfinite(samples)), (
+                f"Posterior samples for {name!r} contain non-finite values"
+            )
+
+        # At least one of the canonical physics parameters appears in the
+        # parameter_names — confirms the shared physics plate was sampled.
+        physics_keys = {"D0_ref", "D0_sample", "alpha_ref", "alpha_sample", "v0"}
+        assert physics_keys.intersection(result.parameter_names), (
+            f"None of {physics_keys} found in parameter_names={result.parameter_names}"
+        )
+
+    @pytest.mark.integration
+    @pytest.mark.mcmc
+    @pytest.mark.slow
+    def test_fit_cmc_multi_phi_smoke_with_nlsq_warmstart(self) -> None:
+        """Smoke: joint multi-phi NUTS with per-angle NLSQ warm-start list.
+
+        Builds a per-angle ``list[NLSQResult]`` (matching the contract used
+        by :func:`heterodyne.cli.optimization_runner.run_cmc`) and passes it
+        to ``fit_cmc_multi_phi``. This is the exact call shape the production
+        CLI takes — the Phase-3 NameError lived on this branch.
+        """
+        from heterodyne import CMCConfig, NLSQConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_multi_phi
+        from heterodyne.optimization.cmc.results import CMCResult
+        from heterodyne.optimization.nlsq.core import fit_nlsq_jax
+
+        model = self._build_multi_phi_model()
+        phi_angles = np.array([0.0, 90.0])
+        c2_data = self._build_multi_phi_c2_data(model, phi_angles)
+
+        # Build per-angle NLSQ warm-starts (very few iterations — purely
+        # to populate an NLSQResult; quality is irrelevant for the smoke).
+        nlsq_config = NLSQConfig(
+            max_iterations=5,
+            tolerance=1e-4,
+            method="trf",
+            verbose=0,
+        )
+        nlsq_results = []
+        for i, phi in enumerate(phi_angles):
+            nr = fit_nlsq_jax(
+                model=model,
+                c2_data=c2_data[i],
+                phi_angle=float(phi),
+                config=nlsq_config,
+                use_nlsq_library=False,
+            )
+            nlsq_results.append(nr)
+
+        assert len(nlsq_results) == 2
+
+        cmc_config = CMCConfig(
+            num_chains=1,
+            num_warmup=10,
+            num_samples=20,
+            seed=42,
+        )
+
+        result = fit_cmc_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=cmc_config,
+            nlsq_results=nlsq_results,
+        )
+
+        assert isinstance(result, CMCResult)
+        assert result.metadata.get("joint_multi_phi") is True
+        assert result.metadata.get("n_phi") == 2
+
+        # Per-angle contrast/offset propagation: arrays of length n_phi
+        # exist and are finite. This is the exact slot where Phase-3
+        # NameErrors caused the path to crash before any per-angle posterior
+        # could be computed.
+        assert result.mean_contrast is not None
+        assert result.mean_contrast.shape == (2,)
+        assert np.all(np.isfinite(result.mean_contrast))
+        assert result.std_contrast is not None
+        assert result.std_contrast.shape == (2,)
+        assert result.mean_offset is not None
+        assert result.mean_offset.shape == (2,)
+        assert np.all(np.isfinite(result.mean_offset))
+        assert result.std_offset is not None
+        assert result.std_offset.shape == (2,)
+
+        # All posterior samples finite
+        assert result.samples is not None
+        for name, samples in result.samples.items():
+            assert np.all(np.isfinite(samples)), (
+                f"Non-finite samples for {name!r} with NLSQ warm-start path"
+            )
+
+    @pytest.mark.integration
+    @pytest.mark.mcmc
+    @pytest.mark.slow
+    def test_fit_cmc_multi_phi_smoke_individual_mode(self) -> None:
+        """Smoke: ``per_angle_mode='individual'`` builds per-angle scaling plates.
+
+        Forces the dispatcher to :func:`xpcs_model_heterodyne_scaled` (the
+        per-angle sampled contrast/offset variant). Verifies the per-angle
+        plate was actually instantiated by checking the posterior samples
+        dict contains ``contrast_0``/``contrast_1``/``offset_0``/``offset_1``.
+        """
+        from heterodyne import CMCConfig
+        from heterodyne.optimization.cmc.core import fit_cmc_multi_phi
+        from heterodyne.optimization.cmc.results import CMCResult
+
+        model = self._build_multi_phi_model()
+        phi_angles = np.array([0.0, 90.0])
+        c2_data = self._build_multi_phi_c2_data(model, phi_angles)
+
+        config = CMCConfig(
+            num_chains=1,
+            num_warmup=10,
+            num_samples=20,
+            seed=42,
+            use_nlsq_warmstart=False,
+            per_angle_mode="individual",
+        )
+
+        result = fit_cmc_multi_phi(
+            model=model,
+            c2_data=c2_data,
+            phi_angles=phi_angles,
+            config=config,
+            nlsq_results=None,
+        )
+
+        assert isinstance(result, CMCResult)
+        assert result.metadata.get("joint_multi_phi") is True
+        assert result.metadata.get("n_phi") == 2
+
+        # Per-angle plate verification: the 'individual' mode samples
+        # contrast and offset as per-angle plated sites. The CMCResult
+        # parameter_names list is built from physics_names +
+        # contrast_{i} + offset_{i}, so we assert those slots are present
+        # AND that the raw samples dict carries the per-angle sites.
+        assert "contrast_0" in result.parameter_names
+        assert "contrast_1" in result.parameter_names
+        assert "offset_0" in result.parameter_names
+        assert "offset_1" in result.parameter_names
+
+        # The underlying NumPyro model emits the per-angle scaling either
+        # as plated 1-D sites (``contrast`` shape (n_phi,)) or per-index
+        # named sites (``contrast_0``, ``contrast_1``, ...). Either layout
+        # confirms the per-angle plate was instantiated.
+        assert result.samples is not None
+        sample_keys = set(result.samples.keys())
+        plated_contrast_present = "contrast" in sample_keys
+        per_index_contrast_present = (
+            "contrast_0" in sample_keys and "contrast_1" in sample_keys
+        )
+        assert plated_contrast_present or per_index_contrast_present, (
+            "Per-angle 'individual' mode must yield either a plated "
+            "'contrast' site or per-index 'contrast_0'/'contrast_1' sites; "
+            f"got sample keys={sorted(sample_keys)}"
+        )
+
+        # Mean/std arrays still have shape (n_phi,)
+        assert result.mean_contrast is not None
+        assert result.mean_contrast.shape == (2,)
+        assert result.mean_offset is not None
+        assert result.mean_offset.shape == (2,)
