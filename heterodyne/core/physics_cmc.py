@@ -336,7 +336,14 @@ def compute_log_likelihood_elementwise(
         contrast,
         offset,
     )
-    residuals = (c2_model - c2_data_flat) / sigma_flat
+    # Boundary mask: pairs where either time index is 0 (t=0 row/col) are
+    # loaded and plotted but excluded from the likelihood (parity with the
+    # NLSQ residual mask in core.jax_backend and with the numpyro model
+    # sites in optimization.cmc.model).
+    boundary_mask = (shard_grid.idx1 > 0) & (shard_grid.idx2 > 0)
+    residuals = (
+        (c2_model - c2_data_flat) / sigma_flat * boundary_mask.astype(c2_model.dtype)
+    )
     return -0.5 * jnp.sum(residuals**2)
 
 
