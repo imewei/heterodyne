@@ -960,16 +960,19 @@ class CMCConfig:
     ) -> str:
         """Resolve the effective per-angle mode for a concrete dataset.
 
-        Resolution logic (in priority order):
+        Mirrors ``homodyne/optimization/cmc/config.py::get_effective_per_angle_mode``
+        so CMC/NLSQ parameterization stays in lock-step across both packages.
 
-        1. If ``per_angle_mode != "auto"`` the configured value is returned
-           directly (no override from NLSQ).
-        2. If ``per_angle_mode == "auto"``:
+        Resolution logic (priority order):
 
-           a. If ``has_nlsq_warmstart`` and ``nlsq_per_angle_mode`` is one of
-              the valid non-auto modes, inherit it from NLSQ.
-           b. Else if ``n_phi >= constant_scaling_threshold`` → ``"individual"``.
-           c. Else → ``"constant"``.
+        1. If ``nlsq_per_angle_mode`` is provided, mirror it for CMC↔NLSQ
+           parameterization parity, regardless of ``self.per_angle_mode``.
+           If both sides are ``"auto"`` AND ``has_nlsq_warmstart`` is True,
+           promote to ``"constant_averaged"`` so scaling is fixed (fewer
+           sampled params, less heterogeneity across shards).
+        2. Else if ``self.per_angle_mode != "auto"`` → return it directly.
+        3. Else (auto, no NLSQ): ``n_phi >= constant_scaling_threshold``
+           → ``"auto"`` (sampled averaged); otherwise → ``"individual"``.
 
         Parameters
         ----------
@@ -977,37 +980,44 @@ class CMCConfig:
             Number of distinct phi (azimuthal angle) bins in the dataset.
         nlsq_per_angle_mode:
             The per-angle mode resolved by the preceding NLSQ fit, if any.
+            When provided this overrides the configured mode for parity.
         has_nlsq_warmstart:
             Whether a valid NLSQ warm-start is available for this run.
 
         Returns
         -------
         str
-            Resolved per-angle mode (never ``"auto"``).
+            Effective mode: ``"auto"``, ``"constant"``, ``"constant_averaged"``,
+            or ``"individual"``.
         """
-        if self.per_angle_mode != "auto":
-            logger.debug("Per-angle mode fixed to %r (not auto).", self.per_angle_mode)
-            return self.per_angle_mode
-
-        # --- Auto resolution ---
-        valid_non_auto = _VALID_PER_ANGLE_MODE - {"auto"}
-
-        if (
-            has_nlsq_warmstart
-            and nlsq_per_angle_mode is not None
-            and nlsq_per_angle_mode in valid_non_auto
-        ):
+        # Priority 1: NLSQ override (regardless of self.per_angle_mode).
+        if nlsq_per_angle_mode is not None:
+            if (
+                has_nlsq_warmstart
+                and nlsq_per_angle_mode == "auto"
+                and self.per_angle_mode == "auto"
+            ):
+                logger.info(
+                    "CMC per-angle mode: auto -> constant_averaged "
+                    "(NLSQ warm-start present, fixing scaling for stability)"
+                )
+                return "constant_averaged"
             logger.debug(
-                "Per-angle mode auto-resolved to %r from NLSQ warm-start.",
+                "Per-angle mode mirrored from NLSQ warm-start: %r.",
                 nlsq_per_angle_mode,
             )
             return nlsq_per_angle_mode
 
-        if n_phi >= self.constant_scaling_threshold:
-            resolved = "individual"
-        else:
-            resolved = "constant"
+        # Priority 2: explicit non-auto configured mode.
+        if self.per_angle_mode != "auto":
+            logger.debug("Per-angle mode fixed to %r (not auto).", self.per_angle_mode)
+            return self.per_angle_mode
 
+        # Priority 3: auto resolution from n_phi.
+        if n_phi >= self.constant_scaling_threshold:
+            resolved = "auto"
+        else:
+            resolved = "individual"
         logger.debug(
             "Per-angle mode auto-resolved to %r (n_phi=%d threshold=%d).",
             resolved,
