@@ -352,10 +352,10 @@ class TestPooledKernelGradientParity:
         )
         grad_ref_np = np.asarray(grad_ref)
         grad_new_np = np.asarray(grad_new)
-        # Gradient parity: relative tolerance loosened slightly because
-        # the gradient chain has more rounding-noise accumulation than the
-        # forward value (~10x typical), but still far below physics-meaningful
-        # drift.
+        # Same tolerance as the forward parity: the gather and the pooled
+        # kernel are bit-equivalent up to JAX op-ordering noise, so the VJP
+        # they emit is bit-equivalent too. If this ever needs loosening it's
+        # a signal that the kernels have drifted, not a tolerance issue.
         assert np.allclose(grad_ref_np, grad_new_np, atol=_ATOL, rtol=_RTOL), (
             "gradient mismatch: "
             f"max abs diff = {float(np.max(np.abs(grad_ref_np - grad_new_np))):.3e}, "

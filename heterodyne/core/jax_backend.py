@@ -349,6 +349,10 @@ def compute_c2_heterodyne_pooled(
         model at ``phi=phi_unique[phi_indices[k]]``, ``t1=t[idx1[k]]``,
         ``t2=t[idx2[k]]`` with the matching per-angle scaling.
     """
+    # Local import to avoid a cycle: physics_kernel.py imports nothing from
+    # this module, but importing at module load would chain into JAX init
+    # before some downstream test helpers expect it. Same pattern as
+    # ``compute_c2_heterodyne`` above.
     from heterodyne.core.physics_kernel import compute_c2_unified
 
     return compute_c2_unified(  # type: ignore[no-any-return]

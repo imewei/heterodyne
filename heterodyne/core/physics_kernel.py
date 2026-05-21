@@ -232,10 +232,22 @@ def compute_c2_unified(
             or contrast_arr is None
             or offset_arr is None
         ):
+            missing = [
+                name
+                for name, value in (
+                    ("time_grid", time_grid),
+                    ("idx1", idx1),
+                    ("idx2", idx2),
+                    ("phi_unique", phi_unique),
+                    ("phi_indices", phi_indices),
+                    ("contrast_arr", contrast_arr),
+                    ("offset_arr", offset_arr),
+                )
+                if value is None
+            ]
             raise ValueError(
-                "compute_c2_unified(eval_strategy='pooled', ...) requires "
-                "time_grid, idx1, idx2, phi_unique, phi_indices, contrast_arr, "
-                "and offset_arr."
+                "compute_c2_unified(eval_strategy='pooled', ...) is missing "
+                f"required argument(s): {', '.join(missing)}."
             )
         return _compute_c2_pooled(
             params,
