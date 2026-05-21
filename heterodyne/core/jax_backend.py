@@ -242,6 +242,47 @@ def compute_c2_heterodyne(
     )
 
 
+def compute_c2_heterodyne_multiphi(
+    params: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float | jnp.ndarray,
+    dt: float | jnp.ndarray,
+    phi_unique: jnp.ndarray,
+    contrast_arr: jnp.ndarray,
+    offset_arr: jnp.ndarray,
+) -> jnp.ndarray:
+    """Joint multi-phi c2 evaluator for pooled-data CMC (homodyne parity).
+
+    Vmap wrapper over :func:`compute_c2_heterodyne` that evaluates the
+    heterodyne two-component model for every angle in ``phi_unique`` with
+    the matching per-angle ``contrast_arr`` / ``offset_arr``. Returns a
+    stacked tensor that can be gathered by ``(phi_indices, i1, i2)`` to
+    recover c2 at each pooled (t1, t2, phi) tuple.
+
+    Args:
+        params: Parameter array of shape ``(14,)`` (same canonical order as
+            ``compute_c2_heterodyne``).
+        t: Time grid array, shape ``(N,)``.
+        q: Scattering wavevector magnitude.
+        dt: Time step.
+        phi_unique: Unique phi angles, shape ``(n_phi,)``.
+        contrast_arr: Per-angle contrast values, shape ``(n_phi,)``.
+        offset_arr: Per-angle offset values, shape ``(n_phi,)``.
+
+    Returns:
+        Stacked correlation, shape ``(n_phi, N, N)``. ``c2[i, j, k]`` is the
+        model at phi=phi_unique[i], t1=t[j], t2=t[k] with contrast=contrast_arr[i],
+        offset=offset_arr[i].
+    """
+
+    def _single(
+        phi: jnp.ndarray, contrast: jnp.ndarray, offset: jnp.ndarray
+    ) -> jnp.ndarray:
+        return compute_c2_heterodyne(params, t, q, dt, phi, contrast, offset)
+
+    return jax.vmap(_single, in_axes=(0, 0, 0))(phi_unique, contrast_arr, offset_arr)
+
+
 def compute_residuals(
     params: jnp.ndarray,
     t: jnp.ndarray,
