@@ -23,6 +23,10 @@ from numpyro.infer import MCMC, NUTS
 
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
 from heterodyne.optimization.cmc.config import CMCConfig
+from heterodyne.optimization.cmc.data_prep import (
+    PooledCMCData,
+    prepare_mcmc_data,
+)
 from heterodyne.optimization.cmc.diagnostics import (
     analyze_divergences,
     log_analysis_summary,
@@ -2408,6 +2412,278 @@ def _create_failed_result(parameter_names: list[str], message: str) -> CMCResult
     )
 
 
+def fit_cmc_multi_phi(
+    model: HeterodyneModel,
+    c2_data: np.ndarray | jnp.ndarray,
+    phi_angles: np.ndarray | list[float],
+    config: CMCConfig | None = None,
+    nlsq_results: list[NLSQResult] | None = None,
+    sigma: np.ndarray | float | None = None,
+) -> CMCResult:
+    """Joint multi-phi CMC entry point (homodyne parity).
+
+    Runs ONE NUTS pass on pooled multi-phi data with shared 14 physics
+    parameters and per-angle sampled contrast / offset. Mirrors
+    ``homodyne.optimization.cmc.fit_mcmc_jax`` at the algorithmic level:
+
+    1. Pool ``c2_data`` (shape ``(n_phi, N, N)`` or ``(N, N)`` for n_phi=1)
+       into flat arrays ``(data, t1, t2, phi)`` of length ``n_phi * N * N``.
+    2. Run :func:`prepare_mcmc_data` to filter the diagonal and build a
+       :class:`PooledCMCData` container with ``phi_unique`` and
+       ``phi_indices`` (homodyne layout).
+    3. Compute per-point grid indices ``i1_indices`` / ``i2_indices`` via
+       ``searchsorted`` against ``model.t``.
+    4. Build the joint NumPyro model
+       :func:`xpcs_model_heterodyne_scaled` (per-angle sampled scaling +
+       shared physics + single pooled likelihood with t=0 boundary mask).
+    5. Run NUTS with the configured chains / warmup / samples.
+    6. Return a single :class:`CMCResult` with shared-physics posterior +
+       per-angle scaling posteriors (``mean_contrast`` / ``mean_offset``
+       arrays of length ``n_phi``).
+
+    The returned ``CMCResult`` reflects one joint inference — every angle
+    contributes to the same physics-parameter posterior, exactly as in
+    homodyne.
+
+    Parameters
+    ----------
+    model:
+        Configured :class:`HeterodyneModel` whose time grid ``model.t``
+        defines the (N,) axis the pooled c2 was flattened from.
+    c2_data:
+        Experimental c2 of shape ``(n_phi, N, N)`` (multi-angle) or
+        ``(N, N)`` (single-angle, treated as n_phi=1).
+    phi_angles:
+        Detector phi angles in degrees, length ``n_phi``.
+    config:
+        :class:`CMCConfig`. ``None`` uses defaults.
+    nlsq_results:
+        Optional per-angle NLSQ warm-start. Currently only used to log
+        warm-start status; future phases will translate to init_to_value.
+    sigma:
+        Optional measurement uncertainty estimate; ``None`` triggers a
+        MAD-based estimate via :func:`prepare_mcmc_data`.
+
+    Returns
+    -------
+    CMCResult
+        Joint multi-phi result. ``parameter_names`` lists the 14 physics
+        parameters followed by ``contrast_0..contrast_{n_phi-1}`` and
+        ``offset_0..offset_{n_phi-1}``.
+    """
+    del sigma  # noise_scale comes from prepare_mcmc_data; future: honour user override
+    if config is None:
+        config = CMCConfig()
+
+    # ---- Phase 1: pool the stacked c2 into flat (n_total,) arrays ----
+    c2_np = np.asarray(c2_data, dtype=np.float64)
+    if c2_np.ndim == 2:
+        c2_np = c2_np[None, :, :]
+    if c2_np.ndim != 3:
+        raise ValueError(
+            f"fit_cmc_multi_phi: c2_data must be 2-D or 3-D, got ndim={c2_np.ndim}"
+        )
+    phi_arr = np.asarray(phi_angles, dtype=np.float64).reshape(-1)
+    n_phi_input, n_t1, n_t2 = c2_np.shape
+    if n_t1 != n_t2:
+        raise ValueError(
+            "fit_cmc_multi_phi: c2_data must be square in the time axes, "
+            f"got shape {c2_np.shape}"
+        )
+    if phi_arr.size != n_phi_input:
+        raise ValueError(
+            "fit_cmc_multi_phi: phi_angles length "
+            f"{phi_arr.size} does not match c2_data n_phi={n_phi_input}"
+        )
+
+    time_grid = np.asarray(model.t, dtype=np.float64)
+    if time_grid.size != n_t1:
+        raise ValueError(
+            f"fit_cmc_multi_phi: model.t has {time_grid.size} points but "
+            f"c2_data has {n_t1} time bins; they must match."
+        )
+
+    n_grid = int(time_grid.size)
+    i_idx, j_idx = np.meshgrid(np.arange(n_grid), np.arange(n_grid), indexing="ij")
+    t1_grid = time_grid[i_idx].ravel()
+    t2_grid = time_grid[j_idx].ravel()
+    data_flat = c2_np.reshape(n_phi_input * n_grid * n_grid)
+    t1_flat = np.tile(t1_grid, n_phi_input)
+    t2_flat = np.tile(t2_grid, n_phi_input)
+    phi_flat = np.repeat(phi_arr, n_grid * n_grid)
+
+    # ---- Phase 2: prepare pooled data (homodyne parity) ----
+    prepared: PooledCMCData = prepare_mcmc_data(
+        data_flat, t1_flat, t2_flat, phi_flat, filter_diagonal=True
+    )
+
+    # ---- Phase 3: per-point grid indices for the gather inside the model ----
+    i1_indices = np.searchsorted(time_grid, prepared.t1).astype(np.int32)
+    i2_indices = np.searchsorted(time_grid, prepared.t2).astype(np.int32)
+
+    logger.info(
+        "[CMC joint] n_phi=%d, n_total=%d, n_grid=%d, noise_scale=%.4e",
+        prepared.n_phi,
+        prepared.n_total,
+        n_grid,
+        prepared.noise_scale,
+    )
+    if nlsq_results is not None:
+        logger.info(
+            "[CMC joint] NLSQ warm-start provided for %d angles "
+            "(init_to_value not yet wired; falling back to init_to_median)",
+            len(nlsq_results),
+        )
+
+    # ---- Phase 4: build the joint NumPyro model via mode dispatcher ----
+    space = model.param_manager.space
+
+    has_warmstart = bool(nlsq_results)
+    effective_mode = config.get_effective_per_angle_mode(
+        n_phi=prepared.n_phi,
+        nlsq_per_angle_mode=None,  # Phase 2: not yet propagating NLSQ mode
+        has_nlsq_warmstart=has_warmstart,
+    )
+    logger.info("[CMC joint] effective per-angle mode: %r", effective_mode)
+
+    fixed_contrast_arg: np.ndarray | float | None = None
+    fixed_offset_arg: np.ndarray | float | None = None
+    if effective_mode in ("constant", "constant_averaged"):
+        # Estimate per-angle contrast/offset from data quantiles. For each
+        # angle: contrast ≈ (max - min) on the meshgrid, offset ≈ min.
+        per_angle_contrast = np.zeros(prepared.n_phi)
+        per_angle_offset = np.zeros(prepared.n_phi)
+        for ai in range(prepared.n_phi):
+            mask = prepared.phi_indices == ai
+            vals = prepared.data[mask]
+            if vals.size == 0:
+                per_angle_contrast[ai] = 1.0
+                per_angle_offset[ai] = 0.0
+            else:
+                per_angle_offset[ai] = float(np.quantile(vals, 0.05))
+                per_angle_contrast[ai] = (
+                    float(np.quantile(vals, 0.95)) - per_angle_offset[ai]
+                )
+        if effective_mode == "constant":
+            fixed_contrast_arg = per_angle_contrast
+            fixed_offset_arg = per_angle_offset
+        else:
+            fixed_contrast_arg = float(per_angle_contrast.mean())
+            fixed_offset_arg = float(per_angle_offset.mean())
+
+    model_callable = get_heterodyne_pooled_model_for_mode(
+        effective_mode,
+        data=jnp.asarray(prepared.data),
+        t=jnp.asarray(time_grid),
+        q=float(model.q),
+        dt=float(model.dt),
+        phi_unique=jnp.asarray(prepared.phi_unique),
+        phi_indices=jnp.asarray(prepared.phi_indices),
+        i1_indices=jnp.asarray(i1_indices),
+        i2_indices=jnp.asarray(i2_indices),
+        noise_scale=prepared.noise_scale,
+        space=space,
+        fixed_contrast=fixed_contrast_arg,
+        fixed_offset=fixed_offset_arg,
+        num_shards=1,
+    )
+
+    # ---- Phase 5: NUTS sampling ----
+    logger.info(
+        "[CMC joint] starting NUTS: chains=%d, warmup=%d, samples=%d",
+        config.num_chains,
+        config.num_warmup,
+        config.num_samples,
+    )
+    start_time = time.perf_counter()
+    rng_seed = config.seed if config.seed is not None else secrets.randbelow(2**31)
+    kernel = NUTS(
+        model_callable,
+        target_accept_prob=config.target_accept_prob,
+        dense_mass=config.dense_mass,
+    )
+    mcmc = MCMC(
+        kernel,
+        num_warmup=config.num_warmup,
+        num_samples=config.num_samples,
+        num_chains=config.num_chains,
+        chain_method=config.chain_method,
+        progress_bar=False,
+    )
+    mcmc.run(jax.random.PRNGKey(rng_seed))
+    samples_raw = mcmc.get_samples(group_by_chain=True)
+    samples = {k: np.asarray(v) for k, v in samples_raw.items()}
+    extra_fields = mcmc.get_extra_fields(group_by_chain=True)
+    divergences = int(np.sum(np.asarray(extra_fields.get("diverging", []))))
+    wall_time = time.perf_counter() - start_time
+
+    # ---- Phase 6: assemble CMCResult ----
+    physics_names = [n for n in space.varying_names if n not in ("contrast", "offset")]
+    contrast_names = [f"contrast_{i}" for i in range(prepared.n_phi)]
+    offset_names = [f"offset_{i}" for i in range(prepared.n_phi)]
+    parameter_names = physics_names + contrast_names + offset_names
+
+    posterior_mean = np.zeros(len(parameter_names))
+    posterior_std = np.zeros(len(parameter_names))
+    for i, name in enumerate(parameter_names):
+        if name in samples:
+            flat = samples[name].reshape(-1)
+            posterior_mean[i] = float(np.nanmean(flat))
+            posterior_std[i] = float(np.nanstd(flat))
+
+    mean_contrast = np.array(
+        [posterior_mean[len(physics_names) + i] for i in range(prepared.n_phi)]
+    )
+    std_contrast = np.array(
+        [posterior_std[len(physics_names) + i] for i in range(prepared.n_phi)]
+    )
+    n_phys = len(physics_names)
+    mean_offset = np.array(
+        [posterior_mean[n_phys + prepared.n_phi + i] for i in range(prepared.n_phi)]
+    )
+    std_offset = np.array(
+        [posterior_std[n_phys + prepared.n_phi + i] for i in range(prepared.n_phi)]
+    )
+
+    convergence_passed = divergences == 0
+    convergence_status = "converged" if convergence_passed else "divergences"
+
+    logger.info(
+        "[CMC joint] complete: %d samples × %d chains, %d divergences, %.1fs",
+        config.num_samples,
+        config.num_chains,
+        divergences,
+        wall_time,
+    )
+
+    return CMCResult(
+        parameter_names=parameter_names,
+        posterior_mean=posterior_mean,
+        posterior_std=posterior_std,
+        credible_intervals={},
+        convergence_passed=convergence_passed,
+        convergence_status=convergence_status,
+        samples=samples,
+        num_warmup=config.num_warmup,
+        num_samples=config.num_samples,
+        num_chains=config.num_chains,
+        num_shards=1,
+        divergences=divergences,
+        wall_time_seconds=float(wall_time),
+        mean_contrast=mean_contrast,
+        std_contrast=std_contrast,
+        mean_offset=mean_offset,
+        std_offset=std_offset,
+        per_angle_mode="individual",
+        metadata={
+            "joint_multi_phi": True,
+            "n_phi": prepared.n_phi,
+            "n_total": prepared.n_total,
+            "phi_unique": prepared.phi_unique.tolist(),
+        },
+    )
+
+
 def fit_mcmc_jax(
     data: np.ndarray,
     t1: np.ndarray,
@@ -2507,33 +2783,29 @@ def fit_mcmc_jax(
             f"t2={t2_arr.shape} phi={phi_arr.shape}"
         )
 
-    unique_phi = np.unique(phi_arr)
-    if unique_phi.size > 1:
-        raise NotImplementedError(
-            "fit_mcmc_jax: pooled data with multiple phi angles is not "
-            "supported. Call this adapter once per angle, or use "
-            "heterodyne.cli.optimization_runner.run_cmc for orchestrated "
-            "multi-angle CMC."
-        )
-    phi_angle = float(unique_phi[0])
-
     # Recover the regular (t, t) grid the pooled arrays were flattened from.
     t_unique = np.unique(np.concatenate([t1_arr, t2_arr]))
     n_t = int(t_unique.size)
-    if data_arr.size != n_t * n_t:
+    unique_phi = np.unique(phi_arr)
+    n_phi = int(unique_phi.size)
+    if data_arr.size != n_phi * n_t * n_t:
         raise ValueError(
             f"fit_mcmc_jax: pooled data size {data_arr.size} does not match "
-            f"recovered grid {n_t}x{n_t}={n_t * n_t}; heterodyne CMC requires "
-            "a regular meshgrid of (t1, t2)."
+            f"recovered grid {n_phi}x{n_t}x{n_t}={n_phi * n_t * n_t}; "
+            "heterodyne CMC requires a regular meshgrid of (phi, t1, t2)."
         )
-    i1 = np.searchsorted(t_unique, t1_arr)
-    i2 = np.searchsorted(t_unique, t2_arr)
-    c2_matrix = np.full((n_t, n_t), np.nan, dtype=np.float64)
-    c2_matrix[i1, i2] = data_arr
-    if np.isnan(c2_matrix).any():
+    phi_indices = np.argmin(
+        np.abs(phi_arr[:, None] - unique_phi[None, :]), axis=1
+    ).astype(np.int32)
+    i1 = np.searchsorted(t_unique, t1_arr).astype(np.int32)
+    i2 = np.searchsorted(t_unique, t2_arr).astype(np.int32)
+    c2_stacked = np.full((n_phi, n_t, n_t), np.nan, dtype=np.float64)
+    c2_stacked[phi_indices, i1, i2] = data_arr
+    if np.isnan(c2_stacked).any():
         raise ValueError(
-            "fit_mcmc_jax: pooled (data, t1, t2) does not cover the full "
-            f"({n_t}, {n_t}) grid; cannot reconstruct C2 matrix."
+            "fit_mcmc_jax: pooled (data, t1, t2, phi) does not cover the "
+            f"full ({n_phi}, {n_t}, {n_t}) grid; cannot reconstruct stacked "
+            "C2 matrices."
         )
 
     inferred_dt = float(np.median(np.diff(t_unique))) if n_t > 1 else 1.0
@@ -2590,26 +2862,18 @@ def fit_mcmc_jax(
             type(nlsq_result).__name__,
         )
 
-    n_pts = int(data_arr.size)
-    use_sharded = (
-        config.should_enable_cmc(n_pts) and config.get_num_shards(n_pts, n_phi=1) >= 2
+    # Route through the joint multi-phi engine — mirrors homodyne's
+    # fit_mcmc_jax_impl, which always runs ONE NUTS pass over pooled data.
+    # Single-phi (n_phi=1) is a degenerate case of the same path.
+    nlsq_results_list: list[NLSQResult] | None = (
+        [nlsq_obj] * n_phi if nlsq_obj is not None else None
     )
-    if use_sharded:
-        num_shards = config.get_num_shards(n_pts, n_phi=1)
-        return fit_cmc_sharded(
-            model=model,
-            c2_data=c2_matrix,
-            phi_angle=phi_angle,
-            config=config,
-            nlsq_result=nlsq_obj,
-            num_shards=num_shards,
-        )
-    return fit_cmc_jax(
+    return fit_cmc_multi_phi(
         model=model,
-        c2_data=c2_matrix,
-        phi_angle=phi_angle,
+        c2_data=c2_stacked,
+        phi_angles=unique_phi,
         config=config,
-        nlsq_result=nlsq_obj,
+        nlsq_results=nlsq_results_list,
     )
 
 
