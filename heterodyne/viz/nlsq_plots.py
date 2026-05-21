@@ -149,20 +149,11 @@ def plot_nlsq_fit(
         axes[1].text(0.5, 0.5, "No fitted correlation", ha="center", va="center")
         axes[1].set_title("Fitted Model")
 
-    # Residual plot
+    # Residual plot — both arrays are N×N (orchestrator passes full t arrays;
+    # boundary exclusion is handled at the residual mask, not by truncation).
     if result.fitted_correlation is not None:
-        # Optimizer residuals are off-diagonal only (length n*(n-1)), never a
-        # perfect square — the reshape guard always fails → NaN panel.
-        # Compute from (exp − fit) directly. Align shapes first: NLSQ may
-        # drop the first time point, making fitted_correlation one row/col
-        # smaller than c2_data.
         fc = np.asarray(result.fitted_correlation)
-        exp = c2_data
-        if exp.shape != fc.shape:
-            dr, dc = exp.shape[0] - fc.shape[0], exp.shape[1] - fc.shape[1]
-            if dr >= 0 and dc >= 0:
-                exp = exp[dr:, dc:]
-        residual_2d = exp - fc if exp.shape == fc.shape else np.full(fc.shape, np.nan)
+        residual_2d = c2_data - fc
         _finite = residual_2d[np.isfinite(residual_2d)]
         vmax = float(np.percentile(np.abs(_finite), 99)) if _finite.size > 0 else 1.0
         if vmax == 0.0:
@@ -221,19 +212,10 @@ def plot_residual_map(
         fig.suptitle("No fitted correlation available")
         return fig
 
-    # Same reason as plot_nlsq_fit: optimizer residuals are off-diagonal flat
-    # and can't be cleanly reshaped. Use (exp − fit) from the fitted matrix,
-    # with shape alignment in case NLSQ dropped the first time point.
+    # Both arrays are N×N (orchestrator passes full t arrays; boundary
+    # exclusion is handled at the residual mask, not by truncation).
     fc: np.ndarray = np.asarray(result.fitted_correlation)
-    exp = c2_data
-    if exp.shape != fc.shape:
-        dr = exp.shape[0] - fc.shape[0]
-        dc = exp.shape[1] - fc.shape[1]
-        if dr >= 0 and dc >= 0:
-            exp = exp[dr:, dc:]
-    residuals: np.ndarray = (
-        exp - fc if exp.shape == fc.shape else np.full(fc.shape, np.nan)
-    )
+    residuals: np.ndarray = c2_data - fc
 
     n_t: int = int(residuals.shape[0])
     t_arr: np.ndarray = t if (t is not None and len(t) == n_t) else np.arange(n_t)

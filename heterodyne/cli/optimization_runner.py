@@ -74,34 +74,6 @@ def _select_c2_for_phi_angles(
     return np.stack(slices, axis=0)
 
 
-def _exclude_first_time_point_for_nlsq(
-    model: HeterodyneModel,
-    c2_data: np.ndarray,
-) -> np.ndarray:
-    """Drop the leading time point before NLSQ and sync the model axis."""
-    if c2_data.ndim == 3:
-        if c2_data.shape[-2] <= 1 or c2_data.shape[-1] <= 1:
-            return c2_data
-        trimmed = c2_data[:, 1:, 1:]
-    elif c2_data.ndim == 2:
-        if c2_data.shape[-2] <= 1 or c2_data.shape[-1] <= 1:
-            return c2_data
-        trimmed = c2_data[1:, 1:]
-    else:
-        return c2_data
-
-    sync_time_axis = getattr(model, "sync_time_axis", None)
-    if callable(sync_time_axis):
-        sync_time_axis(np.arange(trimmed.shape[-1], dtype=float))
-
-    logger.info(
-        "Excluded first time point for NLSQ analysis: C2 shape %s -> %s",
-        c2_data.shape,
-        trimmed.shape,
-    )
-    return trimmed
-
-
 def _combine_nlsq_results(results: list[NLSQResult]) -> NLSQResult:
     """Build a single aggregate result for disk output."""
     if not results:
@@ -208,7 +180,6 @@ def run_nlsq(
     nlsq_config.verbose = getattr(args, "verbose", 1)
 
     c2_fit = _select_c2_for_phi_angles(c2_data, phi_angles, data_phi_angles)
-    c2_fit = _exclude_first_time_point_for_nlsq(model, c2_fit)
 
     with log_phase("nlsq_multi_phi", logger=logger, track_memory=True) as phase:
         results = fit_nlsq_multi_phi(

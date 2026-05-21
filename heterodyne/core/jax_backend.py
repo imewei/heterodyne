@@ -290,13 +290,29 @@ def _compute_residuals_jit(
 ) -> jnp.ndarray:
     """JIT-compiled residuals computation (always receives weights).
 
-    Diagonal elements (t1==t2) are zeroed per homodyne parity: the diagonal
-    is kept in the data for loading/plotting but excluded from fitting because
-    corrected diagonal values are interpolated estimates, not real physics.
+    Two boundary exclusions are applied at residual construction (not via
+    data truncation, which would shorten the model's time grid and break
+    viz/NPZ shape parity):
+
+    1. The t=0 row ``(0, j)`` and t=0 column ``(i, 0)`` are zeroed.  The
+       first frame holds the correlator's raw output; the model evaluates
+       cleanly at t=0 (``g1(0,0)=1 ⇒ c2 = offset + contrast``), but the
+       experimental boundary is not used in chi-square fitting.
+    2. The diagonal ``t1==t2`` is excluded (homodyne parity): corrected
+       diagonal values are interpolated estimates, not real physics.
+
+    The returned vector keeps shape ``n_time * (n_time - 1)`` (off-diagonal
+    pairs) for JIT-cache reuse; boundary entries contribute zero to the
+    chi-square sum, giving an effective fit support of ``(n_time-1) *
+    (n_time-2)`` real residuals.
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
-    residuals = (c2_model - c2_data) * jnp.sqrt(weights)
     n_time = c2_data.shape[0]
+    indices = jnp.arange(n_time)
+    boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+    residuals = (
+        (c2_model - c2_data) * jnp.sqrt(weights) * boundary_mask.astype(c2_model.dtype)
+    )
     non_diagonal = ~jnp.eye(n_time, dtype=bool)
     rows, cols = jnp.nonzero(non_diagonal, size=n_time * (n_time - 1))
     return residuals[rows, cols]
@@ -341,7 +357,12 @@ def compute_chi_squared(
         Chi-squared scalar
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
-    return jnp.sum((c2_model - c2_data) ** 2 * weights)
+    n_time = c2_data.shape[0]
+    indices = jnp.arange(n_time)
+    boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+    return jnp.sum(
+        (c2_model - c2_data) ** 2 * weights * boundary_mask.astype(c2_model.dtype)
+    )
 
 
 def batch_chi_squared(

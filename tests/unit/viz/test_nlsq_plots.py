@@ -57,31 +57,35 @@ def test_plot_simulated_data_does_not_replace_model_time_grid(
 
 @pytest.mark.unit
 @pytest.mark.regression
-def test_plot_nlsq_fit_handles_diagonal_masked_residuals(tmp_path) -> None:
-    """plot_nlsq_fit must not crash when residuals.size != c2_data.shape[0]**2.
+def test_plot_nlsq_fit_uses_full_n_by_n_arrays(tmp_path) -> None:
+    """plot_nlsq_fit must not crash when c2_data and fitted_correlation are both N×N.
 
-    After _exclude_first_time_point and diagonal masking, residuals are
-    1000*1000 - 1000 = 999000 flat elements, but c2_data.shape[0] == 1001.
-    The old code tried residuals.reshape(1001, 1001) → ValueError.
+    Under the t=0 boundary contract (loaded and plotted, excluded only from
+    chi-square via the residual mask), the orchestrator passes the full
+    N-length t array to the model so fitted_correlation is N×N and aligns
+    with the loaded c2_data. The plotter must compute residuals as
+    ``c2_data - fitted_correlation`` directly — no shape-mismatch dance, no
+    NaN padding.
     """
     from heterodyne.optimization.nlsq.results import NLSQResult
     from heterodyne.viz.nlsq_plots import plot_nlsq_fit, plot_residual_map
 
-    # Simulate full (untrimmed) c2_data passed from plot_dispatch
-    c2_data = np.ones((1001, 1001))
-    # Simulate diagonal-masked flat residuals from the trimmed 1000x1000 fit
-    masked_residuals = np.zeros(999_000)  # 1000*1000 - 1000 diagonal
+    n = 1001
+    c2_data = np.ones((n, n))
+    # Residual flat vector size matches the off-diagonal mask: n * (n - 1).
+    # Under the new contract, boundary entries are zero (masked); diagonal
+    # entries are excluded by the existing off-diagonal slice.
+    masked_residuals = np.zeros(n * (n - 1))
 
     result = NLSQResult(
         parameters=np.zeros(3),
         parameter_names=["a", "b", "c"],
-        success=False,
-        message="Tier standard failed after 3 retries",
-        fitted_correlation=np.ones((1000, 1000)),
+        success=True,
+        message="ok",
+        fitted_correlation=np.ones((n, n)),
         residuals=masked_residuals,
     )
 
-    # Both functions must complete without ValueError
     fig1 = plot_nlsq_fit(c2_data, result, save_path=tmp_path / "fit.png")
     fig2 = plot_residual_map(result, c2_data, save_path=tmp_path / "resid.png")
     assert fig1 is not None

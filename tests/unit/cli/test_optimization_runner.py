@@ -93,20 +93,19 @@ class TestRunNLSQ:
 
         assert len(calls) == 1
         assert calls[0]["model"] is mock_model
-        np.testing.assert_allclose(calls[0]["c2_data"], c2_data[:, 1:, 1:])
+        # Boundary exclusion is now handled by the residual mask
+        # (core/jax_backend.py), not by truncating c2_data; the runner passes
+        # the full N×N matrix and never shortens the model's time axis.
+        np.testing.assert_allclose(calls[0]["c2_data"], c2_data)
         assert list(calls[0]["phi_angles"]) == phi_angles
         assert len(results) == len(phi_angles)
-        mock_model.sync_time_axis.assert_called_once()
-        np.testing.assert_allclose(
-            mock_model.sync_time_axis.call_args.args[0],
-            np.arange(c2_data.shape[-1] - 1, dtype=float),
-        )
+        mock_model.sync_time_axis.assert_not_called()
 
-    def test_excludes_first_time_point_for_2d_nlsq_data(
+    def test_runner_does_not_truncate_2d_nlsq_data(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """run_nlsq excludes the leading time point before fitting 2D data."""
+        """run_nlsq forwards full N×N 2-D data to the fitter — no trim, no sync."""
         import heterodyne.cli.optimization_runner as runner
         from heterodyne.cli.optimization_runner import run_nlsq
 
@@ -138,8 +137,8 @@ class TestRunNLSQ:
             output_dir=Path("/tmp/test_out"),
         )
 
-        np.testing.assert_allclose(calls[0]["c2_data"], c2_data[1:, 1:])
-        mock_model.sync_time_axis.assert_called_once()
+        np.testing.assert_allclose(calls[0]["c2_data"], c2_data)
+        mock_model.sync_time_axis.assert_not_called()
 
     def test_selects_phi_slices_after_angle_normalization(
         self,
@@ -185,7 +184,9 @@ class TestRunNLSQ:
             data_phi_angles=np.array([-25.0, 185.0, 196.0]),
         )
 
-        np.testing.assert_allclose(calls[0]["c2_data"], c2_data[1:2, 1:, 1:])
+        # phi slice is applied; the time axis is NOT trimmed (boundary
+        # exclusion now happens at the residual mask, not by truncation).
+        np.testing.assert_allclose(calls[0]["c2_data"], c2_data[1:2])
 
     @patch("heterodyne.cli.optimization_runner.save_nlsq_npz_file")
     @patch("heterodyne.cli.optimization_runner.save_nlsq_json_files")

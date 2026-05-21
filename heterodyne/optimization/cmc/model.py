@@ -29,6 +29,24 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _likelihood_boundary_mask(
+    c2_data: jnp.ndarray, shard_grid: ShardGrid | None
+) -> jnp.ndarray:
+    """Boolean mask: True where (t1, t2) is NOT on the t=0 row or column.
+
+    Mirrors the NLSQ-side mask in ``heterodyne.core.jax_backend`` so the
+    Bayesian likelihood also honors the t=0 boundary contract — t=0 is
+    loaded and plotted but excluded from the likelihood. The mask works
+    for both the meshgrid path (``c2_data`` shape ``(N, N)``) and the
+    element-wise sharded path (``c2_data`` shape ``(n_pairs,)``).
+    """
+    if shard_grid is not None:
+        return (shard_grid.idx1 > 0) & (shard_grid.idx2 > 0)
+    n_time = c2_data.shape[-1]
+    indices = jnp.arange(n_time)
+    return (indices[:, None] > 0) & (indices[None, :] > 0)
+
+
 def get_heterodyne_model(
     t: jnp.ndarray,
     q: float,
@@ -129,12 +147,15 @@ def get_heterodyne_model(
         # Sample sigma with prior tempered for CMC sharding (parity with homodyne).
         sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
 
-        # Likelihood
-        numpyro.sample(
-            "obs",
-            dist.Normal(c2_model, sigma),
-            obs=c2_data,
-        )
+        # Likelihood (t=0 boundary excluded via mask, per the heterodyne
+        # contract: load and plot full N×N, exclude t=0 row/col from
+        # fitting only).
+        with numpyro.handlers.mask(mask=_likelihood_boundary_mask(c2_data, shard_grid)):
+            numpyro.sample(
+                "obs",
+                dist.Normal(c2_model, sigma),
+                obs=c2_data,
+            )
 
     return model
 
@@ -258,7 +279,8 @@ def get_heterodyne_model_reparam(
         n_nan = jnp.sum(~jnp.isfinite(c2_model))
         numpyro.deterministic("n_numerical_issues", n_nan)
         sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
-        numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
+        with numpyro.handlers.mask(mask=_likelihood_boundary_mask(c2_data, shard_grid)):
+            numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model
 
@@ -370,7 +392,8 @@ def _build_reparam_model(
         n_nan = jnp.sum(~jnp.isfinite(c2_model))
         numpyro.deterministic("n_numerical_issues", n_nan)
         sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
-        numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
+        with numpyro.handlers.mask(mask=_likelihood_boundary_mask(c2_data, shard_grid)):
+            numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model
 
@@ -466,7 +489,8 @@ def get_heterodyne_model_constant(
         n_nan = jnp.sum(~jnp.isfinite(c2_model))
         numpyro.deterministic("n_numerical_issues", n_nan)
         sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
-        numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
+        with numpyro.handlers.mask(mask=_likelihood_boundary_mask(c2_data, shard_grid)):
+            numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model
 
@@ -550,7 +574,8 @@ def get_heterodyne_model_constant_averaged(
         n_nan = jnp.sum(~jnp.isfinite(c2_model))
         numpyro.deterministic("n_numerical_issues", n_nan)
         sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
-        numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
+        with numpyro.handlers.mask(mask=_likelihood_boundary_mask(c2_data, shard_grid)):
+            numpyro.sample("obs", dist.Normal(c2_model, sigma), obs=c2_data)
 
     return model
 
@@ -684,11 +709,15 @@ def get_heterodyne_model_individual(
                     offset_i[ai],
                 )
             n_total_nan = n_total_nan + jnp.sum(~jnp.isfinite(c2_model_i))
-            numpyro.sample(
-                f"obs_{ai}",
-                dist.Normal(c2_model_i, sigma),
-                obs=c2_data[ai],
-            )
+            sg_i = shard_grids[ai] if shard_grids is not None else None
+            with numpyro.handlers.mask(
+                mask=_likelihood_boundary_mask(c2_data[ai], sg_i)
+            ):
+                numpyro.sample(
+                    f"obs_{ai}",
+                    dist.Normal(c2_model_i, sigma),
+                    obs=c2_data[ai],
+                )
         numpyro.deterministic("n_numerical_issues", n_total_nan)
 
     return model
