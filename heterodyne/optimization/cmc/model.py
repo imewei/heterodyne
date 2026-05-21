@@ -6,12 +6,16 @@ import math
 from typing import TYPE_CHECKING
 
 import jax.numpy as jnp
+import numpy as np
 import numpyro
 import numpyro.distributions as dist
 
 from heterodyne.config.parameter_names import ALL_PARAM_NAMES, PARAM_INDICES
 from heterodyne.config.parameter_registry import DEFAULT_REGISTRY
-from heterodyne.core.jax_backend import compute_c2_heterodyne
+from heterodyne.core.jax_backend import (
+    compute_c2_heterodyne,
+    compute_c2_heterodyne_multiphi,
+)
 from heterodyne.core.physics_cmc import ShardGrid, compute_c2_elementwise
 from heterodyne.optimization.cmc.reparameterization import (
     ReparamConfig,
@@ -27,6 +31,388 @@ if TYPE_CHECKING:
     from heterodyne.optimization.nlsq.results import NLSQResult
 
 logger = get_logger(__name__)
+
+
+def _heterodyne_sample_shared_physics(space: ParameterSpace) -> jnp.ndarray:
+    """Sample the 14 heterodyne physics parameters (shared across angles).
+
+    Returns the full ``(14,)`` parameter vector with sampled values for
+    ``space.varying_names`` and fixed values from ``space`` for the rest.
+    ``contrast`` and ``offset`` are skipped here — caller supplies them
+    via ``contrast_arr`` / ``offset_arr`` (per-angle).
+    """
+    varying_names = space.varying_names
+    fixed_values = space.get_initial_array()
+    params = jnp.asarray(fixed_values)
+    for i, name in enumerate(ALL_PARAM_NAMES):
+        if name in ("contrast", "offset"):
+            continue
+        if name in varying_names:
+            prior = space.priors[name]
+            param = numpyro.sample(name, prior.to_numpyro(name))
+            params = params.at[i].set(param)
+    return params
+
+
+def _heterodyne_pooled_likelihood(
+    params: jnp.ndarray,
+    contrast_arr: jnp.ndarray,
+    offset_arr: jnp.ndarray,
+    data: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_unique: jnp.ndarray,
+    phi_indices: jnp.ndarray,
+    i1_indices: jnp.ndarray,
+    i2_indices: jnp.ndarray,
+    noise_scale: float,
+    num_shards: int,
+) -> None:
+    """Shared physics → gather → boundary mask → likelihood (joint multi-phi).
+
+    Composes ``compute_c2_heterodyne_multiphi`` (returning ``(n_phi, N, N)``)
+    with a gather-by-(phi_idx, i1_idx, i2_idx) pattern and the pooled
+    Normal likelihood with t=0 boundary mask via ``numpyro.handlers.mask``.
+    All 4 joint variants (scaled, constant, averaged, constant_averaged)
+    delegate the last 3 stages to this helper.
+    """
+    c2_stack = compute_c2_heterodyne_multiphi(
+        params, t, q, dt, phi_unique, contrast_arr, offset_arr
+    )
+    c2_per_point = c2_stack[phi_indices, i1_indices, i2_indices]
+
+    n_nan = jnp.sum(~jnp.isfinite(c2_per_point))
+    numpyro.deterministic("n_numerical_issues", n_nan)
+
+    sigma_scale = float(noise_scale) * 1.5 * math.sqrt(num_shards)
+    sigma = numpyro.sample("sigma", dist.HalfNormal(scale=sigma_scale))
+
+    boundary_mask = (i1_indices > 0) & (i2_indices > 0)
+    with numpyro.handlers.mask(mask=boundary_mask):
+        numpyro.sample("obs", dist.Normal(c2_per_point, sigma), obs=data)
+
+
+def xpcs_model_heterodyne_scaled(
+    data: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_unique: jnp.ndarray,
+    phi_indices: jnp.ndarray,
+    i1_indices: jnp.ndarray,
+    i2_indices: jnp.ndarray,
+    noise_scale: float,
+    space: ParameterSpace,
+    num_shards: int = 1,
+) -> None:
+    """Joint multi-phi heterodyne CMC model (homodyne parity).
+
+    Mirrors ``homodyne.optimization.cmc.model.xpcs_model_scaled``: ONE NUTS
+    pass over pooled multi-phi data with shared 14 physics parameters and
+    per-angle sampled contrast / offset. The likelihood site evaluates the
+    Normal log-prob at every pooled point in a single ``numpyro.sample``
+    call, gather-by-phi-index.
+
+    Parameters
+    ----------
+    data:
+        Pooled C2 values, shape ``(n_total,)`` after diagonal filtering.
+    t:
+        Unique time grid, shape ``(N,)``. Used by ``compute_c2_heterodyne``.
+    q, dt:
+        Physics scalars.
+    phi_unique:
+        Sorted unique phi angles, shape ``(n_phi,)``.
+    phi_indices:
+        Per-point index into ``phi_unique``, shape ``(n_total,)``.
+    i1_indices, i2_indices:
+        Per-point indices into ``t`` for the two time coordinates, shape
+        ``(n_total,)`` each. Pre-computed via ``np.searchsorted(t, t1)`` /
+        ``np.searchsorted(t, t2)``.
+    noise_scale:
+        Data-driven sigma prior centre (homodyne-parity ``HalfNormal``
+        scale = ``noise_scale * 1.5 * sqrt(num_shards)``).
+    space:
+        Parameter space holding priors and initial values for the 14
+        physics parameters + 2 scaling.
+    num_shards:
+        Shard count for CMC sigma-prior tempering (Scott et al. 2016).
+        Default ``1`` (no tempering).
+    """
+    n_phi = int(phi_unique.shape[0])
+    contrast_prior = space.priors["contrast"]
+    offset_prior = space.priors["offset"]
+
+    contrast_list = [
+        numpyro.sample(f"contrast_{i}", contrast_prior.to_numpyro(f"contrast_{i}"))
+        for i in range(n_phi)
+    ]
+    offset_list = [
+        numpyro.sample(f"offset_{i}", offset_prior.to_numpyro(f"offset_{i}"))
+        for i in range(n_phi)
+    ]
+    contrast_arr = jnp.stack(contrast_list)
+    offset_arr = jnp.stack(offset_list)
+
+    params = _heterodyne_sample_shared_physics(space)
+    _heterodyne_pooled_likelihood(
+        params,
+        contrast_arr,
+        offset_arr,
+        data,
+        t,
+        q,
+        dt,
+        phi_unique,
+        phi_indices,
+        i1_indices,
+        i2_indices,
+        noise_scale,
+        num_shards,
+    )
+
+
+def xpcs_model_heterodyne_constant(
+    data: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_unique: jnp.ndarray,
+    phi_indices: jnp.ndarray,
+    i1_indices: jnp.ndarray,
+    i2_indices: jnp.ndarray,
+    noise_scale: float,
+    space: ParameterSpace,
+    fixed_contrast: jnp.ndarray,
+    fixed_offset: jnp.ndarray,
+    num_shards: int = 1,
+) -> None:
+    """Joint multi-phi CMC model with FIXED per-angle scaling.
+
+    Mirrors ``homodyne.optimization.cmc.model.xpcs_model_constant``. Per-angle
+    ``contrast`` and ``offset`` are passed in as arrays (length ``n_phi``,
+    typically derived from quantile estimation on the raw data) and NOT
+    sampled — only the 14 physics params + sigma are sampled.
+    """
+    contrast_arr = jnp.asarray(fixed_contrast, dtype=jnp.float64)
+    offset_arr = jnp.asarray(fixed_offset, dtype=jnp.float64)
+    params = _heterodyne_sample_shared_physics(space)
+    _heterodyne_pooled_likelihood(
+        params,
+        contrast_arr,
+        offset_arr,
+        data,
+        t,
+        q,
+        dt,
+        phi_unique,
+        phi_indices,
+        i1_indices,
+        i2_indices,
+        noise_scale,
+        num_shards,
+    )
+
+
+def xpcs_model_heterodyne_averaged(
+    data: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_unique: jnp.ndarray,
+    phi_indices: jnp.ndarray,
+    i1_indices: jnp.ndarray,
+    i2_indices: jnp.ndarray,
+    noise_scale: float,
+    space: ParameterSpace,
+    num_shards: int = 1,
+) -> None:
+    """Joint multi-phi CMC model with SAMPLED averaged (single) scaling.
+
+    Mirrors ``homodyne.optimization.cmc.model.xpcs_model_averaged``. A single
+    ``contrast`` and a single ``offset`` are sampled and broadcast across
+    all ``n_phi`` angles (cf. heterodyne ``per_angle_mode="auto"`` when the
+    auto-resolver promotes to averaged scaling).
+    """
+    n_phi = int(phi_unique.shape[0])
+    contrast = numpyro.sample(
+        "contrast", space.priors["contrast"].to_numpyro("contrast")
+    )
+    offset = numpyro.sample("offset", space.priors["offset"].to_numpyro("offset"))
+    contrast_arr = jnp.full((n_phi,), contrast)
+    offset_arr = jnp.full((n_phi,), offset)
+    params = _heterodyne_sample_shared_physics(space)
+    _heterodyne_pooled_likelihood(
+        params,
+        contrast_arr,
+        offset_arr,
+        data,
+        t,
+        q,
+        dt,
+        phi_unique,
+        phi_indices,
+        i1_indices,
+        i2_indices,
+        noise_scale,
+        num_shards,
+    )
+
+
+def xpcs_model_heterodyne_constant_averaged(
+    data: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_unique: jnp.ndarray,
+    phi_indices: jnp.ndarray,
+    i1_indices: jnp.ndarray,
+    i2_indices: jnp.ndarray,
+    noise_scale: float,
+    space: ParameterSpace,
+    fixed_contrast: float,
+    fixed_offset: float,
+    num_shards: int = 1,
+) -> None:
+    """Joint multi-phi CMC model with FIXED averaged (single) scaling.
+
+    Mirrors ``homodyne.optimization.cmc.model.xpcs_model_constant_averaged``.
+    A single ``contrast`` and ``offset`` (typically the mean of the NLSQ
+    per-angle estimates) are broadcast across all ``n_phi`` angles. No
+    scaling parameters are sampled — only the 14 physics params + sigma.
+    """
+    n_phi = int(phi_unique.shape[0])
+    contrast_arr = jnp.full((n_phi,), float(fixed_contrast))
+    offset_arr = jnp.full((n_phi,), float(fixed_offset))
+    params = _heterodyne_sample_shared_physics(space)
+    _heterodyne_pooled_likelihood(
+        params,
+        contrast_arr,
+        offset_arr,
+        data,
+        t,
+        q,
+        dt,
+        phi_unique,
+        phi_indices,
+        i1_indices,
+        i2_indices,
+        noise_scale,
+        num_shards,
+    )
+
+
+def get_heterodyne_pooled_model_for_mode(
+    per_angle_mode: str,
+    *,
+    data: jnp.ndarray,
+    t: jnp.ndarray,
+    q: float,
+    dt: float,
+    phi_unique: jnp.ndarray,
+    phi_indices: jnp.ndarray,
+    i1_indices: jnp.ndarray,
+    i2_indices: jnp.ndarray,
+    noise_scale: float,
+    space: ParameterSpace,
+    fixed_contrast: jnp.ndarray | float | None = None,
+    fixed_offset: jnp.ndarray | float | None = None,
+    num_shards: int = 1,
+) -> Callable[[], None]:
+    """Dispatch to the joint multi-phi model variant for ``per_angle_mode``.
+
+    Mirrors ``homodyne.optimization.cmc.model.get_xpcs_model`` at the
+    pooled-data layer. Returns a zero-arg callable suitable for passing to
+    ``NUTS``.
+
+    Modes:
+    - ``"individual"`` / ``"scaled"`` → :func:`xpcs_model_heterodyne_scaled`
+      (per-angle sampled contrast/offset).
+    - ``"constant"`` → :func:`xpcs_model_heterodyne_constant`. Requires
+      ``fixed_contrast`` and ``fixed_offset`` as length-``n_phi`` arrays.
+    - ``"auto"`` / ``"averaged"`` → :func:`xpcs_model_heterodyne_averaged`
+      (single sampled averaged contrast/offset).
+    - ``"constant_averaged"`` → :func:`xpcs_model_heterodyne_constant_averaged`.
+      Requires scalar ``fixed_contrast`` and ``fixed_offset``.
+    """
+    if per_angle_mode in ("individual", "scaled"):
+        return lambda: xpcs_model_heterodyne_scaled(
+            data=data,
+            t=t,
+            q=q,
+            dt=dt,
+            phi_unique=phi_unique,
+            phi_indices=phi_indices,
+            i1_indices=i1_indices,
+            i2_indices=i2_indices,
+            noise_scale=noise_scale,
+            space=space,
+            num_shards=num_shards,
+        )
+    if per_angle_mode == "constant":
+        if fixed_contrast is None or fixed_offset is None:
+            raise ValueError(
+                "per_angle_mode='constant' requires fixed_contrast and "
+                "fixed_offset arrays of length n_phi."
+            )
+        fc = jnp.asarray(fixed_contrast, dtype=jnp.float64)
+        fo = jnp.asarray(fixed_offset, dtype=jnp.float64)
+        return lambda: xpcs_model_heterodyne_constant(
+            data=data,
+            t=t,
+            q=q,
+            dt=dt,
+            phi_unique=phi_unique,
+            phi_indices=phi_indices,
+            i1_indices=i1_indices,
+            i2_indices=i2_indices,
+            noise_scale=noise_scale,
+            space=space,
+            fixed_contrast=fc,
+            fixed_offset=fo,
+            num_shards=num_shards,
+        )
+    if per_angle_mode in ("auto", "averaged"):
+        return lambda: xpcs_model_heterodyne_averaged(
+            data=data,
+            t=t,
+            q=q,
+            dt=dt,
+            phi_unique=phi_unique,
+            phi_indices=phi_indices,
+            i1_indices=i1_indices,
+            i2_indices=i2_indices,
+            noise_scale=noise_scale,
+            space=space,
+            num_shards=num_shards,
+        )
+    if per_angle_mode == "constant_averaged":
+        if fixed_contrast is None or fixed_offset is None:
+            raise ValueError(
+                "per_angle_mode='constant_averaged' requires scalar "
+                "fixed_contrast and fixed_offset."
+            )
+        return lambda: xpcs_model_heterodyne_constant_averaged(
+            data=data,
+            t=t,
+            q=q,
+            dt=dt,
+            phi_unique=phi_unique,
+            phi_indices=phi_indices,
+            i1_indices=i1_indices,
+            i2_indices=i2_indices,
+            noise_scale=noise_scale,
+            space=space,
+            fixed_contrast=float(np.asarray(fixed_contrast).mean()),
+            fixed_offset=float(np.asarray(fixed_offset).mean()),
+            num_shards=num_shards,
+        )
+    raise ValueError(
+        f"Unknown per_angle_mode {per_angle_mode!r}; expected one of "
+        "{'individual','scaled','constant','auto','averaged',"
+        "'constant_averaged'}"
+    )
 
 
 def _likelihood_boundary_mask(
