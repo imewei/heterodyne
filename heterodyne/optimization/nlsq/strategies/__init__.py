@@ -19,6 +19,13 @@ from heterodyne.optimization.nlsq.strategies.base import (
     select_strategy,
 )
 from heterodyne.optimization.nlsq.strategies.chunked import ChunkedStrategy
+from heterodyne.optimization.nlsq.strategies.executors import (
+    ExecutionResult,
+    LargeDatasetExecutor,
+    OptimizationExecutor,
+    StandardExecutor,
+    get_executor,
+)
 from heterodyne.optimization.nlsq.strategies.hybrid_streaming import (
     HybridStreamingStrategy,
 )
@@ -41,4 +48,10 @@ __all__ = [
     "OutOfCoreStrategy",
     "StratifiedLSStrategy",
     "ResidualJITStrategy",
+    # Executors (homodyne parity)
+    "ExecutionResult",
+    "OptimizationExecutor",
+    "StandardExecutor",
+    "LargeDatasetExecutor",
+    "get_executor",
 ]

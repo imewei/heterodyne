@@ -37,6 +37,15 @@ from heterodyne.optimization.nlsq.data_prep import (
     validate_bounds,
     validate_initial_params,
 )
+from heterodyne.optimization.nlsq.fit_computation import (
+    compute_c2_batch,
+    compute_c2_batch_with_per_angle_scaling,
+    compute_theoretical_fits,
+    extract_parameters_from_result,
+    get_physical_param_count,
+    normalize_analysis_mode,
+    solve_lstsq_batch,
+)
 from heterodyne.optimization.nlsq.hierarchical import HierarchicalResult
 from heterodyne.optimization.nlsq.jacobian import (
     analyze_parameter_sensitivity,
@@ -70,11 +79,16 @@ from heterodyne.optimization.nlsq.result_builder import (
 from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.optimization.nlsq.strategies import (
     ChunkedStrategy,
+    ExecutionResult,
     FittingStrategy,
     JITStrategy,
+    LargeDatasetExecutor,
+    OptimizationExecutor,
     ResidualStrategy,
     SequentialStrategy,
+    StandardExecutor,
     StrategyResult,
+    get_executor,
     select_strategy,
 )
 from heterodyne.optimization.nlsq.transforms import ParameterTransform
@@ -184,4 +198,18 @@ __all__ = [
     # Multi-start (parity)
     "check_zero_volume_bounds",
     "generate_lhs_starts",
+    # Fit computation (parity)
+    "compute_c2_batch",
+    "compute_c2_batch_with_per_angle_scaling",
+    "compute_theoretical_fits",
+    "extract_parameters_from_result",
+    "get_physical_param_count",
+    "normalize_analysis_mode",
+    "solve_lstsq_batch",
+    # Executors (parity)
+    "ExecutionResult",
+    "OptimizationExecutor",
+    "StandardExecutor",
+    "LargeDatasetExecutor",
+    "get_executor",
 ]

@@ -94,13 +94,30 @@ class OutOfCoreStrategy:
 
         n_chunks = max(1, (n_data + chunk_size - 1) // chunk_size)
 
+        # Pre-compile chunk-wise Gauss-Newton kernels (homodyne parity).
+        # Even though curve_fit_large drives the inner loop, warming up the
+        # parallel_accumulator JIT cache lets later chunked workflows
+        # in the same process share the compiled kernels.
+        from heterodyne.optimization.nlsq.parallel_accumulator import (
+            create_ooc_kernels,
+            should_use_parallel_accumulation,
+            should_use_parallel_compute,
+        )
+
+        # Compiled JIT kernels are reused below to compute J^T r and J^T J
+        # at the solution for diagnostic reporting (homodyne parity).
+        ooc_jtj_kernel, ooc_jtr_kernel = create_ooc_kernels(n_params=n_params)
+        parallel_recommended = should_use_parallel_accumulation(n_chunks)
+        parallel_compute_recommended = should_use_parallel_compute(n_chunks)
+
         logger.info(
             "OutOfCoreStrategy: %d data points -> %d chunks (chunk_size=%d, "
-            "workers=%d)",
+            "workers=%d, parallel_acc_recommended=%s)",
             n_data,
             n_chunks,
             chunk_size,
             self._n_workers,
+            parallel_recommended,
         )
 
         c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
@@ -181,11 +198,28 @@ class OutOfCoreStrategy:
         final_cost = 0.5 * float(np.sum(final_residuals**2))
         reduced_chi2 = 2.0 * final_cost / n_dof
 
+        # Diagnostic: gradient norm and J^T J trace at solution via OOC kernels.
+        gradient_norm: float | None = None
+        jtj_trace: float | None = None
+        if final_jac is not None:
+            try:
+                jac_j = jnp.asarray(final_jac, dtype=jnp.float64)
+                res_j = jnp.asarray(final_residuals, dtype=jnp.float64)
+                gradient_norm = float(jnp.linalg.norm(ooc_jtr_kernel(jac_j, res_j)))
+                jtj_trace = float(jnp.trace(ooc_jtj_kernel(jac_j)))
+            except (ValueError, RuntimeError) as exc:
+                logger.debug("OOC kernel diagnostics skipped (%s)", exc)
+
         metadata: dict[str, Any] = {
             "strategy": "out_of_core",
             "chunk_size": chunk_size,
             "n_chunks": n_chunks,
             "n_workers": self._n_workers,
+            "parallel_accumulation_recommended": parallel_recommended,
+            "parallel_compute_recommended": parallel_compute_recommended,
+            "ooc_kernels_compiled": True,
+            "ooc_gradient_norm": gradient_norm,
+            "ooc_jtj_trace": jtj_trace,
         }
 
         result = NLSQResult(
