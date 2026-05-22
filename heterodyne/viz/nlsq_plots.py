@@ -18,6 +18,13 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+try:
+    from heterodyne.viz.datashader_backend import HAS_DATASHADER as _HAS_DATASHADER
+
+    DATASHADER_AVAILABLE = bool(_HAS_DATASHADER)
+except ImportError:  # pragma: no cover
+    DATASHADER_AVAILABLE = False
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -1202,7 +1209,10 @@ def generate_nlsq_plots(
         t2: Second time array in seconds.
         output_dir: Directory for output PNG files.
         config: Optional config for color scaling options.
-        use_datashader: Reserved for future Datashader backend.
+        use_datashader: When True and Datashader backend is available,
+            emit a rasterized ``nlsq_overview_datashader.png`` covering
+            all angles (fast preview for large matrices). The per-angle
+            matplotlib panels are still produced regardless.
         parallel: Reserved for future parallel generation.
         c2_solver_scaled: Optional solver-computed C2 to display instead
             of *c2_theoretical_scaled*.
@@ -1211,6 +1221,26 @@ def generate_nlsq_plots(
     phi_angles = np.asarray(phi_angles)
 
     c2_fit = c2_solver_scaled if c2_solver_scaled is not None else c2_theoretical_scaled
+
+    # Datashader overview for large matrices (single rasterized grid across all angles).
+    if (
+        use_datashader
+        and DATASHADER_AVAILABLE
+        and c2_exp.ndim == 3
+        and c2_exp.size >= 512 * 512
+    ):
+        try:
+            from heterodyne.viz.datashader_backend import render_multi_angle_grid
+
+            img: Any = render_multi_angle_grid(c2_exp, phi_angles, t1)
+            overview_path = output_dir / "nlsq_overview_datashader.png"
+            if hasattr(img, "save"):
+                img.save(overview_path)  # PIL Image path
+            else:
+                plt.imsave(overview_path, np.asarray(img))
+            logger.info("Datashader overview saved to %s", overview_path)
+        except (ValueError, RuntimeError, OSError, MemoryError) as exc:
+            logger.warning("Datashader overview failed (%s); skipping", exc)
 
     # extent with .T: [left=t1_min, right=t1_max, bottom=t2_min, top=t2_max]
     extent = [float(t1[0]), float(t1[-1]), float(t2[0]), float(t2[-1])]
