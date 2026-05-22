@@ -188,8 +188,11 @@ class TwoComponentModel(HeterodyneModelBase):
         # t=0 floor (jnp.maximum zeros the gradient when t < 1e-10).
         t_safe = jnp.where(t > 1e-10, t, 1e-10)
         J = D0 * jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0) + offset
-        # Physical positivity: jnp.maximum gives subgradient 0.5 at J=0,
-        # allowing offset gradient to pass through the boundary.
+        # Physical positivity floor. jnp.maximum's JVP averages the two
+        # tangents at the kink (0.5x), matching the FD subgradient of the
+        # offset; jnp.where(J >= 0) would route the full tangent (2x) and
+        # break the FD↔autodiff agreement pinned by test_gradient_finite_
+        # difference. Allow-listed in test_no_gradient_killing_clip.py.
         J = jnp.maximum(J, 0.0)
         return jnp.exp(-q * q * J)
 
@@ -219,8 +222,11 @@ class TwoComponentModel(HeterodyneModelBase):
         # t=0 floor (jnp.maximum zeros the gradient when t < 1e-10).
         t_safe = jnp.where(t > 1e-10, t, 1e-10)
         J = D0 * jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0) + offset
-        # Physical positivity: jnp.maximum gives subgradient 0.5 at J=0,
-        # allowing offset gradient to pass through the boundary.
+        # Physical positivity floor. jnp.maximum's JVP averages the two
+        # tangents at the kink (0.5x), matching the FD subgradient of the
+        # offset; jnp.where(J >= 0) would route the full tangent (2x) and
+        # break the FD↔autodiff agreement pinned by test_gradient_finite_
+        # difference. Allow-listed in test_no_gradient_killing_clip.py.
         J = jnp.maximum(J, 0.0)
         return jnp.exp(-q * q * J)
 

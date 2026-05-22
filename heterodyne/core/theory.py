@@ -160,9 +160,12 @@ def compute_transport_integral_matrix(
         Transport integral matrix, shape (N, N), non-negative and symmetric
     """
     J_rate = compute_transport_coefficient(t, D0, alpha, offset)
-    # Physical positivity floor: jnp.maximum is correct here because the
-    # subgradient at J_rate=0 is 1 (gradient of offset passes through), while
-    # jnp.where(J_rate > 0.0, J_rate, 0.0) would block it at the boundary.
+    # Physical positivity floor. jnp.maximum's autodiff at the kink J_rate=0
+    # averages the two tangents (0.5x), which empirically matches the true
+    # finite-difference subgradient of the offset (see test_gradient_finite_
+    # difference). Switching to jnp.where(J_rate >= 0, J_rate, 0) routes the
+    # full tangent at the boundary (2x) and breaks the FD↔autodiff agreement.
+    # Allow-listed in tests/unit/core/test_no_gradient_killing_clip.py.
     J_rate = jnp.maximum(J_rate, 0.0)
     integral_matrix = compute_time_integral_matrix(J_rate, dt)
     return smooth_abs(integral_matrix)

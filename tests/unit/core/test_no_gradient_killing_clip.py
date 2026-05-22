@@ -75,19 +75,23 @@ _ALLOWED_MAXIMUM_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"jnp\.maximum\(\s*jnp\.maximum\(\s*jnp\.abs\("),
 )
 
-# Tech-debt grandfather list: source lines that currently violate rule #7
-# but pre-date this lint expansion. Each entry is (file_basename, line_no).
-# REMOVE entries as the underlying code is migrated to jnp.where /
-# smooth_clip / smooth_bound. New violations are blocked by the lint.
+# Permanent exemptions (not tech debt): the rate-floor sites below use
+# `jnp.maximum(J, 0.0)` *intentionally* because JAX's max-primitive JVP
+# averages the two tangents at the kink — `where(x == y, 0.5*(xdot+ydot), ...)`.
+# Rewriting to `jnp.where(J >= 0, J, 0.0)` routes the full tangent at the
+# boundary (2x) and breaks the FD↔autodiff agreement pinned by
+# tests/unit/core/test_jax_backend_scientific.py::TestGradientCorrectness::
+# test_gradient_finite_difference (2026-05-22, indices 2 & 5 — the two
+# D_offset parameters). The inline comments at each site document the
+# rationale. Each entry is (file_basename, line_no).
 _GRANDFATHERED_MAXIMUM: frozenset[tuple[str, int]] = frozenset(
     {
-        # J_rate floor in t^alpha rate function — rate is a gradient-bearing
-        # forward signal in the physics model; switch to jnp.where(J>0, J, 0).
-        ("theory.py", 166),
-        ("models.py", 193),
-        ("models.py", 224),
-        # Rate-function floor inside physics_utils.compute_rate_function.
-        ("physics_utils.py", 287),
+        # Transport rate positivity floor — boundary subgradient must average
+        # to 0.5x so D_offset's FD gradient agrees with autodiff at J=0.
+        ("theory.py", 169),
+        ("models.py", 196),
+        ("models.py", 230),
+        ("physics_utils.py", 290),
     }
 )
 

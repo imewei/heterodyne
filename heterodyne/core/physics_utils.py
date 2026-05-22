@@ -281,9 +281,12 @@ def compute_transport_rate(
     t_safe = jnp.where(t > 1e-10, t, 1e-10)
     t_power = jnp.where(t > 0, jnp.power(t_safe, alpha), 0.0)
     rate = D0 * t_power + offset
-    # Physical positivity floor: jnp.maximum is correct here because the
-    # subgradient at rate=0 is 1 (gradient of D_offset passes through), while
-    # jnp.where(rate > 0.0, rate, 0.0) would block it with strict inequality.
+    # Physical positivity floor. jnp.maximum's JVP averages the two tangents
+    # at the kink (0.5x), matching the FD subgradient of D_offset; rewriting
+    # to jnp.where(rate >= 0, rate, 0) routes the full tangent at the
+    # boundary (2x) and breaks the FD↔autodiff agreement pinned by
+    # test_gradient_finite_difference. Allow-listed in
+    # tests/unit/core/test_no_gradient_killing_clip.py.
     return jnp.maximum(rate, 0.0)
 
 
