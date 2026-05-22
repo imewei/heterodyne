@@ -202,6 +202,25 @@ def run_nlsq(
                 f"nlsq_chi2_phi{int(phi)}", result.reduced_chi_squared
             )
 
+        # Post-fit RecoveryPlan diagnosis for failed angles (homodyne parity).
+        if not result.success:
+            try:
+                from heterodyne.optimization.nlsq.recovery import diagnose_failure
+
+                plan = diagnose_failure(result, nlsq_config)
+                logger.warning(
+                    "NLSQ phi=%s° failed → recovery plan: %s (%s)",
+                    phi,
+                    plan.action.value,
+                    plan.message,
+                )
+                result.metadata["recovery_plan"] = {
+                    "action": plan.action.value,
+                    "message": plan.message,
+                }
+            except (ValueError, AttributeError, RuntimeError) as exc:
+                logger.debug("diagnose_failure skipped (%s)", exc)
+
         summary_lines = format_nlsq_summary(result)
         logger.info(
             "NLSQ Results for phi=%s° (%d/%d)\n%s\n%s",
@@ -213,6 +232,25 @@ def run_nlsq(
         )
 
     aggregate = _combine_nlsq_results(results)
+
+    # Per-phi batch statistics (homodyne parity)
+    if len(results) >= 2:
+        try:
+            from heterodyne.optimization.batch_statistics import (
+                compute_batch_statistics,
+                format_batch_report,
+            )
+
+            batch = compute_batch_statistics(results)
+            logger.info("NLSQ batch statistics:\n%s", format_batch_report(batch))
+            if summary is not None:
+                summary.record_metric(
+                    "nlsq_batch_success_rate", batch.overall_success_rate
+                )
+                summary.record_metric("nlsq_batch_mean_chi2", batch.mean_chi2)
+        except (ValueError, AttributeError) as exc:
+            logger.warning("Batch statistics unavailable (%s); continuing", exc)
+
     saved_json = save_nlsq_json_files(aggregate, output_dir, prefix="nlsq")
     for label, path in saved_json.items():
         logger.info("Saved NLSQ %s: %s", label, path)

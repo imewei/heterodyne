@@ -11,6 +11,14 @@ from heterodyne.cli.config_handling import load_and_merge_config
 from heterodyne.cli.data_pipeline import load_and_validate_data, resolve_phi_angles
 from heterodyne.cli.optimization_runner import resolve_nlsq_warmstart, run_cmc, run_nlsq
 from heterodyne.cli.plot_dispatch import dispatch_plots, handle_plotting
+
+# Re-export from result_saving (homodyne parity)
+from heterodyne.cli.result_saving import (  # noqa: F401
+    save_cmc_results,
+    save_nlsq_results,
+    save_results,
+    save_summary_manifest,
+)
 from heterodyne.core.heterodyne_model import HeterodyneModel
 from heterodyne.utils.logging import (
     AnalysisSummaryLogger,
@@ -242,6 +250,20 @@ def _generate_cmc_diagnostic_plots(
             logger.debug("Saved KL divergence matrix for %s", tag)
         except Exception:
             logger.exception("Failed to generate KL divergence plot for %s", tag)
+
+        # ArviZ diagnostic suite (forest/energy/autocorr/rank/ess) — homodyne parity
+        idata = getattr(result, "inference_data", None)
+        if idata is None:
+            continue
+        try:
+            from heterodyne.optimization.cmc.plotting import generate_diagnostic_plots
+
+            arviz_dir = diag_dir / tag
+            saved = generate_diagnostic_plots(idata, arviz_dir)
+            if saved:
+                logger.info("Saved %d ArviZ diagnostic plots for %s", len(saved), tag)
+        except Exception:
+            logger.exception("Failed to generate ArviZ diagnostic plots for %s", tag)
 
 
 # ---------------------------------------------------------------------------
@@ -505,6 +527,29 @@ def dispatch_command(args: argparse.Namespace) -> int:
         if cmc_results:
             with log_phase("cmc_diagnostics", logger=logger):
                 _generate_cmc_diagnostic_plots(cmc_results, output_dir)
+
+        # --- Unified result manifest (homodyne parity) -----------------------
+        if nlsq_results or cmc_results:
+            summary.start_phase("result_saving")
+            with log_phase("result_saving", logger=logger):
+                try:
+                    saved_paths = save_results(
+                        method=method,
+                        nlsq_results=nlsq_results or None,
+                        cmc_results=cmc_results or None,
+                        output_dir=output_dir,
+                        phi_angles=list(phi_angles),
+                        model=model,
+                    )
+                    n_files = sum(len(paths) for paths in saved_paths.values())
+                    logger.info("Unified result manifest: %d files written", n_files)
+                except (OSError, ValueError, KeyError) as exc:
+                    logger.warning(
+                        "Unified result manifest skipped (%s); inline saves "
+                        "from optimization_runner remain available",
+                        exc,
+                    )
+            summary.end_phase("result_saving")
 
         # --- User-requested plots --------------------------------------------
         if getattr(args, "plot", False):
