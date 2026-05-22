@@ -327,13 +327,35 @@ def plot_kl_divergence_matrix(
                 kl_matrix[i, j] = float(np.sum(p_safe * np.log(p_safe / q_safe)))
 
     fig, ax = plt.subplots(figsize=(max(6, n_params * 0.6), max(5, n_params * 0.5)))
-    im = ax.imshow(kl_matrix, cmap="viridis", aspect="auto")
-    ax.set_xticks(np.arange(n_params))
-    ax.set_yticks(np.arange(n_params))
-    ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8)
-    ax.set_yticklabels(names, fontsize=8)
+    # Guard against degenerate matrices. n_params == 0 produces a 0x0 image
+    # that gives imshow degenerate xlim/ylim and trips matplotlib's
+    # identical-limits warning; an all-zero matrix similarly forces a singular
+    # color range. Render an empty-state axes in those cases.
+    kl_max = float(kl_matrix.max()) if kl_matrix.size else 0.0
+    if n_params == 0:
+        ax.text(
+            0.5,
+            0.5,
+            "No parameters to plot",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlim(0.0, 1.0)
+        ax.set_ylim(0.0, 1.0)
+        im = None
+    else:
+        vmax = kl_max if kl_max > 0.0 else 1.0
+        im = ax.imshow(kl_matrix, cmap="viridis", aspect="auto", vmin=0.0, vmax=vmax)
+        ax.set_xticks(np.arange(n_params))
+        ax.set_yticks(np.arange(n_params))
+        ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8)
+        ax.set_yticklabels(names, fontsize=8)
     ax.set_title("Pairwise KL Divergence")
-    fig.colorbar(im, ax=ax)
+    if im is not None:
+        fig.colorbar(im, ax=ax)
     fig.tight_layout()
 
     if save_path is not None:
