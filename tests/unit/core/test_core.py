@@ -54,9 +54,12 @@ class TestHeterodyneModel:
         assert np.all(c2 >= 0)
 
         # Diagonal should be close to offset + contrast = 1.5
-        # (offset=1.0, contrast=0.5 from PerAngleScaling default)
+        # (offset=1.0, contrast=0.5 from PerAngleScaling default).
+        # With deterministic default parameters and t=0 the integral terms
+        # collapse, so a 1% tolerance is the right ceiling — a 10% drift
+        # would mask real physics regressions on the diagonal.
         diag = np.diag(np.asarray(c2))
-        assert np.allclose(diag[0], 1.5, rtol=0.1)
+        assert np.allclose(diag[0], 1.5, rtol=0.01)
 
 
 class TestJaxBackend:

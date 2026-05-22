@@ -245,7 +245,7 @@ def test_joint_cmaes_uses_off_diagonal_data_count(
 
 
 @pytest.mark.unit
-def test_joint_cmaes_independent_mode_runs_global_search(
+def test_joint_cmaes_individual_mode_runs_global_search(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """CMA-ES should not fall back to plain NLSQ for non-auto scaling modes."""
@@ -255,7 +255,7 @@ def test_joint_cmaes_independent_mode_runs_global_search(
 
     config = NLSQConfig(
         enable_cmaes=True,
-        per_angle_mode="independent",
+        per_angle_mode="individual",
         cmaes_warmstart_auto_skip=False,
     )
     c2_data = np.zeros((2, 3, 3), dtype=float)

@@ -296,6 +296,12 @@ class TestBugPrevention_Float64Precision:
 
         The heterodyne/__init__.py must set JAX_ENABLE_X64=True BEFORE
         any JAX imports to ensure float64 is used.
+
+        NOTE: tests/conftest.py also sets JAX_ENABLE_X64 before importing
+        jax, so this in-process assertion alone cannot prove that
+        ``heterodyne/__init__.py`` is the one doing the work. The companion
+        ``test_heterodyne_init_enables_x64_in_clean_subprocess`` below uses
+        a clean subprocess to pin that specific contract.
         """
         # At this point, heterodyne has been imported
         # Check that x64 is enabled
@@ -309,6 +315,61 @@ class TestBugPrevention_Float64Precision:
         assert arr.dtype == jnp.float64, (
             f"JAX arrays are {arr.dtype}, not float64. "
             "This indicates x64 was not enabled before JAX import."
+        )
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_heterodyne_init_enables_x64_in_clean_subprocess(self) -> None:
+        """REGRESSION TEST: prove heterodyne/__init__.py is what flips x64.
+
+        Spawns a fresh Python subprocess with JAX_ENABLE_X64 deliberately
+        UNSET in the environment. The subprocess imports heterodyne first,
+        then JAX, and reports back whether x64 is on and arrays come back
+        float64. This is the only way to verify the import-order contract
+        without help from conftest's own env setup.
+        """
+        import subprocess
+        import sys
+
+        script = (
+            "import os, sys\n"
+            # Ensure no inherited config wins for us; remove the env var and
+            # the JAX config flag the parent may have already set.
+            "os.environ.pop('JAX_ENABLE_X64', None)\n"
+            "import heterodyne  # MUST come before jax\n"
+            "import jax, jax.numpy as jnp\n"
+            "x64_on = bool(jax.config.jax_enable_x64)\n"
+            "arr_dtype = str(jnp.array([1.0]).dtype)\n"
+            "print(f'x64_on={x64_on};dtype={arr_dtype}')\n"
+        )
+
+        # Strip both JAX_ENABLE_X64 (the contract under test) and XLA_FLAGS
+        # (parent-process flags may include heterodyne-internal threading
+        # config that bare XLA rejects in a clean subprocess; this test
+        # pins the import-order x64 contract, not XLA threading).
+        stripped = {"JAX_ENABLE_X64", "XLA_FLAGS"}
+        env = {k: v for k, v in os.environ.items() if k not in stripped}
+        proc = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=60,
+            check=False,
+        )
+
+        assert proc.returncode == 0, (
+            "Subprocess failed; heterodyne import order may be broken.\n"
+            f"stdout: {proc.stdout!r}\nstderr: {proc.stderr!r}"
+        )
+        last_line = proc.stdout.strip().splitlines()[-1]
+        assert "x64_on=True" in last_line, (
+            f"heterodyne/__init__.py did NOT enable JAX x64 in clean process. "
+            f"Subprocess reported: {last_line!r}"
+        )
+        assert "dtype=float64" in last_line, (
+            f"jnp.array([1.0]) defaulted to non-float64 in clean process. "
+            f"Subprocess reported: {last_line!r}"
         )
 
     @pytest.mark.unit

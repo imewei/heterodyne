@@ -7,14 +7,11 @@ batch API.
 
 from __future__ import annotations
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
-# JAX is required for the diagonal_correction functions
-jax = pytest.importorskip("jax")
-jnp = pytest.importorskip("jax.numpy")
-
-from heterodyne.core.diagonal_correction import (  # noqa: E402
+from heterodyne.core.diagonal_correction import (
     apply_diagonal_correction,
     apply_diagonal_correction_batch,
     compute_diagonal_mask,

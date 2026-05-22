@@ -390,12 +390,20 @@ class TestPriorSanity:
         inconsistent CMC inference."""
         from heterodyne.config.parameter_space import _DEFAULT_PRIOR_SPECS
 
+        # Forward direction: every registry entry with a defined prior must
+        # have a matching entry in _DEFAULT_PRIOR_SPECS with equal (loc, scale).
+        registry_priors: set[str] = set()
         for name in DEFAULT_REGISTRY:
             info = DEFAULT_REGISTRY[name]
             if info.prior_mean is None or info.prior_std is None:
                 continue
-            if name not in _DEFAULT_PRIOR_SPECS:
-                continue
+            registry_priors.add(name)
+            assert name in _DEFAULT_PRIOR_SPECS, (
+                f"{name}: defined in DEFAULT_REGISTRY with "
+                f"prior_mean={info.prior_mean!r}, prior_std={info.prior_std!r} "
+                f"but missing from parameter_space._DEFAULT_PRIOR_SPECS "
+                f"(CLAUDE.md rule #9 — one-sided drift breaks CMC priors)"
+            )
             spec_loc, spec_scale = _DEFAULT_PRIOR_SPECS[name]
             assert float(info.prior_mean) == pytest.approx(float(spec_loc)), (
                 f"{name}: registry prior_mean={info.prior_mean!r} != "
@@ -404,4 +412,15 @@ class TestPriorSanity:
             assert float(info.prior_std) == pytest.approx(float(spec_scale)), (
                 f"{name}: registry prior_std={info.prior_std!r} != "
                 f"parameter_space scale={spec_scale!r} (CLAUDE.md rule #9)"
+            )
+
+        # Reverse direction: every _DEFAULT_PRIOR_SPECS entry must be backed
+        # by a registry entry with the same numeric values. Drift in this
+        # direction would silently broaden CMC priors beyond the registry.
+        for name in _DEFAULT_PRIOR_SPECS:
+            assert name in registry_priors, (
+                f"{name}: present in parameter_space._DEFAULT_PRIOR_SPECS "
+                f"but DEFAULT_REGISTRY[{name!r}] has prior_mean/prior_std=None. "
+                f"Either remove from _DEFAULT_PRIOR_SPECS or populate the "
+                f"registry entry (CLAUDE.md rule #9)."
             )

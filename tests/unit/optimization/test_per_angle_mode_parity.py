@@ -475,9 +475,11 @@ class TestDispatchRouting:
                 config=cfg,
                 weights=None,
             )
-        except Exception:
-            # CMA-ES phase may raise on the mock model — we only need
-            # to verify the warmstart dispatched correctly before it ran.
+        except (AttributeError, TypeError, ValueError, RuntimeError):
+            # CMA-ES phase may raise on the mock model for missing attrs,
+            # shape mismatches, or library-specific RuntimeError — we only
+            # need to verify the warmstart dispatched correctly before it
+            # ran. Any other exception (e.g., AssertionError) propagates.
             pass
 
         assert calls["_fit_joint_fixed_constant_multi_phi"] == 1, (
@@ -656,9 +658,13 @@ class TestL3Regularization:
         )
         assert captured_residual_fn, "Residual fn must reach the adapter"
         res_on = captured_residual_fn[0]
+        # The mock model only stubs attribute access; AttributeError/TypeError
+        # are expected when an attribute the residual closure reaches for is
+        # not on the synthetic stand-in. Anything else (ValueError from
+        # physics validation, RuntimeError, etc.) signals a real regression.
         try:
             length_on = len(res_on(np.zeros(16)))
-        except Exception as exc:  # noqa: BLE001 — residual eval may fail on mock
+        except (AttributeError, TypeError) as exc:
             pytest.skip(f"L3-on residual eval failed on synthetic model: {exc}")
 
         # Second pass: regularization off
@@ -678,7 +684,7 @@ class TestL3Regularization:
         res_off = captured_residual_fn[0]
         try:
             length_off = len(res_off(np.zeros(16)))
-        except Exception as exc:  # noqa: BLE001 — residual eval may fail on mock
+        except (AttributeError, TypeError) as exc:
             pytest.skip(f"L3-off residual eval failed on synthetic model: {exc}")
 
         assert length_on == length_off + 1, (

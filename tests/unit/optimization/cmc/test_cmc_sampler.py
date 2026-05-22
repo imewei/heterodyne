@@ -11,6 +11,18 @@ from heterodyne.optimization.cmc.sampler import (
     _perturb_init_params,
 )
 
+
+class _CaptureDone(Exception):
+    """Sentinel raised by patched MCMC.run after capturing kwargs.
+
+    A real ``sampler.run()`` call returns no value and then the production
+    code reads from ``self._mcmc`` (which the patched run never populated),
+    crashing on the missing samples. The sentinel pattern lets us halt the
+    pipeline immediately after the kwarg capture; any real production bug
+    bubbles up.
+    """
+
+
 # ===========================================================================
 # SamplingPlan
 # ===========================================================================
@@ -242,6 +254,9 @@ def test_nuts_sampler_run_requests_diverging_extra_field() -> None:
 
     def capture_run(rng_key, init_params=None, extra_fields=()):  # type: ignore[no-untyped-def]
         captured_extra_fields.extend(extra_fields)
+        # Halt the pipeline: NUTSSampler.run would otherwise dereference
+        # uninitialised mcmc state and crash; we only care about extra_fields.
+        raise _CaptureDone
 
     def dummy_model() -> None:
         numpyro.sample("x", dist.Normal(0.0, 1.0))
@@ -252,8 +267,8 @@ def test_nuts_sampler_run_requests_diverging_extra_field() -> None:
     with patch.object(sampler._mcmc, "run", side_effect=capture_run):
         try:
             sampler.run()
-        except Exception:
-            pass
+        except _CaptureDone:
+            pass  # sentinel halts post-capture; real bugs propagate
 
     assert "diverging" in captured_extra_fields, (
         f"'diverging' not collected in extra_fields. Got: {captured_extra_fields}"

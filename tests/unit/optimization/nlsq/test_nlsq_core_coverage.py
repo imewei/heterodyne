@@ -433,12 +433,12 @@ class TestFitNLSQMultiPhi:
 
     @pytest.mark.integration
     @pytest.mark.requires_jax
-    def test_fit_nlsq_multi_phi_independent_joint_fit(
+    def test_fit_nlsq_multi_phi_individual_joint_fit(
         self,
         small_heterodyne_model: HeterodyneModel,
         small_c2_data: np.ndarray,
     ) -> None:
-        """Test independent mode with >1 angle uses joint fit with identity."""
+        """Test individual mode with >1 angle uses joint fit with identity."""
         from heterodyne.optimization.nlsq.config import NLSQConfig as _NLSQConfig
         from heterodyne.optimization.nlsq.core import fit_nlsq_multi_phi
 
@@ -450,7 +450,7 @@ class TestFitNLSQMultiPhi:
             tolerance=1e-4,
             method="trf",
             verbose=0,
-            per_angle_mode="independent",
+            per_angle_mode="individual",
         )
 
         results = fit_nlsq_multi_phi(
@@ -533,15 +533,15 @@ class TestFourierReparameterizer:
         np.testing.assert_allclose(c_out, contrast, atol=1e-10)
         np.testing.assert_allclose(o_out, offset, atol=1e-10)
 
-    def test_independent_mode_passthrough(self) -> None:
-        """Independent mode is identity transform."""
+    def test_individual_mode_passthrough(self) -> None:
+        """Individual mode is identity transform."""
         from heterodyne.optimization.nlsq.fourier_reparam import (
             FourierReparamConfig,
             FourierReparameterizer,
         )
 
         phi = np.linspace(0, np.pi, 5)
-        config = FourierReparamConfig(mode="independent")
+        config = FourierReparamConfig(mode="individual")
         fourier = FourierReparameterizer(phi, config)
 
         assert not fourier.use_fourier

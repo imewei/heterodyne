@@ -32,6 +32,18 @@ if TYPE_CHECKING:
     from heterodyne.optimization.cmc.results import CMCResult
 
 
+class _CaptureDone(Exception):
+    """Sentinel raised by patched dispatch boundaries after a guard fires.
+
+    Several tests below pin a WARNING that ``fit_cmc_sharded`` must emit
+    before dispatching shards. They monkey-patch
+    ``MultiprocessingBackend.run_shards`` to raise this sentinel so the
+    pipeline halts immediately after the warning is logged. Only this class
+    is swallowed; any real production bug that fires before the dispatch
+    boundary still bubbles up as a test failure.
+    """
+
+
 class TestInitParamsShape:
     """Tests for init_params shape handling in CMC."""
 
@@ -1267,7 +1279,14 @@ class TestBugPrevention_DTotalSignGuard:
             warning_calls.append(str(msg) % args if args else str(msg))
             _orig_warn(msg, *args, **kw)  # type: ignore[arg-type]
 
-        with mock.patch.object(cmc_core.logger, "warning", side_effect=_capture):
+        with (
+            mock.patch.object(cmc_core.logger, "warning", side_effect=_capture),
+            mock.patch(
+                "heterodyne.optimization.cmc.backends.multiprocessing."
+                "MultiprocessingBackend.run_shards",
+                side_effect=_CaptureDone,
+            ),
+        ):
             try:
                 fit_cmc_sharded(
                     model=model,
@@ -1276,8 +1295,8 @@ class TestBugPrevention_DTotalSignGuard:
                     nlsq_result=nlsq,
                     num_shards=2,
                 )
-            except Exception:
-                pass  # may fail later (mock pickling) — only the warning matters
+            except _CaptureDone:
+                pass  # warning fired before dispatch; sentinel halts pipeline
 
         warned = any("D_total_sample" in msg for msg in warning_calls)
         assert warned, (
@@ -1336,8 +1355,13 @@ class TestBugPrevention_DTotalSignGuard:
 
         config = CMCConfig()
 
-        with caplog.at_level(
-            logging.WARNING, logger="heterodyne.optimization.cmc.core"
+        with (
+            caplog.at_level(logging.WARNING, logger="heterodyne.optimization.cmc.core"),
+            mock.patch(
+                "heterodyne.optimization.cmc.backends.multiprocessing."
+                "MultiprocessingBackend.run_shards",
+                side_effect=_CaptureDone,
+            ),
         ):
             try:
                 fit_cmc_sharded(
@@ -1347,8 +1371,8 @@ class TestBugPrevention_DTotalSignGuard:
                     nlsq_result=nlsq,
                     num_shards=2,
                 )
-            except Exception:
-                pass
+            except _CaptureDone:
+                pass  # halt after pre-dispatch guard; warning capture is the contract
 
         d_total_warnings = [
             r
@@ -1437,7 +1461,14 @@ class TestBugPrevention_DegenerateWarmstart:
             warning_calls.append(str(msg) % args if args else str(msg))
             _orig(msg, *args, **kw)  # type: ignore[arg-type]
 
-        with mock.patch.object(cmc_core.logger, "warning", side_effect=_capture):
+        with (
+            mock.patch.object(cmc_core.logger, "warning", side_effect=_capture),
+            mock.patch(
+                "heterodyne.optimization.cmc.backends.multiprocessing."
+                "MultiprocessingBackend.run_shards",
+                side_effect=_CaptureDone,
+            ),
+        ):
             try:
                 fit_cmc_sharded(
                     model=self._make_model_mock(),
@@ -1446,8 +1477,8 @@ class TestBugPrevention_DegenerateWarmstart:
                     nlsq_result=nlsq,
                     num_shards=2,
                 )
-            except Exception:
-                pass
+            except _CaptureDone:
+                pass  # warning fires before dispatch; sentinel halts pipeline
 
         assert any(
             "Degenerate warm-start" in m and "f0=" in m for m in warning_calls
@@ -1484,7 +1515,14 @@ class TestBugPrevention_DegenerateWarmstart:
             warning_calls.append(str(msg) % args if args else str(msg))
             _orig(msg, *args, **kw)  # type: ignore[arg-type]
 
-        with mock.patch.object(cmc_core.logger, "warning", side_effect=_capture):
+        with (
+            mock.patch.object(cmc_core.logger, "warning", side_effect=_capture),
+            mock.patch(
+                "heterodyne.optimization.cmc.backends.multiprocessing."
+                "MultiprocessingBackend.run_shards",
+                side_effect=_CaptureDone,
+            ),
+        ):
             try:
                 fit_cmc_sharded(
                     model=self._make_model_mock(),
@@ -1493,8 +1531,8 @@ class TestBugPrevention_DegenerateWarmstart:
                     nlsq_result=nlsq,
                     num_shards=2,
                 )
-            except Exception:
-                pass
+            except _CaptureDone:
+                pass  # warning fires before dispatch; sentinel halts pipeline
 
         assert any(
             "Degenerate warm-start" in m and "alpha_sample=" in m for m in warning_calls
@@ -1509,6 +1547,7 @@ class TestBugPrevention_DegenerateWarmstart:
     ) -> None:
         """No degenerate-warmstart WARNING when f0 and alpha_sample are normal."""
         import logging
+        import unittest.mock as mock
 
         from heterodyne.optimization.cmc import CMCConfig
         from heterodyne.optimization.cmc.core import fit_cmc_sharded
@@ -1523,8 +1562,13 @@ class TestBugPrevention_DegenerateWarmstart:
             metadata={},
         )
 
-        with caplog.at_level(
-            logging.WARNING, logger="heterodyne.optimization.cmc.core"
+        with (
+            caplog.at_level(logging.WARNING, logger="heterodyne.optimization.cmc.core"),
+            mock.patch(
+                "heterodyne.optimization.cmc.backends.multiprocessing."
+                "MultiprocessingBackend.run_shards",
+                side_effect=_CaptureDone,
+            ),
         ):
             try:
                 fit_cmc_sharded(
@@ -1534,8 +1578,8 @@ class TestBugPrevention_DegenerateWarmstart:
                     nlsq_result=nlsq,
                     num_shards=2,
                 )
-            except Exception:
-                pass
+            except _CaptureDone:
+                pass  # pre-dispatch guard runs to completion; sentinel halts pipeline
 
         degen_warnings = [
             r
@@ -1818,7 +1862,9 @@ class TestBugPrevention_DegenerateWarmstartAbort:
                     if isinstance(arg, dict) and "alpha_sample" in arg and "f0" in arg:
                         captured_init["call"] = dict(arg)
                         break
-            return []
+            # Halt the pipeline here: assembly with the empty result list
+            # crashes the result-combiner, and we only need the dispatch capture.
+            raise _CaptureDone
 
         model, nlsq, c2, config = self._make_parts(
             alpha_sample=CMC_ALPHA_SINGULARITY - 0.1
@@ -1835,10 +1881,9 @@ class TestBugPrevention_DegenerateWarmstartAbort:
                     nlsq_result=nlsq,
                     num_shards=2,
                 )
-            except Exception:
-                # Mock plumbing may not match the real backend signature
-                # exactly; we only care that the guard ran without raising
-                # the het_bb97531f abort.
+            except _CaptureDone:
+                # Sentinel halts the pipeline after dispatch capture.
+                # Anything else propagates as a real regression.
                 pass
         # The capture above is the contract: ``initial_values`` MUST be
         # surfaced through the run_shards dispatch path, otherwise the

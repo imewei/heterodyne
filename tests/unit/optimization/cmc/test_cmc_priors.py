@@ -30,6 +30,17 @@ from heterodyne.optimization.cmc.priors import (
 # ---------------------------------------------------------------------------
 
 
+class _CaptureDone(Exception):
+    """Sentinel raised by patched call boundaries after capturing args.
+
+    Tests below patch internal CMC entry points to record the arguments the
+    production code forwards into them. The downstream `fit_cmc_*` pipeline
+    cannot complete with MagicMock plumbing, so the patched function raises
+    this sentinel after capture and the test swallows only this class.
+    Any real production bug between capture and assembly bubbles up.
+    """
+
+
 @dataclass
 class MockParamInfo:
     """Minimal stand-in for ParameterInfo with new metadata fields."""
@@ -285,23 +296,9 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
         progress_bar=True,
     ):
         captured_shards.extend(shards)
-        # Return one minimal success dict per shard so the combination doesn't crash.
-        results = []
-        for i, _ in enumerate(shards):
-            results.append(
-                {
-                    "success": True,
-                    "shard_idx": i,
-                    "samples": {"D0_ref": np.ones(10)},
-                    "param_names": ["D0_ref"],
-                    "n_chains": 1,
-                    "n_samples": 10,
-                    "extra_fields": {},
-                    "duration": 0.1,
-                    "stats": {"num_divergent": 0, "n_warmup": 10, "n_samples": 10},
-                }
-            )
-        return results
+        # Capture-then-stop: the assertions below only need the shard inputs,
+        # and the downstream assembly cannot complete with MagicMock state.
+        raise _CaptureDone
 
     mock_model = MagicMock()
     mock_model.t = np.linspace(0.001, 0.04, n)
@@ -342,7 +339,7 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
                 sharding_strategy="contiguous",
                 config=CMCConfig(num_warmup=10, num_samples=10),
             )
-        except Exception:
+        except _CaptureDone:
             pass
 
     assert len(captured_shards) > 0, (
@@ -443,21 +440,8 @@ def test_fit_cmc_sharded_forwards_nlsq_uncertainties_to_workers():
         captured["initial_values"] = initial_values
         captured["nlsq_uncertainties"] = nlsq_uncertainties
         captured["nlsq_prior_width_factor"] = nlsq_prior_width_factor
-        # Return one minimal success dict per shard.
-        return [
-            {
-                "success": True,
-                "shard_idx": i,
-                "samples": {"D0_ref": np.ones(10)},
-                "param_names": ["D0_ref"],
-                "n_chains": 1,
-                "n_samples": 10,
-                "extra_fields": {},
-                "duration": 0.1,
-                "stats": {"num_divergent": 0, "n_warmup": 10, "n_samples": 10},
-            }
-            for i in range(len(shards))
-        ]
+        # Capture-then-stop: downstream assembly cannot complete with MagicMock state.
+        raise _CaptureDone
 
     mock_model = MagicMock()
     mock_model.t = np.linspace(0.001, 0.04, n)
@@ -511,7 +495,7 @@ def test_fit_cmc_sharded_forwards_nlsq_uncertainties_to_workers():
                     nlsq_prior_width_factor=2.5,
                 ),
             )
-        except Exception:
+        except _CaptureDone:
             pass
 
     assert captured.get("initial_values") is not None, (
@@ -549,20 +533,8 @@ def test_fit_cmc_sharded_omits_nlsq_priors_when_config_disables_them():
         progress_bar=True,
     ):
         captured["nlsq_uncertainties"] = nlsq_uncertainties
-        return [
-            {
-                "success": True,
-                "shard_idx": i,
-                "samples": {"D0_ref": np.ones(10)},
-                "param_names": ["D0_ref"],
-                "n_chains": 1,
-                "n_samples": 10,
-                "extra_fields": {},
-                "duration": 0.1,
-                "stats": {"num_divergent": 0, "n_warmup": 10, "n_samples": 10},
-            }
-            for i in range(len(shards))
-        ]
+        # Capture-then-stop: downstream assembly cannot complete with MagicMock state.
+        raise _CaptureDone
 
     mock_model = MagicMock()
     mock_model.t = np.linspace(0.001, 0.04, n)
@@ -614,7 +586,7 @@ def test_fit_cmc_sharded_omits_nlsq_priors_when_config_disables_them():
                     use_nlsq_informed_priors=False,
                 ),
             )
-        except Exception:
+        except _CaptureDone:
             pass
 
     assert not captured.get("nlsq_uncertainties"), (

@@ -94,14 +94,12 @@ class TestLoadSamplesNpz:
 
 class TestSamplesToArviz:
     def test_returns_inference_data(self, tmp_path):
-        pytest.importorskip("arviz")
         result = _make_cmc_result()
         save_samples_npz(result, tmp_path / "s.npz")
         idata = samples_to_arviz(load_samples_npz(tmp_path / "s.npz"))
         assert hasattr(idata, "posterior")
 
     def test_param_names_in_posterior(self, tmp_path):
-        pytest.importorskip("arviz")
         result = _make_cmc_result()
         save_samples_npz(result, tmp_path / "s.npz")
         idata = samples_to_arviz(load_samples_npz(tmp_path / "s.npz"))

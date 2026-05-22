@@ -22,6 +22,16 @@ if TYPE_CHECKING:
     from heterodyne import HeterodyneModel, NLSQConfig
 
 
+class _CaptureDone(Exception):
+    """Sentinel raised by patched curve_fit boundaries after capture.
+
+    Tests that pin kwargs forwarded into nlsq.curve_fit replace the
+    real call's return value with this sentinel so downstream result
+    parsing cannot mask the assertion target. Only this class is
+    swallowed; any real production bug bubbles up.
+    """
+
+
 class TestNLSQLibraryVersion:
     """Tests for nlsq library version compatibility."""
 
@@ -315,25 +325,20 @@ class TestBugPrevention_NLSQAdapterAPI:
 
     @pytest.mark.api
     @pytest.mark.unit
-    def test_old_api_without_flength_would_fail(self) -> None:
-        """REGRESSION TEST: Verify old API (without flength) fails.
+    def test_curvefit_instantiates_without_flength(self) -> None:
+        """REGRESSION TEST: pin the NLSQ >= 0.6.10 contract.
 
-        This test documents that CurveFit() without flength raises an error,
-        confirming we need the new API.
+        CLAUDE.md requires nlsq>=0.6.10, where CurveFit() supports zero-arg
+        construction with internal memory selection (no required `flength`).
+        This test fails loudly if a future nlsq upgrade re-introduces a
+        required positional argument.
         """
         from nlsq import CurveFit
 
-        # Modern nlsq requires flength - this test verifies it
-        # If nlsq changed to not require flength, this test would need updating
-        try:
-            # Try to instantiate without flength
-            fitter = CurveFit()
-            # If we get here, nlsq has changed - need to verify behavior
-            # Check if flength was auto-set or is required
-            assert hasattr(fitter, "_flength") or True  # Allow if it works
-        except TypeError as e:
-            # Expected: TypeError about missing flength
-            assert "flength" in str(e).lower() or "argument" in str(e).lower()
+        # Modern nlsq: zero-arg construction MUST succeed.
+        fitter = CurveFit()
+        # The instance is created and is the expected type.
+        assert isinstance(fitter, CurveFit)
 
 
 # ---------------------------------------------------------------------------
@@ -367,8 +372,9 @@ class TestBugPrevention_LossKwarg:
         adapter = NLSQAdapter(parameter_names=["p0", "p1"])
 
         mock_fitter = MagicMock()
-        # Return a (popt, pcov) tuple that build_result_from_nlsq can parse
-        mock_fitter.curve_fit.return_value = (np.array([2.0, 3.0]), np.eye(2))
+        # Halt the pipeline immediately after curve_fit captures kwargs;
+        # downstream result parsing is not the contract under test.
+        mock_fitter.curve_fit.side_effect = _CaptureDone
 
         with patch(
             "heterodyne.optimization.nlsq.adapter.get_or_create_fitter",
@@ -382,8 +388,8 @@ class TestBugPrevention_LossKwarg:
                     config=config,
                     n_data=9,
                 )
-            except Exception:
-                pass  # Only care about call args, not downstream processing
+            except _CaptureDone:
+                pass  # sentinel halts post-capture; real bugs propagate
 
         assert mock_fitter.curve_fit.called, "CurveFit.curve_fit was never called"
         call_kwargs = mock_fitter.curve_fit.call_args.kwargs
@@ -413,7 +419,7 @@ class TestBugPrevention_LossKwarg:
 
         with patch(
             "heterodyne.optimization.nlsq.adapter.curve_fit",
-            return_value=(np.array([2.0, 3.0]), np.eye(2)),
+            side_effect=_CaptureDone,
         ) as mock_cf:
             try:
                 wrapper._call_tier(
@@ -429,8 +435,8 @@ class TestBugPrevention_LossKwarg:
                     method="trf",
                     loss=config.loss,
                 )
-            except Exception:
-                pass
+            except _CaptureDone:
+                pass  # sentinel halts post-capture; real bugs propagate
 
         assert mock_cf.called, "nlsq.curve_fit was never called"
         call_kwargs = mock_cf.call_args.kwargs
