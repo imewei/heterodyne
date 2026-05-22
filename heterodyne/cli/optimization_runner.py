@@ -219,7 +219,11 @@ def run_nlsq(
                     "message": plan.message,
                 }
             except (ValueError, AttributeError, RuntimeError) as exc:
-                logger.debug("diagnose_failure skipped (%s)", exc)
+                logger.warning(
+                    "diagnose_failure crashed on phi=%s° (%s); recovery plan unavailable",
+                    phi,
+                    exc,
+                )
 
         summary_lines = format_nlsq_summary(result)
         logger.info(
