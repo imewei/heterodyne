@@ -1,11 +1,16 @@
 """NumPy finite-difference gradient fallback for heterodyne model.
 
-Deprecated: this module is retained as a compatibility shim. The
-NLSQ/CMC pipelines now rely entirely on JAX autodiff via
+Deprecated (PEP 562 lazy): this module is retained as a compatibility
+shim. The NLSQ/CMC pipelines now rely entirely on JAX autodiff via
 :mod:`heterodyne.core.jax_backend`, and there is no internal consumer
-of these finite-difference helpers anymore. Importing this module
-still works for one release and will continue to behave as before,
-but emits a :class:`DeprecationWarning`.
+of these finite-difference helpers anymore.
+
+Bare ``import heterodyne.core.numpy_gradients`` is silent — no warning
+fires during module load.  ``DeprecationWarning`` is emitted only when
+an external caller actually *accesses* a public symbol (``module.X``,
+``getattr(module, "X")``, ``from module import X``), and only once per
+symbol per process.  Internal cross-calls inside the module use
+``LOAD_GLOBAL`` and bypass the interceptor, so they stay quiet.
 
 Provides numerical gradient, Jacobian, and Hessian computation using central
 finite differences. Intended for validation against JAX autodiff gradients
@@ -19,12 +24,14 @@ Central difference formulas:
 from __future__ import annotations
 
 import os
+import sys
 import time
+import types
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -34,14 +41,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 logger = get_logger(__name__)
-
-warnings.warn(
-    "heterodyne.core.numpy_gradients is deprecated; the NLSQ/CMC "
-    "pipelines now use JAX autodiff in heterodyne.core.jax_backend. "
-    "This module will be removed in a future release.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 
 def _default_step_sizes(params: np.ndarray) -> np.ndarray:
@@ -957,3 +956,77 @@ def compute_gradient(
         n_function_evals=n_evals,
         elapsed_seconds=elapsed,
     )
+
+
+# ---------------------------------------------------------------------------
+# PEP 562-style lazy deprecation
+# ---------------------------------------------------------------------------
+#
+# Bare import of this module is silent. ``DeprecationWarning`` fires only
+# when a public symbol is *accessed* externally (``module.X``,
+# ``getattr(module, "X")``, ``from module import X``), and only once per
+# symbol per process.
+#
+# Internal cross-calls between the public functions/classes defined above
+# (e.g. ``compute_gradient`` dispatching to ``compute_adaptive_gradient``)
+# use the ``LOAD_GLOBAL`` bytecode, which reads directly from
+# ``module.__dict__`` and bypasses ``__getattribute__`` — so they do not
+# trigger the warning. Only external lookups pay the deprecation cost.
+
+_DEPRECATED_PUBLIC_NAMES: frozenset[str] = frozenset(
+    {
+        "compute_gradient_finite_diff",
+        "compute_jacobian_finite_diff",
+        "compute_hessian_finite_diff",
+        "validate_gradient",
+        "DifferentiationMethod",
+        "DifferentiationConfig",
+        "GradientResult",
+        "compute_adaptive_gradient",
+        "compute_gradient_parallel",
+        "compute_jacobian_chunked",
+        "validate_gradient_accuracy",
+        "compute_gradient",
+    }
+)
+
+_DEPRECATION_MESSAGE_TEMPLATE = (
+    "heterodyne.core.numpy_gradients.{name} is deprecated; the NLSQ/CMC "
+    "pipelines now use JAX autodiff in heterodyne.core.jax_backend. "
+    "This module will be removed in a future release."
+)
+
+
+class _LazyDeprecatedModule(types.ModuleType):
+    """Module subclass that warns on first external access of a public symbol.
+
+    Internal callers inside this module use ``LOAD_GLOBAL`` which reads
+    ``__dict__`` directly and bypasses ``__getattribute__``. External
+    callers (import statements, ``getattr``, dotted access) go through
+    ``__getattribute__`` and trigger the one-shot deprecation warning.
+    """
+
+    _warned_names: set[str] = set()
+
+    def __getattribute__(self, name: str) -> Any:
+        # Fast path: skip dunders, private names, and non-deprecated symbols.
+        if (
+            name in _DEPRECATED_PUBLIC_NAMES
+            and name not in type(self)._warned_names
+            # Only warn if the name actually resolves — avoid warning on typos
+            # that would have raised AttributeError anyway.
+            and name in object.__getattribute__(self, "__dict__")
+        ):
+            type(self)._warned_names.add(name)
+            warnings.warn(
+                _DEPRECATION_MESSAGE_TEMPLATE.format(name=name),
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return super().__getattribute__(name)
+
+
+# Swap the module class at the very end of module initialization so the
+# interceptor only catches lookups that happen *after* the module body has
+# finished defining its public surface.
+sys.modules[__name__].__class__ = _LazyDeprecatedModule
