@@ -592,9 +592,18 @@ def compute_multi_angle_residuals(
         c: jnp.ndarray,
         o: jnp.ndarray,
     ) -> jnp.ndarray:
+        # Match _compute_residuals_jit: apply BOTH the t=0 boundary mask
+        # and the diagonal exclusion before flattening. Previously this
+        # path only excluded the diagonal, so joint multi-phi fits used
+        # the t=0 row/col while single-phi fits did not, silently
+        # changing the chi-square support between the two code paths.
         c2_model = compute_c2_heterodyne(params, t, q, dt, phi, c, o)
-        residuals = (c2_model - c2_exp) * jnp.sqrt(w)
         n_time = c2_exp.shape[0]
+        indices = jnp.arange(n_time)
+        boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+        residuals = (
+            (c2_model - c2_exp) * jnp.sqrt(w) * boundary_mask.astype(c2_model.dtype)
+        )
         non_diagonal = ~jnp.eye(n_time, dtype=bool)
         rows, cols = jnp.nonzero(non_diagonal, size=n_time * (n_time - 1))
         return residuals[rows, cols]

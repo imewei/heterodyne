@@ -269,13 +269,17 @@ def compute_log_likelihood(
     phi_angle: float,
     c2_data: jnp.ndarray,
     sigma: jnp.ndarray | float,
-    contrast: float = 0.5,
+    contrast: float = 1.0,
     offset: float = 1.0,
 ) -> jnp.ndarray:
     """Compute Gaussian log-likelihood via meshgrid path (full N×N).
 
     Suitable for small matrices or diagnostics.  For large matrices
     inside NUTS, use ``compute_log_likelihood_elementwise`` instead.
+
+    The likelihood support matches the NLSQ residual support from
+    ``jax_backend._compute_residuals_jit``: the t=0 row/col (boundary)
+    and the diagonal (interpolated, not real physics) are excluded.
 
     Args:
         params: Parameter array, shape (14,)
@@ -285,14 +289,20 @@ def compute_log_likelihood(
         phi_angle: Detector phi angle (degrees)
         c2_data: Observed correlation matrix, shape (N, N)
         sigma: Measurement uncertainty (scalar or shape (N, N))
-        contrast: Speckle contrast
+        contrast: Speckle contrast (default 1.0 — matches the
+            element-wise sibling and the NLSQ residual default)
         offset: Baseline offset
 
     Returns:
         Scalar log-likelihood
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
-    residuals = (c2_model - c2_data) / sigma
+    n_time = c2_data.shape[0]
+    indices = jnp.arange(n_time)
+    boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+    non_diagonal = ~jnp.eye(n_time, dtype=bool)
+    mask = (boundary_mask & non_diagonal).astype(c2_model.dtype)
+    residuals = ((c2_model - c2_data) / sigma) * mask
     return -0.5 * jnp.sum(residuals**2)
 
 
@@ -336,11 +346,22 @@ def compute_log_likelihood_elementwise(
         contrast,
         offset,
     )
-    # Boundary mask: pairs where either time index is 0 (t=0 row/col) are
-    # loaded and plotted but excluded from the likelihood (parity with the
-    # NLSQ residual mask in core.jax_backend and with the numpyro model
-    # sites in optimization.cmc.model).
-    boundary_mask = (shard_grid.idx1 > 0) & (shard_grid.idx2 > 0)
+    # Boundary mask (parity with NLSQ ``_compute_residuals_jit``):
+    #   * t=0 row/col (``idx == 0``) — first-frame correlator data is not
+    #     used in chi-square fitting (the model evaluates cleanly at t=0
+    #     but the experimental boundary is excluded by convention).
+    #   * Diagonal (``idx1 == idx2``) — corrected diagonal values are
+    #     interpolated estimates, not real physics (homodyne parity).
+    # ``precompute_shard_grid_from_matrix`` uses ``triu_indices(k=0)``, so
+    # the diagonal IS in the shard's (idx1, idx2) pairs and must be masked
+    # here. Without ``idx1 != idx2`` the NUTS likelihood fits ~N
+    # interpolated diagonal residuals per shard that NLSQ never sees,
+    # silently biasing the posterior away from the NLSQ MAP.
+    boundary_mask = (
+        (shard_grid.idx1 > 0)
+        & (shard_grid.idx2 > 0)
+        & (shard_grid.idx1 != shard_grid.idx2)
+    )
     residuals = (
         (c2_model - c2_data_flat) / sigma_flat * boundary_mask.astype(c2_model.dtype)
     )
@@ -426,7 +447,7 @@ def compute_sharded_log_likelihood(
     dt: float,
     phi_angle: float,
     shards: list[tuple[int, int, jnp.ndarray, jnp.ndarray | float]],
-    contrast: float = 0.5,
+    contrast: float = 1.0,
     offset: float = 1.0,
 ) -> jnp.ndarray:
     """Sum log-likelihoods across all shards (meshgrid path, legacy).
@@ -540,7 +561,7 @@ def compute_posterior_predictive(
     dt: float,
     phi_angle: float,
     sigma: jnp.ndarray | float,
-    contrast: float = 0.5,
+    contrast: float = 1.0,
     offset: float = 1.0,
     rng_key: jnp.ndarray | None = None,
 ) -> jnp.ndarray:
