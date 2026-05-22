@@ -36,18 +36,10 @@ if TYPE_CHECKING:
 
 
 # ============================================================================
-# Pytest Markers Registration
+# Pytest Markers — declared canonically in pyproject.toml [tool.pytest.ini_options]
+# `markers = [...]`. Avoid re-registering in pytest_configure here so the two
+# lists cannot drift.
 # ============================================================================
-
-
-def pytest_configure(config: pytest.Config) -> None:
-    """Register custom markers."""
-    config.addinivalue_line("markers", "unit: fast unit tests")
-    config.addinivalue_line("markers", "api: API version/compatibility tests")
-    config.addinivalue_line("markers", "integration: integration tests")
-    config.addinivalue_line("markers", "slow: slow tests (skip with -m 'not slow')")
-    config.addinivalue_line("markers", "mcmc: MCMC-specific tests")
-    config.addinivalue_line("markers", "requires_jax: tests requiring JAX")
 
 
 # ============================================================================
@@ -55,9 +47,14 @@ def pytest_configure(config: pytest.Config) -> None:
 # ============================================================================
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def ensure_jax_float64() -> bool:
-    """Session-scoped fixture that verifies JAX x64 mode is enabled.
+    """Session-scoped tripwire that verifies JAX x64 mode is enabled.
+
+    Autouse ensures the contract (CLAUDE.md rule 8) is asserted exactly
+    once per pytest session, before any test runs. Fires loudly if a
+    future refactor breaks the early JAX_ENABLE_X64 setup at the top of
+    this conftest, instead of letting tests silently truncate to float32.
 
     Returns:
         True if JAX x64 is enabled

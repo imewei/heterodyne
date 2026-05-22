@@ -338,7 +338,6 @@ log_cli = false
 log_cli_level = "WARNING"
 # Performance
 junit_family = "xunit2"
-cache_dir = ".pytest_cache"
 
 [tool.coverage.run]
 source = ["heterodyne"]
