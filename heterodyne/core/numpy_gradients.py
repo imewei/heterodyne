@@ -1,5 +1,12 @@
 """NumPy finite-difference gradient fallback for heterodyne model.
 
+Deprecated: this module is retained as a compatibility shim. The
+NLSQ/CMC pipelines now rely entirely on JAX autodiff via
+:mod:`heterodyne.core.jax_backend`, and there is no internal consumer
+of these finite-difference helpers anymore. Importing this module
+still works for one release and will continue to behave as before,
+but emits a :class:`DeprecationWarning`.
+
 Provides numerical gradient, Jacobian, and Hessian computation using central
 finite differences. Intended for validation against JAX autodiff gradients
 or as a fallback when JAX is unavailable.
@@ -13,6 +20,7 @@ from __future__ import annotations
 
 import os
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum
@@ -26,6 +34,14 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 logger = get_logger(__name__)
+
+warnings.warn(
+    "heterodyne.core.numpy_gradients is deprecated; the NLSQ/CMC "
+    "pipelines now use JAX autodiff in heterodyne.core.jax_backend. "
+    "This module will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 def _default_step_sizes(params: np.ndarray) -> np.ndarray:

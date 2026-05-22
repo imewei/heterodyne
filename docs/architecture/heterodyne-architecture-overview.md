@@ -46,7 +46,6 @@ heterodyne/
 │   ├── scaling_utils.py              # Per-angle contrast/offset estimation (quantile-based)
 │   ├── physics_factors.py            # PhysicsFactors + CachedMatrices (pre-computed q²/2·dt)
 │   ├── diagonal_correction.py        # Autocorrelation peak removal (basic/statistical/interpolation)
-│   ├── numpy_gradients.py            # Numerical differentiation fallback (Richardson, complex-step)
 │   ├── model_mixins.py               # TransportMixin, FractionMixin, VelocityMixin (reusable physics)
 │   └── backend_api.py                # Backend enum, BackendConfig, get_current_backend()
 │
