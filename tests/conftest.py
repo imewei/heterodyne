@@ -282,6 +282,12 @@ def cmc_config_1chain() -> CMCConfig:
         num_chains=1,
         num_warmup=100,
         num_samples=100,
+        # fast_warmup opts out of the Rule-12 dense-mass warmup floor (1500
+        # steps) for CI; min_warmup/min_samples adjusted to match the
+        # reduced num_* so adaptive_sampling validation also passes.
+        fast_warmup=True,
+        min_warmup=50,
+        min_samples=50,
         seed=42,
         use_nlsq_warmstart=True,
     )
@@ -300,6 +306,9 @@ def cmc_config_2chains() -> CMCConfig:
         num_chains=2,
         num_warmup=100,
         num_samples=100,
+        fast_warmup=True,
+        min_warmup=50,
+        min_samples=50,
         seed=42,
         use_nlsq_warmstart=True,
     )
@@ -318,6 +327,9 @@ def cmc_config_4chains() -> CMCConfig:
         num_chains=4,
         num_warmup=200,
         num_samples=200,
+        fast_warmup=True,
+        min_warmup=50,
+        min_samples=50,
         seed=42,
         use_nlsq_warmstart=True,
     )

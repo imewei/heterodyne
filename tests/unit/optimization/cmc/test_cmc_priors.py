@@ -337,7 +337,13 @@ def test_fit_cmc_sharded_does_not_scale_sigma():
                 sigma=sigma_val,
                 num_shards=num_shards,
                 sharding_strategy="contiguous",
-                config=CMCConfig(num_warmup=10, num_samples=10),
+                config=CMCConfig(
+                    num_warmup=10,
+                    num_samples=10,
+                    fast_warmup=True,
+                    min_warmup=1,
+                    min_samples=1,
+                ),
             )
         except _CaptureDone:
             pass
@@ -491,6 +497,9 @@ def test_fit_cmc_sharded_forwards_nlsq_uncertainties_to_workers():
                 config=CMCConfig(
                     num_warmup=10,
                     num_samples=10,
+                    fast_warmup=True,
+                    min_warmup=1,
+                    min_samples=1,
                     use_nlsq_informed_priors=True,
                     nlsq_prior_width_factor=2.5,
                 ),
@@ -583,6 +592,9 @@ def test_fit_cmc_sharded_omits_nlsq_priors_when_config_disables_them():
                 config=CMCConfig(
                     num_warmup=10,
                     num_samples=10,
+                    fast_warmup=True,
+                    min_warmup=1,
+                    min_samples=1,
                     use_nlsq_informed_priors=False,
                 ),
             )

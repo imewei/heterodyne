@@ -1327,11 +1327,25 @@ def _run_shard_worker_with_queue(
             "duration": 0.0,
         }
 
-    # Best-effort delivery: drop the result if the queue is full or closed.
+    # Try hard to deliver the result; if the queue is full or closed, log a
+    # hard ERROR so the parent's shard-reconciliation path can treat this
+    # shard as failed instead of hanging on queue.get(). Silent drops
+    # previously caused the parent either to wait forever or to misclassify
+    # the shard as timed-out, producing biased aggregate posteriors with no
+    # diagnostic signal. See Codex review 2026-05-22.
     try:
-        result_queue.put_nowait(result)
-    except Exception:  # noqa: BLE001 — best-effort delivery
-        pass
+        result_queue.put(result, block=True, timeout=30.0)
+    except Exception as _delivery_exc:  # noqa: BLE001 — worker exit boundary
+        try:
+            worker_logger = get_logger(f"heterodyne.cmc.worker.shard_{shard_idx}")
+            worker_logger.error(
+                "Shard %d: failed to deliver result to parent queue "
+                "(error=%s). Parent will treat this shard as failed.",
+                shard_idx,
+                _delivery_exc,
+            )
+        except Exception:  # noqa: BLE001 — logging must not raise from worker exit
+            pass
 
 
 # ---------------------------------------------------------------------------

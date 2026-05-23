@@ -132,6 +132,9 @@ class TestCMCIndependent:
             num_chains=1,
             num_warmup=100,
             num_samples=100,
+            fast_warmup=True,
+            min_warmup=1,
+            min_samples=1,
             seed=42,
             use_nlsq_warmstart=False,
         )

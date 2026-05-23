@@ -1074,6 +1074,7 @@ class CMCConfig:
                 "adaptive_sampling": self.adaptive_sampling,
                 "min_warmup": self.min_warmup,
                 "min_samples": self.min_samples,
+                "fast_warmup": self.fast_warmup,
             },
             "validation": {
                 "max_r_hat": self.max_r_hat,
@@ -1083,11 +1084,17 @@ class CMCConfig:
                 "require_nlsq_warmstart": self.require_nlsq_warmstart,
                 "max_parameter_cv": self.max_parameter_cv,
                 "heterogeneity_abort": self.heterogeneity_abort,
+                "allow_degenerate_warmstart": self.allow_degenerate_warmstart,
             },
             "nlsq": {
                 "use_nlsq_warmstart": self.use_nlsq_warmstart,
                 "use_nlsq_informed_priors": self.use_nlsq_informed_priors,
                 "nlsq_prior_width_factor": self.nlsq_prior_width_factor,
+                "use_log_space_priors": self.use_log_space_priors,
+            },
+            "profiling": {
+                "enable_jax_profiling": self.enable_jax_profiling,
+                "jax_profile_dir": self.jax_profile_dir,
             },
             "prior_tempering": self.prior_tempering,
             "combination": {
@@ -1238,6 +1245,7 @@ class CMCConfig:
         _pick("adaptive_sampling", mcmc)
         _pick("min_warmup", mcmc)
         _pick("min_samples", mcmc)
+        _pick("fast_warmup", mcmc)
         # Flat fallbacks (including legacy target_accept)
         for _f in (
             "num_warmup",
@@ -1251,6 +1259,7 @@ class CMCConfig:
             "adaptive_sampling",
             "min_warmup",
             "min_samples",
+            "fast_warmup",
         ):
             _pick(_f, config_dict)
         if "target_accept" in config_dict and "target_accept_prob" not in kwargs:
@@ -1268,6 +1277,7 @@ class CMCConfig:
         _pick("require_nlsq_warmstart", validation)
         _pick("max_parameter_cv", validation)
         _pick("heterogeneity_abort", validation)
+        _pick("allow_degenerate_warmstart", validation)
         # Flat fallbacks
         for _f in (
             "max_r_hat",
@@ -1277,6 +1287,7 @@ class CMCConfig:
             "require_nlsq_warmstart",
             "max_parameter_cv",
             "heterogeneity_abort",
+            "allow_degenerate_warmstart",
         ):
             _pick(_f, config_dict)
         if "r_hat_threshold" in config_dict and "max_r_hat" not in kwargs:
@@ -1287,6 +1298,7 @@ class CMCConfig:
         _pick("use_nlsq_warmstart", nlsq)
         _pick("use_nlsq_informed_priors", nlsq)
         _pick("nlsq_prior_width_factor", nlsq)
+        _pick("use_log_space_priors", nlsq)
         # Accept legacy key name (homodyne parity rename).
         if "prior_width_factor" in nlsq and "nlsq_prior_width_factor" not in kwargs:
             kwargs["nlsq_prior_width_factor"] = nlsq["prior_width_factor"]
@@ -1295,6 +1307,7 @@ class CMCConfig:
             "use_nlsq_warmstart",
             "use_nlsq_informed_priors",
             "nlsq_prior_width_factor",
+            "use_log_space_priors",
         ):
             _pick(_f, config_dict)
         if (
@@ -1341,6 +1354,14 @@ class CMCConfig:
         ):
             _pick(_f, config_dict)
 
+        # --- profiling section -----------------------------------------
+        profiling = _extract_section("profiling")
+        _pick("enable_jax_profiling", profiling)
+        _pick("jax_profile_dir", profiling)
+        # Flat fallbacks
+        for _f in ("enable_jax_profiling", "jax_profile_dir"):
+            _pick(_f, config_dict)
+
         # --- Warn on unrecognised top-level keys -----------------------
         _known_top_level: frozenset[str] = frozenset(
             {
@@ -1357,6 +1378,7 @@ class CMCConfig:
                 "combination",
                 "timeout",
                 "reparameterization",
+                "profiling",
                 # Legacy flat keys accepted above.
                 "per_angle_mode",
                 "constant_scaling_threshold",
@@ -1381,6 +1403,7 @@ class CMCConfig:
                 "adaptive_sampling",
                 "min_warmup",
                 "min_samples",
+                "fast_warmup",
                 "max_r_hat",
                 "r_hat_threshold",
                 "min_ess",
@@ -1389,10 +1412,12 @@ class CMCConfig:
                 "require_nlsq_warmstart",
                 "max_parameter_cv",
                 "heterogeneity_abort",
+                "allow_degenerate_warmstart",
                 "use_nlsq_warmstart",
                 "use_nlsq_informed_priors",
                 "nlsq_prior_width_factor",
                 "prior_width_factor",
+                "use_log_space_priors",
                 "combination_method",
                 "min_success_rate",
                 "min_success_rate_warning",
@@ -1403,6 +1428,8 @@ class CMCConfig:
                 "reparameterization_log_gamma",
                 "bimodal_min_weight",
                 "bimodal_min_separation",
+                "enable_jax_profiling",
+                "jax_profile_dir",
             }
         )
 

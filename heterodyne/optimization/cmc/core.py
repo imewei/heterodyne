@@ -128,6 +128,19 @@ def _block_until_ready_pytree(tree: Any) -> Any:
 # ---------------------------------------------------------------------------
 
 
+def _validate_config_or_raise(config: CMCConfig) -> None:
+    """Run ``CMCConfig.validate()`` and raise ``ValueError`` on any error.
+
+    Centralises Rule-12 enforcement (dense-mass warmup floor) and the rest of
+    the per-field consistency checks so that no public CMC entry point can
+    silently accept a bad config. ``CMCConfig.validate()`` itself only
+    returns the error list — callers are responsible for raising.
+    """
+    errors = config.validate()
+    if errors:
+        raise ValueError("Invalid CMCConfig:\n  - " + "\n  - ".join(errors))
+
+
 def fit_cmc_jax(
     model: HeterodyneModel,
     c2_data: np.ndarray | jnp.ndarray,
@@ -168,6 +181,7 @@ def fit_cmc_jax(
     """
     if config is None:
         config = CMCConfig()
+    _validate_config_or_raise(config)
 
     t_for_model = jnp.asarray(t_override) if t_override is not None else model.t
 
@@ -696,6 +710,7 @@ def fit_cmc_sharded(
     """
     if config is None:
         config = CMCConfig()
+    _validate_config_or_raise(config)
 
     if num_shards < 2:
         raise ValueError(f"num_shards must be >= 2 for sharded CMC, got {num_shards}")
@@ -2475,6 +2490,7 @@ def fit_cmc_multi_phi(
     del sigma  # noise_scale comes from prepare_mcmc_data; future: honour user override
     if config is None:
         config = CMCConfig()
+    _validate_config_or_raise(config)
 
     # ---- Phase 1: pool the stacked c2 into flat (n_total,) arrays ----
     c2_np = np.asarray(c2_data, dtype=np.float64)
@@ -2772,6 +2788,7 @@ def fit_mcmc_jax(
         config = cmc_config
     else:
         config = CMCConfig.from_dict(cmc_config or {})
+    _validate_config_or_raise(config)
 
     data_arr = np.asarray(data, dtype=np.float64)
     t1_arr = np.asarray(t1, dtype=np.float64)

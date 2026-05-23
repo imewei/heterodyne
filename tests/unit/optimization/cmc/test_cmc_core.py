@@ -263,6 +263,9 @@ class TestNLSQWarmstart:
             num_chains=2,
             num_warmup=100,
             num_samples=100,
+            fast_warmup=True,
+            min_warmup=50,
+            min_samples=50,
             seed=42,
             use_nlsq_warmstart=False,  # Explicitly disable
         )
@@ -464,6 +467,9 @@ class TestBugPrevention_MultiChainInit:
             num_chains=2,  # Multiple chains triggers the bug
             num_warmup=100,
             num_samples=100,
+            fast_warmup=True,
+            min_warmup=50,
+            min_samples=50,
             seed=42,
             use_nlsq_warmstart=True,
         )
@@ -545,6 +551,9 @@ class TestReparamBackwardCompat:
             num_chains=1,
             num_warmup=100,
             num_samples=100,
+            fast_warmup=True,
+            min_warmup=50,
+            min_samples=50,
             seed=42,
             use_reparam=False,
         )
@@ -579,6 +588,9 @@ class TestReparamMetadata:
             num_chains=1,
             num_warmup=100,
             num_samples=100,
+            fast_warmup=True,
+            min_warmup=50,
+            min_samples=50,
             seed=42,
             use_reparam=True,
         )
@@ -2172,6 +2184,9 @@ class TestFitCMCMultiPhiIntegration:
             num_chains=1,
             num_warmup=10,
             num_samples=20,
+            fast_warmup=True,
+            min_warmup=1,
+            min_samples=1,
             seed=42,
             use_nlsq_warmstart=False,
         )
@@ -2263,6 +2278,9 @@ class TestFitCMCMultiPhiIntegration:
             num_chains=1,
             num_warmup=10,
             num_samples=20,
+            fast_warmup=True,
+            min_warmup=1,
+            min_samples=1,
             seed=42,
         )
 
@@ -2323,6 +2341,9 @@ class TestFitCMCMultiPhiIntegration:
             num_chains=1,
             num_warmup=10,
             num_samples=20,
+            fast_warmup=True,
+            min_warmup=1,
+            min_samples=1,
             seed=42,
             use_nlsq_warmstart=False,
             per_angle_mode="individual",

@@ -112,26 +112,49 @@ def diagnose_error(error: Exception) -> ErrorDiagnosis:
 
 def safe_uncertainties_from_pcov(
     pcov: np.ndarray | None,
-    n_params: int = 14,
+    n_params: int | None = None,
 ) -> np.ndarray:
     """Extract parameter uncertainties from a covariance matrix safely.
 
     Handles singular, near-singular, and negative-diagonal covariance
-    matrices gracefully.
+    matrices gracefully. ``n_params`` defaults to ``pcov.shape[0]`` when
+    ``pcov`` is a square 2-D array, which keeps the Fourier-reparam joint
+    fit working — that path expands the parameter vector to
+    ``[physics_varying | fourier_contrast | fourier_offset]`` and would
+    otherwise be rejected by a hardcoded 14-param check.
 
     Args:
-        pcov: Covariance matrix of shape (n_params, n_params), or None.
-        n_params: Expected number of parameters (for fallback shape).
+        pcov: Covariance matrix of shape (n, n), or None.
+        n_params: Expected number of parameters. If ``None``, inferred
+            from ``pcov.shape[0]``. Required when ``pcov is None``.
 
     Returns:
         Array of uncertainties, shape (n_params,). Returns inf for
         parameters with undefined uncertainty.
+
+    Raises:
+        ValueError: If both ``pcov`` and ``n_params`` are ``None`` — the
+            caller must supply at least one to fix the output shape.
     """
     if pcov is None:
+        if n_params is None:
+            raise ValueError(
+                "safe_uncertainties_from_pcov requires either pcov or "
+                "n_params; both are None."
+            )
         logger.warning("No covariance matrix; returning inf uncertainties")
         return np.full(n_params, np.inf)
 
     pcov = np.asarray(pcov, dtype=np.float64)
+
+    # Infer n_params from pcov when caller did not pin it explicitly.
+    if n_params is None:
+        if pcov.ndim != 2 or pcov.shape[0] != pcov.shape[1]:
+            raise ValueError(
+                f"safe_uncertainties_from_pcov: pcov must be a square 2-D "
+                f"array when n_params is not provided; got shape {pcov.shape}."
+            )
+        n_params = int(pcov.shape[0])
 
     if pcov.shape != (n_params, n_params):
         logger.warning(
@@ -322,7 +345,12 @@ def execute_with_recovery(
                 }
             )
 
-            if not diagnosis.recoverable:
+            # Non-recoverable failures normally stop the ladder, but the
+            # docstring promises method-switching as the universal last
+            # resort. Only break once that attempt has itself failed so
+            # CATEGORY_UNKNOWN errors still get one shot at a different
+            # trust-region algorithm. Gemini review 2026-05-22.
+            if not diagnosis.recoverable and action == "switch_method":
                 break
 
     logger.error(
@@ -336,7 +364,6 @@ def execute_with_recovery(
 # ---------------------------------------------------------------------------
 # Post-fit RecoveryPlan diagnosis (consolidated from recovery_strategies.py)
 # ---------------------------------------------------------------------------
-
 
 
 class RecoveryAction(enum.Enum):
@@ -417,6 +444,42 @@ def diagnose_failure(result: NLSQResult, config: NLSQConfig) -> RecoveryPlan:
                 message="SVD of Jacobian failed -- matrix is degenerate.",
                 modified_config={"diff_step": 1e-10},
             )
+
+    # Parameters pinned to a bound are degenerate for downstream CMC: a
+    # NUTS leapfrog at a hard bound produces pathological mass matrices and
+    # a divergence cascade. Surface this regardless of final_cost so a
+    # "successful" NLSQ fit (cost < 1) that happens to sit on alpha=-5 or
+    # f0=0 does not silently poison the warmstart. Limit to parameters that
+    # the CMC kernel treats as fatal — transport-offset bound hits are
+    # generally cosmetic. See Gemini review 2026-05-22 + MEMORY note on
+    # CMC BFMI gate (het_dd0f825b: alpha_sample=-2 at bound → 100% shard
+    # failure before the gate was removed).
+    _NUTS_FATAL_AT_BOUND = {
+        "alpha_ref",
+        "alpha_sample",
+        "D0_ref",
+        "D0_sample",
+        "v0",
+        "f0",
+    }
+    _at_bound = suggest_fixed_parameters(result)
+    _nuts_fatal = [p for p in _at_bound if p in _NUTS_FATAL_AT_BOUND]
+    if _nuts_fatal:
+        logger.warning(
+            "Parameters pinned to bound after NLSQ: %s. CMC warmstart from "
+            "this result risks NUTS divergence cascade (see CLAUDE.md Rule "
+            "11 + dual prior system). Fix these parameters or widen bounds.",
+            _nuts_fatal,
+        )
+        return RecoveryPlan(
+            action=RecoveryAction.SIMPLIFY,
+            message=(
+                f"Parameters at bound: {_nuts_fatal}. These will trigger "
+                f"NUTS divergence in CMC. Fix or widen bounds before "
+                f"warmstart."
+            ),
+            modified_config={"fixed_parameters": _nuts_fatal},
+        )
 
     if result.n_iterations >= config.max_iterations:
         new_max = config.max_iterations * 2
