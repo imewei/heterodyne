@@ -377,4 +377,4 @@ def test_multi_angle_residuals_exclude_diagonal() -> None:
         offsets=jnp.ones(2, dtype=jnp.float64),
     )
 
-    assert np.asarray(residuals).shape == (2 * 3 * (3 - 1),)
+    assert np.asarray(residuals).shape == (2 * (3 - 1) * (3 - 2),)
