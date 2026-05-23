@@ -727,7 +727,7 @@ class TestComputePerAngleChi2:
 
         n = 20
         c2 = self._make_c2(n, noise_std=0.02)
-        residuals = np.random.default_rng(0).normal(0, 0.05, n * (n - 1))
+        residuals = np.random.default_rng(0).normal(0, 0.05, (n - 1) * (n - 2))
         cost, chi2 = _compute_per_angle_chi2(residuals, c2, n_params=5)
         assert cost > 0.0
         assert chi2 > 0.0
@@ -738,7 +738,7 @@ class TestComputePerAngleChi2:
 
         n = 15
         c2 = self._make_c2(n)
-        residuals = np.ones(n * (n - 1)) * 0.1
+        residuals = np.ones((n - 1) * (n - 2)) * 0.1
         cost, _ = _compute_per_angle_chi2(residuals, c2, n_params=3)
         expected = 0.5 * float(np.sum(residuals**2))
         assert abs(cost - expected) < 1e-12
@@ -751,10 +751,10 @@ class TestComputePerAngleChi2:
         noise_std = 0.05
         rng = np.random.default_rng(7)
         c2 = np.ones((n, n)) + rng.normal(0, noise_std, (n, n))
-        residuals = rng.normal(0, noise_std, n * (n - 1))
+        residuals = rng.normal(0, noise_std, (n - 1) * (n - 2))
 
         _, chi2 = _compute_per_angle_chi2(residuals, c2, n_params=5)
-        raw_mse = float(np.sum(residuals**2)) / (n * (n - 1) - 5)
+        raw_mse = float(np.sum(residuals**2)) / ((n - 1) * (n - 2) - 5)
 
         # Normalized chi2 should differ from raw MSE when sigma2_noise ≠ 1
         assert not np.isclose(chi2, raw_mse, rtol=0.01), (
@@ -780,7 +780,7 @@ class TestComputePerAngleChi2:
 
         n = 25
         rng = np.random.default_rng(99)
-        residuals = rng.normal(0, 0.05, n * (n - 1))
+        residuals = rng.normal(0, 0.05, (n - 1) * (n - 2))
 
         c2_a = np.ones((n, n)) + rng.normal(0, 0.02, (n, n))
         c2_b = np.ones((n, n)) + rng.normal(0, 0.08, (n, n))  # higher noise

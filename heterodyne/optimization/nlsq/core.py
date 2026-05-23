@@ -2342,7 +2342,7 @@ def _fit_cmaes(
     # Apply same chi2 correction as _fit_local (DOF + σ² normalization)
     if result.final_cost is not None:
         n_matrix = c2_jax.shape[0]
-        n_valid = c2_jax.size - n_matrix
+        n_valid = (n_matrix - 1) * (n_matrix - 2)
         n_dof_valid = max(n_valid - len(param_manager.varying_names), 1)
         c2_np = np.asarray(c2_jax)
         row_idx = np.arange(n_matrix)
@@ -2612,7 +2612,7 @@ def _fit_local(
     # ------------------------------------------------------------------
     if result.final_cost is not None:
         n_matrix = c2_jax.shape[0]
-        n_valid = c2_jax.size - n_matrix  # exclude N diagonal zeros
+        n_valid = (n_matrix - 1) * (n_matrix - 2)  # exclude diagonal + t=0 boundary
         n_dof_valid = max(n_valid - n_varying, 1)
 
         c2_np = np.asarray(c2_jax)
