@@ -470,12 +470,15 @@ def load_xpcs_batch(
     frame_range: tuple[int, int] | None = None,
     select_q: float | None = None,
     q_tolerance: float | None = None,
+    allow_partial: bool = False,
 ) -> list[XPCSData]:
     """Load multiple XPCS data files and return them as a list.
 
-    Each file is loaded independently using :class:`XPCSDataLoader`.  Files
-    that fail to load are logged as errors and skipped; the remaining
-    successfully loaded datasets are returned in input order.
+    Each file is loaded independently using :class:`XPCSDataLoader`.  By
+    default, **any per-file failure raises** — silent partial batches were
+    masking config errors and corrupted files.  Pass ``allow_partial=True``
+    to opt into the legacy skip-on-failure behaviour; failed paths are still
+    logged at ``ERROR`` level and omitted from the returned list.
 
     Args:
         file_paths: Sequence of paths to data files.
@@ -491,12 +494,18 @@ def load_xpcs_batch(
             indices applied uniformly to every file.
         select_q: Target wavevector in Å⁻¹ applied uniformly to every file.
         q_tolerance: Maximum absolute deviation from ``select_q`` in Å⁻¹.
+        allow_partial: If True, individual file failures are logged and
+            skipped instead of raising.  Default ``False`` — strict batches.
 
     Returns:
         List of :class:`XPCSData` objects, one per successfully loaded file.
-        Failed files are omitted.
+
+    Raises:
+        OSError, ValueError, KeyError, RuntimeError: From the first per-file
+            failure when ``allow_partial=False`` (default).
     """
     results: list[XPCSData] = []
+    failures: list[tuple[str, BaseException]] = []
     n_total = len(file_paths)
 
     for idx, fp in enumerate(file_paths):
@@ -533,6 +542,17 @@ def load_xpcs_batch(
                 Path(fp).name,
                 exc,
             )
+            failures.append((str(fp), exc))
+            if not allow_partial:
+                raise
+
+    if failures and allow_partial:
+        logger.warning(
+            "Batch load: %d/%d files failed (allow_partial=True); failed paths: %s",
+            len(failures),
+            n_total,
+            [name for name, _ in failures],
+        )
 
     logger.info(
         "Batch load complete: %d/%d files loaded successfully",
@@ -812,6 +832,12 @@ class XPCSDataLoader:
         ``c2[start_0:end, start_0:end]``; for a 3-D c2 the time axes are
         sliced as ``c2[:, start_0:end, start_0:end]``.
 
+        Out-of-range bounds are rejected rather than clamped — silent
+        clamping would change the analyzed frame interval relative to what
+        the caller's config requested, violating the project's data-integrity
+        rule.  ``end = -1`` remains supported as the sentinel for "to the
+        last frame".
+
         Args:
             data: Loaded XPCSData to slice.
             frame_range: ``(start, end)`` with 1-based inclusive indices.
@@ -820,24 +846,24 @@ class XPCSDataLoader:
             New XPCSData with sliced arrays.
 
         Raises:
-            ValueError: If the normalized frame range is empty.
+            ValueError: If the frame range is out of bounds or empty.
         """
         start, end = frame_range
         n_frames = data.n_times
 
-        if start < 1:
-            logger.warning("frame_range start %d < 1, clamping to 1", start)
-            start = 1
+        # end = -1 (or any negative) is the documented sentinel for "to last".
         if end < 0:
             end = n_frames
-        if end > n_frames:
-            logger.warning(
-                "frame_range end %d exceeds n_frames %d, clamping to %d",
-                end,
-                n_frames,
-                n_frames,
+
+        if start < 1:
+            raise ValueError(
+                f"frame_range start {start} < 1 (frames are 1-based, inclusive)"
             )
-            end = n_frames
+        if end > n_frames:
+            raise ValueError(
+                f"frame_range end {end} exceeds n_frames {n_frames} — silent "
+                f"clamping disabled; correct the config or load a longer dataset"
+            )
 
         start_0 = start - 1  # convert to 0-based
         if start > end:

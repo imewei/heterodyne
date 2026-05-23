@@ -43,15 +43,19 @@ class SubsamplingConfig:
 # ---------------------------------------------------------------------------
 
 
+_SUBSAMPLE_OPT_IN_ENV = "HETERODYNE_ALLOW_SUBSAMPLING"
+
+
 def subsample_correlation(
     c2: np.ndarray,
     config: SubsamplingConfig,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Subsample a two-time correlation matrix.
 
-    **Subsampling is off by default and must be explicitly requested.**
-    A warning is always emitted when this function is called so that every
-    invocation is logged, per project rules.
+    **Subsampling violates the project's "never subsample data" rule and is
+    blocked by default.**  To execute, callers must set the environment
+    variable ``HETERODYNE_ALLOW_SUBSAMPLING=1`` — this opt-in is intentional
+    friction so that subsampling cannot enter scientific pipelines silently.
 
     Args:
         c2: Two-time correlation matrix, shape ``(n_t, n_t)``.
@@ -62,9 +66,19 @@ def subsample_correlation(
         are the retained row/column indices into the original matrix.
 
     Raises:
+        RuntimeError: If ``HETERODYNE_ALLOW_SUBSAMPLING`` is not set in the
+            environment.
         ValueError: If *method* is not one of the supported strategies or
             if *c2* is not a 2-D square array.
     """
+    if os.environ.get(_SUBSAMPLE_OPT_IN_ENV) != "1":
+        raise RuntimeError(
+            "subsample_correlation() is blocked: set "
+            f"{_SUBSAMPLE_OPT_IN_ENV}=1 to override. Subsampling silently "
+            "discards data and violates the project's full-precision rule; "
+            "see CLAUDE.md rule 1."
+        )
+
     if c2.ndim != 2 or c2.shape[0] != c2.shape[1]:
         msg = f"c2 must be a square 2-D array, got shape {c2.shape}"
         raise ValueError(msg)
@@ -83,11 +97,12 @@ def subsample_correlation(
 
     logger.warning(
         "Subsampling ACTIVE: reducing %d points to %d using method='%s' "
-        "(seed=%s). This is an explicit opt-in operation.",
+        "(seed=%s). Caller opted in via %s=1.",
         n,
         config.max_points,
         config.method,
         config.seed,
+        _SUBSAMPLE_OPT_IN_ENV,
     )
 
     if config.method == "uniform":

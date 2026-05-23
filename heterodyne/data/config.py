@@ -58,6 +58,7 @@ XPCS_CONFIG_SCHEMA: dict[str, Any] = {
             "q": (int, float),
             "dt": (int, float),
         },
+        "phi_filtering": dict,
         "output": {
             "directory": str,
             "save_plots": bool,
@@ -87,7 +88,10 @@ class DataConfig:
         diagonal_width: Number of super-/sub-diagonals to exclude from
             off-diagonal statistics. Defaults to 1 (exclude main diagonal only).
         normalize: Whether to normalize correlation data (diagonal to 1).
-        remove_outliers: Whether to apply outlier removal.
+        remove_outliers: Whether to apply outlier removal.  Defaults to
+            ``False`` — outlier removal modifies the input data (replaces
+            extreme values with sigma-clipped envelope) and is opt-in only,
+            per the project's "never silently modify data" rule.
         outlier_sigma: Number of standard deviations for outlier threshold.
     """
 
@@ -98,7 +102,7 @@ class DataConfig:
     time_range: tuple[float, float] | None = None
     diagonal_width: int = 1
     normalize: bool = True
-    remove_outliers: bool = True
+    remove_outliers: bool = False
     outlier_sigma: float = 3.0
 
     @classmethod
@@ -397,7 +401,7 @@ def apply_config_defaults(config: dict[str, Any]) -> dict[str, Any]:
     data = result.setdefault("data", {})
     data.setdefault("format", "auto")
     data.setdefault("normalize", True)
-    data.setdefault("remove_outliers", True)
+    data.setdefault("remove_outliers", False)
     data.setdefault("outlier_sigma", 3.0)
     data.setdefault("diagonal_width", 1)
 
@@ -492,8 +496,8 @@ data:
   # Normalize correlation data (default: true)
   normalize: true
 
-  # Apply outlier removal (default: true)
-  remove_outliers: true
+  # Apply outlier removal (default: false; opt-in, modifies data)
+  remove_outliers: false
 
   # Standard deviations for outlier threshold (default: 3.0)
   outlier_sigma: 3.0

@@ -256,8 +256,8 @@ class TieredCache:
         disk_path = self._disk_path(safe_key)
         if disk_path is not None and disk_path.exists():
             try:
-                loaded = np.load(disk_path, allow_pickle=False)  # noqa: S301
-                data: np.ndarray = loaded["data"]
+                with np.load(disk_path, allow_pickle=False) as loaded:
+                    data: np.ndarray = np.array(loaded["data"], copy=True)
                 # Promote to L1
                 self._l1.cache_dataset(safe_key, data)
                 with self._lock:
@@ -376,11 +376,19 @@ class TieredCache:
     def _write_disk(self, path: Path, data: np.ndarray) -> None:
         """Write *data* to *path* atomically using compression if configured.
 
-        Writes to a temporary file first, then renames to the target path
-        to avoid leaving partial files on crash or interruption.
+        Writes to a temporary ``.npz`` file first, then renames to the target
+        path to avoid leaving partial files on crash or interruption.
+
+        The temp path must end in ``.npz`` because ``np.savez`` /
+        ``np.savez_compressed`` silently append ``.npz`` to any path whose
+        suffix is not already ``.npz`` — using ``.npz.tmp`` would create
+        ``<tmp>.npz.tmp.npz`` and leave a zero-byte ``<tmp>.npz.tmp`` to be
+        renamed into the cache target, producing corrupt cache entries.
         """
         try:
-            fd, tmp_path_str = tempfile.mkstemp(dir=path.parent, suffix=".npz.tmp")
+            fd, tmp_path_str = tempfile.mkstemp(
+                dir=path.parent, prefix=".tmp_", suffix=".npz"
+            )
             os.close(fd)
             tmp_path = Path(tmp_path_str)
             try:
@@ -388,7 +396,7 @@ class TieredCache:
                     np.savez_compressed(tmp_path, data=data)
                 else:
                     np.savez(tmp_path, data=data)
-                tmp_path.rename(path)
+                tmp_path.replace(path)
                 logger.debug(
                     "TieredCache: wrote disk entry '%s' (%d bytes)",
                     path.name,

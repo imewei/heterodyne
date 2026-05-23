@@ -966,6 +966,26 @@ def _noise_gaussian_smooth(c2: np.ndarray, sigma: float = 1.0) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
+_GLOBAL_STAT_STEP_PREFIXES = (
+    "remove_outliers",
+    "subtract_baseline",
+    "baseline",
+    "normalize_zscore",
+    "normalize_minmax",
+    "normalize_robust",
+)
+
+
+def _step_requires_global_stats(step_name: str) -> bool:
+    """Return True if a pipeline step uses array-wide statistics.
+
+    Steps whose output for slice *i* depends on mean/std/baseline computed
+    over the **entire** input cannot be safely applied per chunk — doing so
+    yields mismatched scales between chunks.
+    """
+    return any(step_name.startswith(p) for p in _GLOBAL_STAT_STEP_PREFIXES)
+
+
 def process_chunked(
     c2: np.ndarray,
     pipeline: PreprocessingPipeline,
@@ -977,6 +997,12 @@ def process_chunked(
     *chunk_size* along axis 0 and concatenated.  For 2D data the pipeline
     is applied directly.
 
+    Steps that use array-wide statistics (outlier removal, baseline
+    subtraction, z-score / min-max / robust normalization) are rejected
+    with ``ValueError`` when chunking would be required — per-chunk
+    statistics would produce mismatched scales between chunks.  Run the
+    pipeline whole or remove those steps before chunking.
+
     Args:
         c2: Input correlation array (2D or 3D).
         pipeline: Configured :class:`PreprocessingPipeline`.
@@ -984,6 +1010,11 @@ def process_chunked(
 
     Returns:
         Combined :class:`PreprocessingResult`.
+
+    Raises:
+        ValueError: If the pipeline contains steps requiring global
+            statistics and chunking would actually be applied
+            (i.e. ``c2.ndim == 3`` and ``n_phi > chunk_size``).
     """
     if c2.ndim != 3:
         return pipeline.process(c2)
@@ -991,6 +1022,16 @@ def process_chunked(
     n_phi = c2.shape[0]
     if n_phi <= chunk_size:
         return pipeline.process(c2)
+
+    bad_steps = [
+        name for name, _ in pipeline._steps if _step_requires_global_stats(name)
+    ]
+    if bad_steps:
+        raise ValueError(
+            f"process_chunked() refuses to chunk pipeline containing global-statistic "
+            f"steps {bad_steps}: per-chunk stats would yield mismatched scales between "
+            f"chunks. Run pipeline.process() on the full array, or remove these steps."
+        )
 
     all_c2: list[np.ndarray] = []
     all_steps: list[str] = []
@@ -1033,7 +1074,7 @@ def preprocess_xpcs_data(
     c2: np.ndarray,
     normalize_method: NormalizationMethod = NormalizationMethod.DIAGONAL,
     noise_reduction: NoiseReductionMethod = NoiseReductionMethod.NONE,
-    remove_outliers: bool = True,
+    remove_outliers: bool = False,
     symmetrize: bool = True,
     baseline_correction: bool = False,
     **kwargs: Any,

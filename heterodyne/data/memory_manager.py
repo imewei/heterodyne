@@ -267,19 +267,25 @@ class MemoryMapManager:
         self,
         file_path: Path | str,
         dataset_path: str,
-    ) -> np.ndarray:
+    ) -> Any:
         """Open an HDF5 dataset for memory-mapped-like access.
 
-        Uses h5py's lazy loading: returns a dataset object that reads
-        chunks on demand. For truly large files, slicing is preferred
-        over full materialization.
+        Returns the raw ``h5py.Dataset`` proxy — supports NumPy-style slicing
+        (``ds[:, 100:200]``) and reads chunks on demand without materializing
+        the full array.  Use :meth:`read_slice` for explicit partial reads or
+        :meth:`materialize` when the caller truly needs an in-memory ndarray.
 
         Args:
             file_path: Path to HDF5 file.
             dataset_path: Internal HDF5 dataset path (e.g., "/exchange/C2T_all/c2_00001").
 
         Returns:
-            NumPy array (lazily loaded via h5py if possible).
+            ``h5py.Dataset`` proxy with lazy chunk access.
+
+        Raises:
+            MemoryError: If the dataset size exceeds ``max_resident_bytes`` and
+                the caller would have to materialize it — guard against
+                accidental OOM by calling :meth:`read_slice` instead.
         """
         with self._lock:
             handle = self._get_handle(file_path)
@@ -288,10 +294,34 @@ class MemoryMapManager:
             if estimated > self._max_resident_bytes:
                 logger.warning(
                     "Dataset '%s' estimated size %d bytes exceeds max_resident %d bytes; "
-                    "consider read_slice() for partial access",
+                    "returning lazy h5py.Dataset proxy — use read_slice() for partial access "
+                    "or materialize() if full in-memory copy is required",
                     dataset_path,
                     estimated,
                     self._max_resident_bytes,
+                )
+            return dataset
+
+    def materialize(
+        self,
+        file_path: Path | str,
+        dataset_path: str,
+    ) -> np.ndarray:
+        """Eagerly load an HDF5 dataset into memory as an ``ndarray``.
+
+        Raises ``MemoryError`` if the estimated size exceeds
+        ``max_resident_bytes`` — callers must explicitly opt out of the limit
+        by raising it, or use :meth:`read_slice` for partial loads.
+        """
+        with self._lock:
+            handle = self._get_handle(file_path)
+            dataset = handle[dataset_path]
+            estimated = self.estimate_dataset_size(file_path, dataset_path)
+            if estimated > self._max_resident_bytes:
+                raise MemoryError(
+                    f"Refusing to materialize dataset '{dataset_path}' "
+                    f"({estimated} bytes > max_resident {self._max_resident_bytes} bytes); "
+                    f"use read_slice() or raise max_resident_bytes"
                 )
             result: np.ndarray = np.asarray(dataset)
         return result

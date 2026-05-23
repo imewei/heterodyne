@@ -343,8 +343,13 @@ def test_loader_diagonal_correction_rejects_unknown_method() -> None:
         _apply_diagonal_correction(np.ones((4, 4)), method="unknown")
 
 
-def test_load_xpcs_data_clamps_frame_range_like_homodyne(tmp_path) -> None:
-    """Frame ranges outside the data extent are clamped like homodyne loading."""
+def test_load_xpcs_data_rejects_out_of_range_frame_range(tmp_path) -> None:
+    """Out-of-range frame_range bounds raise ValueError instead of clamping.
+
+    Silent clamping would change the analyzed frame interval relative to the
+    caller's config; the loader now rejects out-of-range bounds so that
+    config mistakes surface immediately.
+    """
     from heterodyne.data.xpcs_loader import load_xpcs_data
 
     c2 = np.arange(25, dtype=np.float64).reshape(5, 5)
@@ -352,10 +357,11 @@ def test_load_xpcs_data_clamps_frame_range_like_homodyne(tmp_path) -> None:
     path = tmp_path / "frames.npz"
     np.savez(path, c2=c2, t=t)
 
-    data = load_xpcs_data(path, frame_range=(0, 99))
+    with pytest.raises(ValueError, match="frame_range start 0 < 1"):
+        load_xpcs_data(path, frame_range=(0, 99))
 
-    np.testing.assert_array_equal(data.c2, c2)
-    np.testing.assert_array_equal(data.t1, t)
+    with pytest.raises(ValueError, match="frame_range end 99 exceeds n_frames 5"):
+        load_xpcs_data(path, frame_range=(1, 99))
 
 
 def test_load_xpcs_data_accepts_negative_end_frame_as_all_frames(tmp_path) -> None:

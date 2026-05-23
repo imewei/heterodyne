@@ -194,8 +194,12 @@ class TestDataLoading:
         np.testing.assert_array_almost_equal(data.c2, c2)
         assert data.n_times == n
 
-    def test_batch_loading_skips_failures(self, tmp_path: Path) -> None:
-        """Batch loader skips files that fail and continues."""
+    def test_batch_loading_raises_on_failure_by_default(self, tmp_path: Path) -> None:
+        """Batch loader raises on any per-file failure unless allow_partial=True.
+
+        Silent skipping was masking config errors and corrupt files — the
+        default is now strict.
+        """
         n = 6
         c2 = _make_symmetric_c2(n)
         t = np.arange(n, dtype=np.float64)
@@ -206,7 +210,24 @@ class TestDataLoading:
         bad = tmp_path / "bad.h5"
         bad.write_bytes(b"not a real hdf5 file")
 
-        results = load_xpcs_batch([good, bad])
+        with pytest.raises((OSError, ValueError, KeyError, RuntimeError)):
+            load_xpcs_batch([good, bad])
+
+    def test_batch_loading_skips_failures_with_allow_partial(
+        self, tmp_path: Path
+    ) -> None:
+        """allow_partial=True restores the legacy skip-on-failure behaviour."""
+        n = 6
+        c2 = _make_symmetric_c2(n)
+        t = np.arange(n, dtype=np.float64)
+
+        good = tmp_path / "good.h5"
+        _write_hdf5_flat(good, c2, t)
+
+        bad = tmp_path / "bad.h5"
+        bad.write_bytes(b"not a real hdf5 file")
+
+        results = load_xpcs_batch([good, bad], allow_partial=True)
 
         assert len(results) == 1
         np.testing.assert_array_equal(results[0].c2, c2.astype(np.float64))
@@ -582,7 +603,7 @@ class TestDataValidation:
             validate_loaded_data(data)
 
     def test_batch_load_with_validation(self, tmp_path: Path) -> None:
-        """Batch loader with validate=True skips invalid files."""
+        """Batch loader with validate=True + allow_partial=True skips invalid files."""
         n = 6
         # Good file
         c2_good = _make_symmetric_c2(n)
@@ -596,7 +617,9 @@ class TestDataValidation:
         bad_path = tmp_path / "bad.h5"
         _write_hdf5_flat(bad_path, c2_bad, t)
 
-        results = load_xpcs_batch([good_path, bad_path], validate=True)
+        results = load_xpcs_batch(
+            [good_path, bad_path], validate=True, allow_partial=True
+        )
 
         assert len(results) == 1
         np.testing.assert_array_equal(results[0].c2, c2_good.astype(np.float64))
