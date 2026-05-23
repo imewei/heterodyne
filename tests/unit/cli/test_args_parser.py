@@ -50,8 +50,13 @@ class TestOptionalArguments:
 
     # --- Default values ---
 
-    def test_default_method_is_nlsq(self, defaults: argparse.Namespace) -> None:
-        assert defaults.method == "nlsq"
+    def test_default_method_is_none_for_yaml_fallthrough(
+        self, defaults: argparse.Namespace
+    ) -> None:
+        # Default is None so commands.dispatch_command can detect "user did
+        # not pass --method" and fall through to ``optimization.method`` in
+        # the YAML before defaulting to ``"nlsq"``.
+        assert defaults.method is None
 
     def test_default_output_is_none(self, defaults: argparse.Namespace) -> None:
         assert defaults.output is None

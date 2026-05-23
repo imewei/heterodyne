@@ -56,8 +56,11 @@ Exit codes:
         "--method",
         "-m",
         choices=["nlsq", "cmc", "both"],
-        default="nlsq",
-        help="Optimization method: nlsq, cmc, or both (default: nlsq)",
+        default=None,
+        help=(
+            "Optimization method: nlsq, cmc, or both "
+            "(default: optimization.method from YAML, else nlsq)"
+        ),
     )
 
     # Output options

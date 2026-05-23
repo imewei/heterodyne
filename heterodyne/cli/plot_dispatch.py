@@ -230,13 +230,18 @@ def _dispatch_simulated_plots(
     if nlsq_results:
         for nlsq_result in nlsq_results:
             phi = nlsq_result.metadata.get("phi_angle", 0)
-            # Select the data slice closest to the fitted phi angle
+            # Select the data slice closest to the fitted phi angle.
+            # Use circular distance: 179° vs -179° is 2°, not 358°.
             if c2_data.ndim == 3:
                 if (
                     data_phi_angles is not None
                     and len(data_phi_angles) == c2_data.shape[0]
                 ):
-                    idx = int(np.argmin(np.abs(data_phi_angles - float(phi))))
+                    _delta = (
+                        (np.asarray(data_phi_angles, dtype=float) - float(phi) + 180.0)
+                        % 360.0
+                    ) - 180.0
+                    idx = int(np.argmin(np.abs(_delta)))
                     c2_2d = c2_data[idx]
                 else:
                     c2_2d = c2_data[0]

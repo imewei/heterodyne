@@ -38,12 +38,18 @@ logger = get_logger(__name__)
 
 
 def _closest_phi_index(data_phi_angles: np.ndarray, target: float) -> int:
-    """Return the index of the data phi angle closest to *target* (degrees)."""
+    """Return the index of the data phi angle closest to *target* (degrees).
+
+    Uses circular distance so that 179° and -179° are treated as 2° apart
+    instead of 358° apart. A linear ``argmin(abs(d - t))`` would pick the
+    wrong slice near the ±180° boundary.
+    """
     normalized_data = (
         (np.asarray(data_phi_angles, dtype=float) + 180.0) % 360.0
     ) - 180.0
     normalized_target = ((float(target) + 180.0) % 360.0) - 180.0
-    return int(np.argmin(np.abs(normalized_data - normalized_target)))
+    delta = ((normalized_data - normalized_target + 180.0) % 360.0) - 180.0
+    return int(np.argmin(np.abs(delta)))
 
 
 def _select_c2_for_phi_angles(
@@ -430,13 +436,19 @@ def resolve_nlsq_warmstart(
     """Attempt to load previously saved NLSQ results for warm-starting CMC.
 
     Args:
-        args: CLI arguments (may have .warmstart_path).
+        args: CLI arguments (``--nlsq-result PATH`` stored as
+            ``args.nlsq_result``; legacy ``args.warmstart_path`` accepted).
         output_dir: Default directory to search for NLSQ results.
 
     Returns:
         NLSQResult if found, None otherwise.
     """
-    warmstart_path = getattr(args, "warmstart_path", None)
+    # ``--nlsq-result`` is the documented user-facing flag (args_parser.py).
+    # ``warmstart_path`` is a legacy attribute name kept for programmatic
+    # callers; honour both so the CLI flag is not silently ignored.
+    warmstart_path = getattr(args, "nlsq_result", None) or getattr(
+        args, "warmstart_path", None
+    )
     if warmstart_path is None:
         # Try default location
         default_path = output_dir / "nlsq_data.npz"

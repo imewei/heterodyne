@@ -64,6 +64,11 @@ def save_cmc_results(
 ) -> list[Path]:
     """Save CMC results to disk.
 
+    The CLI's joint multi-phi path wraps a single :class:`CMCResult` in a
+    one-element list while ``phi_angles`` may contain many angles. Treat
+    that as one joint inference and save it once; legacy per-angle callers
+    that pass equal-length lists still go through the zip branch.
+
     Args:
         results: CMC results to save.
         output_dir: Output directory.
@@ -75,6 +80,21 @@ def save_cmc_results(
     from heterodyne.io.mcmc_writers import save_mcmc_results
 
     saved_paths: list[Path] = []
+
+    # Joint multi-phi case: one result describes inference across all angles.
+    # Previously this raised ValueError via zip(strict=True) and dispatch
+    # quietly swallowed the manifest write.
+    if len(results) == 1 and len(phi_angles) > 1:
+        joint = results[0]
+        joint.metadata.setdefault("phi_angles", [float(p) for p in phi_angles])
+        result_paths = save_mcmc_results(joint, output_dir, prefix="cmc_joint")
+        saved_paths.extend(result_paths.values())
+        logger.info(
+            "Saved joint multi-phi CMC result (%d phi angles) to %s",
+            len(phi_angles),
+            output_dir,
+        )
+        return saved_paths
 
     for result, phi in zip(results, phi_angles, strict=True):
         prefix = f"cmc_phi{int(phi)}" if len(phi_angles) > 1 else "cmc"
@@ -233,15 +253,16 @@ def _create_mcmc_diagnostics_dict(result: CMCResult) -> dict[str, Any]:
     # Divergence count
     diagnostics["n_divergences"] = int(result.metadata.get("n_divergences", 0))
 
-    # Convergence check: max R-hat < 1.1 and min ESS > 400
+    # Surface the raw R-hat/ESS aggregates for the unified summary, but use
+    # the authoritative ``result.convergence_passed`` rather than hard-coded
+    # thresholds. The CMC fitter applies the configured ``max_r_hat`` /
+    # ``min_ess`` gates from CMCConfig; duplicating ``1.1`` and ``400`` here
+    # caused the persisted manifest to disagree with the engine when the
+    # user tuned those gates.
     if result.r_hat is not None and result.ess_bulk is not None:
-        max_r_hat = float(np.max(result.r_hat))
-        min_ess = float(np.min(result.ess_bulk))
-        diagnostics["convergence_passed"] = bool(max_r_hat < 1.1 and min_ess > 400)
-        diagnostics["max_r_hat"] = max_r_hat
-        diagnostics["min_ess_bulk"] = min_ess
-    else:
-        diagnostics["convergence_passed"] = result.convergence_passed
+        diagnostics["max_r_hat"] = float(np.max(result.r_hat))
+        diagnostics["min_ess_bulk"] = float(np.min(result.ess_bulk))
+    diagnostics["convergence_passed"] = bool(result.convergence_passed)
 
     return diagnostics
 

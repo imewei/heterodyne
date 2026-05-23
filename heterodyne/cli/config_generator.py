@@ -361,8 +361,10 @@ def interactive_builder() -> dict[str, Any]:
         "optimization": {
             "method": method,
         },
+        # ConfigManager.output_dir reads ``output.output_dir``; using
+        # ``output.directory`` here silently dropped the user's choice.
         "output": {
-            "directory": output_dir,
+            "output_dir": output_dir,
         },
     }
 

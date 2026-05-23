@@ -47,11 +47,14 @@ class TestCreateParser:
 
         self.parser = create_parser()
 
-    def test_method_default_is_nlsq(self, tmp_path: Path) -> None:
+    def test_method_default_is_none_for_yaml_fallthrough(self, tmp_path: Path) -> None:
+        # ``--method`` defaults to None so commands.dispatch_command can
+        # distinguish "user did not pass --method" from "user explicitly
+        # chose nlsq" and honour ``optimization.method`` from the YAML.
         cfg = tmp_path / "cfg.yaml"
         cfg.touch()
         args = self.parser.parse_args(["--config", str(cfg)])
-        assert args.method == "nlsq"
+        assert args.method is None
 
     def test_output_format_default_is_both(self, tmp_path: Path) -> None:
         cfg = tmp_path / "cfg.yaml"

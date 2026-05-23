@@ -285,7 +285,11 @@ def dispatch_command(args: argparse.Namespace) -> int:
         Exit code (0 on success).
     """
     run_id = f"het_{uuid.uuid4().hex[:8]}"
-    method = getattr(args, "method", "nlsq")
+    # ``args.method`` may be None when the user did not pass ``--method``; we
+    # then defer to ``optimization.method`` from the YAML. Final fallback is
+    # ``"nlsq"`` to match documented behaviour.
+    cli_method: str | None = getattr(args, "method", None)
+    method: str = cli_method or "nlsq"  # provisional until config loads
     summary = AnalysisSummaryLogger(run_id=run_id, analysis_mode="two_component")
     summary.set_config_summary(optimizer=method)
 
@@ -300,6 +304,16 @@ def dispatch_command(args: argparse.Namespace) -> int:
         with log_phase("config_loading", logger=logger):
             config_manager = load_and_merge_config(args.config, args)
         summary.end_phase("config_loading")
+
+        # Resolve final method: CLI > YAML > "nlsq". This must happen AFTER
+        # config load so that ``optimization.method: cmc`` in the YAML is not
+        # silently overridden by the argparse default.
+        if cli_method is None:
+            yaml_method = getattr(config_manager, "optimization_method", None)
+            if yaml_method:
+                method = str(yaml_method)
+                logger.info("[CLI] Using optimization method from YAML: %s", method)
+                summary.set_config_summary(optimizer=method)
 
         output_dir = args.output or config_manager.output_dir
         output_dir = Path(output_dir)
