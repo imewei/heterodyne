@@ -240,7 +240,7 @@ def test_joint_cmaes_uses_off_diagonal_data_count(
         weights=None,
     )
 
-    assert captured["n_data"] == 2 * 3 * (3 - 1)
+    assert captured["n_data"] == 2 * (3 - 1) * (3 - 2)
     assert results == [warmstart, warmstart]
 
 
@@ -325,7 +325,7 @@ def test_joint_cmaes_individual_mode_runs_global_search(
         weights=None,
     )
 
-    assert captured["n_data"] == 2 * 3 * (3 - 1)
+    assert captured["n_data"] == 2 * (3 - 1) * (3 - 2)
     assert captured["parameter_names"] == [
         "D0_ref",
         "contrast[0]",
