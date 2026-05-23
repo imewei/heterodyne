@@ -47,13 +47,22 @@ class ConfigManager:
             if not isinstance(group_config, dict):
                 continue
             normalized: dict[str, Any] = {}
+            seen_sources: dict[str, str] = {}
             for key, value in group_config.items():
                 canonical: str = PARAMETER_NAME_MAPPING.get(str(key), str(key))
+                if canonical in normalized and seen_sources.get(canonical) != key:
+                    raise ConfigurationError(
+                        f"Parameter group '{group_name}' contains both "
+                        f"'{seen_sources[canonical]}' and '{key}' which both "
+                        f"resolve to canonical key '{canonical}'. "
+                        f"Remove one to avoid silent value loss."
+                    )
                 if canonical != key:
                     logger.debug(
                         "Normalized parameter key '%s' -> '%s'", key, canonical
                     )
                 normalized[canonical] = value
+                seen_sources[canonical] = key
             params[group_name] = normalized
 
         # Normalize legacy temporal/scattering sections into analyzer_parameters
@@ -63,11 +72,22 @@ class ConfigManager:
         cmc = self._config.get("optimization", {}).get("cmc", {})
         if isinstance(cmc, dict):
             normalized_cmc: dict[str, Any] = {}
+            cmc_seen: dict[str, str] = {}
             for key, value in cmc.items():
                 cmc_canonical: str = PARAMETER_NAME_MAPPING.get(str(key), str(key))
+                if (
+                    cmc_canonical in normalized_cmc
+                    and cmc_seen.get(cmc_canonical) != key
+                ):
+                    raise ConfigurationError(
+                        f"CMC config contains both '{cmc_seen[cmc_canonical]}' "
+                        f"and '{key}' which both resolve to canonical key "
+                        f"'{cmc_canonical}'. Remove one to avoid silent value loss."
+                    )
                 if cmc_canonical != key:
                     logger.debug("Normalized CMC key '%s' -> '%s'", key, cmc_canonical)
                 normalized_cmc[cmc_canonical] = value
+                cmc_seen[cmc_canonical] = key
             opt = self._config.get("optimization")
             if isinstance(opt, dict) and "cmc" in opt:
                 opt["cmc"] = normalized_cmc
@@ -101,7 +121,11 @@ class ConfigManager:
             )
 
         # --- Build canonical analyzer_parameters --------------------------
-        merged: dict[str, Any] = {}
+        # Start from a deep copy of the existing analyzer_parameters so any
+        # unknown user-supplied fields (e.g. temperature, beamline metadata)
+        # survive migration instead of being silently dropped by the
+        # whitelist below.
+        merged: dict[str, Any] = copy.deepcopy(ap) if isinstance(ap, dict) else {}
 
         # dt: top-level in analyzer_parameters (parity with homodyne)
         merged["dt"] = ap.get("dt", temporal.get("dt", 1.0))
@@ -186,6 +210,14 @@ class ConfigManager:
                     f"Invalid optimization method '{method}'. "
                     f"Allowed values: {sorted(_ALLOWED_OPTIMIZATION_METHODS)}"
                 )
+
+            cmc_section = self._config["optimization"].get("cmc")
+            if isinstance(cmc_section, dict):
+                cmc_errors = self._validate_cmc_config(cmc_section)
+                if cmc_errors:
+                    raise ConfigurationError(
+                        "Invalid CMC configuration: " + "; ".join(cmc_errors)
+                    )
 
         # Validate config_version if present
         self._validate_config_version()

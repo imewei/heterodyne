@@ -56,6 +56,7 @@ class NLSQOptimizationConfig(TypedDict):
     method: NotRequired[str]
     multistart: NotRequired[bool]
     multistart_n: NotRequired[int]
+    nlsq_prior_width_factor: NotRequired[float]
 
 
 class CMCOptimizationConfig(TypedDict):
@@ -66,6 +67,8 @@ class CMCOptimizationConfig(TypedDict):
     num_samples: NotRequired[int]
     num_chains: NotRequired[int]
     target_accept_prob: NotRequired[float]
+    max_tree_depth: NotRequired[int]
+    max_r_hat: NotRequired[float]
 
 
 class OptimizationConfig(TypedDict):

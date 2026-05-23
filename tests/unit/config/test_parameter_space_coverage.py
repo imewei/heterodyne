@@ -286,9 +286,10 @@ class TestParameterSpaceFromConfig:
 
     def test_from_config_with_value(self) -> None:
         """from_config reads parameter values."""
-        config = {"parameters": {"reference": {"D0_ref": {"value": 2.5}}}}
+        # Use bound-valid sentinel (registry bounds for D0_ref are [100, 1e6]).
+        config = {"parameters": {"reference": {"D0_ref": {"value": 2.5e4}}}}
         space = ParameterSpace.from_config(config)
-        assert space.values["D0_ref"] == 2.5
+        assert space.values["D0_ref"] == 2.5e4
 
     def test_from_config_with_bounds(self) -> None:
         """from_config reads parameter bounds."""
@@ -303,28 +304,29 @@ class TestParameterSpaceFromConfig:
     def test_from_config_with_vary(self) -> None:
         """from_config reads vary flag."""
         config = {
-            "parameters": {"reference": {"D0_ref": {"value": 1.0, "vary": False}}}
+            "parameters": {"reference": {"D0_ref": {"value": 1.0e4, "vary": False}}}
         }
         space = ParameterSpace.from_config(config)
         assert space.vary["D0_ref"] is False
 
     def test_from_config_multiple_groups(self) -> None:
         """from_config handles multiple parameter groups."""
+        # Use bound-valid values (registry: D0_ref/D0_sample [100, 1e6], v0 [10, 1e5]).
         config = {
             "parameters": {
-                "reference": {"D0_ref": {"value": 1.0}},
-                "sample": {"D0_sample": {"value": 2.0}},
-                "velocity": {"v0": {"value": 100.0}},
+                "reference": {"D0_ref": {"value": 1.0e4}},
+                "sample": {"D0_sample": {"value": 2.0e4}},
+                "velocity": {"v0": {"value": 1.0e3}},
             }
         }
         space = ParameterSpace.from_config(config)
-        assert space.values["D0_ref"] == 1.0
-        assert space.values["D0_sample"] == 2.0
-        assert space.values["v0"] == 100.0
+        assert space.values["D0_ref"] == 1.0e4
+        assert space.values["D0_sample"] == 2.0e4
+        assert space.values["v0"] == 1.0e3
 
     def test_from_config_preserves_defaults(self) -> None:
         """from_config preserves defaults for unspecified params."""
-        config = {"parameters": {"reference": {"D0_ref": {"value": 5.0}}}}
+        config = {"parameters": {"reference": {"D0_ref": {"value": 5.0e4}}}}
         space = ParameterSpace.from_config(config)
         # alpha_ref should have default value
         default_space = ParameterSpace()

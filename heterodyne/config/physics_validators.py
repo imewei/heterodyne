@@ -148,6 +148,75 @@ PHYSICS_CONSTRAINTS: dict[str, list[ConstraintRule]] = {
             ConstraintSeverity.WARNING,
         ),
     ],
+    "D_offset_ref": [
+        ConstraintRule(
+            lambda v: v < 0,
+            "negative diffusion offset (unphysical for transport rate)",
+            ConstraintSeverity.WARNING,
+        ),
+        ConstraintRule(
+            lambda v: v > 1e4,
+            "unusually large diffusion offset (> 1e4 Å²/s)",
+            ConstraintSeverity.WARNING,
+        ),
+    ],
+    "D_offset_sample": [
+        ConstraintRule(
+            lambda v: v < 0,
+            "negative diffusion offset (unphysical for transport rate)",
+            ConstraintSeverity.WARNING,
+        ),
+        ConstraintRule(
+            lambda v: v > 1e4,
+            "unusually large diffusion offset (> 1e4 Å²/s)",
+            ConstraintSeverity.WARNING,
+        ),
+    ],
+    "v_offset": [
+        ConstraintRule(
+            lambda v: abs(v) > 100,
+            "velocity offset outside registry bounds [-100, 100] Å/s",
+            ConstraintSeverity.WARNING,
+        ),
+    ],
+    "f2": [
+        ConstraintRule(
+            lambda v: abs(v) > 1e6,
+            "fraction time-shift magnitude unusually large (|f2| > 1e6 s)",
+            ConstraintSeverity.WARNING,
+        ),
+    ],
+    "phi0": [
+        ConstraintRule(
+            lambda v: abs(v) > 360,
+            "flow-angle offset outside [-360, 360] degrees",
+            ConstraintSeverity.WARNING,
+        ),
+    ],
+    "contrast": [
+        ConstraintRule(
+            lambda v: v <= 0,
+            "contrast must be positive",
+            ConstraintSeverity.ERROR,
+        ),
+        ConstraintRule(
+            lambda v: v > 2.0,
+            "contrast > 2 is physically unusual for g2",
+            ConstraintSeverity.WARNING,
+        ),
+    ],
+    "offset": [
+        ConstraintRule(
+            lambda v: v <= 0,
+            "baseline offset must be positive",
+            ConstraintSeverity.ERROR,
+        ),
+        ConstraintRule(
+            lambda v: abs(v - 1.0) > 0.5,
+            "offset far from g2 baseline of 1.0",
+            ConstraintSeverity.INFO,
+        ),
+    ],
 }
 
 

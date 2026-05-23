@@ -292,12 +292,21 @@ class ParameterSpace:
     def validate(self) -> list[str]:
         """Validate parameter space configuration.
 
+        Covers all 16 parameters (14 physics + 2 scaling) so a malformed
+        ``contrast``/``offset`` bound is caught at config-load time instead of
+        propagating into the optimizer.
+
+        The value-in-bounds check is only applied to varying parameters; a
+        fixed parameter may legitimately sit outside the optimization bounds
+        (e.g. ``v0=0.0`` with ``vary=False`` to disable the velocity term
+        even though the bound floor is ``1e-6`` for log-space stability).
+
         Returns:
             List of validation error messages (empty if valid)
         """
         errors = []
 
-        for name in ALL_PARAM_NAMES:
+        for name in ALL_PARAM_NAMES_WITH_SCALING:
             value = self.values.get(name)
             bounds = self.bounds.get(name)
 
@@ -310,7 +319,10 @@ class ParameterSpace:
                 continue
 
             low, high = bounds
-            if not (low <= value <= high):
+            if low >= high:
+                errors.append(f"{name} has inverted/degenerate bounds [{low}, {high}]")
+                continue
+            if self.vary.get(name, False) and not (low <= value <= high):
                 errors.append(f"{name}={value} outside bounds [{low}, {high}]")
 
         return errors
@@ -480,8 +492,20 @@ class ParameterSpace:
                                 new_val,
                             )
                         space.values[param_name] = new_val
-                    if "min" in pconfig and "max" in pconfig:
+                    has_min = "min" in pconfig
+                    has_max = "max" in pconfig
+                    if has_min ^ has_max:
+                        raise ValueError(
+                            f"Parameter '{param_name}' has only one of 'min'/'max' "
+                            f"set; both bounds must be specified together."
+                        )
+                    if has_min and has_max:
                         new_bounds = (pconfig["min"], pconfig["max"])
+                        if new_bounds[0] >= new_bounds[1]:
+                            raise ValueError(
+                                f"Parameter '{param_name}' has inverted/degenerate "
+                                f"bounds: min={new_bounds[0]} >= max={new_bounds[1]}"
+                            )
                         if (
                             new_bounds[0] != reg_info.min_bound
                             or new_bounds[1] != reg_info.max_bound
@@ -516,6 +540,16 @@ class ParameterSpace:
                         )
 
         space._config_dict: dict[str, Any] = config  # type: ignore[attr-defined]
+
+        # Validate the assembled space — catches inverted/degenerate bounds and
+        # values outside bounds at config-load time instead of surfacing as
+        # cryptic optimizer failures later.
+        validation_errors = space.validate()
+        if validation_errors:
+            raise ValueError(
+                "Invalid parameter configuration: " + "; ".join(validation_errors)
+            )
+
         return space
 
 

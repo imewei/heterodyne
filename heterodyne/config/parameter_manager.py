@@ -573,6 +573,15 @@ class ParameterManager:
         elif isinstance(params, dict):
             arr = self.get_full_values().copy()
             param_dict_full = self.space.array_to_dict(arr)
+            unknown_keys = [k for k in params if k not in param_dict_full]
+            if unknown_keys:
+                logger.warning(
+                    "validate_physical_constraints: ignoring unknown "
+                    "parameter override keys %s (valid keys: %s). "
+                    "Misspellings will silently revert to stored values.",
+                    unknown_keys,
+                    sorted(param_dict_full.keys()),
+                )
             param_dict_full.update(
                 {k: v for k, v in params.items() if k in param_dict_full}
             )
