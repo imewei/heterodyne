@@ -475,7 +475,9 @@ def _compute_per_angle_chi2(
     per_angle_cost = 0.5 * ssr
 
     n_matrix = c2_matrix.shape[0]
-    n_valid = c2_matrix.size - n_matrix  # off-diagonal count (matches residuals length)
+    n_valid = (n_matrix - 1) * (
+        n_matrix - 2
+    )  # valid off-diagonal non-boundary residuals
     n_dof = max(n_valid - n_params, 1)
 
     # Far-lag photon-noise estimate — same formula as _fit_local

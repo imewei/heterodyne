@@ -79,7 +79,10 @@ class ResidualJITStrategy:
         initial = np.clip(initial, lower, upper)
 
         n_params = len(initial)
-        n_data = c2_data.size
+        n_time = c2_data.shape[0]
+        n_data = (n_time - 1) * (
+            n_time - 2
+        )  # valid off-diagonal, off-boundary residuals
 
         c2_jax = jnp.asarray(c2_data, dtype=jnp.float64)
         weights_jax = (

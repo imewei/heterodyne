@@ -261,30 +261,33 @@ class TestNlsqNpzWithC2Exp:
         )
 
     def test_offdiag_residuals_computes_normalized(self, tmp_path: Path) -> None:
-        """Off-diagonal residuals (n_phi * N*(N-1),) normalized via off-diagonal mask."""
+        """Multi-angle residuals excluding t=0 boundary and diagonal: n_phi*(N-1)*(N-2)."""
         n_phi, n_time = 3, 5
-        mask = ~np.eye(n_time, dtype=bool)
+        indices = np.arange(n_time)
+        boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+        valid_mask = boundary_mask & ~np.eye(n_time, dtype=bool)
         rng = np.random.default_rng(0)
-        resid = rng.normal(size=n_phi * int(mask.sum()))
+        resid = rng.normal(size=n_phi * int(valid_mask.sum()))
         c2_exp = np.abs(rng.normal(1.0, 0.1, size=(n_phi, n_time, n_time))) + 0.1
         path = tmp_path / "offdiag.npz"
         save_nlsq_npz_file(self._result(resid), path, c2_exp=c2_exp)
         data = np.load(path)
         assert "residuals_normalized" in data
-        # Verify element ordering matches jax_backend convention
         denom = np.where(c2_exp != 0, c2_exp, 1.0)
-        denom_flat = np.concatenate([denom[i][mask] for i in range(n_phi)])
+        denom_flat = np.concatenate([denom[i][valid_mask] for i in range(n_phi)])
         np.testing.assert_allclose(
             data["residuals_normalized"], resid / (0.05 * denom_flat)
         )
 
     def test_offdiag_zero_c2_replaced_by_one(self, tmp_path: Path) -> None:
-        """Zero c2_exp off-diagonal entries are replaced by 1.0, no division by zero."""
+        """Zero c2_exp entries in valid region replaced by 1.0, no division by zero."""
         n_phi, n_time = 1, 4
-        mask = ~np.eye(n_time, dtype=bool)
-        resid = np.ones(n_phi * int(mask.sum()))
+        indices = np.arange(n_time)
+        boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+        valid_mask = boundary_mask & ~np.eye(n_time, dtype=bool)
+        resid = np.ones(n_phi * int(valid_mask.sum()))
         c2_exp = np.ones((n_phi, n_time, n_time))
-        c2_exp[0, 0, 1] = 0.0  # off-diagonal zero
+        c2_exp[0, 1, 2] = 0.0  # zero inside the valid region (t>0, off-diagonal)
         path = tmp_path / "zero.npz"
         save_nlsq_npz_file(self._result(resid), path, c2_exp=c2_exp)
         data = np.load(path)
@@ -293,7 +296,7 @@ class TestNlsqNpzWithC2Exp:
 
     def test_incompatible_shapes_skips_normalized(self, tmp_path: Path) -> None:
         """Sizes that don't match any supported convention: key absent, no crash."""
-        # 7 residuals vs (2,5,5): 7 ≠ 50 (full), 7 ≠ 40 (offdiag), 7 ≠ 50 (ravel)
+        # 7 residuals vs (2,5,5): 7 ≠ 50 (full), 7 ≠ 24 (boundary+offdiag), 7 ≠ 50 (ravel)
         path = tmp_path / "incompat.npz"
         save_nlsq_npz_file(self._result(np.ones(7)), path, c2_exp=np.ones((2, 5, 5)))
         data = np.load(path)
@@ -309,10 +312,12 @@ class TestNlsqNpzWithC2Exp:
         assert "residuals" in data
 
     def test_single_angle_offdiag(self, tmp_path: Path) -> None:
-        """Single phi angle off-diagonal case: n_phi=1, N=6 → 30 residuals."""
+        """Single phi angle excluding t=0 boundary and diagonal: n_phi=1, N=6 → 20 residuals."""
         n_phi, n_time = 1, 6
-        mask = ~np.eye(n_time, dtype=bool)
-        resid = np.full(n_phi * int(mask.sum()), 0.5)
+        indices = np.arange(n_time)
+        boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+        valid_mask = boundary_mask & ~np.eye(n_time, dtype=bool)
+        resid = np.full(n_phi * int(valid_mask.sum()), 0.5)
         c2_exp = np.full((n_phi, n_time, n_time), 2.0)
         path = tmp_path / "single.npz"
         save_nlsq_npz_file(self._result(resid), path, c2_exp=c2_exp)
@@ -321,11 +326,13 @@ class TestNlsqNpzWithC2Exp:
         np.testing.assert_allclose(data["residuals_normalized"], 0.5 / (0.05 * 2.0))
 
     def test_2d_per_angle_offdiag_computes_normalized(self, tmp_path: Path) -> None:
-        """Per-angle save with 2-D c2_exp (N,N) and off-diagonal residuals (N*(N-1),)."""
+        """Per-angle 2-D c2_exp (N,N): residuals exclude t=0 boundary+diagonal → (N-1)*(N-2)."""
         n_time = 5
-        mask = ~np.eye(n_time, dtype=bool)
+        indices = np.arange(n_time)
+        boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+        valid_mask = boundary_mask & ~np.eye(n_time, dtype=bool)
         rng = np.random.default_rng(7)
-        resid = rng.normal(size=int(mask.sum()))  # N*(N-1) = 20
+        resid = rng.normal(size=int(valid_mask.sum()))  # (N-1)*(N-2) = 12
         c2_exp = np.abs(rng.normal(1.0, 0.1, size=(n_time, n_time))) + 0.1
         path = tmp_path / "per_angle.npz"
         save_nlsq_npz_file(self._result(resid), path, c2_exp=c2_exp)
@@ -333,21 +340,49 @@ class TestNlsqNpzWithC2Exp:
         assert "residuals_normalized" in data
         denom = np.where(c2_exp != 0, c2_exp, 1.0)
         np.testing.assert_allclose(
-            data["residuals_normalized"], resid / (0.05 * denom[mask])
+            data["residuals_normalized"], resid / (0.05 * denom[valid_mask])
         )
 
     def test_2d_per_angle_zero_c2_replaced_by_one(self, tmp_path: Path) -> None:
-        """Zero 2-D c2_exp entries replaced by 1.0 before normalizing."""
+        """Zero 2-D c2_exp entries in valid region replaced by 1.0 before normalizing."""
         n_time = 4
-        mask = ~np.eye(n_time, dtype=bool)
-        resid = np.ones(int(mask.sum()))
+        indices = np.arange(n_time)
+        boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+        valid_mask = boundary_mask & ~np.eye(n_time, dtype=bool)
+        resid = np.ones(int(valid_mask.sum()))
         c2_exp = np.ones((n_time, n_time))
-        c2_exp[0, 1] = 0.0  # off-diagonal zero
+        c2_exp[1, 2] = 0.0  # zero inside the valid region (t>0, off-diagonal)
         path = tmp_path / "zero2d.npz"
         save_nlsq_npz_file(self._result(resid), path, c2_exp=c2_exp)
         data = np.load(path)
         assert "residuals_normalized" in data
         assert np.isfinite(data["residuals_normalized"]).all()
+
+    def test_new_shape_single_angle_regression(self, tmp_path: Path) -> None:
+        """Regression: single-angle residuals have (N-1)*(N-2) entries, not N*(N-1)."""
+        n_time = 7
+        # Old formula would give 7*6=42; new gives 6*5=30.
+        n_valid = (n_time - 1) * (n_time - 2)
+        resid = np.ones(n_valid)
+        c2_exp = np.full((n_time, n_time), 2.0)
+        path = tmp_path / "reg_single.npz"
+        save_nlsq_npz_file(self._result(resid), path, c2_exp=c2_exp)
+        data = np.load(path)
+        assert "residuals_normalized" in data
+        assert data["residuals_normalized"].size == n_valid
+
+    def test_new_shape_multi_angle_regression(self, tmp_path: Path) -> None:
+        """Regression: multi-angle residuals have n_phi*(N-1)*(N-2) entries, not n_phi*N*(N-1)."""
+        n_phi, n_time = 4, 7
+        # Old formula would give 4*7*6=168; new gives 4*6*5=120.
+        n_valid = n_phi * (n_time - 1) * (n_time - 2)
+        resid = np.ones(n_valid)
+        c2_exp = np.full((n_phi, n_time, n_time), 2.0)
+        path = tmp_path / "reg_multi.npz"
+        save_nlsq_npz_file(self._result(resid), path, c2_exp=c2_exp)
+        data = np.load(path)
+        assert "residuals_normalized" in data
+        assert data["residuals_normalized"].size == n_valid
 
 
 class TestNlsqNpzRoundTrip:

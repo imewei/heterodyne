@@ -767,9 +767,10 @@ class TestComputePerAngleChi2:
 
         n = 20
         c2 = np.ones((n, n))  # zero variance → sigma2_noise ≈ 0
-        residuals = np.full(n * (n - 1), 0.1)
+        # Residuals exclude t=0 boundary AND diagonal: (n-1)*(n-2) entries
+        residuals = np.full((n - 1) * (n - 2), 0.1)
         _, chi2 = _compute_per_angle_chi2(residuals, c2, n_params=3)
-        n_dof = max(n * (n - 1) - 3, 1)
+        n_dof = max((n - 1) * (n - 2) - 3, 1)
         expected_mse = float(np.sum(residuals**2)) / n_dof
         assert abs(chi2 - expected_mse) < 1e-10
 

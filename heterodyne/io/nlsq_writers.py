@@ -144,22 +144,28 @@ def save_nlsq_npz_file(
                 residuals.ndim == 1
                 and denom.ndim == 2
                 and denom.shape[0] == denom.shape[1]
-                and residuals.size == denom.shape[0] * (denom.shape[0] - 1)
+                and residuals.size == (denom.shape[0] - 1) * (denom.shape[0] - 2)
             ):
-                # Single-angle off-diagonal: jax_backend excludes t1==t2 diagonal.
+                # Single-angle: both t=0 boundary and diagonal excluded from residuals.
                 n_time = denom.shape[0]
-                offdiag = ~np.eye(n_time, dtype=bool)
-                arrays["residuals_normalized"] = residuals / (0.05 * denom[offdiag])
+                indices = np.arange(n_time)
+                boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+                valid_mask = boundary_mask & ~np.eye(n_time, dtype=bool)
+                arrays["residuals_normalized"] = residuals / (0.05 * denom[valid_mask])
             elif (
                 residuals.ndim == 1
                 and denom.ndim == 3
                 and residuals.size
-                == denom.shape[0] * denom.shape[-1] * (denom.shape[-1] - 1)
+                == denom.shape[0] * (denom.shape[-1] - 1) * (denom.shape[-1] - 2)
             ):
-                # Multi-angle off-diagonal: jax_backend excludes t1==t2 diagonal.
+                # Multi-angle: both t=0 boundary and diagonal excluded from residuals.
                 n_phi, n_time = denom.shape[0], denom.shape[-1]
-                offdiag = ~np.eye(n_time, dtype=bool)
-                denom_flat = np.concatenate([denom[i][offdiag] for i in range(n_phi)])
+                indices = np.arange(n_time)
+                boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
+                valid_mask = boundary_mask & ~np.eye(n_time, dtype=bool)
+                denom_flat = np.concatenate(
+                    [denom[i][valid_mask] for i in range(n_phi)]
+                )
                 arrays["residuals_normalized"] = residuals / (0.05 * denom_flat)
 
     if include_jacobian and result.jacobian is not None:
