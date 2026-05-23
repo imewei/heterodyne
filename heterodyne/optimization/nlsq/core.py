@@ -1487,7 +1487,7 @@ def _fit_joint_cmaes_multi_phi(
 
     logger.info("[CMA-ES] Phase 2: Running CMA-ES global optimization...")
     n_time = int(c2_data_batch.shape[-1])
-    n_off_diagonal_data = int(n_phi * n_time * (n_time - 1))
+    n_off_diagonal_data = int(n_phi * (n_time - 1) * (n_time - 2))
     restart_strategy = getattr(config, "cmaes_restart_strategy", "bipop")
     max_restarts = getattr(config, "cmaes_max_restarts", 9)
     # Warmstart is always active in this path: BIPOP large-population restarts
