@@ -637,7 +637,7 @@ class TestComputeResiduals:
             default_params, time_array, 0.01, 1.0, 0.0, c2_data, None
         )
 
-        expected_size = len(time_array) * (len(time_array) - 1)
+        expected_size = (len(time_array) - 1) * (len(time_array) - 2)
         assert residuals.shape == (expected_size,)
 
     @pytest.mark.unit
@@ -756,8 +756,8 @@ class TestGradientCorrectness:
 
         jacobian = compute_residuals_jacobian(params, t, 0.01, 1.0, 0.0, c2_data, None)
 
-        # Should have shape (off-diagonal residuals, n_params) = (20, 14)
-        assert jacobian.shape == (20, 14)
+        # Should have shape ((N-1)*(N-2) residuals, n_params) = (12, 14) for N=5
+        assert jacobian.shape == (12, 14)
         assert not jnp.any(jnp.isnan(jacobian))
 
 
@@ -824,3 +824,134 @@ class TestVmapCorrectness:
         )
 
         assert_allclose(c2_batched, c2_loop, rtol=1e-12)
+
+
+# ============================================================================
+# Residual Support Tests — t=0 boundary exclusion correctness
+# ============================================================================
+
+
+class TestResidualSupport:
+    """Verify t=0 off-diagonal entries are excluded from residual arrays.
+
+    For an N×N matrix, the valid off-diagonal non-boundary count is:
+        (N-1)*(N-2)   [off-diagonal AND both row>0 AND col>0]
+    NOT N*(N-1)       [all off-diagonal — includes 2N-3 zeroed boundary entries]
+    """
+
+    @pytest.fixture
+    def small_inputs(self) -> dict:
+        N = 10
+        rng = jax.random.PRNGKey(0)
+        c2 = jax.random.uniform(rng, (N, N), dtype=jnp.float64) + 1.0
+        w = jnp.ones((N, N), dtype=jnp.float64)
+        t = jnp.arange(N, dtype=jnp.float64) * 0.001
+        params = jnp.array(
+            [1e4, 0.0, 0.0, 1e4, 0.0, 0.0, 1e3, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0],
+            dtype=jnp.float64,
+        )
+        return {"N": N, "c2": c2, "w": w, "t": t, "params": params}
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_single_angle_residual_length(self, small_inputs: dict) -> None:
+        """compute_residuals returns (N-1)*(N-2) elements, not N*(N-1)."""
+        from heterodyne.core.jax_backend import compute_residuals
+
+        d = small_inputs
+        N = d["N"]
+        residuals = compute_residuals(
+            d["params"],
+            d["t"],
+            q=0.005,
+            dt=0.001,
+            phi_angle=0.0,
+            c2_data=d["c2"],
+            weights=d["w"],
+        )
+        expected_len = (N - 1) * (N - 2)
+        wrong_len = N * (N - 1)
+        assert len(residuals) == expected_len, (
+            f"residual length {len(residuals)} != (N-1)*(N-2)={expected_len}; "
+            f"got N*(N-1)={wrong_len} which includes {wrong_len - expected_len} "
+            "zero-padded t=0 boundary entries"
+        )
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_multi_angle_residual_length(self, small_inputs: dict) -> None:
+        """compute_multi_angle_residuals returns n_phi*(N-1)*(N-2) elements."""
+        from heterodyne.core.jax_backend import compute_multi_angle_residuals
+
+        d = small_inputs
+        N = d["N"]
+        n_phi = 3
+        phi_angles = jnp.array([0.0, 45.0, 90.0], dtype=jnp.float64)
+        c2_batch = jnp.stack([d["c2"]] * n_phi)
+        w_batch = jnp.stack([d["w"]] * n_phi)
+        contrasts = jnp.ones(n_phi, dtype=jnp.float64)
+        offsets = jnp.ones(n_phi, dtype=jnp.float64)
+
+        residuals = compute_multi_angle_residuals(
+            d["params"],
+            d["t"],
+            q=0.005,
+            dt=0.001,
+            phi_angles=phi_angles,
+            c2_data_batch=c2_batch,
+            weights_batch=w_batch,
+            contrasts=contrasts,
+            offsets=offsets,
+        )
+        expected_len = n_phi * (N - 1) * (N - 2)
+        wrong_len = n_phi * N * (N - 1)
+        assert len(residuals) == expected_len, (
+            f"multi-angle residual length {len(residuals)} != "
+            f"n_phi*(N-1)*(N-2)={expected_len}; "
+            f"got n_phi*N*(N-1)={wrong_len}"
+        )
+
+    @pytest.mark.unit
+    @pytest.mark.requires_jax
+    def test_t0_entries_absent_from_residuals(self, small_inputs: dict) -> None:
+        """No t=0 boundary entry (row=0 or col=0, off-diagonal) appears in residuals.
+
+        Inject a large value at t=0 off-diagonal positions and verify it does
+        not inflate the sum-of-squares.
+        """
+        import numpy as np
+
+        from heterodyne.core.jax_backend import compute_residuals
+
+        d = small_inputs
+
+        # Baseline residuals with normal data
+        c2_normal = d["c2"]
+        res_normal = compute_residuals(
+            d["params"],
+            d["t"],
+            q=0.005,
+            dt=0.001,
+            phi_angle=0.0,
+            c2_data=c2_normal,
+            weights=d["w"],
+        )
+
+        # Inject large values at t=0 off-diagonal positions (row=0 or col=0, i!=j)
+        c2_poisoned = c2_normal.at[0, 1:].set(1e6).at[1:, 0].set(1e6)
+        res_poisoned = compute_residuals(
+            d["params"],
+            d["t"],
+            q=0.005,
+            dt=0.001,
+            phi_angle=0.0,
+            c2_data=c2_poisoned,
+            weights=d["w"],
+        )
+
+        sos_normal = float(np.sum(np.asarray(res_normal) ** 2))
+        sos_poisoned = float(np.sum(np.asarray(res_poisoned) ** 2))
+        assert sos_normal == pytest.approx(sos_poisoned, rel=1e-10), (
+            f"t=0 boundary entries leaked into residuals: "
+            f"normal SOS={sos_normal:.6g}, poisoned SOS={sos_poisoned:.6g}"
+        )

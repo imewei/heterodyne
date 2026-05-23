@@ -264,6 +264,27 @@ class TestParameterSpaceValidate:
         errors = space.validate()
         assert len(errors) >= 2
 
+    def test_validate_fixed_out_of_bounds_is_error(self) -> None:
+        """Fixed parameters outside bounds must still be flagged by validate()."""
+        space = ParameterSpace()
+        # D0_sample has min_bound=100.0; pin it below that with vary=False
+        space.values["D0_sample"] = 1.0
+        space.vary["D0_sample"] = False
+        errors = space.validate()
+        assert any("D0_sample" in e for e in errors), (
+            "validate() silently ignored out-of-bounds fixed parameter"
+        )
+
+    def test_validate_v0_zero_fixed_sentinel_passes(self) -> None:
+        """v0=0.0 with vary=False is the documented zero-velocity sentinel — must pass."""
+        space = ParameterSpace()
+        # v0 min_bound=1e-6 is an optimizer floor; fixed v0=0 is physically valid
+        space.values["v0"] = 0.0
+        space.vary["v0"] = False
+        errors = space.validate()
+        v0_errors = [e for e in errors if "v0" in e]
+        assert v0_errors == [], f"v0=0 fixed sentinel was wrongly rejected: {v0_errors}"
+
 
 # ============================================================================
 # Test ParameterSpace.from_config

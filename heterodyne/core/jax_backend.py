@@ -429,20 +429,18 @@ def _compute_residuals_jit(
     2. The diagonal ``t1==t2`` is excluded (homodyne parity): corrected
        diagonal values are interpolated estimates, not real physics.
 
-    The returned vector keeps shape ``n_time * (n_time - 1)`` (off-diagonal
-    pairs) for JIT-cache reuse; boundary entries contribute zero to the
-    chi-square sum, giving an effective fit support of ``(n_time-1) *
-    (n_time-2)`` real residuals.
+    The returned vector has shape ``(n_time-1) * (n_time-2)`` — only
+    off-diagonal pairs where both row > 0 and col > 0 (t=0 boundary
+    excluded). This gives correct DOF accounting: zero-padded boundary
+    entries are absent from the array, not just zeroed in-place.
     """
     c2_model = compute_c2_heterodyne(params, t, q, dt, phi_angle, contrast, offset)
     n_time = c2_data.shape[0]
     indices = jnp.arange(n_time)
     boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
-    residuals = (
-        (c2_model - c2_data) * jnp.sqrt(weights) * boundary_mask.astype(c2_model.dtype)
-    )
-    non_diagonal = ~jnp.eye(n_time, dtype=bool)
-    rows, cols = jnp.nonzero(non_diagonal, size=n_time * (n_time - 1))
+    residuals = (c2_model - c2_data) * jnp.sqrt(weights)
+    valid_mask = boundary_mask & ~jnp.eye(n_time, dtype=bool)
+    rows, cols = jnp.nonzero(valid_mask, size=(n_time - 1) * (n_time - 2))
     return residuals[rows, cols]
 
 
@@ -582,7 +580,7 @@ def compute_multi_angle_residuals(
         offsets: Per-angle offsets, shape (n_phi,)
 
     Returns:
-        Stacked flattened residuals, shape (n_phi × N × (N-1),)
+        Stacked flattened residuals, shape (n_phi × (N-1) × (N-2),)
     """
 
     def single_angle_residual(
@@ -601,11 +599,9 @@ def compute_multi_angle_residuals(
         n_time = c2_exp.shape[0]
         indices = jnp.arange(n_time)
         boundary_mask = (indices[:, None] > 0) & (indices[None, :] > 0)
-        residuals = (
-            (c2_model - c2_exp) * jnp.sqrt(w) * boundary_mask.astype(c2_model.dtype)
-        )
-        non_diagonal = ~jnp.eye(n_time, dtype=bool)
-        rows, cols = jnp.nonzero(non_diagonal, size=n_time * (n_time - 1))
+        residuals = (c2_model - c2_exp) * jnp.sqrt(w)
+        valid_mask = boundary_mask & ~jnp.eye(n_time, dtype=bool)
+        rows, cols = jnp.nonzero(valid_mask, size=(n_time - 1) * (n_time - 2))
         return residuals[rows, cols]
 
     compute_all = jax.vmap(single_angle_residual, in_axes=(0, 0, 0, 0, 0))

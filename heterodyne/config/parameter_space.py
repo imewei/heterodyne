@@ -22,6 +22,11 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Parameters whose value=0.0 is a documented "disable term" sentinel when fixed.
+# Their min_bound is an optimizer stability floor that does not constrain fixed values.
+# v0=0.0 disables the velocity term; its min_bound=1e-6 is for log-space NLSQ stability.
+_FIXED_ZERO_SENTINELS: frozenset[str] = frozenset({"v0"})
+
 
 class PriorType(Enum):
     """Available prior distribution types."""
@@ -296,10 +301,12 @@ class ParameterSpace:
         ``contrast``/``offset`` bound is caught at config-load time instead of
         propagating into the optimizer.
 
-        The value-in-bounds check is only applied to varying parameters; a
-        fixed parameter may legitimately sit outside the optimization bounds
-        (e.g. ``v0=0.0`` with ``vary=False`` to disable the velocity term
-        even though the bound floor is ``1e-6`` for log-space stability).
+        Bounds are checked for every parameter — varying and fixed — because
+        fixed parameters still drive model outputs and CMC warm-starts.
+        The one explicit exception: parameters in ``_FIXED_ZERO_SENTINELS``
+        (currently ``v0``) are allowed to be 0.0 when fixed, because their
+        min_bound is an optimizer stability floor that does not apply when
+        the optimizer never touches the value.
 
         Returns:
             List of validation error messages (empty if valid)
@@ -322,8 +329,17 @@ class ParameterSpace:
             if low >= high:
                 errors.append(f"{name} has inverted/degenerate bounds [{low}, {high}]")
                 continue
-            if self.vary.get(name, False) and not (low <= value <= high):
-                errors.append(f"{name}={value} outside bounds [{low}, {high}]")
+
+            if not (low <= value <= high):
+                # Allow documented zero-sentinels for fixed parameters: their
+                # min_bound is an optimizer floor, not a physics constraint.
+                is_fixed_zero_sentinel = (
+                    name in _FIXED_ZERO_SENTINELS
+                    and not self.vary.get(name, False)
+                    and value == 0.0
+                )
+                if not is_fixed_zero_sentinel:
+                    errors.append(f"{name}={value} outside bounds [{low}, {high}]")
 
         return errors
 
