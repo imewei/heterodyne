@@ -20,13 +20,10 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
+    Literal,
     TypeVar,
-)  # cast: used by log_calls/log_performance wrappers
-
-if TYPE_CHECKING:
-    from typing import Literal
+)
 
 # Type variables for decorators
 F = TypeVar("F", bound=Callable[..., Any])
@@ -1031,10 +1028,13 @@ def log_phase(
                     context.memory_delta_gb = memory_end - memory_start
 
         if context.duration >= threshold_s:
-            msg_parts = [f"Phase '{name}' completed in {context.duration:.2f}s"]
+            failed = sys.exc_info()[1] is not None
+            outcome = "failed" if failed else "completed"
+            msg_parts = [f"Phase '{name}' {outcome} in {context.duration:.2f}s"]
             if context.memory_peak_gb is not None:
                 msg_parts.append(f"(peak memory: {context.memory_peak_gb:.1f} GB)")
-            resolved_logger.log(level, " ".join(msg_parts))
+            log_level = logging.ERROR if failed else level
+            resolved_logger.log(log_level, " ".join(msg_parts))
 
 
 def log_exception(

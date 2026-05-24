@@ -554,7 +554,9 @@ class NLSQConfig:
                 DeprecationWarning,
                 stacklevel=3,
             )
-            self.per_angle_mode = "individual"  # Literal includes both names during deprecation window
+            self.per_angle_mode = (
+                "individual"  # Literal includes both names during deprecation window
+            )
         if self.max_iterations < 1:
             raise ValueError("max_iterations must be >= 1")
         if self.tolerance <= 0:

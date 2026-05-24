@@ -19,6 +19,7 @@ import threading
 from collections.abc import Iterable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
+from types import TracebackType
 from typing import Any
 
 import numpy as np
@@ -34,6 +35,11 @@ _log = get_logger(__name__)
 _DONE = object()
 # Sentinel used to propagate exceptions from the producer thread.
 _ERROR = object()
+
+# Timeout (seconds) for each queue.put() attempt in the producer loop.
+# Allows the producer to check the stop-event and exit cleanly when the
+# consumer breaks out early instead of blocking indefinitely on a full queue.
+_PUT_TIMEOUT = 0.1
 
 
 class PrefetchLoader[T]:
@@ -57,6 +63,13 @@ class PrefetchLoader[T]:
     --------
     >>> for batch in PrefetchLoader(my_dataset, max_prefetch=2):
     ...     model(batch)
+
+    Or as a context manager to guarantee deterministic cleanup on early break::
+
+    >>> with PrefetchLoader(my_dataset, max_prefetch=2) as loader:
+    ...     for batch in loader:
+    ...         if early_stop_condition:
+    ...             break
     """
 
     def __init__(self, iterable: Iterable[T], max_prefetch: int = 1) -> None:
@@ -69,6 +82,9 @@ class PrefetchLoader[T]:
         )
         self._future: Future[None] | None = None
         self._started = False
+        # Stop event lets the producer exit cleanly when the consumer breaks
+        # early; without this, a full queue would block the producer forever.
+        self._stop_event = threading.Event()
 
     # ------------------------------------------------------------------
     # Iterator protocol
@@ -96,6 +112,37 @@ class PrefetchLoader[T]:
         return item  # type: ignore[no-any-return]  # queue typed Any; caller gets T via PrefetchLoader[T]
 
     # ------------------------------------------------------------------
+    # Context manager (preferred for loops that may break early)
+    # ------------------------------------------------------------------
+
+    def __enter__(self) -> PrefetchLoader[T]:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.close()
+
+    def close(self) -> None:
+        """Signal the producer to stop and release resources.
+
+        Safe to call multiple times.  Called automatically by ``__exit__``;
+        also called internally after normal or error exhaustion of the source.
+        """
+        self._stop_event.set()
+        # Drain the queue so the producer can unblock from a put() and notice
+        # the stop event.
+        try:
+            while True:
+                self._queue.get_nowait()
+        except queue.Empty:
+            pass
+        self._shutdown()
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
@@ -108,18 +155,32 @@ class PrefetchLoader[T]:
     def _produce(self) -> None:
         try:
             for item in self._iterable:
-                self._queue.put(item)
-            self._queue.put(_DONE)
+                # Use a timed put so the producer can react to stop_event
+                # when the consumer breaks out early and the queue is full.
+                while not self._stop_event.is_set():
+                    try:
+                        self._queue.put(item, timeout=_PUT_TIMEOUT)
+                        break
+                    except queue.Full:
+                        continue
+                else:
+                    return  # consumer signalled stop; exit without _DONE
+            if not self._stop_event.is_set():
+                self._queue.put(_DONE)
         except Exception as exc:  # noqa: BLE001
             _log.debug("PrefetchLoader producer raised %s: %s", type(exc).__name__, exc)
-            self._queue.put(_ERROR)
-            self._queue.put(exc)
+            if not self._stop_event.is_set():
+                self._queue.put(_ERROR)
+                self._queue.put(exc)
 
     def _shutdown(self) -> None:
         self._executor.shutdown(wait=False, cancel_futures=True)
 
     def __del__(self) -> None:
         try:
+            # Best-effort cleanup; deterministic cleanup requires close() or
+            # the context manager.
+            self._stop_event.set()
             self._shutdown()
         except Exception:  # noqa: BLE001
             pass
@@ -154,6 +215,10 @@ class AsyncWriter:
             max_workers=1, thread_name_prefix="async_writer"
         )
         self._closed = False
+        # Guards _closed + submit to prevent semaphore leak when shutdown()
+        # races with write_npz()/write_json(): acquire → shutdown → submit fails
+        # → semaphore never released.
+        self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Public write API
@@ -175,10 +240,15 @@ class AsyncWriter:
         Future
             Resolves to ``None`` on success; raises on write failure.
         """
-        self._check_open()
         dest = Path(path)
         self._semaphore.acquire()
-        future = self._executor.submit(self._do_write_npz, dest, arrays)
+        try:
+            with self._lock:
+                self._check_open()
+                future = self._executor.submit(self._do_write_npz, dest, arrays)
+        except Exception:
+            self._semaphore.release()
+            raise
         future.add_done_callback(lambda _: self._semaphore.release())
         return future
 
@@ -199,10 +269,15 @@ class AsyncWriter:
             Resolves to ``None`` on success; raises on serialisation or
             write failure.
         """
-        self._check_open()
         dest = Path(path)
         self._semaphore.acquire()
-        future = self._executor.submit(self._do_write_json, dest, data)
+        try:
+            with self._lock:
+                self._check_open()
+                future = self._executor.submit(self._do_write_json, dest, data)
+        except Exception:
+            self._semaphore.release()
+            raise
         future.add_done_callback(lambda _: self._semaphore.release())
         return future
 
@@ -214,9 +289,10 @@ class AsyncWriter:
         wait:
             If ``True`` (default), block until all pending writes complete.
         """
-        if self._closed:
-            return
-        self._closed = True
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
         self._executor.shutdown(wait=wait, cancel_futures=not wait)
         _log.debug("AsyncWriter shut down (wait=%s)", wait)
 
@@ -227,7 +303,12 @@ class AsyncWriter:
     def __enter__(self) -> AsyncWriter:
         return self
 
-    def __exit__(self, *args: object) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.shutdown(wait=True)
 
     # ------------------------------------------------------------------

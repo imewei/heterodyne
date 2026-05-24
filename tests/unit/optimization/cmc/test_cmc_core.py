@@ -2147,7 +2147,6 @@ class TestFitCMCMultiPhiIntegration:
         """
         import jax
 
-        n_phi = phi_angles.size
         rng_key = jax.random.PRNGKey(0)
         slices = []
         for i, phi in enumerate(phi_angles):
