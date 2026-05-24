@@ -64,9 +64,9 @@ def json_safe(obj: Any) -> Any:
             "data": [{"real": float(z.real), "imag": float(z.imag)} for z in obj.flat],
         }
 
-    # Handle numpy arrays
+    # Handle numpy arrays — recurse so NaN/Inf elements hit _sanitize_float
     if isinstance(obj, np.ndarray):
-        return obj.tolist()
+        return json_safe(obj.tolist())
 
     # Handle numpy complex scalars
     if isinstance(obj, np.complexfloating):
@@ -76,9 +76,12 @@ def json_safe(obj: Any) -> Any:
     if isinstance(obj, complex):
         return {"real": obj.real, "imag": obj.imag}
 
-    # Handle numpy scalar types
-    if isinstance(obj, (np.integer, np.floating)):
-        return obj.item()
+    # Handle numpy scalar types — floating scalars go through _sanitize_float
+    if isinstance(obj, np.floating):
+        return _sanitize_float(float(obj))
+
+    if isinstance(obj, np.integer):
+        return int(obj)
 
     if isinstance(obj, np.bool_):
         return bool(obj)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import shutil
 import tempfile
@@ -25,7 +26,6 @@ def _tombstone_safe_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     ``json.dumps(..., allow_nan=False)``.  Replace with a compact count string.
     Any remaining non-finite scalar floats are replaced with None.
     """
-    import math
 
     safe: dict[str, Any] = {}
     for k, v in metadata.items():
@@ -38,6 +38,12 @@ def _tombstone_safe_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         else:
             safe[k] = v
     return safe
+
+
+def _float_or_none(x: float) -> float | None:
+    """Return float(x), or None if non-finite (NaN/Inf cannot serialize to JSON)."""
+    v = float(x)
+    return None if not math.isfinite(v) else v
 
 
 def save_mcmc_results(
@@ -151,25 +157,32 @@ def save_mcmc_diagnostics(
         param_diag: dict[str, Any] = {}
 
         if result.r_hat is not None:
-            param_diag["r_hat"] = float(result.r_hat[i])
-            param_diag["r_hat_passed"] = bool(result.r_hat[i] < r_hat_threshold)
+            r_hat_val = _float_or_none(result.r_hat[i])
+            param_diag["r_hat"] = r_hat_val
+            param_diag["r_hat_passed"] = (
+                None if r_hat_val is None else bool(r_hat_val < r_hat_threshold)
+            )
 
         if result.ess_bulk is not None:
-            param_diag["ess_bulk"] = float(result.ess_bulk[i])
+            param_diag["ess_bulk"] = _float_or_none(result.ess_bulk[i])
 
         if result.ess_tail is not None:
-            param_diag["ess_tail"] = float(result.ess_tail[i])
+            param_diag["ess_tail"] = _float_or_none(result.ess_tail[i])
 
         diagnostics["parameter_diagnostics"][name] = param_diag
 
     # Overall statistics
     if result.r_hat is not None:
-        diagnostics["max_r_hat"] = float(np.max(result.r_hat))
+        finite_r_hat = result.r_hat[np.isfinite(result.r_hat)]
+        diagnostics["max_r_hat"] = _float_or_none(np.max(result.r_hat))
         diagnostics["r_hat_threshold"] = r_hat_threshold
-        diagnostics["all_r_hat_passed"] = bool(np.all(result.r_hat < r_hat_threshold))
+        diagnostics["all_r_hat_passed"] = bool(
+            len(finite_r_hat) == len(result.r_hat)
+            and np.all(finite_r_hat < r_hat_threshold)
+        )
 
     if result.ess_bulk is not None:
-        diagnostics["min_ess_bulk"] = float(np.min(result.ess_bulk))
+        diagnostics["min_ess_bulk"] = _float_or_none(np.min(result.ess_bulk))
 
     if result.bfmi is not None:
         diagnostics["bfmi"] = json_safe(result.bfmi)
@@ -249,8 +262,9 @@ def format_mcmc_summary(result: CMCResult) -> str:
         std = result.posterior_std[i]
 
         ci = result.credible_intervals.get(name, {})
-        ci_low = ci.get("lower_95", np.nan)
-        ci_high = ci.get("upper_95", np.nan)
+        # Support both multi-shard ("lower_95"/"upper_95") and single-shard ("2.5%"/"97.5%") keys
+        ci_low = ci.get("lower_95", ci.get("2.5%", np.nan))
+        ci_high = ci.get("upper_95", ci.get("97.5%", np.nan))
 
         r_hat = result.r_hat[i] if result.r_hat is not None else np.nan
         r_hat_str = f"{r_hat:.3f}" if not np.isnan(r_hat) else "N/A"

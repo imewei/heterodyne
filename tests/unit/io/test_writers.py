@@ -934,3 +934,142 @@ class TestSaveMCMCResultsAllShardsFailed:
         # shard_diagnostics should be summarised, not raw NaN arrays
         assert isinstance(data["metadata"]["shard_diagnostics"], str)
         assert "47 shards" in data["metadata"]["shard_diagnostics"]
+
+
+# ===========================================================================
+# Regression: partial-failure NaN r_hat must not crash save_mcmc_diagnostics
+# ===========================================================================
+
+
+class TestSaveMcmcDiagnosticsNanRhat:
+    """Regression: save_mcmc_diagnostics must not crash when r_hat/ESS arrays
+    contain NaN (partial-failure run where some shards succeeded but others
+    failed to converge).  Previously float(nan) reached json_safe's float
+    branch and raised ValueError with no output written.
+    """
+
+    @staticmethod
+    def _partial_failure_result() -> CMCResult:
+        """Two-parameter result where one parameter has NaN r_hat (chain failed)."""
+        return CMCResult(
+            parameter_names=["D0", "alpha"],
+            posterior_mean=np.array([100.0, 0.5]),
+            posterior_std=np.array([10.0, 0.05]),
+            credible_intervals={
+                "D0": {"lower_95": 80.0, "upper_95": 120.0},
+                "alpha": {"lower_95": 0.4, "upper_95": 0.6},
+            },
+            convergence_passed=False,
+            r_hat=np.array([1.02, float("nan")]),  # second param failed to mix
+            ess_bulk=np.array([800.0, float("nan")]),
+            ess_tail=np.array([600.0, float("nan")]),
+            bfmi=[0.85],
+            num_warmup=500,
+            num_samples=1000,
+            num_chains=4,
+        )
+
+    @pytest.mark.unit
+    def test_does_not_crash(self, tmp_path: Path) -> None:
+        path = tmp_path / "diag.json"
+        save_mcmc_diagnostics(self._partial_failure_result(), path)
+        assert path.exists()
+
+    @pytest.mark.unit
+    def test_nan_rhat_serialized_as_null(self, tmp_path: Path) -> None:
+        path = tmp_path / "diag.json"
+        save_mcmc_diagnostics(self._partial_failure_result(), path)
+        data = load_json(path)
+        alpha_diag = data["parameter_diagnostics"]["alpha"]
+        assert alpha_diag["r_hat"] is None
+        assert alpha_diag["r_hat_passed"] is None
+        assert alpha_diag["ess_bulk"] is None
+
+    @pytest.mark.unit
+    def test_finite_rhat_still_present(self, tmp_path: Path) -> None:
+        path = tmp_path / "diag.json"
+        save_mcmc_diagnostics(self._partial_failure_result(), path)
+        data = load_json(path)
+        d0_diag = data["parameter_diagnostics"]["D0"]
+        assert d0_diag["r_hat"] == pytest.approx(1.02)
+        assert d0_diag["r_hat_passed"] is True
+
+    @pytest.mark.unit
+    def test_all_rhat_passed_false_when_nan_present(self, tmp_path: Path) -> None:
+        path = tmp_path / "diag.json"
+        save_mcmc_diagnostics(self._partial_failure_result(), path)
+        data = load_json(path)
+        # NaN r_hat means that parameter did not converge → overall should fail
+        assert data["all_r_hat_passed"] is False
+
+    @pytest.mark.unit
+    def test_output_is_strict_json(self, tmp_path: Path) -> None:
+        """Output JSON must be parseable without allow_nan (no NaN literals)."""
+        import json as _json
+
+        path = tmp_path / "diag.json"
+        save_mcmc_diagnostics(self._partial_failure_result(), path)
+        _json.loads(path.read_text())  # raises if NaN literal present
+
+
+# ===========================================================================
+# Regression: format_mcmc_summary must handle both CI key conventions
+# ===========================================================================
+
+
+class TestFormatMcmcSummaryCIKeys:
+    """Regression: format_mcmc_summary previously used only 'lower_95'/'upper_95'
+    keys, producing NaN CI columns for single-shard results that use '2.5%'/'97.5%'.
+    """
+
+    @pytest.mark.unit
+    def test_lower_upper_95_keys(self) -> None:
+        result = CMCResult(
+            parameter_names=["D0"],
+            posterior_mean=np.array([100.0]),
+            posterior_std=np.array([10.0]),
+            credible_intervals={"D0": {"lower_95": 80.0, "upper_95": 120.0}},
+            convergence_passed=True,
+            num_chains=2,
+            num_samples=500,
+            num_warmup=250,
+        )
+        text = format_mcmc_summary(result)
+        assert "8.0000e+01" in text or "80" in text  # lower CI visible
+
+    @pytest.mark.unit
+    def test_percentile_keys(self) -> None:
+        result = CMCResult(
+            parameter_names=["D0"],
+            posterior_mean=np.array([100.0]),
+            posterior_std=np.array([10.0]),
+            credible_intervals={"D0": {"2.5%": 80.0, "97.5%": 120.0}},
+            convergence_passed=True,
+            num_chains=2,
+            num_samples=500,
+            num_warmup=250,
+        )
+        text = format_mcmc_summary(result)
+        assert "8.0000e+01" in text or "80" in text  # lower CI visible, not NaN
+
+
+# ===========================================================================
+# Regression: heterodyne.io package exports
+# ===========================================================================
+
+
+class TestIoPackageExports:
+    """Regression: public functions were importable only via their modules,
+    not via `from heterodyne.io import ...`."""
+
+    @pytest.mark.unit
+    def test_load_nlsq_npz_file_importable_from_package(self) -> None:
+        from heterodyne.io import load_nlsq_npz_file  # noqa: F401
+
+    @pytest.mark.unit
+    def test_format_nlsq_summary_importable_from_package(self) -> None:
+        from heterodyne.io import format_nlsq_summary  # noqa: F401
+
+    @pytest.mark.unit
+    def test_format_mcmc_summary_importable_from_package(self) -> None:
+        from heterodyne.io import format_mcmc_summary  # noqa: F401

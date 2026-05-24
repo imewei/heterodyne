@@ -556,16 +556,16 @@
     "hash": "6d405f6877bb634d4482bb32c4b4af69"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/io/test_json_utils.py": {
-    "mtime": 1773371305.8549638,
-    "hash": "0520ee7911ad2e370abebffa20fffebe"
+    "mtime": 1779583005.9263644,
+    "hash": "2b1433571318d776505556f5d0186620"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/io/__init__.py": {
     "mtime": 1773040141.8939047,
     "hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/io/test_writers.py": {
-    "mtime": 1779562219.870554,
-    "hash": "a4897a7f7eed463e863a0c3e2732bcd0"
+    "mtime": 1779583033.1120944,
+    "hash": "0551722ee67bb70b2ad3be2bb3b544f9"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/unit/cli/test_commands.py": {
     "mtime": 1779340090.6645312,
@@ -848,8 +848,8 @@
     "hash": "09beb52066facea0ad1f5650f20e031f"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/config.py": {
-    "mtime": 1779288514.004037,
-    "hash": "1f2315869e89c3e2fc5df5d6d5ddf8cc"
+    "mtime": 1779584904.2339158,
+    "hash": "a1c8288163328561ce21a30ed9d872d4"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/parallel_accumulator.py": {
     "mtime": 1779235723.551335,
@@ -1148,20 +1148,20 @@
     "hash": "b0a2e7f59975ed52d21bb231f6fbd7f0"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/io/__init__.py": {
-    "mtime": 1772206968.1757188,
-    "hash": "f5f33b43e86d0bd36804ce2846d7f0e5"
+    "mtime": 1779582941.0738807,
+    "hash": "8e1ac67df27087a7fd98bfdd37cd83c5"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/io/json_utils.py": {
-    "mtime": 1773407534.2279558,
-    "hash": "0f91a46d0e06abe22ca98100284f97ab"
+    "mtime": 1779582896.0944471,
+    "hash": "5ffafca943fae0809c595cfbe6783283"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/io/nlsq_writers.py": {
     "mtime": 1779561918.5455227,
     "hash": "2ddcc5125526d1e8666c4d715148469d"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/io/mcmc_writers.py": {
-    "mtime": 1778730878.947691,
-    "hash": "d8c9ae399d5184a948c412bf5f16bedf"
+    "mtime": 1779582924.92568,
+    "hash": "4b3658e3220ba4eac948816617fb8202"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/cli/main.py": {
     "mtime": 1779511517.5872114,

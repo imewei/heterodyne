@@ -325,3 +325,55 @@ class TestSaveLoadJson:
     def test_load_nonexistent_raises(self, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError):
             load_json(tmp_path / "nope.json")
+
+
+# ---------------------------------------------------------------------------
+# Regression: NaN/Inf inside numpy arrays and numpy scalars
+# ---------------------------------------------------------------------------
+
+
+class TestJsonSafeNanBypass:
+    """Regression: NaN/Inf must be caught inside numpy arrays/scalars, not just
+    raw Python floats.  Previously tolist() and item() bypassed _sanitize_float,
+    allowing NaN to escape json_safe() and crash json.dumps with an opaque
+    stdlib error instead of the project's controlled ValueError."""
+
+    @pytest.mark.unit
+    def test_nan_in_1d_numpy_array_raises(self) -> None:
+        with pytest.raises(ValueError, match="non-finite"):
+            json_safe(np.array([1.0, float("nan"), 3.0]))
+
+    @pytest.mark.unit
+    def test_inf_in_1d_numpy_array_raises(self) -> None:
+        with pytest.raises(ValueError, match="non-finite"):
+            json_safe(np.array([float("inf"), 2.0]))
+
+    @pytest.mark.unit
+    def test_nan_in_2d_numpy_array_raises(self) -> None:
+        with pytest.raises(ValueError, match="non-finite"):
+            json_safe(np.array([[1.0, float("nan")], [3.0, 4.0]]))
+
+    @pytest.mark.unit
+    def test_nan_numpy_float64_scalar_raises(self) -> None:
+        with pytest.raises(ValueError, match="non-finite"):
+            json_safe(np.float64("nan"))
+
+    @pytest.mark.unit
+    def test_inf_numpy_float64_scalar_raises(self) -> None:
+        with pytest.raises(ValueError, match="non-finite"):
+            json_safe(np.float64("inf"))
+
+    @pytest.mark.unit
+    def test_finite_numpy_array_still_serializes(self) -> None:
+        result = json_safe(np.array([1.0, 2.0, 3.0]))
+        assert result == [1.0, 2.0, 3.0]
+
+    @pytest.mark.unit
+    def test_finite_numpy_scalar_still_serializes(self) -> None:
+        assert json_safe(np.float64(3.14)) == pytest.approx(3.14)
+
+    @pytest.mark.unit
+    def test_nan_in_nested_dict_array_raises(self) -> None:
+        """NaN inside a dict-valued numpy array must still be caught."""
+        with pytest.raises(ValueError, match="non-finite"):
+            json_safe({"params": np.array([np.nan, 1.0])})
