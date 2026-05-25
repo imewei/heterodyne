@@ -174,12 +174,6 @@ def run_nlsq(
     """
     logger.info("Starting NLSQ analysis")
 
-    if getattr(args, "multistart", False):
-        config_manager.update_optimization_config("nlsq", "multistart", True)
-        config_manager.update_optimization_config(
-            "nlsq", "multistart_n", getattr(args, "multistart_n", 10)
-        )
-
     nlsq_config = NLSQConfig.from_dict(config_manager.nlsq_config)
     nlsq_config.verbose = getattr(args, "verbose", 1)
 
@@ -261,12 +255,15 @@ def run_nlsq(
         except (ValueError, AttributeError) as exc:
             logger.warning("Batch statistics unavailable (%s); continuing", exc)
 
-    saved_json = save_nlsq_json_files(aggregate, output_dir, prefix="nlsq")
-    for label, path in saved_json.items():
-        logger.info("Saved NLSQ %s: %s", label, path)
-    npz_path = output_dir / "nlsq_data.npz"
-    save_nlsq_npz_file(aggregate, npz_path, c2_exp=c2_fit)
-    logger.info("Saved NLSQ data: %s", npz_path)
+    output_format = getattr(args, "output_format", "both")
+    if output_format in ("json", "both"):
+        saved_json = save_nlsq_json_files(aggregate, output_dir, prefix="nlsq")
+        for label, path in saved_json.items():
+            logger.info("Saved NLSQ %s: %s", label, path)
+    if output_format in ("npz", "both"):
+        npz_path = output_dir / "nlsq_data.npz"
+        save_nlsq_npz_file(aggregate, npz_path, c2_exp=c2_fit)
+        logger.info("Saved NLSQ data: %s", npz_path)
 
     logger.info("NLSQ analysis complete")
     return results
@@ -313,6 +310,8 @@ def run_cmc(
         config_manager.update_optimization_config("cmc", "num_chains", args.num_chains)
 
     cmc_config = CMCConfig.from_dict(config_manager.cmc_config)
+    if cmc_config.backend_name == "jit":
+        cmc_config.backend_name = "pjit"
 
     # ---- Stack per-angle c2 slices into (n_phi, N, N) for joint inference ----
     c2_stack_list: list[np.ndarray] = []
@@ -392,8 +391,18 @@ def run_cmc(
         format_mcmc_summary(result),
     )
 
+    output_format = getattr(args, "output_format", "both")
     prefix = "cmc"
-    save_mcmc_results(result, output_dir, prefix=prefix)
+    saved_paths = save_mcmc_results(result, output_dir, prefix=prefix)
+    if output_format == "json":
+        samples_path = saved_paths.get("samples")
+        if samples_path is not None:
+            samples_path.unlink(missing_ok=True)
+    elif output_format == "npz":
+        for key in ("summary", "diagnostics"):
+            json_path = saved_paths.get(key)
+            if json_path is not None:
+                json_path.unlink(missing_ok=True)
     logger.info("Saved CMC results → %s (prefix=%s)", output_dir, prefix)
 
     if _is_degenerate_cmc_result(result):
@@ -466,8 +475,11 @@ def resolve_nlsq_warmstart(
     try:
         from heterodyne.io.nlsq_writers import load_nlsq_npz_file
 
-        result = load_nlsq_npz_file(Path(warmstart_path))
-        logger.info("Loaded NLSQ warm-start from %s", warmstart_path)
+        warmstart_file = Path(warmstart_path)
+        if warmstart_file.is_dir():
+            warmstart_file = warmstart_file / "nlsq_data.npz"
+        result = load_nlsq_npz_file(warmstart_file)
+        logger.info("Loaded NLSQ warm-start from %s", warmstart_file)
         return result
     except (OSError, ValueError, KeyError) as exc:
         logger.warning(

@@ -7,7 +7,7 @@ import os
 import types
 import warnings
 
-os.environ.setdefault("JAX_ENABLE_X64", "True")
+os.environ.setdefault("JAX_ENABLE_X64", "1")
 os.environ.setdefault("MPLBACKEND", "Agg")
 os.environ.setdefault("NLSQ_SKIP_GPU_CHECK", "1")  # CPU-only package
 

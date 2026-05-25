@@ -127,8 +127,13 @@ def _apply_mode_filter(config: dict[str, Any], mode: str) -> dict[str, Any]:
         Filtered configuration dictionary.
     """
     if mode == "minimal":
-        # Keep only data, temporal, and scattering sections
-        keep_sections = {"data", "analyzer_parameters", "temporal", "scattering"}
+        # Keep only canonical data, temporal, and scattering sections.
+        keep_sections = {
+            "experimental_data",
+            "analyzer_parameters",
+            "temporal",
+            "scattering",
+        }
         return {k: v for k, v in config.items() if k in keep_sections}
 
     if mode == "nlsq_only":
@@ -354,7 +359,7 @@ def interactive_builder() -> dict[str, Any]:
         ap["geometry"] = {"stator_rotor_gap": gap_raw}
 
     config: dict[str, Any] = {
-        "data": {
+        "experimental_data": {
             "file_path": data_path,
         },
         "analyzer_parameters": ap,
@@ -385,7 +390,11 @@ def validate_config(path: Path | str) -> bool:
     Returns:
         True if the configuration is valid, False otherwise.
     """
-    from heterodyne.data.config import load_yaml_config, validate_config_schema
+    from heterodyne.data.config import (
+        XPCSConfigurationError,
+        load_yaml_config,
+        validate_config_schema,
+    )
 
     path = Path(path)
     print(f"Validating: {path}\n")
@@ -396,7 +405,7 @@ def validate_config(path: Path | str) -> bool:
     except FileNotFoundError:
         print(f"ERROR: File not found: {path}")
         return False
-    except Exception as exc:
+    except (OSError, XPCSConfigurationError, ImportError) as exc:
         print(f"ERROR: Failed to load YAML: {exc}")
         return False
 
@@ -421,10 +430,10 @@ def validate_config(path: Path | str) -> bool:
     # Structural validation via ConfigManager
     if result.is_valid:
         try:
-            from heterodyne.config.manager import ConfigManager
+            from heterodyne.config.manager import ConfigManager, ConfigurationError
 
             ConfigManager(config)
-        except Exception as exc:
+        except (ConfigurationError, ValueError, KeyError) as exc:
             logger.error("Structural validation failed: %s", exc)
             print(f"\nStructural validation failed: {exc}")
             return False

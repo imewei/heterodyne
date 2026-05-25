@@ -34,22 +34,33 @@ def load_and_validate_data(config_manager: ConfigManager) -> XPCSData:
         Validated XPCSData object.
 
     Raises:
-        SystemExit: If data validation fails with errors.
+        ValueError: If data validation fails with errors.
     """
     # Extract frame range from analyzer_parameters (1-indexed, inclusive)
     start_frame = config_manager.start_frame
     end_frame = config_manager.end_frame
-    frame_range: tuple[int, int] | None = None
-    if start_frame > 1 or end_frame < 100_000:
-        frame_range = (start_frame, end_frame)
+    # Legacy "load-all" sentinel: starting at frame 1 with a very large
+    # end_frame historically meant "load every available frame". Translate it
+    # to the loader's documented end=-1 ("to last frame") sentinel so that a
+    # config such as ``end_frame: 100000`` against a shorter dataset loads all
+    # frames instead of raising on the out-of-range bound in
+    # ``_apply_frame_slicing``.
+    load_all = start_frame <= 1 and end_frame >= 100_000
+    frame_range: tuple[int, int] = (start_frame, -1 if load_all else end_frame)
+    if load_all:
+        logger.info(
+            "Loading data from %s (frames %d–end; end_frame %d → load-all)",
+            config_manager.data_file_path,
+            start_frame,
+            end_frame,
+        )
+    else:
         logger.info(
             "Loading data from %s (frames %d–%d)",
             config_manager.data_file_path,
             start_frame,
             end_frame,
         )
-    else:
-        logger.info("Loading data from %s", config_manager.data_file_path)
 
     # Build template variables for cache filename substitution
     template_vars: dict[str, str] | None = None
@@ -77,7 +88,7 @@ def load_and_validate_data(config_manager: ConfigManager) -> XPCSData:
     if not validation.is_valid:
         for err in validation.errors:
             logger.error("Data validation error: %s", err)
-        raise SystemExit(1)
+        raise ValueError(f"XPCS data validation failed: {'; '.join(validation.errors)}")
 
     for warn in validation.warnings:
         logger.warning("Data validation warning: %s", warn)
@@ -199,9 +210,9 @@ def resolve_phi_angles(
                             len(phi_angles),
                         )
                     else:
-                        phi_angles = [0.0]
-                        logger.debug(
-                            "phi_filtering matched nothing; defaulting to [0.0]"
+                        raise ValueError(
+                            "phi_filtering matched no data angles and "
+                            "fallback_to_all_angles is false"
                         )
             else:
                 phi_angles = [0.0]

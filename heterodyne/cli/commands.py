@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -156,10 +157,14 @@ def _run_optimization(
         # saved NLSQ result from disk so NUTS can warm-start near the MAP
         # instead of the prior (which is typically 5-10σ away and causes
         # complete non-mixing: R-hat >> 1, ESS ≈ n_chains).
-        if method == "cmc" and not nlsq_results:
+        if (
+            method == "cmc"
+            and not nlsq_results
+            and not getattr(args, "no_nlsq_warmstart", False)
+        ):
             loaded = resolve_nlsq_warmstart(args, output_dir)
             if loaded is not None:
-                nlsq_results = [loaded] * len(phi_angles)
+                nlsq_results = [copy.copy(loaded) for _ in phi_angles]
                 logger.info(
                     "CMC-only mode: loaded NLSQ warm-start from disk "
                     "(chi2=%.4g, success=%s)",
@@ -366,10 +371,16 @@ def dispatch_command(args: argparse.Namespace) -> int:
             if len(_t1_frames) > 0:
                 _t1_sec = (_t1_frames - _t1_frames[0]) * _dt
 
+        _t2_sec = None
+        if data.t2 is not None:
+            _t2_frames = _np.asarray(data.t2, dtype=float)
+            if len(_t2_frames) > 0:
+                _t2_sec = (_t2_frames - _t2_frames[0]) * _dt
+
         _data_dict: dict[str, Any] = {
             "c2_exp": _np.asarray(data.c2),
             "t1": _t1_sec,
-            "t2": _t1_sec,
+            "t2": _t2_sec,
             "phi_angles_list": (
                 _np.asarray(data.phi_angles)
                 if data.phi_angles is not None
@@ -543,7 +554,8 @@ def dispatch_command(args: argparse.Namespace) -> int:
                 _generate_cmc_diagnostic_plots(cmc_results, output_dir)
 
         # --- Unified result manifest (homodyne parity) -----------------------
-        if nlsq_results or cmc_results:
+        output_format = getattr(args, "output_format", "both")
+        if (nlsq_results or cmc_results) and output_format in ("json", "both"):
             summary.start_phase("result_saving")
             with log_phase("result_saving", logger=logger):
                 try:
@@ -555,6 +567,17 @@ def dispatch_command(args: argparse.Namespace) -> int:
                         phi_angles=list(phi_angles),
                         model=model,
                     )
+                    if output_format == "json":
+                        kept_paths: dict[str, list[Path]] = {}
+                        for group, paths in saved_paths.items():
+                            kept: list[Path] = []
+                            for path in paths:
+                                if path.suffix == ".npz":
+                                    path.unlink(missing_ok=True)
+                                else:
+                                    kept.append(path)
+                            kept_paths[group] = kept
+                        saved_paths = kept_paths
                     n_files = sum(len(paths) for paths in saved_paths.values())
                     logger.info("Unified result manifest: %d files written", n_files)
                 except (OSError, ValueError, KeyError) as exc:
@@ -581,6 +604,11 @@ def dispatch_command(args: argparse.Namespace) -> int:
 
         # --- Save-plots: fit comparison + fitted simulations ------------------
         if getattr(args, "save_plots", False):
+            if not nlsq_results:
+                logger.warning(
+                    "--save-plots requested but no NLSQ results available; "
+                    "fit comparison plots skipped"
+                )
             summary.start_phase("save_plots")
             with log_phase("save_plots", logger=logger, track_memory=True) as phase:
                 for _res in nlsq_results if nlsq_results else [None]:
@@ -589,13 +617,17 @@ def dispatch_command(args: argparse.Namespace) -> int:
                         result=_res,
                         data=_data_dict,
                         config=config_manager.raw_config,
+                        output_dir=output_dir,
                     )
             summary.end_phase("save_plots", memory_peak_gb=phase.memory_peak_gb)
 
     except KeyboardInterrupt:
         summary.set_convergence_status("failed")
         logger.info("[CLI] Analysis interrupted by user")
-        summary.log_summary(logger)
+        try:
+            summary.log_summary(logger)
+        except Exception:
+            pass
         raise
 
     except Exception as exc:

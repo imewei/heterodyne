@@ -58,7 +58,8 @@ Exit codes:
         choices=["nlsq", "cmc", "both"],
         default=None,
         help=(
-            "Optimization method: nlsq, cmc, or both "
+            "Optimization method: nlsq, cmc, or both. "
+            "YAML optimization.method supports nlsq/cmc; use CLI for both "
             "(default: optimization.method from YAML, else nlsq)"
         ),
     )
@@ -118,7 +119,7 @@ Exit codes:
 
     parser.add_argument(
         "--cmc-backend",
-        choices=["auto", "cpu", "multiprocessing", "pjit", "pbs"],
+        choices=["auto", "cpu", "multiprocessing", "pjit", "jit", "pbs"],
         default=None,
         help="CMC worker backend (overrides config)",
     )
@@ -127,7 +128,10 @@ Exit codes:
         "--nlsq-result",
         type=Path,
         default=None,
-        help="Path to NLSQ result directory for CMC warm-start",
+        help=(
+            "Path to NLSQ result .npz file or result directory containing "
+            "nlsq_data.npz for CMC warm-start"
+        ),
     )
 
     parser.add_argument(
@@ -271,6 +275,18 @@ Exit codes:
         "--save-plots",
         action="store_true",
         help="Save fit comparison and fitted simulation plots to output directory",
+    )
+
+    parser.add_argument(
+        "--simulate-only",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+
+    parser.add_argument(
+        "--plot-only",
+        action="store_true",
+        help=argparse.SUPPRESS,
     )
 
     parser.add_argument(

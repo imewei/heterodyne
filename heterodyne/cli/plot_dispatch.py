@@ -278,6 +278,7 @@ def handle_plotting(
     result: Any,
     data: dict[str, Any],
     config: dict[str, Any] | None = None,
+    output_dir: Path | None = None,
 ) -> None:
     """Handle all plotting options from CLI arguments.
 
@@ -291,9 +292,10 @@ def handle_plotting(
         result: Optimization result (may be None for plot-only modes).
         data: Data dictionary.
         config: Configuration dictionary (needed for simulated plots).
+        output_dir: Resolved output directory from CLI/config dispatch.
     """
-    output_dir = getattr(args, "output", None) or Path(".")
-    plots_dir = Path(output_dir) / "plots"
+    resolved_output_dir = output_dir or getattr(args, "output", None) or Path(".")
+    plots_dir = Path(resolved_output_dir) / "plots"
     plots_dir.mkdir(parents=True, exist_ok=True)
 
     plot_exp = getattr(args, "plot_experimental_data", False)

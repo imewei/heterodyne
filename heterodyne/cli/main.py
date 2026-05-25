@@ -16,14 +16,16 @@ def _bootstrap_xla_env(argv: list[str] | None) -> None:
     ``heterodyne`` import triggers ``import jax``.
 
     ``heterodyne/__init__.py`` imports JAX eagerly to set ``jax_enable_x64``.
-    JAX reads ``XLA_FLAGS`` only once during backend initialization, so the
-    real ``configure_xla()`` call later in ``main()`` was too late for
-    ``--threads`` to take effect. We pre-parse the affected flags from
-    ``argv`` using only the stdlib and seed the env; ``__init__.py``
-    preserves any pre-existing ``XLA_FLAGS`` via string concatenation, so
-    the thread count survives JAX initialization.
+    JAX reads ``XLA_FLAGS`` only once during backend initialization, so
+    configuring after importing ``heterodyne.cli.args_parser`` was too late
+    for ``--threads`` to take effect. We pre-parse the affected flags from
+    ``argv`` using only the stdlib and seed the env before any package import.
     """
     raw = list(sys.argv[1:] if argv is None else argv)
+
+    os.environ["JAX_PLATFORM_NAME"] = "cpu"
+    os.environ["JAX_ENABLE_X64"] = "1"
+
     threads: int | None = None
     no_jit = False
     i = 0
@@ -55,8 +57,13 @@ def _bootstrap_xla_env(argv: list[str] | None) -> None:
         )
         if tflags not in existing:
             os.environ["XLA_FLAGS"] = f"{existing} {tflags}".strip()
-        os.environ.setdefault("OMP_NUM_THREADS", str(threads))
-        os.environ.setdefault("MKL_NUM_THREADS", str(threads))
+        # An explicit ``--threads`` must win over any inherited
+        # ``OMP_NUM_THREADS``/``MKL_NUM_THREADS`` (e.g. set high by a batch
+        # scheduler or login profile). Using ``setdefault`` here would leave
+        # BLAS/OpenMP oversubscribed relative to the XLA intra-op limit, so we
+        # assign unconditionally — matching the old ``configure_xla()``.
+        os.environ["OMP_NUM_THREADS"] = str(threads)
+        os.environ["MKL_NUM_THREADS"] = str(threads)
 
     if no_jit:
         os.environ["JAX_DISABLE_JIT"] = "1"
@@ -81,11 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     _logging.getLogger("jax._src.xla_bridge").setLevel(_logging.ERROR)
     _logging.getLogger("jax._src.compiler").setLevel(_logging.ERROR)
 
-    # Configure XLA *after* import too: this is a no-op for thread count
-    # (already baked in by the bootstrap), but it documents intent and sets
-    # the JAX_PLATFORM_NAME/JAX_ENABLE_X64 env vars consistently.
     from heterodyne.cli.args_parser import create_parser, validate_args
-    from heterodyne.cli.xla_config import configure_xla
 
     parser = create_parser()
     args = parser.parse_args(argv)
@@ -98,14 +101,6 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
-
-    # Idempotent — thread count is already baked into XLA_FLAGS by the
-    # bootstrap. This call keeps the documented configuration surface.
-    configure_xla(
-        num_threads=args.threads,
-        disable_jit=args.no_jit,
-        enable_x64=True,
-    )
 
     # Now import JAX-dependent modules
     from heterodyne.cli.commands import dispatch_command

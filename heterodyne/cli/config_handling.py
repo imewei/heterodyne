@@ -163,7 +163,7 @@ def _configure_device(args: argparse.Namespace) -> dict[str, Any]:
         and ``device_configured`` (bool).
     """
     device_override: str | None = getattr(args, "device", None)
-    n_threads_override: int | None = getattr(args, "n_threads", None)
+    n_threads_override: int | None = getattr(args, "threads", None)
 
     result: dict[str, Any] = {
         "device_type": "cpu",
@@ -217,7 +217,7 @@ def _build_mcmc_runtime_kwargs(
         ValueError: If any assembled value fails validation.
     """
     defaults: dict[str, Any] = {
-        "num_warmup": 500,
+        "num_warmup": 1500,
         "num_samples": 1000,
         "num_chains": 4,
         "target_accept_prob": 0.8,
