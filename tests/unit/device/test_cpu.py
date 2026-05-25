@@ -16,9 +16,11 @@ from heterodyne.device.cpu import (
     CPUInfo,
     _detect_fallback_cpu,
     _detect_linux_cpu,
+    _detect_linux_physical_cores_from_sysfs,
     _detect_macos_cpu,
     _parse_lscpu,
     _safe_int,
+    _warn_if_jax_already_imported,
     configure_cpu_hpc,
     configure_jax_cpu,
     detect_cpu_info,
@@ -504,14 +506,14 @@ class TestGetJaxCpuFlags:
         flags = get_jax_cpu_flags(basic_cpu, num_devices=4)
         assert "--xla_force_host_platform_device_count=4" in flags
 
-    def test_avx512_enables_fast_math(self, intel_cpu: CPUInfo) -> None:
+    def test_avx512_does_not_enable_fast_math(self, intel_cpu: CPUInfo) -> None:
         flags = get_jax_cpu_flags(intel_cpu)
-        assert "--xla_cpu_enable_fast_math=true" in flags
+        assert "fast_math" not in flags
 
-    def test_avx2_enables_fast_math(self) -> None:
+    def test_avx2_does_not_enable_fast_math(self) -> None:
         cpu = CPUInfo(physical_cores=4, logical_cores=8, has_avx2=True)
         flags = get_jax_cpu_flags(cpu)
-        assert "--xla_cpu_enable_fast_math=true" in flags
+        assert "fast_math" not in flags
 
     def test_no_avx_no_fast_math(self) -> None:
         cpu = CPUInfo(physical_cores=4, logical_cores=8)
@@ -631,3 +633,201 @@ class TestCPUInfoDataclass:
         b = CPUInfo(physical_cores=1, logical_cores=1)
         a.cache_sizes["L3"] = 123
         assert "L3" not in b.cache_sizes
+
+
+# ---------------------------------------------------------------------------
+# _detect_linux_physical_cores_from_sysfs
+# ---------------------------------------------------------------------------
+
+
+class TestDetectLinuxPhysicalCoresFromSysfs:
+    def _make_cpu_dir(
+        self, mock_glob: MagicMock, entries: list[tuple[int, int]]
+    ) -> None:
+        """Set up mock CPU topology dirs returning (package_id, core_id) pairs."""
+        dirs = []
+        for i, (pkg, core) in enumerate(entries):
+            cpu_dir = MagicMock()
+            topo_dir = MagicMock()
+            cpu_dir.__truediv__ = MagicMock(return_value=topo_dir)
+            pkg_file = MagicMock()
+            pkg_file.read_text.return_value = str(pkg)
+            core_file = MagicMock()
+            core_file.read_text.return_value = str(core)
+            topo_dir.__truediv__ = MagicMock(
+                side_effect=lambda name, _pkg=pkg_file, _core=core_file: (
+                    _pkg if "package" in name else _core
+                )
+            )
+            dirs.append(cpu_dir)
+        mock_glob.return_value = iter(dirs)
+
+    @patch("heterodyne.device.cpu.Path")
+    def test_counts_unique_physical_cores(self, mock_path_cls: MagicMock) -> None:
+        mock_root = MagicMock()
+        mock_path_cls.return_value = mock_root
+        # 4 logical CPUs, 2 physical cores (hyperthreaded): pkg0/core0, pkg0/core1
+        # cpu0=>(0,0), cpu1=>(0,0), cpu2=>(0,1), cpu3=>(0,1)
+        entries = [(0, 0), (0, 0), (0, 1), (0, 1)]
+        self._make_cpu_dir(mock_root.glob, entries)
+        result = _detect_linux_physical_cores_from_sysfs()
+        assert result == 2
+
+    @patch("heterodyne.device.cpu.Path")
+    def test_multi_socket(self, mock_path_cls: MagicMock) -> None:
+        mock_root = MagicMock()
+        mock_path_cls.return_value = mock_root
+        # 2 sockets × 4 cores = 8 physical, 16 logical (HT)
+        entries = [(s, c) for s in range(2) for c in range(4) for _ in range(2)]
+        self._make_cpu_dir(mock_root.glob, entries)
+        result = _detect_linux_physical_cores_from_sysfs()
+        assert result == 8
+
+    @patch("heterodyne.device.cpu.Path")
+    def test_returns_none_when_no_topology(self, mock_path_cls: MagicMock) -> None:
+        mock_root = MagicMock()
+        mock_path_cls.return_value = mock_root
+        mock_root.glob.return_value = iter([])
+        result = _detect_linux_physical_cores_from_sysfs()
+        assert result is None
+
+    @patch("heterodyne.device.cpu.Path")
+    def test_skips_unreadable_dirs(self, mock_path_cls: MagicMock) -> None:
+        mock_root = MagicMock()
+        mock_path_cls.return_value = mock_root
+        bad_dir = MagicMock()
+        topo = MagicMock()
+        bad_dir.__truediv__ = MagicMock(return_value=topo)
+        pkg_file = MagicMock()
+        pkg_file.read_text.side_effect = OSError("permission denied")
+        topo.__truediv__ = MagicMock(return_value=pkg_file)
+        mock_root.glob.return_value = iter([bad_dir])
+        result = _detect_linux_physical_cores_from_sysfs()
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _warn_if_jax_already_imported
+# ---------------------------------------------------------------------------
+
+
+class TestWarnIfJaxAlreadyImported:
+    def test_warns_when_jax_in_sys_modules(self) -> None:
+        # JAX is already imported in the test session — warning should fire.
+        import sys
+
+        assert "jax" in sys.modules
+        with pytest.warns(RuntimeWarning, match="JAX has already been imported"):
+            _warn_if_jax_already_imported(strict=False)
+
+    def test_raises_when_strict_and_jax_imported(self) -> None:
+        import sys
+
+        assert "jax" in sys.modules
+        with pytest.raises(RuntimeError, match="JAX has already been imported"):
+            _warn_if_jax_already_imported(strict=True)
+
+    def test_no_warning_when_jax_not_imported(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import sys
+
+        saved = sys.modules.pop("jax", None)
+        try:
+            import warnings
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                _warn_if_jax_already_imported(strict=False)  # must not raise
+        finally:
+            if saved is not None:
+                sys.modules["jax"] = saved
+
+    def test_configure_jax_cpu_strict_raises(self, basic_cpu: CPUInfo) -> None:
+        import sys
+
+        assert "jax" in sys.modules
+        with pytest.raises(RuntimeError, match="JAX has already been imported"):
+            configure_jax_cpu(basic_cpu, strict=True)
+
+
+# ---------------------------------------------------------------------------
+# _detect_linux_cpu — AVX detection from flags: line
+# ---------------------------------------------------------------------------
+
+
+class TestDetectLinuxCpuAvxParsing:
+    """Verify AVX detection uses the 'flags:' line, not whole-file substring scan."""
+
+    @patch("heterodyne.device.cpu.platform.machine", return_value="x86_64")
+    @patch("heterodyne.device.cpu.os.cpu_count", return_value=4)
+    @patch("heterodyne.device.cpu.subprocess.run", side_effect=FileNotFoundError)
+    @patch(
+        "builtins.open",
+        mock_open(
+            read_data=(
+                "vendor_id\t: GenuineIntel\n"
+                "model name\t: Intel(R) Xeon(R) avx-capable Gold 6248\n"  # 'avx' in model name
+                "flags\t\t: fpu vme de pse tsc mmx sse sse2 ht\n"  # no avx in flags
+            )
+        ),
+    )
+    def test_no_false_positive_from_model_name(
+        self,
+        mock_run: MagicMock,
+        mock_count: MagicMock,
+        mock_machine: MagicMock,
+    ) -> None:
+        """Model name containing 'avx' must not set has_avx=True."""
+        info = _detect_linux_cpu()
+        assert info.has_avx is False
+        assert info.has_avx2 is False
+        assert info.has_avx512 is False
+
+    @patch("heterodyne.device.cpu.platform.machine", return_value="x86_64")
+    @patch("heterodyne.device.cpu.os.cpu_count", return_value=8)
+    @patch("heterodyne.device.cpu.subprocess.run", side_effect=FileNotFoundError)
+    @patch(
+        "builtins.open",
+        mock_open(
+            read_data=(
+                "vendor_id\t: AuthenticAMD\n"
+                "model name\t: AMD EPYC 7742\n"
+                "flags\t\t: fpu avx avx2 avx512f avx512bw\n"
+            )
+        ),
+    )
+    def test_avx512_from_flags_line(
+        self,
+        mock_run: MagicMock,
+        mock_count: MagicMock,
+        mock_machine: MagicMock,
+    ) -> None:
+        info = _detect_linux_cpu()
+        assert info.has_avx is True
+        assert info.has_avx2 is True
+        assert info.has_avx512 is True
+
+    @patch("heterodyne.device.cpu.platform.machine", return_value="x86_64")
+    @patch("heterodyne.device.cpu.os.cpu_count", return_value=4)
+    @patch("heterodyne.device.cpu.subprocess.run", side_effect=FileNotFoundError)
+    @patch(
+        "builtins.open",
+        mock_open(
+            read_data=(
+                "vendor_id\t: GenuineIntel\n"
+                "model name\t: Intel Core i5\n"
+                "flags\t\t: fpu avx avx2\n"
+            )
+        ),
+    )
+    def test_avx2_without_avx512(
+        self,
+        mock_run: MagicMock,
+        mock_count: MagicMock,
+        mock_machine: MagicMock,
+    ) -> None:
+        info = _detect_linux_cpu()
+        assert info.has_avx is True
+        assert info.has_avx2 is True
+        assert info.has_avx512 is False

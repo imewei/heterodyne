@@ -25,7 +25,7 @@ class ClusterType(Enum):
 class CMCBackend(Enum):
     """CMC execution backend."""
 
-    PJIT = "pjit"  # JAX pjit for single-node parallelism
+    JIT = "jit"  # JAX jit for single-node parallelism
     MULTIPROCESSING = "multiprocessing"  # Python multiprocessing
     PBS = "pbs"  # PBS array jobs
     SLURM = "slurm"  # Slurm array jobs
@@ -104,7 +104,7 @@ def detect_hardware() -> HardwareConfig:
         - CPU core count (physical cores preferred)
         - Available memory (for chain parallelism)
         - Cluster environment (PBS/Slurm for distributed)
-        - NUMA topology (for pjit backend)
+        - NUMA topology (for jit backend)
     """
     cpu_info = detect_cpu_info()
     cluster_type = detect_cluster_type()
@@ -184,12 +184,12 @@ def _recommend_backend(
         chains = min(8, max_chains_by_memory)
         return (CMCBackend.SLURM, chains, chains)
 
-    # Standalone mode: choose between pjit and multiprocessing
+    # Standalone mode: choose between jit and multiprocessing
     if available_cores >= 4:
-        # pjit is efficient for 4+ cores with NUMA awareness
+        # jit is efficient for 4+ cores with NUMA awareness
         max_parallel = min(available_cores, max_chains_by_memory, 8)
         chains = max_parallel
-        return (CMCBackend.PJIT, chains, max_parallel)
+        return (CMCBackend.JIT, chains, max_parallel)
     else:
         # For small core counts, multiprocessing has less overhead
         max_parallel = min(available_cores, max_chains_by_memory)
@@ -199,7 +199,7 @@ def _recommend_backend(
 
 def get_backend_name(
     backend: CMCBackend,
-) -> Literal["pjit", "multiprocessing", "pbs", "slurm"]:
+) -> Literal["jit", "multiprocessing", "pbs", "slurm"]:
     """Get the string name of a CMC backend for configuration.
 
     Args:
@@ -208,12 +208,13 @@ def get_backend_name(
     Returns:
         Backend name string for use in configuration.
     """
-    return backend.value  # type: ignore[return-value]
+    return backend.value
 
 
 def configure_optimal_device(
     mode: str = "auto",
     num_chains: int | None = None,
+    strict: bool = False,
 ) -> HardwareConfig:
     """Configure device settings for optimal CMC execution.
 
@@ -227,6 +228,7 @@ def configure_optimal_device(
             - "cmc-hpc": Optimize for HPC CMC (8 chains)
             - "nlsq": Optimize for NLSQ (single device)
         num_chains: Override number of chains (None for auto).
+        strict: If True, raise RuntimeError when JAX was already imported.
 
     Returns:
         HardwareConfig with applied settings.
@@ -249,7 +251,7 @@ def configure_optimal_device(
             num_devices = hw.max_parallel_chains
 
     # Configure JAX
-    configure_jax_cpu(hw.cpu_info, num_devices=num_devices)
+    configure_jax_cpu(hw.cpu_info, num_devices=num_devices, strict=strict)
 
     return hw
 

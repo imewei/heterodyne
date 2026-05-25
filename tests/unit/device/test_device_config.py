@@ -73,7 +73,7 @@ class TestEnums:
         assert ClusterType.SLURM.value == "slurm"
 
     def test_cmc_backend_values(self) -> None:
-        assert CMCBackend.PJIT.value == "pjit"
+        assert CMCBackend.JIT.value == "jit"
         assert CMCBackend.MULTIPROCESSING.value == "multiprocessing"
         assert CMCBackend.PBS.value == "pbs"
         assert CMCBackend.SLURM.value == "slurm"
@@ -187,14 +187,14 @@ class TestRecommendBackend:
         assert backend == CMCBackend.SLURM
         assert chains <= 8
 
-    def test_standalone_4plus_cores_uses_pjit(self, basic_cpu: CPUInfo) -> None:
+    def test_standalone_4plus_cores_uses_jit(self, basic_cpu: CPUInfo) -> None:
         backend, chains, max_p = _recommend_backend(
             basic_cpu,
             ClusterType.STANDALONE,
             available_cores=8,
             memory_gb=32.0,
         )
-        assert backend == CMCBackend.PJIT
+        assert backend == CMCBackend.JIT
         assert chains >= 4
 
     def test_standalone_few_cores_uses_multiprocessing(
@@ -368,8 +368,8 @@ class TestDetectHardware:
 
 
 class TestGetBackendName:
-    def test_pjit(self) -> None:
-        assert get_backend_name(CMCBackend.PJIT) == "pjit"
+    def test_jit(self) -> None:
+        assert get_backend_name(CMCBackend.JIT) == "jit"
 
     def test_multiprocessing(self) -> None:
         assert get_backend_name(CMCBackend.MULTIPROCESSING) == "multiprocessing"
@@ -399,7 +399,7 @@ class TestConfigureOptimalDevice:
             cluster_type=ClusterType.STANDALONE,
             available_cores=8,
             memory_gb=16.0,
-            recommended_backend=CMCBackend.PJIT,
+            recommended_backend=CMCBackend.JIT,
             recommended_chains=4,
             max_parallel_chains=4,
         )
@@ -409,7 +409,7 @@ class TestConfigureOptimalDevice:
         self._configure_calls: list[tuple[CPUInfo, int | None]] = []
 
         def mock_configure(
-            cpu_info: CPUInfo, num_devices: int | None = None
+            cpu_info: CPUInfo, num_devices: int | None = None, strict: bool = False
         ) -> dict[str, str]:
             self._configure_calls.append((cpu_info, num_devices))
             return {}
@@ -465,7 +465,7 @@ class TestGetDeviceStatus:
             cluster_type=ClusterType.STANDALONE,
             available_cores=8,
             memory_gb=16.0,
-            recommended_backend=CMCBackend.PJIT,
+            recommended_backend=CMCBackend.JIT,
             recommended_chains=4,
             max_parallel_chains=4,
         )
@@ -483,7 +483,7 @@ class TestGetDeviceStatus:
             cluster_type=ClusterType.STANDALONE,
             available_cores=8,
             memory_gb=16.0,
-            recommended_backend=CMCBackend.PJIT,
+            recommended_backend=CMCBackend.JIT,
             recommended_chains=4,
             max_parallel_chains=4,
         )
@@ -519,7 +519,7 @@ class TestGetDeviceStatus:
             cluster_type=ClusterType.STANDALONE,
             available_cores=8,
             memory_gb=16.0,
-            recommended_backend=CMCBackend.PJIT,
+            recommended_backend=CMCBackend.JIT,
             recommended_chains=4,
             max_parallel_chains=4,
         )
@@ -528,7 +528,7 @@ class TestGetDeviceStatus:
 
         rec = status["cmc_recommendation"]
         assert isinstance(rec, dict)
-        assert rec["backend"] == "pjit"
+        assert rec["backend"] == "jit"
         assert rec["chains"] == 4
         assert rec["max_parallel"] == 4
 
@@ -545,7 +545,7 @@ class TestHardwareConfig:
             cluster_type=ClusterType.STANDALONE,
             available_cores=8,
             memory_gb=16.0,
-            recommended_backend=CMCBackend.PJIT,
+            recommended_backend=CMCBackend.JIT,
             recommended_chains=4,
             max_parallel_chains=4,
         )

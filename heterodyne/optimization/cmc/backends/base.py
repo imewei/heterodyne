@@ -205,9 +205,11 @@ def select_backend(config: CMCConfig) -> MCMCBackend:
     from heterodyne.optimization.cmc.backends.pjit import PjitBackend
 
     backend_name: str = getattr(config, "backend_name", "auto")
-    # Legacy alias from older homodyne configs.
+    # Legacy aliases.
     if backend_name == "jax":
         backend_name = "multiprocessing"
+    if backend_name == "jit":  # device/config.CMCBackend.JIT renamed from PJIT
+        backend_name = "pjit"
 
     if backend_name == "pbs":
         from heterodyne.optimization.cmc.backends.pbs import PBSBackend

@@ -85,8 +85,9 @@ _VALID_SHARDING_STRATEGY: frozenset[str] = frozenset(
 )
 _VALID_BACKEND_NAME: frozenset[str] = frozenset(
     # "jax" is a legacy alias for "multiprocessing"; routed in select_backend.
+    # "jit" is the new name for "pjit" (device/config.CMCBackend.JIT); both accepted.
     # "slurm" has no native backend — select_backend falls back to MP.
-    {"auto", "multiprocessing", "pjit", "cpu", "pbs", "slurm", "jax"}
+    {"auto", "multiprocessing", "pjit", "jit", "cpu", "pbs", "slurm", "jax"}
 )
 _VALID_CHAIN_METHOD: frozenset[str] = frozenset(
     {"parallel", "sequential", "vectorized"}

@@ -7,15 +7,22 @@ environment variable configuration for HPC clusters.
 
 from __future__ import annotations
 
+import logging
 import os
 import platform
 import re
 import subprocess
+import sys
+import warnings
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+_HPC_CONFIGURED = False
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -72,13 +79,15 @@ def detect_cpu_info() -> CPUInfo:
 
 def _detect_linux_cpu() -> CPUInfo:
     """Detect CPU info on Linux using lscpu and /proc/cpuinfo."""
+    logical_cores = os.cpu_count() or 1
     info = CPUInfo(
-        physical_cores=os.cpu_count() or 1,
-        logical_cores=os.cpu_count() or 1,
+        physical_cores=logical_cores,
+        logical_cores=logical_cores,
         architecture=platform.machine(),
     )
 
     # Try lscpu for detailed info
+    lscpu_success = False
     try:
         result = subprocess.run(
             ["lscpu"],
@@ -88,36 +97,71 @@ def _detect_linux_cpu() -> CPUInfo:
             check=False,
         )
         if result.returncode == 0:
+            lscpu_success = True
             info = _parse_lscpu(result.stdout, info)
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         pass
 
-    # Read /proc/cpuinfo for AVX flags
+    if lscpu_success and info.physical_cores == info.logical_cores:
+        sysfs_physical_cores = _detect_linux_physical_cores_from_sysfs()
+        if sysfs_physical_cores is not None:
+            info.physical_cores = sysfs_physical_cores
+        elif info.logical_cores > 1:
+            warnings.warn(
+                "Could not disambiguate Linux physical CPU core count from lscpu "
+                "or sysfs; using logical CPU count for physical_cores.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
+    # Read /proc/cpuinfo for AVX flags, model name, and vendor
     try:
         with open("/proc/cpuinfo") as f:
             cpuinfo = f.read()
-            info.has_avx = "avx " in cpuinfo or "avx\n" in cpuinfo
-            info.has_avx2 = "avx2" in cpuinfo
-            info.has_avx512 = "avx512" in cpuinfo
 
-            # Extract model name and vendor
-            for line in cpuinfo.split("\n"):
-                if line.startswith("model name") and not info.model_name:
-                    info.model_name = line.split(":", 1)[1].strip()
-                elif line.startswith("vendor_id") and not info.vendor:
-                    vendor_str = line.split(":", 1)[1].strip()
-                    if "Intel" in vendor_str:
-                        info.vendor = "Intel"
-                    elif "AMD" in vendor_str:
-                        info.vendor = "AMD"
-                    else:
-                        info.vendor = vendor_str
-                if info.model_name and info.vendor:
-                    break
+        avx_detected = False
+        for line in cpuinfo.split("\n"):
+            if line.startswith("flags") and ":" in line:
+                flags_set = set(line.split(":", 1)[1].split())
+                info.has_avx = "avx" in flags_set
+                info.has_avx2 = "avx2" in flags_set
+                info.has_avx512 = any(f.startswith("avx512") for f in flags_set)
+                avx_detected = True
+            elif line.startswith("model name") and not info.model_name:
+                info.model_name = line.split(":", 1)[1].strip()
+            elif line.startswith("vendor_id") and not info.vendor:
+                vendor_str = line.split(":", 1)[1].strip()
+                if "Intel" in vendor_str:
+                    info.vendor = "Intel"
+                elif "AMD" in vendor_str:
+                    info.vendor = "AMD"
+                else:
+                    info.vendor = vendor_str
+            if avx_detected and info.model_name and info.vendor:
+                break
     except OSError:
         pass
 
     return info
+
+
+def _detect_linux_physical_cores_from_sysfs() -> int | None:
+    """Detect physical cores by deduplicating Linux topology package/core IDs."""
+    topology_root = Path("/sys/devices/system/cpu")
+    physical_cores: set[tuple[int, int]] = set()
+
+    for cpu_dir in topology_root.glob("cpu[0-9]*"):
+        topology_dir = cpu_dir / "topology"
+        try:
+            package_id = int((topology_dir / "physical_package_id").read_text().strip())
+            core_id = int((topology_dir / "core_id").read_text().strip())
+        except (OSError, ValueError):
+            continue
+        physical_cores.add((package_id, core_id))
+
+    if not physical_cores:
+        return None
+    return len(physical_cores)
 
 
 def _safe_int(value: str) -> int | None:
@@ -260,6 +304,8 @@ def configure_cpu_hpc(
     Returns:
         Dictionary of environment variables that were set.
     """
+    global _HPC_CONFIGURED
+
     if cpu_info is None:
         cpu_info = detect_cpu_info()
 
@@ -292,9 +338,20 @@ def configure_cpu_hpc(
             env_vars["KMP_AFFINITY"] = "granularity=fine,compact,1,0"
             env_vars["KMP_BLOCKTIME"] = "0"
 
+    if _HPC_CONFIGURED and all(
+        os.environ.get(key) == value for key, value in env_vars.items()
+    ):
+        logger.debug("CPU HPC environment already configured; skipping re-application")
+        return env_vars
+
+    if _HPC_CONFIGURED:
+        logger.debug("CPU HPC environment changed; re-applying configuration")
+
     # Apply to environment
     for key, value in env_vars.items():
         os.environ[key] = value
+
+    _HPC_CONFIGURED = True
 
     return env_vars
 
@@ -421,18 +478,28 @@ def get_jax_cpu_flags(
         f"--xla_force_host_platform_device_count={num_devices}",
     ]
 
-    # Enable AVX optimizations
-    if cpu_info.has_avx512:
-        flags.append("--xla_cpu_enable_fast_math=true")
-    elif cpu_info.has_avx2:
-        flags.append("--xla_cpu_enable_fast_math=true")
-
     return " ".join(flags)
+
+
+def _warn_if_jax_already_imported(*, strict: bool) -> None:
+    """Warn when env-based JAX configuration is likely too late to take effect."""
+    if "jax" not in sys.modules:
+        return
+
+    message = (
+        "JAX has already been imported; XLA_FLAGS and JAX_PLATFORMS changes "
+        "made by configure_jax_cpu() may be ignored. Call device configuration "
+        "before importing JAX."
+    )
+    if strict:
+        raise RuntimeError(message)
+    warnings.warn(message, RuntimeWarning, stacklevel=3)
 
 
 def configure_jax_cpu(
     cpu_info: CPUInfo | None = None,
     num_devices: int | None = None,
+    strict: bool = False,
 ) -> Mapping[str, str]:
     """Configure JAX for optimal CPU execution.
 
@@ -441,10 +508,13 @@ def configure_jax_cpu(
     Args:
         cpu_info: CPU information (auto-detected if None).
         num_devices: Number of CPU devices (default: physical cores).
+        strict: If True, raise RuntimeError when JAX was already imported.
 
     Returns:
         Dictionary of environment variables that were set.
     """
+    _warn_if_jax_already_imported(strict=strict)
+
     if cpu_info is None:
         cpu_info = detect_cpu_info()
 
