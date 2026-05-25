@@ -76,7 +76,14 @@ def plot_nlsq_vs_cmc(
 
         samples = cmc_result.get_samples(name)
         if samples is not None:
-            ax.violinplot(samples, positions=[0], showmeans=True, showmedians=True)
+            # Wrap in list so violinplot treats the flat array as one dataset,
+            # not N separate single-point datasets.
+            ax.violinplot(
+                [np.asarray(samples).ravel()],
+                positions=[0],
+                showmeans=True,
+                showmedians=True,
+            )
         else:
             # No samples: draw a Gaussian approximation
             x = np.linspace(cmc_mean - 3 * cmc_std, cmc_mean + 3 * cmc_std, 100)

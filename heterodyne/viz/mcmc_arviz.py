@@ -115,7 +115,13 @@ def plot_arviz_posterior(
 
     idata = to_inference_data(result)
 
-    axes = az.plot_posterior(idata, var_names=var_names, hdi_prob=hdi_prob)
+    # az.plot_posterior was removed in ArviZ 1.1.0 — fall back to built-in plots.
+    if not hasattr(az, "plot_posterior"):
+        from heterodyne.viz.mcmc_plots import plot_posterior
+
+        return plot_posterior(result, params=var_names, save_path=save_path)
+
+    axes = az.plot_posterior(idata, var_names=var_names, hdi_prob=hdi_prob)  # type: ignore[attr-defined]
     if hasattr(axes, "ravel"):
         fig = axes.ravel()[0].get_figure()
     else:

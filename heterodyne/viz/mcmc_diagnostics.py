@@ -202,11 +202,25 @@ def plot_divergence_scatter(
         and result.samples is not None
         and len(result.parameter_names) >= 2
     ):
-        divergent = np.asarray(divergent, dtype=bool)
+        divergent = np.asarray(divergent, dtype=bool).ravel()
         p1_name = result.parameter_names[0]
         p2_name = result.parameter_names[1]
-        s1 = np.asarray(result.samples[p1_name])
-        s2 = np.asarray(result.samples[p2_name])
+        if p1_name not in result.samples or p2_name not in result.samples:
+            ax.text(
+                0.5,
+                0.5,
+                "Divergence samples unavailable",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+            )
+            fig.tight_layout()
+            if save_path is not None:
+                fig.savefig(str(save_path), dpi=150, bbox_inches="tight")
+                plt.close(fig)
+            return fig
+        s1 = np.asarray(result.samples[p1_name]).ravel()
+        s2 = np.asarray(result.samples[p2_name]).ravel()
 
         # Trim to match if needed
         n = min(len(s1), len(s2), len(divergent))
@@ -316,9 +330,11 @@ def plot_kl_divergence_matrix(
                 if lo == hi:
                     continue
                 bins = np.linspace(lo, hi, n_bins + 1)
-                p, _ = np.histogram(samples_i, bins=bins, density=True)
-                q, _ = np.histogram(samples_j, bins=bins, density=True)
-                # Normalize to probability distributions
+                # Use density=False, then normalize once to get a true PMF.
+                # density=True would require a second division by bin_width, not
+                # by sum(p), causing double-normalization and deflated KL values.
+                p, _ = np.histogram(samples_i, bins=bins, density=False)
+                q, _ = np.histogram(samples_j, bins=bins, density=False)
                 p = p / (np.sum(p) + eps)
                 q = q / (np.sum(q) + eps)
                 # KL(p || q)

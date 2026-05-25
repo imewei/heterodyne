@@ -142,8 +142,10 @@ def _format_nlsq_table(result: NLSQResult, config: ReportConfig) -> str:
 def _format_cmc_table(result: CMCResult, config: ReportConfig) -> str:
     """Format CMC posterior summary table in Markdown."""
     prec = config.float_precision
-    ci_key_lo = f"lower_{config.ci_level}"
-    ci_key_hi = f"upper_{config.ci_level}"
+    # credible_intervals stores ArviZ-style percentile keys, e.g. "2.5%" / "97.5%".
+    ci_half = (100 - int(config.ci_level)) / 2
+    ci_key_lo = f"{ci_half:.1f}%"
+    ci_key_hi = f"{100 - ci_half:.1f}%"
 
     lines = [
         f"| Parameter | Mean | Std | CI {config.ci_level}% |",
@@ -182,9 +184,21 @@ def _format_diagnostics(result: CMCResult, config: ReportConfig) -> str:
     ]
 
     for i, name in enumerate(result.parameter_names):
-        r_hat = f"{result.r_hat[i]:.3f}" if result.r_hat is not None else "N/A"
-        ess_b = f"{result.ess_bulk[i]:.0f}" if result.ess_bulk is not None else "N/A"
-        ess_t = f"{result.ess_tail[i]:.0f}" if result.ess_tail is not None else "N/A"
+        r_hat = (
+            f"{result.r_hat[i]:.3f}"
+            if result.r_hat is not None and i < len(result.r_hat)
+            else "N/A"
+        )
+        ess_b = (
+            f"{result.ess_bulk[i]:.0f}"
+            if result.ess_bulk is not None and i < len(result.ess_bulk)
+            else "N/A"
+        )
+        ess_t = (
+            f"{result.ess_tail[i]:.0f}"
+            if result.ess_tail is not None and i < len(result.ess_tail)
+            else "N/A"
+        )
         lines.append(f"| {name} | {r_hat} | {ess_b} | {ess_t} |")
 
     if result.bfmi is not None:

@@ -356,6 +356,7 @@ def plot_forest(
     fig, ax = plt.subplots(figsize=figsize)
 
     y_positions = np.arange(n_params, dtype=float)
+    chains: list[np.ndarray] = []
 
     for yi, name in zip(y_positions, param_names, strict=True):
         if name not in samples:
@@ -472,9 +473,9 @@ def plot_energy(
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # Annotate with BFMI approximation
+    # Annotate with BFMI: E[ΔH²] / Var(H)  (Stan definition, not Var(ΔH)/Var(H))
     bfmi = (
-        float(np.var(energy_diff) / np.var(energy))
+        float(np.mean(energy_diff**2) / np.var(energy))
         if np.var(energy) > 0
         else float("nan")
     )
@@ -657,13 +658,24 @@ def plot_rank_histogram(
             continue
 
         n_chains, n_samples = arr.shape
+        if n_samples < 2:
+            ax.text(
+                0.5,
+                0.5,
+                f"{name}\nNeed ≥ 2 draws per chain",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                fontsize=9,
+            )
+            continue
         # Compute global ranks across all chains
         all_samples = arr.ravel()
         # scipy.stats.rankdata equivalent using argsort
         order = np.argsort(np.argsort(all_samples))
         ranks_per_chain = order.reshape(n_chains, n_samples)
 
-        n_bins = min(n_samples // 2, 20)
+        n_bins = max(1, min(n_samples // 2, 20))
         colors = plt.colormaps["tab10"](np.linspace(0, 0.9, n_chains))
 
         for chain_idx in range(n_chains):
@@ -676,8 +688,10 @@ def plot_rank_histogram(
                 label=f"Chain {chain_idx}",
             )
 
-        # Expected uniform level
-        expected = n_chains / (n_chains * n_samples)
+        # Expected uniform density: with density=True, each bin's height is
+        # count/(n_total * bin_width). Uniform → expected = n_bins / n_total
+        # where n_total = n_chains * n_samples.
+        expected = n_bins / (n_chains * n_samples)
         ax.axhline(
             expected,
             color="black",
