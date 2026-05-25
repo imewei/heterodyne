@@ -52,7 +52,7 @@ _heterodyne_get_config_files() {
     # Check cache validity
     if [[ -f "$cache_file" ]]; then
         local cache_time
-        cache_time=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null)
+        cache_time=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null || echo 0)
         if [[ $((now - cache_time)) -lt $_HETERODYNE_CACHE_TTL ]]; then
             cat "$cache_file"
             return
@@ -107,7 +107,7 @@ _heterodyne() {
             return
             ;;
         --cmc-backend)
-            mapfile -t COMPREPLY < <(compgen -W "auto cpu multiprocessing pjit pbs" -- "${cur}")
+            mapfile -t COMPREPLY < <(compgen -W "auto cpu multiprocessing pjit jit pbs" -- "${cur}")
             return
             ;;
         --nlsq-result)
@@ -248,6 +248,7 @@ complete -F _heterodyne hsim
 # Shell aliases
 alias ht='heterodyne'
 alias ht-config='heterodyne-config'
+alias ht-validate='heterodyne-validate'
 alias ht-nlsq='heterodyne --method nlsq'
 alias ht-cmc='heterodyne --method cmc'
 alias hexp='heterodyne --plot-experimental-data'

@@ -77,17 +77,22 @@ _heterodyne_configure_xla() {
         return 0
     fi
 
-    # Build XLA_FLAGS
+    # Build XLA_FLAGS — replace any existing device-count flag so an explicit
+    # mode change (e.g. auto→cmc) is not silently shadowed by a stale value.
     local new_flag="--xla_force_host_platform_device_count=${device_count}"
 
     if [[ -z "${XLA_FLAGS:-}" ]]; then
         export XLA_FLAGS="$new_flag"
-    elif [[ "$XLA_FLAGS" != *"xla_force_host_platform_device_count"* ]]; then
-        export XLA_FLAGS="${XLA_FLAGS} ${new_flag}"
+    else
+        # Strip existing device-count flag (if present) then append new value.
+        local cleaned_flags
+        cleaned_flags=$(echo "${XLA_FLAGS}" | sed 's/--xla_force_host_platform_device_count=[^ ]*//g' | tr -s ' ' | sed 's/^ //;s/ $//')
+        export XLA_FLAGS="${cleaned_flags:+${cleaned_flags} }${new_flag}"
     fi
 
-    # Also set JAX platform to CPU
+    # CPU backend and float64 precision — required for heterodyne physics accuracy.
     export JAX_PLATFORMS="${JAX_PLATFORMS:-cpu}"
+    export JAX_ENABLE_X64="${JAX_ENABLE_X64:-1}"
 }
 
 # Save mode to config file
@@ -137,8 +142,11 @@ _heterodyne_xla_setup() {
     _heterodyne_configure_xla "$mode"
 }
 
-# Run if sourced with argument, or auto-configure
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced
+# Run if sourced with argument, or auto-configure.
+# Portable bash/zsh guard: 'return' inside a subshell succeeds only when the
+# enclosing script is being sourced, not executed directly.
+(return 0 2>/dev/null) && _heterodyne_sourced=1 || _heterodyne_sourced=0
+if [[ "$_heterodyne_sourced" -eq 1 ]]; then
     _heterodyne_xla_setup "${1:-}"
 fi
+unset _heterodyne_sourced

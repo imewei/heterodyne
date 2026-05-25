@@ -224,19 +224,26 @@ class SystemValidator:
             version = jax.__version__
 
             # Parse version (strip pre-release suffixes like dev, rc, etc.)
-            major, minor, *_ = version.split(".")
-            major_match = re.match(r"(\d+)", major)
-            minor_clean = minor.split("+")[0].split("rc")[0]
+            _parts = version.split(".")
+            major_raw, minor_raw, *rest_parts = (
+                _parts if len(_parts) >= 2 else (_parts + ["0", "0"])
+            )
+            major_match = re.match(r"(\d+)", major_raw)
+            minor_clean = minor_raw.split("+")[0].split("rc")[0].split("dev")[0]
             minor_match = re.match(r"(\d+)", minor_clean)
             major = int(major_match.group(1)) if major_match else 0
             minor = int(minor_match.group(1)) if minor_match else 0
+            patch_raw = rest_parts[0] if rest_parts else "0"
+            patch_clean = patch_raw.split("+")[0].split("rc")[0].split("dev")[0]
+            patch_match = re.match(r"(\d+)", patch_clean)
+            patch = int(patch_match.group(1)) if patch_match else 0
 
             details = {
                 "version": version,
                 "devices": len(jax.devices()),
             }
 
-            if (major, minor) >= (0, 8):
+            if (major, minor, patch) >= (0, 8, 2):
                 return ValidationResult(
                     name="JAX Installation",
                     success=True,
@@ -310,13 +317,16 @@ class SystemValidator:
         try:
             import jax
 
-            if not jax.config.x64_enabled:
+            x64_enabled = getattr(jax.config, "x64_enabled", None)
+            if x64_enabled is None:
+                x64_enabled = bool(getattr(jax.config, "jax_enable_x64", False))
+            if not x64_enabled:
                 return ValidationResult(
                     name="JAX x64 Precision",
                     success=False,
-                    message="JAX x64 mode not enabled. Set JAX_ENABLE_X64=true for full precision.",
-                    severity=Severity.WARNING,
-                    remediation="Set environment variable JAX_ENABLE_X64=true before importing JAX",
+                    message="JAX x64 mode not enabled. Set JAX_ENABLE_X64=1 for full precision.",
+                    severity=Severity.ERROR,
+                    remediation="Set environment variable JAX_ENABLE_X64=1 before importing JAX",
                 )
             return ValidationResult(
                 name="JAX x64 Precision",
@@ -356,10 +366,15 @@ class SystemValidator:
                 "blas_backend": blas_name,
             }
 
-            # Check version (numpy 2.x required, strip pre-release suffixes)
-            major_match = re.match(r"(\d+)", version.split(".")[0])
-            major = int(major_match.group(1)) if major_match else 0
-            if major >= 2:
+            # Check version (numpy >=2.3 required, strip pre-release suffixes)
+            _np_parts = version.split(".")
+            np_major_match = re.match(r"(\d+)", _np_parts[0])
+            np_minor_match = (
+                re.match(r"(\d+)", _np_parts[1]) if len(_np_parts) > 1 else None
+            )
+            np_major = int(np_major_match.group(1)) if np_major_match else 0
+            np_minor = int(np_minor_match.group(1)) if np_minor_match else 0
+            if (np_major, np_minor) >= (2, 3):
                 return ValidationResult(
                     name="NumPy Installation",
                     success=True,
@@ -371,7 +386,7 @@ class SystemValidator:
                 return ValidationResult(
                     name="NumPy Installation",
                     success=False,
-                    message=f"NumPy {version} is below minimum (2.x)",
+                    message=f"NumPy {version} is below minimum (2.3)",
                     severity=Severity.ERROR,
                     remediation="Run 'uv pip install numpy>=2.3'",
                     details=details,
@@ -416,7 +431,7 @@ class SystemValidator:
                     name="NumPyro Installation",
                     success=False,
                     message=f"NumPyro {version} is below minimum (0.19)",
-                    severity=Severity.WARNING,
+                    severity=Severity.ERROR,
                     remediation="Run 'uv pip install numpyro>=0.19.0'",
                     details=details,
                 )
@@ -426,8 +441,8 @@ class SystemValidator:
                 name="NumPyro Installation",
                 success=False,
                 message=f"NumPyro not installed: {e}",
-                severity=Severity.WARNING,
-                remediation="NumPyro is optional. Install with 'uv pip install numpyro>=0.19.0'",
+                severity=Severity.ERROR,
+                remediation="Run 'uv sync' to install dependencies (numpyro is required for CMC)",
             )
 
     def test_shell_completion(self) -> ValidationResult:
@@ -438,6 +453,11 @@ class SystemValidator:
             os.path.join(venv_path, "etc", "bash_completion.d", "heterodyne"),
             os.path.join(venv_path, "etc", "zsh", "heterodyne-completion.zsh"),
             os.path.expanduser("~/.local/share/bash-completion/completions/heterodyne"),
+            os.path.expanduser("~/.config/fish/completions/heterodyne.fish"),
+            os.path.join(
+                venv_path, "share", "fish", "vendor_completions.d", "heterodyne.fish"
+            ),
+            os.path.expanduser("~/.local/share/zsh/site-functions/_heterodyne"),
         ]
 
         installed = [p for p in completion_paths if os.path.exists(p)]

@@ -23,8 +23,17 @@ def get_completion_script() -> str:
 
     Returns:
         Absolute path to completion.sh
+
+    Raises:
+        FileNotFoundError: If the completion script is not present in the installation.
     """
-    return str(COMPLETION_SCRIPT.resolve())
+    path = COMPLETION_SCRIPT.resolve()
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Completion script not found at {path}. "
+            "Re-install the package to restore shell script assets."
+        )
+    return str(path)
 
 
 def get_xla_config_script(shell: str = "bash") -> str:
@@ -35,13 +44,23 @@ def get_xla_config_script(shell: str = "bash") -> str:
 
     Returns:
         Absolute path to the appropriate XLA config script.
+
+    Raises:
+        FileNotFoundError: If the script is not present in the installation.
+        ValueError: If an unsupported shell is specified.
     """
     if shell in ("bash", "zsh"):
-        return str(XLA_CONFIG_BASH.resolve())
+        path = XLA_CONFIG_BASH.resolve()
     elif shell == "fish":
-        return str(XLA_CONFIG_FISH.resolve())
+        path = XLA_CONFIG_FISH.resolve()
     else:
         raise ValueError(f"Unsupported shell: {shell}")
+    if not path.exists():
+        raise FileNotFoundError(
+            f"XLA config script not found at {path}. "
+            "Re-install the package to restore shell script assets."
+        )
+    return str(path)
 
 
 __all__ = [

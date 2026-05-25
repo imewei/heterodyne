@@ -77,27 +77,34 @@ function _heterodyne_configure_xla
         return 0
     end
 
-    # Build XLA_FLAGS
+    # Build XLA_FLAGS — strip any existing device-count flag so an explicit mode
+    # change is not silently shadowed by a stale value.
     set -l new_flag "--xla_force_host_platform_device_count=$device_count"
 
     if not set -q XLA_FLAGS
         set -gx XLA_FLAGS $new_flag
-    else if not string match -q "*xla_force_host_platform_device_count*" $XLA_FLAGS
-        set -gx XLA_FLAGS "$XLA_FLAGS $new_flag"
+    else
+        set -l cleaned (string replace -r -- '--xla_force_host_platform_device_count=[^ ]*' '' $XLA_FLAGS | string trim)
+        set -gx XLA_FLAGS "$cleaned $new_flag" | string trim
     end
 
-    # Set JAX platform to CPU
+    # CPU backend and float64 precision — required for heterodyne physics accuracy.
     if not set -q JAX_PLATFORMS
         set -gx JAX_PLATFORMS cpu
     end
+    if not set -q JAX_ENABLE_X64
+        set -gx JAX_ENABLE_X64 1
+    end
 end
 
-# Save mode to config file
+# Save mode to config file (atomic write via tmp+mv)
 function _heterodyne_save_xla_mode
     set -l mode $argv[1]
     set -l mode_file (_heterodyne_resolve_mode_file)
     mkdir -p (dirname $mode_file)
-    echo $mode > $mode_file
+    set -l tmp_file (mktemp "$mode_file.XXXXXX")
+    echo $mode > $tmp_file
+    mv $tmp_file $mode_file
 
     # Clean up legacy file
     if test -f $_HETERODYNE_XLA_LEGACY_FILE
