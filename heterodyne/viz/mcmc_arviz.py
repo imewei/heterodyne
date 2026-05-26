@@ -121,7 +121,7 @@ def plot_arviz_posterior(
 
         return plot_posterior(result, params=var_names, save_path=save_path)
 
-    axes = az.plot_posterior(idata, var_names=var_names, hdi_prob=hdi_prob)  # type: ignore[attr-defined]
+    axes = az.plot_posterior(idata, var_names=var_names, hdi_prob=hdi_prob)
     if hasattr(axes, "ravel"):
         fig = axes.ravel()[0].get_figure()
     else:
