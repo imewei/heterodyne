@@ -454,6 +454,31 @@ def _make_pooled(n_grid: int, angles: list[float], seed: int = 0):
     )
 
 
+def _make_imbalanced_pooled(counts: dict[float, int], seed: int = 0):
+    """Build a PooledCMCData with a different point count per angle.
+
+    Points are off-diagonal (t2 > t1) so ``prepare_mcmc_data``'s diagonal
+    filter keeps every row and the per-angle counts are preserved exactly.
+    """
+    from heterodyne.optimization.cmc.data_prep import prepare_mcmc_data
+
+    rng = np.random.default_rng(seed)
+    data, t1, t2, phi = [], [], [], []
+    for angle, n in counts.items():
+        tt1 = rng.uniform(0.001, 0.4, size=n)
+        tt2 = tt1 + rng.uniform(0.05, 0.2, size=n)  # strictly off-diagonal
+        data.append(1.0 + 0.1 * rng.standard_normal(n))
+        t1.append(tt1)
+        t2.append(tt2)
+        phi.append(np.full(n, angle))
+    return prepare_mcmc_data(
+        np.concatenate(data),
+        np.concatenate(t1),
+        np.concatenate(t2),
+        np.concatenate(phi),
+    )
+
+
 class TestPooledSharding:
     """shard_pooled_random / shard_pooled_angle_balanced behaviour."""
 
@@ -486,6 +511,38 @@ class TestPooledSharding:
         assert len(shards) == 5
         assert sum(s.n_total for s in shards) == prep.n_total
 
+    def test_imbalanced_rare_angle_caps_shards_to_keep_coverage(self):
+        """Codex high finding: a rare angle must never be absent from a shard.
+
+        The pooled joint model builds a global per-angle contrast/offset on
+        every shard, so a shard missing the rare angle would sample its scaling
+        from the prior only and bias consensus. Requesting more shards than the
+        rare angle has points must cap the shard count, not drop coverage.
+        """
+        from heterodyne.optimization.cmc.data_prep import shard_pooled_angle_balanced
+
+        prep = _make_imbalanced_pooled({-5.0: 240, 5.0: 3})
+        assert prep.n_phi == 2
+        # Ask for far more shards than the rare angle (3 points) can populate.
+        shards = shard_pooled_angle_balanced(prep, num_shards=12, seed=1)
+        # Cap binds at the rarest angle's point count.
+        assert len(shards) <= 3
+        # Every shard covers BOTH angles — no prior-only angle parameters.
+        assert all(s.n_phi == prep.n_phi for s in shards)
+        # No data is lost by the cap.
+        assert sum(s.n_total for s in shards) == prep.n_total
+
+    def test_imbalanced_single_point_angle_collapses_to_one_shard(self):
+        """A 1-point angle forces a single shard (full coverage is only
+        possible when num_shards == 1)."""
+        from heterodyne.optimization.cmc.data_prep import shard_pooled_angle_balanced
+
+        prep = _make_imbalanced_pooled({-5.0: 240, 5.0: 1})
+        shards = shard_pooled_angle_balanced(prep, num_shards=8, seed=1)
+        assert len(shards) == 1
+        assert shards[0].n_phi == prep.n_phi
+        assert shards[0].n_total == prep.n_total
+
     def test_single_angle_falls_back_to_random(self):
         from heterodyne.optimization.cmc.data_prep import shard_pooled_angle_balanced
 
@@ -499,8 +556,6 @@ class TestPooledSharding:
 
         prep = _make_pooled(30, [0.0])
         # Tiny target size would request many shards; cap must bind.
-        shards = shard_pooled_random(
-            prep, max_points_per_shard=1, max_shards=7, seed=1
-        )
+        shards = shard_pooled_random(prep, max_points_per_shard=1, max_shards=7, seed=1)
         assert len(shards) <= 7
         assert sum(s.n_total for s in shards) == prep.n_total

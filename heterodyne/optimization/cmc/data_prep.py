@@ -376,6 +376,31 @@ def shard_pooled_angle_balanced(
         angle_indices.append(idx)
         angle_counts.append(int(idx.size))
 
+    # Enforce full per-angle coverage. The pooled joint CMC model builds a
+    # GLOBAL contrast_i/offset_i vector for every angle on every shard
+    # (see core.py joint-shard payload construction). A shard missing a rare
+    # angle would sample that angle's scaling from the prior only, yet still
+    # feed it into inverse-variance consensus — biasing sparse-angle posteriors
+    # toward the prior with no error, only a warning. The proportional
+    # allocator below can starve a rare angle of early shards whenever
+    # ``angle_total // num_shards == 0``, so cap shard count at the rarest
+    # angle's point count: with ``num_shards <= min(angle_counts)`` every
+    # angle yields ``floor(count / num_shards) >= 1`` rows per shard.
+    min_angle_count = min(angle_counts) if angle_counts else 0
+    if min_angle_count >= 1 and num_shards > min_angle_count:
+        logger.warning(
+            "Angle-balanced sharding: capping num_shards %d -> %d so every "
+            "shard covers all %d angles (rarest angle has %d points). The "
+            "pooled joint model's global per-angle contrast/offset parameters "
+            "require full angle coverage per shard; uncovered angles would be "
+            "sampled from prior only and bias consensus.",
+            num_shards,
+            min_angle_count,
+            n_phi,
+            min_angle_count,
+        )
+        num_shards = min_angle_count
+
     angle_positions = [0] * n_phi
     shards: list[PooledCMCData] = []
     coverage_stats: list[float] = []
