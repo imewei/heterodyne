@@ -725,6 +725,51 @@ def _init_worker_jax(threads_per_worker: int, num_chains: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Joint multi-phi pooled-model parallel shards (homodyne parity)
+# ---------------------------------------------------------------------------
+# These run the POOLED joint model (one NUTS per shard over flat (n_total,)
+# data) in parallel worker processes, distinct from the single-angle shard
+# worker below. The worker defers the heterodyne.core import so JAX loads only
+# after _init_worker_jax has configured float64 / cache in the child.
+
+
+def _run_joint_pooled_shard(payload: dict[str, Any]) -> Any:
+    """Worker entry: run one pooled-model shard and return its CMCResult.
+
+    Imported lazily so the spawned child configures JAX (via the pool
+    initializer ``_init_worker_jax``) before the heterodyne core — which
+    imports JAX at module top — is loaded.
+    """
+    from heterodyne.optimization.cmc.core import _joint_pooled_nuts_run
+
+    return _joint_pooled_nuts_run(**payload)
+
+
+def run_joint_pooled_shards_parallel(
+    payloads: list[dict[str, Any]],
+    *,
+    n_workers: int,
+    num_chains: int,
+) -> list[Any]:
+    """Run pooled-model shard payloads across a spawn process pool.
+
+    Reuses the proven ``_init_worker_jax`` initializer (float64, compilation
+    cache, OpenMP thread pinning). Each element of ``payloads`` is the kwargs
+    dict for :func:`heterodyne.optimization.cmc.core._joint_pooled_nuts_run`.
+    Returns the per-shard ``CMCResult`` objects in input order.
+    """
+    total_threads = os.cpu_count() or 1
+    threads_per_worker = _compute_threads_per_worker(total_threads, n_workers)
+    ctx = mp.get_context("spawn")
+    with ctx.Pool(
+        processes=n_workers,
+        initializer=_init_worker_jax,
+        initargs=(threads_per_worker, num_chains),
+    ) as pool:
+        return list(pool.map(_run_joint_pooled_shard, payloads))
+
+
+# ---------------------------------------------------------------------------
 # Core shard worker (runs entirely inside the spawned child process)
 # ---------------------------------------------------------------------------
 

@@ -8,6 +8,7 @@ helpers for shard creation, prior tempering, and posterior combination.
 from __future__ import annotations
 
 import math
+import os
 import secrets
 import time
 import warnings
@@ -26,6 +27,8 @@ from heterodyne.optimization.cmc.config import CMCConfig
 from heterodyne.optimization.cmc.data_prep import (
     PooledCMCData,
     prepare_mcmc_data,
+    shard_pooled_angle_balanced,
+    shard_pooled_random,
 )
 from heterodyne.optimization.cmc.diagnostics import (
     analyze_divergences,
@@ -54,6 +57,7 @@ from heterodyne.optimization.nlsq.results import NLSQResult
 from heterodyne.utils.logging import get_logger
 
 if TYPE_CHECKING:
+    from heterodyne.config.parameter_space import ParameterSpace
     from heterodyne.core.heterodyne_model import HeterodyneModel
 
 logger = get_logger(__name__)
@@ -2061,6 +2065,80 @@ def _estimate_n_workers() -> int:
     return max(1, logical // 2 - 1)
 
 
+#: Conservative resident-memory baseline for one spawned CMC worker (bytes).
+#: Each worker is a fresh ``spawn`` process that imports JAX + XLA and builds
+#: its own compilation cache; for the ~10K-point shards the auto-sharder
+#: produces, this fixed cost dominates the per-shard data, so the worker pool
+#: must be bounded by RAM, not just CPU count.
+_WORKER_BASELINE_BYTES: int = 2_000_000_000
+#: Fraction of *available* RAM the concurrent worker pool may collectively use.
+_WORKER_MEMORY_FRACTION: float = 0.8
+#: Autodiff/temporary overhead multiplier on a shard's device arrays. NUTS
+#: reverse-mode through the element-wise kernel holds several data-length
+#: intermediates (value, grad, cumsum/gather temporaries) per leapfrog.
+_SHARD_AD_OVERHEAD: int = 8
+
+
+def _available_memory_bytes() -> int | None:
+    """Available system memory in bytes, or ``None`` if it can't be determined."""
+    try:
+        import psutil
+
+        return int(psutil.virtual_memory().available)
+    except ImportError:
+        pass
+    try:  # Linux fallback: available pages * page size.
+        return int(os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE"))
+    except (ValueError, OSError, AttributeError):
+        return None
+
+
+def _estimate_shard_peak_bytes(payload: dict[str, Any], num_chains: int) -> int:
+    """Rough peak working set of one shard's NUTS run (excludes worker baseline).
+
+    Sums the shard's device arrays (data + per-point grid indices + time grid),
+    scaled by an autodiff/chain overhead factor.
+    """
+    arr_bytes = 0
+    for key in ("data", "i1_indices", "i2_indices", "time_grid", "phi_indices"):
+        arr = payload.get(key)
+        if arr is not None:
+            arr_bytes += int(np.asarray(arr).nbytes)
+    return arr_bytes * _SHARD_AD_OVERHEAD * max(1, num_chains)
+
+
+def _memory_aware_worker_cap(
+    payloads: list[dict[str, Any]], cpu_workers: int, num_chains: int
+) -> int:
+    """Cap worker count so concurrent shard NUTS runs fit in available RAM.
+
+    Returns the largest ``W <= cpu_workers`` such that
+    ``W * (baseline + max_shard_peak) <= fraction * available_RAM``, floored at
+    1 so the run always makes progress (capping to 1 routes ``_run_joint_shards``
+    to the in-process sequential path). When available memory is unknown, returns
+    ``cpu_workers`` unchanged.
+    """
+    available = _available_memory_bytes()
+    if available is None or not payloads:
+        return cpu_workers
+    max_shard_peak = max(_estimate_shard_peak_bytes(p, num_chains) for p in payloads)
+    per_worker = _WORKER_BASELINE_BYTES + max_shard_peak
+    budget = int(available * _WORKER_MEMORY_FRACTION)
+    mem_workers = max(1, budget // per_worker)
+    capped = int(min(cpu_workers, mem_workers))
+    if capped < cpu_workers:
+        logger.info(
+            "[CMC joint] memory-capping workers %d -> %d "
+            "(avail=%.1fGB, ~%.2fGB/worker incl. baseline, %d shards)",
+            cpu_workers,
+            capped,
+            available / 1e9,
+            per_worker / 1e9,
+            len(payloads),
+        )
+    return capped
+
+
 def _fmt_time(secs: float) -> str:
     if secs < 60:
         return f"{secs:.0f}s"
@@ -2428,6 +2506,280 @@ def _create_failed_result(parameter_names: list[str], message: str) -> CMCResult
     )
 
 
+def _grid_indices(grid: np.ndarray, values: np.ndarray, *, axis: str) -> np.ndarray:
+    """Map ``values`` onto exact positions in the sorted ``grid``, bounded.
+
+    Guards every ``np.searchsorted`` that feeds a per-point gather in the
+    pooled CMC model. Two failure modes are addressed:
+
+    * **Out-of-range index.** ``np.searchsorted(grid, v)`` returns ``len(grid)``
+      for any ``v`` at or above ``grid[-1]`` (floating-point round-up on the
+      last lag is enough). That index is one past the last valid position and
+      produces an out-of-range gather. We clip into ``[0, len(grid) - 1]`` so
+      the returned indices can never exceed the grid.
+
+    * **Off-grid value.** ``side="left"`` lands on the right neighbour, so we
+      also test the left neighbour and keep whichever grid point is closer
+      (nearest-neighbour snap). Floating-point noise on an otherwise-regular
+      meshgrid is absorbed; a value that is genuinely between grid points
+      (e.g. a multi-tau lag that does not tile ``model.t``) stays far from both
+      neighbours and raises with the offending value, rather than silently
+      gathering the wrong cell.
+
+    Args:
+        grid: Sorted, strictly increasing 1-D time axis.
+        values: Per-point time coordinates to locate on ``grid``.
+        axis: Label (``"t1"``/``"t2"``) used only in the error message.
+
+    Returns:
+        ``int32`` indices into ``grid``, all within ``[0, len(grid) - 1]``.
+
+    Raises:
+        ValueError: If any value lies off the grid beyond a spacing-scaled
+            tolerance.
+    """
+    grid = np.asarray(grid, dtype=np.float64)
+    values = np.asarray(values, dtype=np.float64)
+    n = int(grid.size)
+    if n == 0:
+        raise ValueError(f"_grid_indices: empty grid for axis {axis!r}")
+    if n == 1:
+        return np.zeros(values.shape, dtype=np.int32)
+
+    right = np.clip(np.searchsorted(grid, values), 0, n - 1)
+    left = np.clip(right - 1, 0, n - 1)
+    use_left = np.abs(values - grid[left]) < np.abs(values - grid[right])
+    idx = np.where(use_left, left, right).astype(np.int32)
+
+    diffs = np.diff(grid)
+    min_spacing = float(diffs[diffs > 0].min()) if np.any(diffs > 0) else 1.0
+    tol = max(min_spacing * 1e-3, 1e-12)
+    residual = np.abs(grid[idx] - values)
+    if np.any(residual > tol):
+        worst = int(np.argmax(residual))
+        raise ValueError(
+            f"_grid_indices: {axis} value {values[worst]:.6g} is off the time "
+            f"grid (nearest grid point {grid[idx[worst]]:.6g}, residual "
+            f"{residual[worst]:.3g} > tol {tol:.3g}); grid spans "
+            f"[{grid[0]:.6g}, {grid[-1]:.6g}] with {n} points. The pooled CMC "
+            "model requires (t1, t2) to tile model.t as a regular meshgrid."
+        )
+    return idx
+
+
+def _joint_pooled_nuts_run(
+    *,
+    effective_mode: str,
+    data: np.ndarray,
+    time_grid: np.ndarray,
+    q: float,
+    dt: float,
+    phi_unique: np.ndarray,
+    phi_indices: np.ndarray,
+    i1_indices: np.ndarray,
+    i2_indices: np.ndarray,
+    noise_scale: float,
+    space: ParameterSpace,
+    fixed_contrast: np.ndarray | float | None,
+    fixed_offset: np.ndarray | float | None,
+    num_shards_model: int,
+    config: CMCConfig,
+    n_phi: int,
+    rng_seed: int,
+    result_num_shards: int,
+    keep_samples: bool = True,
+    num_warmup: int | None = None,
+    num_samples: int | None = None,
+) -> CMCResult:
+    """Build the pooled joint model, run one NUTS pass, assemble a CMCResult.
+
+    Shared by the single-pass (K=1) and per-shard (K>1) joint multi-phi
+    paths so both produce identical posterior-extraction semantics. The
+    ``num_shards_model`` argument flows into the model's prior tempering
+    (priors widened by ``sqrt(K)``; the Scott et al. 2016 Consensus MC
+    correction); ``result_num_shards`` is stamped onto the returned
+    ``CMCResult.num_shards``. ``phi_unique``/``phi_indices`` MUST use the
+    global angle set so per-shard parameter vectors align for consensus.
+    ``num_warmup``/``num_samples`` override the config defaults (used by the
+    adaptive per-shard scaling); ``None`` falls back to ``config`` values.
+    """
+    eff_warmup = config.num_warmup if num_warmup is None else int(num_warmup)
+    eff_samples = config.num_samples if num_samples is None else int(num_samples)
+    model_callable = get_heterodyne_pooled_model_for_mode(
+        effective_mode,
+        data=jnp.asarray(data),
+        t=jnp.asarray(time_grid),
+        q=float(q),
+        dt=float(dt),
+        phi_unique=jnp.asarray(phi_unique),
+        phi_indices=jnp.asarray(phi_indices),
+        i1_indices=jnp.asarray(i1_indices),
+        i2_indices=jnp.asarray(i2_indices),
+        noise_scale=noise_scale,
+        space=space,
+        fixed_contrast=fixed_contrast,
+        fixed_offset=fixed_offset,
+        num_shards=num_shards_model,
+    )
+
+    start_time = time.perf_counter()
+    kernel = NUTS(
+        model_callable,
+        target_accept_prob=config.target_accept_prob,
+        dense_mass=config.dense_mass,
+    )
+    mcmc = MCMC(
+        kernel,
+        num_warmup=eff_warmup,
+        num_samples=eff_samples,
+        num_chains=config.num_chains,
+        chain_method=config.chain_method,
+        progress_bar=False,
+    )
+    mcmc.run(jax.random.PRNGKey(rng_seed))
+    samples_raw = mcmc.get_samples(group_by_chain=True)
+    samples = {k: np.asarray(v) for k, v in samples_raw.items()}
+    extra_fields = mcmc.get_extra_fields(group_by_chain=True)
+    divergences = int(np.sum(np.asarray(extra_fields.get("diverging", []))))
+    wall_time = time.perf_counter() - start_time
+
+    physics_names = [n for n in space.varying_names if n not in ("contrast", "offset")]
+    contrast_names = [f"contrast_{i}" for i in range(n_phi)]
+    offset_names = [f"offset_{i}" for i in range(n_phi)]
+    parameter_names = physics_names + contrast_names + offset_names
+
+    posterior_mean = np.zeros(len(parameter_names))
+    posterior_std = np.zeros(len(parameter_names))
+    for i, name in enumerate(parameter_names):
+        if name in samples:
+            flat = samples[name].reshape(-1)
+            posterior_mean[i] = float(np.nanmean(flat))
+            posterior_std[i] = float(np.nanstd(flat))
+
+    n_phys = len(physics_names)
+    mean_contrast = np.array([posterior_mean[n_phys + i] for i in range(n_phi)])
+    std_contrast = np.array([posterior_std[n_phys + i] for i in range(n_phi)])
+    mean_offset = np.array([posterior_mean[n_phys + n_phi + i] for i in range(n_phi)])
+    std_offset = np.array([posterior_std[n_phys + n_phi + i] for i in range(n_phi)])
+
+    total_iters = eff_samples * config.num_chains
+    divergence_rate = divergences / total_iters if total_iters > 0 else 0.0
+    if result_num_shards > 1:
+        # Per-shard result feeding Consensus MC: gate on divergence RATE (not
+        # divergences == 0) so a handful of divergences does not drop the whole
+        # shard from the consensus. ``_combine_shard_posteriors`` requires both
+        # ``metadata["divergence_rate"]`` (rate gate) AND ``convergence_passed``
+        # to admit a shard; mirror _result_dict_to_cmc_result here.
+        max_div_rate = getattr(config, "max_divergence_rate", 0.10)
+        convergence_passed = divergence_rate <= max_div_rate
+    else:
+        # Single-pass result returned directly to the user: keep strict status
+        # parity with the pre-sharding behaviour.
+        convergence_passed = divergences == 0
+    convergence_status = "converged" if convergence_passed else "divergences"
+
+    return CMCResult(
+        parameter_names=parameter_names,
+        posterior_mean=posterior_mean,
+        posterior_std=posterior_std,
+        credible_intervals={},
+        convergence_passed=convergence_passed,
+        convergence_status=convergence_status,
+        samples=samples if keep_samples else None,
+        num_warmup=eff_warmup,
+        num_samples=eff_samples,
+        num_chains=config.num_chains,
+        num_shards=result_num_shards,
+        divergences=divergences,
+        wall_time_seconds=float(wall_time),
+        mean_contrast=mean_contrast,
+        std_contrast=std_contrast,
+        mean_offset=mean_offset,
+        std_offset=std_offset,
+        per_angle_mode="individual",
+        metadata={
+            "joint_multi_phi": True,
+            "n_phi": n_phi,
+            "n_total": int(np.asarray(data).size),
+            "phi_unique": np.asarray(phi_unique).tolist(),
+            "num_divergent": divergences,
+            "divergence_rate": divergence_rate,
+        },
+    )
+
+
+def _adaptive_shard_iters(config: CMCConfig, shard_size: int) -> tuple[int, int]:
+    """Per-shard ``(warmup, samples)`` with homodyne-style adaptive scaling.
+
+    When ``config.adaptive_sampling`` is enabled, scale iterations by
+    ``min(1, shard_size / 10000)`` with floors ``min_warmup`` / ``min_samples``.
+    Small shards converge with fewer iterations, so this cuts sequential
+    wall-clock without shortening larger shards. Disabled → full config values.
+    """
+    if not getattr(config, "adaptive_sampling", False):
+        return config.num_warmup, config.num_samples
+    scale = min(1.0, shard_size / 10000.0)
+    warmup = max(
+        int(getattr(config, "min_warmup", 100)), int(config.num_warmup * scale)
+    )
+    samples = max(
+        int(getattr(config, "min_samples", 200)), int(config.num_samples * scale)
+    )
+    return warmup, samples
+
+
+def _run_joint_pooled_shard_local(payload: dict[str, Any]) -> CMCResult:
+    """Run one shard payload in-process (sequential path / parallel fallback)."""
+    return _joint_pooled_nuts_run(**payload)
+
+
+def _run_joint_shards(
+    payloads: list[dict[str, Any]], config: CMCConfig, n_shards: int
+) -> list[CMCResult]:
+    """Run per-shard pooled NUTS, in parallel across worker processes when
+    possible, else sequentially in-process.
+
+    Parallel dispatch reuses the multiprocessing backend's proven spawn +
+    ``_init_worker_jax`` machinery (float64, compilation cache, thread
+    pinning). ANY failure falls back to the validated sequential path so
+    correctness is never compromised.
+    """
+    backend = (getattr(config, "backend_name", "auto") or "auto").lower()
+    cpu_workers = min(_estimate_n_workers(), n_shards)
+    # Bound concurrency by available RAM: each worker runs a full NUTS pass
+    # concurrently, so peak memory ≈ n_workers × per-shard. Capping to 1 under
+    # memory pressure routes to the sequential in-process path below.
+    n_workers = _memory_aware_worker_cap(payloads, cpu_workers, config.num_chains)
+    parallel_ok = (
+        backend in ("auto", "multiprocessing", "pjit", "jit")
+        and n_workers > 1
+        and n_shards > 1
+    )
+    if parallel_ok:
+        try:
+            from heterodyne.optimization.cmc.backends.multiprocessing import (
+                run_joint_pooled_shards_parallel,
+            )
+
+            results = run_joint_pooled_shards_parallel(
+                payloads, n_workers=n_workers, num_chains=config.num_chains
+            )
+            logger.info(
+                "[CMC joint] dispatched %d shards across %d workers (parallel CMC)",
+                n_shards,
+                n_workers,
+            )
+            return results
+        except Exception:  # noqa: BLE001 — degrade to sequential, never crash
+            logger.warning(
+                "[CMC joint] parallel shard dispatch failed; running %d shards "
+                "sequentially in-process",
+                n_shards,
+                exc_info=True,
+            )
+    return [_run_joint_pooled_shard_local(p) for p in payloads]
+
+
 def fit_cmc_multi_phi(
     model: HeterodyneModel,
     c2_data: np.ndarray | jnp.ndarray,
@@ -2438,9 +2790,13 @@ def fit_cmc_multi_phi(
 ) -> CMCResult:
     """Joint multi-phi CMC entry point (homodyne parity).
 
-    Runs ONE NUTS pass on pooled multi-phi data with shared 14 physics
-    parameters and per-angle sampled contrast / offset. Mirrors
-    ``homodyne.optimization.cmc.fit_mcmc_jax`` at the algorithmic level:
+    Fits the pooled multi-phi data with shared 14 physics parameters and
+    per-angle contrast / offset. Mirrors ``homodyne``'s ``_fit_mcmc_jax_impl``:
+    small datasets run a single NUTS pass; large datasets (``n_total`` above
+    the single-shard limit, or when ``num_shards`` / ``max_points_per_shard``
+    is set explicitly) are sharded and combined by Consensus Monte Carlo —
+    NUTS is O(n) per leapfrog step, so a single pass over millions of pooled
+    points is intractable. Algorithm:
 
     1. Pool ``c2_data`` (shape ``(n_phi, N, N)`` or ``(N, N)`` for n_phi=1)
        into flat arrays ``(data, t1, t2, phi)`` of length ``n_phi * N * N``.
@@ -2534,9 +2890,32 @@ def fit_cmc_multi_phi(
         data_flat, t1_flat, t2_flat, phi_flat, filter_diagonal=True
     )
 
+    # ---- Phase 3+: index -> build model -> shard -> sample -> combine ----
+    return _fit_cmc_pooled(model, prepared, time_grid, config, nlsq_results)
+
+
+def _fit_cmc_pooled(
+    model: HeterodyneModel,
+    prepared: PooledCMCData,
+    time_grid: np.ndarray,
+    config: CMCConfig,
+    nlsq_results: list[NLSQResult] | None,
+) -> CMCResult:
+    """Shared pooled-CMC engine: index -> build model -> shard/NUTS -> combine.
+
+    Both joint entry points converge here once they hold a ``PooledCMCData``:
+    :func:`fit_cmc_multi_phi` (dense ``(n_phi, N, N)`` input) and
+    :func:`fit_mcmc_jax` (already-flat pooled input, which skips the dense
+    ``(n_phi, N, N)`` reconstruction and meshgrid round-trip entirely — the
+    memory fix). ``time_grid`` is ``model.t``; every ``prepared.t1``/``t2``
+    value must lie on it (enforced by :func:`_grid_indices`).
+    """
+    time_grid = np.asarray(time_grid, dtype=np.float64)
+    n_grid = int(time_grid.size)
+
     # ---- Phase 3: per-point grid indices for the gather inside the model ----
-    i1_indices = np.searchsorted(time_grid, prepared.t1).astype(np.int32)
-    i2_indices = np.searchsorted(time_grid, prepared.t2).astype(np.int32)
+    i1_indices = _grid_indices(time_grid, prepared.t1, axis="t1")
+    i2_indices = _grid_indices(time_grid, prepared.t2, axis="t2")
 
     logger.info(
         "[CMC joint] n_phi=%d, n_total=%d, n_grid=%d, noise_scale=%.4e",
@@ -2588,117 +2967,172 @@ def fit_cmc_multi_phi(
             fixed_contrast_arg = float(per_angle_contrast.mean())
             fixed_offset_arg = float(per_angle_offset.mean())
 
-    model_callable = get_heterodyne_pooled_model_for_mode(
-        effective_mode,
-        data=jnp.asarray(prepared.data),
-        t=jnp.asarray(time_grid),
-        q=float(model.q),
-        dt=float(model.dt),
-        phi_unique=jnp.asarray(prepared.phi_unique),
-        phi_indices=jnp.asarray(prepared.phi_indices),
-        i1_indices=jnp.asarray(i1_indices),
-        i2_indices=jnp.asarray(i2_indices),
-        noise_scale=prepared.noise_scale,
-        space=space,
-        fixed_contrast=fixed_contrast_arg,
-        fixed_offset=fixed_offset_arg,
-        num_shards=1,
+    # ---- Phase 5: sharding decision (Consensus Monte Carlo, homodyne parity) ----
+    # Homodyne's _fit_mcmc_jax_impl pools the data and THEN shards it, running
+    # NUTS per shard and combining via consensus. It does NOT run a single NUTS
+    # pass over millions of points (NUTS is O(n) per leapfrog step). We mirror
+    # that: small data -> one pass; large data -> shard + consensus.
+    base_seed = config.seed if config.seed is not None else secrets.randbelow(2**31)
+    forced_shards = isinstance(config.num_shards, int) or isinstance(
+        config.max_points_per_shard, int
     )
+    # CLAUDE.md: "NUTS is O(n) per leapfrog step. Never use 100K+ shard size."
+    _SINGLE_SHARD_LIMIT = 100_000
+    should_shard = forced_shards or prepared.n_total > _SINGLE_SHARD_LIMIT
 
-    # ---- Phase 5: NUTS sampling ----
+    def _single_pass(rng_seed: int) -> CMCResult:
+        return _joint_pooled_nuts_run(
+            effective_mode=effective_mode,
+            data=prepared.data,
+            time_grid=time_grid,
+            q=float(model.q),
+            dt=float(model.dt),
+            phi_unique=prepared.phi_unique,
+            phi_indices=prepared.phi_indices,
+            i1_indices=i1_indices,
+            i2_indices=i2_indices,
+            noise_scale=prepared.noise_scale,
+            space=space,
+            fixed_contrast=fixed_contrast_arg,
+            fixed_offset=fixed_offset_arg,
+            num_shards_model=1,
+            config=config,
+            n_phi=prepared.n_phi,
+            rng_seed=rng_seed,
+            result_num_shards=1,
+            keep_samples=True,
+        )
+
+    if not should_shard:
+        logger.info(
+            "[CMC joint] single-shard NUTS: n_total=%d (<= %d); chains=%d, "
+            "warmup=%d, samples=%d",
+            prepared.n_total,
+            _SINGLE_SHARD_LIMIT,
+            config.num_chains,
+            config.num_warmup,
+            config.num_samples,
+        )
+        return _single_pass(base_seed)
+
+    # ---- Multi-shard Consensus Monte Carlo ----
+    # Target ~max_per_shard points/shard (homodyne aims ~10K); count capped by
+    # max_shards. Angle-balanced for multi-angle data so every shard sees all
+    # angles (consensus on shared global physics params requires homogeneous
+    # sub-posteriors); random for single-angle data.
+    explicit_shards = config.num_shards if isinstance(config.num_shards, int) else None
+    max_per_shard = (
+        config.max_points_per_shard
+        if isinstance(config.max_points_per_shard, int)
+        else 10_000
+    )
+    if prepared.n_phi > 1:
+        if config.sharding_strategy == "stratified":
+            logger.warning(
+                "[CMC joint] Overriding sharding_strategy='stratified' -> "
+                "'angle_balanced' for multi-angle joint CMC; stratified shards "
+                "create disjoint posteriors that violate Consensus MC assumptions "
+                "for shared global physics parameters."
+            )
+        shards = shard_pooled_angle_balanced(
+            prepared,
+            num_shards=explicit_shards,
+            max_points_per_shard=max_per_shard,
+            max_shards=500,
+            seed=base_seed,
+        )
+        strategy_used = "angle_balanced"
+    else:
+        shards = shard_pooled_random(
+            prepared,
+            num_shards=explicit_shards,
+            max_points_per_shard=max_per_shard,
+            max_shards=100,
+            seed=base_seed,
+        )
+        strategy_used = "random"
+
+    n_shards = len(shards)
+    if n_shards <= 1:
+        logger.info(
+            "[CMC joint] sharding collapsed to 1 shard; running single NUTS pass"
+        )
+        return _single_pass(base_seed)
+
     logger.info(
-        "[CMC joint] starting NUTS: chains=%d, warmup=%d, samples=%d",
+        "[CMC joint] Consensus Monte Carlo: %d points -> %d shards (strategy=%s); "
+        "NUTS per shard (chains=%d, warmup=%d, samples=%d)",
+        prepared.n_total,
+        n_shards,
+        strategy_used,
         config.num_chains,
         config.num_warmup,
         config.num_samples,
     )
-    start_time = time.perf_counter()
-    rng_seed = config.seed if config.seed is not None else secrets.randbelow(2**31)
-    kernel = NUTS(
-        model_callable,
-        target_accept_prob=config.target_accept_prob,
-        dense_mass=config.dense_mass,
-    )
-    mcmc = MCMC(
-        kernel,
-        num_warmup=config.num_warmup,
-        num_samples=config.num_samples,
-        num_chains=config.num_chains,
-        chain_method=config.chain_method,
-        progress_bar=False,
-    )
-    mcmc.run(jax.random.PRNGKey(rng_seed))
-    samples_raw = mcmc.get_samples(group_by_chain=True)
-    samples = {k: np.asarray(v) for k, v in samples_raw.items()}
-    extra_fields = mcmc.get_extra_fields(group_by_chain=True)
-    divergences = int(np.sum(np.asarray(extra_fields.get("diverging", []))))
-    wall_time = time.perf_counter() - start_time
 
-    # ---- Phase 6: assemble CMCResult ----
-    physics_names = [n for n in space.varying_names if n not in ("contrast", "offset")]
-    contrast_names = [f"contrast_{i}" for i in range(prepared.n_phi)]
-    offset_names = [f"offset_{i}" for i in range(prepared.n_phi)]
-    parameter_names = physics_names + contrast_names + offset_names
+    shard_payloads: list[dict[str, Any]] = []
+    for si, shard in enumerate(shards):
+        # Map each shard point onto the GLOBAL angle index so every shard's
+        # parameter vector (contrast_i / offset_i) has identical length and
+        # ordering — a hard precondition of _combine_shard_posteriors.
+        g_phi_idx = np.argmin(
+            np.abs(shard.phi[:, None] - prepared.phi_unique[None, :]), axis=1
+        ).astype(np.int32)
+        s_i1 = _grid_indices(time_grid, shard.t1, axis="t1")
+        s_i2 = _grid_indices(time_grid, shard.t2, axis="t2")
+        s_warmup, s_samples = _adaptive_shard_iters(config, shard.n_total)
+        shard_payloads.append(
+            {
+                "effective_mode": effective_mode,
+                "data": shard.data,
+                "time_grid": time_grid,
+                "q": float(model.q),
+                "dt": float(model.dt),
+                "phi_unique": prepared.phi_unique,
+                "phi_indices": g_phi_idx,
+                "i1_indices": s_i1,
+                "i2_indices": s_i2,
+                "noise_scale": shard.noise_scale,
+                "space": space,
+                "fixed_contrast": fixed_contrast_arg,
+                "fixed_offset": fixed_offset_arg,
+                "num_shards_model": n_shards,
+                "config": config,
+                "n_phi": prepared.n_phi,
+                "rng_seed": base_seed + 1 + si,
+                "result_num_shards": n_shards,
+                "keep_samples": False,
+                "num_warmup": s_warmup,
+                "num_samples": s_samples,
+            }
+        )
 
-    posterior_mean = np.zeros(len(parameter_names))
-    posterior_std = np.zeros(len(parameter_names))
-    for i, name in enumerate(parameter_names):
-        if name in samples:
-            flat = samples[name].reshape(-1)
-            posterior_mean[i] = float(np.nanmean(flat))
-            posterior_std[i] = float(np.nanstd(flat))
-
-    mean_contrast = np.array(
-        [posterior_mean[len(physics_names) + i] for i in range(prepared.n_phi)]
-    )
-    std_contrast = np.array(
-        [posterior_std[len(physics_names) + i] for i in range(prepared.n_phi)]
-    )
-    n_phys = len(physics_names)
-    mean_offset = np.array(
-        [posterior_mean[n_phys + prepared.n_phi + i] for i in range(prepared.n_phi)]
-    )
-    std_offset = np.array(
-        [posterior_std[n_phys + prepared.n_phi + i] for i in range(prepared.n_phi)]
-    )
-
-    convergence_passed = divergences == 0
-    convergence_status = "converged" if convergence_passed else "divergences"
-
+    shard_results = _run_joint_shards(shard_payloads, config, n_shards)
+    _n_div_total = sum(int(sr.divergences) for sr in shard_results)
     logger.info(
-        "[CMC joint] complete: %d samples × %d chains, %d divergences, %.1fs",
-        config.num_samples,
-        config.num_chains,
-        divergences,
-        wall_time,
+        "[CMC joint] all %d shards complete (%d total divergences)",
+        n_shards,
+        _n_div_total,
     )
 
-    return CMCResult(
-        parameter_names=parameter_names,
-        posterior_mean=posterior_mean,
-        posterior_std=posterior_std,
-        credible_intervals={},
-        convergence_passed=convergence_passed,
-        convergence_status=convergence_status,
-        samples=samples,
-        num_warmup=config.num_warmup,
-        num_samples=config.num_samples,
-        num_chains=config.num_chains,
-        num_shards=1,
-        divergences=divergences,
-        wall_time_seconds=float(wall_time),
-        mean_contrast=mean_contrast,
-        std_contrast=std_contrast,
-        mean_offset=mean_offset,
-        std_offset=std_offset,
-        per_angle_mode="individual",
-        metadata={
+    combined = _combine_shard_posteriors(shard_results, config, n_shards, base_seed)
+    combined.num_shards = n_shards
+    combined.metadata.update(
+        {
             "joint_multi_phi": True,
             "n_phi": prepared.n_phi,
             "n_total": prepared.n_total,
             "phi_unique": prepared.phi_unique.tolist(),
-        },
+            "sharding_strategy": strategy_used,
+            "num_shards": n_shards,
+        }
     )
+    logger.info(
+        "[CMC joint] consensus complete: combined %d shards, status=%s",
+        n_shards,
+        combined.convergence_status,
+    )
+    return combined
 
 
 def fit_mcmc_jax(
@@ -2815,16 +3249,25 @@ def fit_mcmc_jax(
     phi_indices = np.argmin(
         np.abs(phi_arr[:, None] - unique_phi[None, :]), axis=1
     ).astype(np.int32)
-    i1 = np.searchsorted(t_unique, t1_arr).astype(np.int32)
-    i2 = np.searchsorted(t_unique, t2_arr).astype(np.int32)
-    c2_stacked = np.full((n_phi, n_t, n_t), np.nan, dtype=np.float64)
-    c2_stacked[phi_indices, i1, i2] = data_arr
-    if np.isnan(c2_stacked).any():
+    i1 = _grid_indices(t_unique, t1_arr, axis="t1")
+    i2 = _grid_indices(t_unique, t2_arr, axis="t2")
+    # #3 memory fix: validate full (phi, t1, t2) coverage WITHOUT materialising
+    # the dense (n_phi, n_t, n_t) float matrix. Scatter into a 1-byte presence
+    # mask (8x smaller, freed immediately); combined with the size check above,
+    # a fully-covered mask proves a gap- and duplicate-free meshgrid. ``order``
+    # restores the canonical angle-major / i1-major layout the old dense
+    # round-trip produced, so downstream results stay bit-identical.
+    cell_ids = (phi_indices.astype(np.int64) * n_t + i1) * n_t + i2
+    seen = np.zeros(n_phi * n_t * n_t, dtype=bool)
+    seen[cell_ids] = True
+    if not seen.all():
         raise ValueError(
             "fit_mcmc_jax: pooled (data, t1, t2, phi) does not cover the "
             f"full ({n_phi}, {n_t}, {n_t}) grid; cannot reconstruct stacked "
             "C2 matrices."
         )
+    del seen
+    order = np.argsort(cell_ids, kind="stable")
 
     inferred_dt = float(np.median(np.diff(t_unique))) if n_t > 1 else 1.0
     dt_value = float(dt) if dt is not None else inferred_dt
@@ -2886,13 +3329,19 @@ def fit_mcmc_jax(
     nlsq_results_list: list[NLSQResult] | None = (
         [nlsq_obj] * n_phi if nlsq_obj is not None else None
     )
-    return fit_cmc_multi_phi(
-        model=model,
-        c2_data=c2_stacked,
-        phi_angles=unique_phi,
-        config=config,
-        nlsq_results=nlsq_results_list,
+
+    # Re-express each pooled point on the model's regular grid by index
+    # (regrid-by-index, exactly as the old dense round-trip did) and feed the
+    # flat arrays straight into the shared pooled engine — no dense
+    # (n_phi, n_t, n_t) reconstruction, no meshgrid rebuild.
+    model_t = np.asarray(model.t, dtype=np.float64)
+    prepared = prepare_mcmc_data(
+        data_arr[order],
+        model_t[i1[order]],
+        model_t[i2[order]],
+        unique_phi[phi_indices[order]],
     )
+    return _fit_cmc_pooled(model, prepared, model_t, config, nlsq_results_list)
 
 
 def run_cmc_analysis(
