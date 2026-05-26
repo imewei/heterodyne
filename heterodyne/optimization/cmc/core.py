@@ -1598,22 +1598,51 @@ def _combine_shard_posteriors(
         # but NUTS samples were collected — accept the shard on raw-sample basis.
         return sr.r_hat is not None and bool(np.all(np.isnan(sr.r_hat)))
 
-    # Gemini P2-d: expose per-shard failure mask so callers can identify
-    # WHICH shards dropped, not just how many.  Mask is True at index i iff
-    # shard i was rejected by the validity gate (rate-padded failures
-    # included via the np.nan posterior_std set in _create_failed_result).
+    def _shard_divergence_ok(sr: CMCResult) -> bool:
+        return getattr(sr, "metadata", {}).get("divergence_rate", 0.0) <= _max_div_rate
+
+    def _shard_included(sr: CMCResult) -> bool:
+        # Single source of truth for "did this shard contribute to consensus?".
+        # ``successful`` and ``_failure_mask`` MUST agree on this predicate;
+        # deriving the mask from a weaker check (valid-samples only) would mark
+        # a high-divergence or non-converged shard as healthy even though it was
+        # dropped from the combined posterior (Codex finding).
+        return bool(
+            _shard_has_valid_samples(sr)
+            and _shard_divergence_ok(sr)
+            and (sr.convergence_passed or _shard_diagnostics_unknown(sr))
+        )
+
+    # Gemini P2-d / Codex: expose per-shard failure mask so callers can identify
+    # WHICH shards dropped, not just how many. Mask is True at index i iff shard
+    # i was excluded from consensus — by the SAME predicate that builds
+    # ``successful``. Typed reason masks below let downstream tooling see why.
     _failure_mask: np.ndarray = np.array(
+        [not _shard_included(sr) for sr in shard_results],
+        dtype=bool,
+    )
+    _no_samples_mask: np.ndarray = np.array(
         [not _shard_has_valid_samples(sr) for sr in shard_results],
         dtype=bool,
     )
+    _high_divergence_mask: np.ndarray = np.array(
+        [
+            _shard_has_valid_samples(sr) and not _shard_divergence_ok(sr)
+            for sr in shard_results
+        ],
+        dtype=bool,
+    )
+    _bad_convergence_mask: np.ndarray = np.array(
+        [
+            _shard_has_valid_samples(sr)
+            and _shard_divergence_ok(sr)
+            and not (sr.convergence_passed or _shard_diagnostics_unknown(sr))
+            for sr in shard_results
+        ],
+        dtype=bool,
+    )
 
-    successful = [
-        sr
-        for sr in shard_results
-        if _shard_has_valid_samples(sr)
-        and getattr(sr, "metadata", {}).get("divergence_rate", 0.0) <= _max_div_rate
-        and (sr.convergence_passed or _shard_diagnostics_unknown(sr))
-    ]
+    successful = [sr for sr in shard_results if _shard_included(sr)]
     n_diag_unknown = sum(1 for sr in successful if not sr.convergence_passed)
     if n_diag_unknown > 0:
         logger.warning(
@@ -1675,8 +1704,13 @@ def _combine_shard_posteriors(
                 # P2-d: mask length tracks ``len(shard_results)`` (the
                 # padded list the consumer sees) so callers can iterate
                 # the mask in lockstep with ``shard_results`` without
-                # worrying about length skew.
+                # worrying about length skew. No shard was included, so the
+                # unified mask is all-True; the typed reason masks still
+                # attribute *why* each shard dropped.
                 "failure_mask": np.full(len(shard_results), True, dtype=bool),
+                "no_samples_mask": _no_samples_mask,
+                "high_divergence_mask": _high_divergence_mask,
+                "bad_convergence_mask": _bad_convergence_mask,
             },
         )
 
@@ -1936,9 +1970,14 @@ def _combine_shard_posteriors(
             "success_rate": _success_rate,
             "diagnostics_passed": _diagnostics_passed,
             "rate_passed": _rate_passed,
-            # P2-d: per-shard bool mask (True = failed). Length = num_shards;
-            # entry i == True iff shard i was rejected by the validity gate.
+            # P2-d / Codex: per-shard bool mask (True = excluded from
+            # consensus). Length = len(shard_results); entry i == True iff
+            # shard i failed the SAME inclusion predicate as ``successful``
+            # (no valid samples, OR high divergence, OR failed convergence).
             "failure_mask": _failure_mask,
+            "no_samples_mask": _no_samples_mask,
+            "high_divergence_mask": _high_divergence_mask,
+            "bad_convergence_mask": _bad_convergence_mask,
         },
     )
 

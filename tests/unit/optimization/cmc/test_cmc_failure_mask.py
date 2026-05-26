@@ -76,3 +76,59 @@ class TestFailureMask:
         assert mask.dtype == np.bool_
         # Must not have been silently downcast to int.
         assert mask.dtype.kind == "b"
+
+    def test_high_divergence_shard_marked_failed(self) -> None:
+        """Codex finding: a shard skipped for high divergence must appear in
+        failure_mask, even though it has valid posterior samples."""
+        cfg = _cfg()  # max_divergence_rate default 0.10
+        good = _build_shard_result(convergence_passed=True, rng_seed=1)
+        diverged = _build_shard_result(convergence_passed=True, rng_seed=2)
+        # Valid samples, but divergence rate well over the gate -> excluded.
+        diverged.metadata = {"divergence_rate": 0.5}
+        shards = [
+            good,
+            diverged,
+            _build_shard_result(convergence_passed=True, rng_seed=3),
+        ]
+        combined = _combine_shard_posteriors(shards, cfg, num_shards=3, base_seed=0)
+        mask = combined.metadata["failure_mask"]
+        # The diverged shard (index 1) was dropped from consensus, so the
+        # unified mask must report it as failed — not False.
+        assert mask.tolist() == [False, True, False]
+        assert combined.metadata["high_divergence_mask"].tolist() == [
+            False,
+            True,
+            False,
+        ]
+        assert combined.metadata["n_successful_shards"] == 2
+
+    def test_non_converged_shard_marked_failed(self) -> None:
+        """A shard with valid samples but failed convergence (known, non-NaN
+        diagnostics) is excluded from consensus and must be flagged."""
+        cfg = _cfg()
+        good = _build_shard_result(convergence_passed=True, rng_seed=4)
+        # convergence_passed=False with finite r_hat (1.01) -> diagnostics are
+        # KNOWN to be bad, so the raw-sample escape hatch does not apply.
+        bad = _build_shard_result(convergence_passed=False, rng_seed=5)
+        shards = [good, bad]
+        combined = _combine_shard_posteriors(shards, cfg, num_shards=2, base_seed=0)
+        mask = combined.metadata["failure_mask"]
+        assert mask.tolist() == [False, True]
+        assert combined.metadata["bad_convergence_mask"].tolist() == [False, True]
+
+    def test_failure_mask_matches_inclusion_predicate(self) -> None:
+        """failure_mask is the exact complement of the shards that contributed:
+        n_successful + sum(failure_mask) == n_total."""
+        cfg = _cfg()
+        good = _build_shard_result(convergence_passed=True, rng_seed=6)
+        diverged = _build_shard_result(convergence_passed=True, rng_seed=7)
+        diverged.metadata = {"divergence_rate": 0.9}
+        failed = _build_failed_shard()
+        non_conv = _build_shard_result(convergence_passed=False, rng_seed=8)
+        shards = [good, diverged, failed, non_conv]
+        combined = _combine_shard_posteriors(shards, cfg, num_shards=4, base_seed=0)
+        mask = combined.metadata["failure_mask"]
+        n_failed = int(mask.sum())
+        assert combined.metadata["n_successful_shards"] + n_failed == len(shards)
+        # Only the clean shard contributes.
+        assert mask.tolist() == [False, True, True, True]
