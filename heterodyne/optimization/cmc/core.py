@@ -2800,13 +2800,15 @@ def _run_joint_shards(
                 run_joint_pooled_shards_parallel,
             )
 
-            results = run_joint_pooled_shards_parallel(
-                payloads, n_workers=n_workers, num_chains=config.num_chains
-            )
             logger.info(
-                "[CMC joint] dispatched %d shards across %d workers (parallel CMC)",
+                "[CMC joint] dispatching %d shards across %d workers (parallel CMC)",
                 n_shards,
                 n_workers,
+            )
+            results = run_joint_pooled_shards_parallel(
+                payloads,
+                n_workers=n_workers,
+                num_chains=config.num_chains,
             )
             return results
         except Exception:  # noqa: BLE001 — degrade to sequential, never crash
@@ -2816,7 +2818,33 @@ def _run_joint_shards(
                 n_shards,
                 exc_info=True,
             )
-    return [_run_joint_pooled_shard_local(p) for p in payloads]
+
+    # Sequential in-process path (single worker or parallel fallback). Emit a
+    # tqdm bar plus per-shard logging so progress is visible (homodyne parity).
+    from tqdm import tqdm
+
+    results: list[CMCResult] = []
+    total_div = 0
+    with tqdm(
+        total=n_shards,
+        desc="CMC joint shards (sequential)",
+        unit="shard",
+        disable=not getattr(config, "progress_bar", True),
+    ) as pbar:
+        for si, p in enumerate(payloads):
+            sr = _run_joint_pooled_shard_local(p)
+            results.append(sr)
+            total_div += int(sr.divergences)
+            pbar.update(1)
+            pbar.set_postfix(shard=si, div=total_div, ok=bool(sr.convergence_passed))
+            logger.info(
+                "[CMC joint] shard %d/%d complete (divergences=%d, status=%s)",
+                si + 1,
+                n_shards,
+                int(sr.divergences),
+                sr.convergence_status,
+            )
+    return results
 
 
 def fit_cmc_multi_phi(

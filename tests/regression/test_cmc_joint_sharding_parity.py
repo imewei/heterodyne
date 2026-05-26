@@ -321,6 +321,59 @@ def test_dispatch_sequential_for_cpu_backend(monkeypatch):
     assert len(out) == 5
 
 
+def test_indexed_wrapper_tags_result_with_shard_index(monkeypatch):
+    """``imap_unordered`` progress reporting relies on index-tagged results."""
+    import heterodyne.optimization.cmc.backends.multiprocessing as mp_backend
+
+    monkeypatch.setattr(
+        mp_backend, "_run_joint_pooled_shard", lambda payload: payload["_idx"]
+    )
+    for i in (3, 0, 2, 1):
+        idx, res = mp_backend._run_joint_pooled_shard_indexed((i, {"_idx": i}))
+        assert idx == i
+        assert res == i
+
+
+def test_parallel_progress_path_restores_input_order(monkeypatch):
+    """Workers may finish out of order; results must come back in input order.
+
+    Pins the progress fix: ``run_joint_pooled_shards_parallel`` now consumes
+    ``imap_unordered`` (so the tqdm bar advances on each completion) and
+    reorders results by their original shard index.
+    """
+    import heterodyne.optimization.cmc.backends.multiprocessing as mp_backend
+
+    class _FakePool:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def imap_unordered(self, fn, iterable):
+            # Yield completions in REVERSED order to stress the reordering.
+            for item in reversed(list(iterable)):
+                yield fn(item)
+
+    class _FakeCtx:
+        def Pool(self, *a, **k):
+            return _FakePool()
+
+    monkeypatch.setattr(mp_backend.mp, "get_context", lambda _kind: _FakeCtx())
+    monkeypatch.setattr(
+        mp_backend, "_run_joint_pooled_shard", lambda payload: payload["_idx"]
+    )
+
+    payloads = [{"_idx": i, "n_phi": 1} for i in range(6)]
+    out = mp_backend.run_joint_pooled_shards_parallel(
+        payloads, n_workers=2, num_chains=1, progress_bar=False
+    )
+    assert out == [0, 1, 2, 3, 4, 5], "results must be restored to input order"
+
+
 @pytest.mark.slow
 def test_parallel_pooled_shards_end_to_end(monkeypatch):
     """Real spawn-pool run of the pooled model across worker processes.

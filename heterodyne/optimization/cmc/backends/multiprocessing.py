@@ -745,11 +745,26 @@ def _run_joint_pooled_shard(payload: dict[str, Any]) -> Any:
     return _joint_pooled_nuts_run(**payload)
 
 
+def _run_joint_pooled_shard_indexed(
+    item: tuple[int, dict[str, Any]],
+) -> tuple[int, Any]:
+    """Index-preserving wrapper so ``imap_unordered`` results can be reordered.
+
+    ``imap_unordered`` yields results in completion order (enabling live
+    progress); tagging each result with its original shard index lets the
+    parent restore input order. Must stay module-level so the spawn pool can
+    serialise it for dispatch to child processes.
+    """
+    idx, payload = item
+    return idx, _run_joint_pooled_shard(payload)
+
+
 def run_joint_pooled_shards_parallel(
     payloads: list[dict[str, Any]],
     *,
     n_workers: int,
     num_chains: int,
+    progress_bar: bool = True,
 ) -> list[Any]:
     """Run pooled-model shard payloads across a spawn process pool.
 
@@ -757,16 +772,51 @@ def run_joint_pooled_shards_parallel(
     cache, OpenMP thread pinning). Each element of ``payloads`` is the kwargs
     dict for :func:`heterodyne.optimization.cmc.core._joint_pooled_nuts_run`.
     Returns the per-shard ``CMCResult`` objects in input order.
+
+    Progress is reported via a ``tqdm`` bar that advances each time a worker
+    finishes a shard (homodyne parity), so long multi-shard CMC runs surface
+    incremental completion instead of blocking silently.
     """
     total_threads = os.cpu_count() or 1
     threads_per_worker = _compute_threads_per_worker(total_threads, n_workers)
     ctx = mp.get_context("spawn")
-    with ctx.Pool(
-        processes=n_workers,
-        initializer=_init_worker_jax,
-        initargs=(threads_per_worker, num_chains),
-    ) as pool:
-        return list(pool.map(_run_joint_pooled_shard, payloads))
+    n_shards = len(payloads)
+    results: list[Any] = [None] * n_shards
+    indexed = list(enumerate(payloads))
+    total_divergences = 0
+    with (
+        ctx.Pool(
+            processes=n_workers,
+            initializer=_init_worker_jax,
+            initargs=(threads_per_worker, num_chains),
+        ) as pool,
+        tqdm(
+            total=n_shards,
+            desc=f"CMC joint shards ({n_workers} workers)",
+            unit="shard",
+            disable=not progress_bar,
+        ) as pbar,
+    ):
+        for idx, result in pool.imap_unordered(
+            _run_joint_pooled_shard_indexed, indexed
+        ):
+            results[idx] = result
+            total_divergences += int(getattr(result, "divergences", 0) or 0)
+            pbar.update(1)
+            pbar.set_postfix(
+                shard=idx,
+                div=total_divergences,
+                ok=bool(getattr(result, "convergence_passed", False)),
+            )
+            logger.info(
+                "[CMC joint] shard %d complete (%d/%d; divergences=%d, status=%s)",
+                idx,
+                int(pbar.n),
+                n_shards,
+                int(getattr(result, "divergences", 0) or 0),
+                getattr(result, "convergence_status", "unknown"),
+            )
+    return results
 
 
 # ---------------------------------------------------------------------------
