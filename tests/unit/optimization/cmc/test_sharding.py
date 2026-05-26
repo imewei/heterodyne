@@ -426,3 +426,81 @@ class TestShardTIndices:
             assert "t2_idx" in shard, "Element-wise shard must have t2_idx"
             assert shard["c2_shard"].ndim == 1, "c2_shard must be flat 1-D"
             assert len(shard["c2_shard"]) == len(shard["t1_idx"])
+
+
+# ============================================================================
+# Pooled multi-phi sharding (homodyne parity)
+# ============================================================================
+
+
+def _make_pooled(n_grid: int, angles: list[float], seed: int = 0):
+    """Build a PooledCMCData from a synthetic (n_phi, n, n) stack."""
+    from heterodyne.optimization.cmc.data_prep import prepare_mcmc_data
+
+    rng = np.random.default_rng(seed)
+    t = np.linspace(0.001, 0.001 * n_grid, n_grid)
+    tt1, tt2 = np.meshgrid(t, t, indexing="ij")
+    data, t1, t2, phi = [], [], [], []
+    for a in angles:
+        data.append((1.0 + 0.1 * rng.standard_normal((n_grid, n_grid))).ravel())
+        t1.append(tt1.ravel())
+        t2.append(tt2.ravel())
+        phi.append(np.full(n_grid * n_grid, a))
+    return prepare_mcmc_data(
+        np.concatenate(data),
+        np.concatenate(t1),
+        np.concatenate(t2),
+        np.concatenate(phi),
+    )
+
+
+class TestPooledSharding:
+    """shard_pooled_random / shard_pooled_angle_balanced behaviour."""
+
+    def test_random_conserves_all_points(self):
+        from heterodyne.optimization.cmc.data_prep import shard_pooled_random
+
+        prep = _make_pooled(30, [-5.0, 5.0, 90.0])
+        shards = shard_pooled_random(prep, max_points_per_shard=300, seed=1)
+        assert len(shards) > 1
+        assert sum(s.n_total for s in shards) == prep.n_total
+        # disjoint partition: every point lands in exactly one shard
+        total = np.concatenate([s.data for s in shards])
+        assert total.size == prep.n_total
+
+    def test_angle_balanced_covers_all_angles(self):
+        from heterodyne.optimization.cmc.data_prep import shard_pooled_angle_balanced
+
+        prep = _make_pooled(30, [-5.0, 5.0, 90.0])
+        shards = shard_pooled_angle_balanced(prep, max_points_per_shard=300, seed=1)
+        assert len(shards) > 1
+        assert sum(s.n_total for s in shards) == prep.n_total
+        # every shard should contain all 3 angles (proportional allocation)
+        assert all(s.n_phi == prep.n_phi for s in shards)
+
+    def test_explicit_num_shards_honored(self):
+        from heterodyne.optimization.cmc.data_prep import shard_pooled_angle_balanced
+
+        prep = _make_pooled(30, [-5.0, 5.0, 90.0])
+        shards = shard_pooled_angle_balanced(prep, num_shards=5, seed=1)
+        assert len(shards) == 5
+        assert sum(s.n_total for s in shards) == prep.n_total
+
+    def test_single_angle_falls_back_to_random(self):
+        from heterodyne.optimization.cmc.data_prep import shard_pooled_angle_balanced
+
+        prep = _make_pooled(30, [0.0])
+        shards = shard_pooled_angle_balanced(prep, max_points_per_shard=200, seed=1)
+        assert len(shards) > 1
+        assert sum(s.n_total for s in shards) == prep.n_total
+
+    def test_max_shards_cap(self):
+        from heterodyne.optimization.cmc.data_prep import shard_pooled_random
+
+        prep = _make_pooled(30, [0.0])
+        # Tiny target size would request many shards; cap must bind.
+        shards = shard_pooled_random(
+            prep, max_points_per_shard=1, max_shards=7, seed=1
+        )
+        assert len(shards) <= 7
+        assert sum(s.n_total for s in shards) == prep.n_total

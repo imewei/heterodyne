@@ -241,6 +241,228 @@ def prepare_mcmc_data(
 
 
 # ---------------------------------------------------------------------------
+# Pooled multi-phi sharding (homodyne parity)
+# ---------------------------------------------------------------------------
+
+
+def shard_pooled_random(
+    prepared: PooledCMCData,
+    num_shards: int | None = None,
+    max_points_per_shard: int | None = None,
+    max_shards: int = 100,
+    seed: int = 42,
+) -> list[PooledCMCData]:
+    """Shard pooled data into ~equal random subsets (homodyne parity).
+
+    Used when there is a single phi angle, or as the fallback for
+    multi-angle data when angle-balanced sharding is not requested. Every
+    data point lands in exactly one shard — no subsampling, no point loss.
+
+    Mirrors ``homodyne.optimization.cmc.data_prep.shard_data_random``.
+
+    Args:
+        prepared: Pooled multi-phi data container.
+        num_shards: Explicit shard count. When ``None``, derived from
+            ``max_points_per_shard`` (ceil division), else 1.
+        max_points_per_shard: Target points per shard used to derive
+            ``num_shards`` when it is not given.
+        max_shards: Hard cap on shard count; when exceeded the shard size
+            grows so all data still fits in ``max_shards`` shards.
+        seed: Seed for the index shuffle (reproducible assignment).
+
+    Returns:
+        List of ``PooledCMCData`` shards covering all points.
+    """
+    rng = np.random.default_rng(seed)
+
+    if num_shards is None:
+        if max_points_per_shard is not None:
+            num_shards = (
+                prepared.n_total + max_points_per_shard - 1
+            ) // max_points_per_shard
+        else:
+            num_shards = 1
+    num_shards = max(1, num_shards)
+
+    if num_shards > max_shards:
+        logger.info(
+            "Random sharding: %d points capped from %d to %d shards (all data kept)",
+            prepared.n_total,
+            num_shards,
+            max_shards,
+        )
+        num_shards = max_shards
+
+    indices = np.arange(prepared.n_total)
+    rng.shuffle(indices)
+    points_per_shard = max(1, prepared.n_total // num_shards)
+
+    shards: list[PooledCMCData] = []
+    for i in range(num_shards):
+        start_idx = i * points_per_shard
+        end_idx = (
+            prepared.n_total if i == num_shards - 1 else (i + 1) * points_per_shard
+        )
+        shard_indices = np.sort(indices[start_idx:end_idx])
+        if shard_indices.size == 0:
+            continue
+        shards.append(_build_pooled_shard(prepared, shard_indices))
+
+    logger.info(
+        "Random sharding: %d points -> %d shards (~%d points each)",
+        prepared.n_total,
+        len(shards),
+        points_per_shard,
+    )
+    return shards
+
+
+def shard_pooled_angle_balanced(
+    prepared: PooledCMCData,
+    num_shards: int | None = None,
+    max_points_per_shard: int | None = None,
+    max_shards: int = 500,
+    min_angle_coverage: float = 0.8,
+    seed: int = 42,
+) -> list[PooledCMCData]:
+    """Shard pooled data with proportional per-angle coverage (homodyne parity).
+
+    Preferred strategy for multi-angle datasets (``n_phi > 1``). Each shard
+    samples proportionally from every phi angle so sub-posteriors stay
+    homogeneous — pure random sharding can leave shards with uneven angle
+    coverage, producing high cross-shard parameter variance that Consensus
+    MC then combines incorrectly.
+
+    Mirrors ``homodyne.optimization.cmc.data_prep.shard_data_angle_balanced``.
+
+    Args:
+        prepared: Pooled multi-phi data container.
+        num_shards: Explicit shard count. When ``None``, derived from
+            ``max_points_per_shard`` (ceil division), else ``max(1, n_phi)``.
+        max_points_per_shard: Target points per shard used to derive
+            ``num_shards`` when it is not given.
+        max_shards: Hard cap on shard count.
+        min_angle_coverage: Fraction of angles each shard should contain;
+            shards below this are logged as a diagnostic (not an error).
+        seed: Seed for per-angle shuffles (reproducible assignment).
+
+    Returns:
+        List of ``PooledCMCData`` shards with balanced angle coverage. Falls
+        back to :func:`shard_pooled_random` when ``n_phi == 1``.
+    """
+    rng = np.random.default_rng(seed)
+    n_phi = prepared.n_phi
+
+    if n_phi == 1:
+        logger.info("Single angle detected — falling back to random sharding")
+        return shard_pooled_random(
+            prepared, num_shards, max_points_per_shard, max_shards, seed
+        )
+
+    if num_shards is None:
+        if max_points_per_shard is not None:
+            num_shards = (
+                prepared.n_total + max_points_per_shard - 1
+            ) // max_points_per_shard
+        else:
+            num_shards = max(1, n_phi)
+    num_shards = max(1, min(num_shards, max_shards))
+
+    angle_indices: list[np.ndarray] = []
+    angle_counts: list[int] = []
+    for angle_idx in range(n_phi):
+        idx = np.where(prepared.phi_indices == angle_idx)[0]
+        rng.shuffle(idx)
+        angle_indices.append(idx)
+        angle_counts.append(int(idx.size))
+
+    angle_positions = [0] * n_phi
+    shards: list[PooledCMCData] = []
+    coverage_stats: list[float] = []
+
+    for shard_num in range(num_shards):
+        is_last_shard = shard_num == num_shards - 1
+        shard_indices_list: list[np.ndarray] = []
+        for angle_idx in range(n_phi):
+            angle_total = angle_counts[angle_idx]
+            already_used = angle_positions[angle_idx]
+            remaining_in_angle = angle_total - already_used
+            if is_last_shard:
+                n_take = remaining_in_angle
+            else:
+                target = int(angle_total / num_shards)
+                n_take = min(target, remaining_in_angle)
+                remaining_shards = num_shards - shard_num
+                n_take = max(n_take, remaining_in_angle // remaining_shards)
+            if n_take > 0:
+                start = angle_positions[angle_idx]
+                end = start + n_take
+                shard_indices_list.append(angle_indices[angle_idx][start:end])
+                angle_positions[angle_idx] = end
+
+        if not shard_indices_list:
+            continue
+        shard_all_indices = np.sort(np.concatenate(shard_indices_list))
+        shard = _build_pooled_shard(prepared, shard_all_indices)
+        coverage = shard.n_phi / n_phi
+        coverage_stats.append(coverage)
+        shards.append(shard)
+        if coverage < min_angle_coverage:
+            logger.warning(
+                "Shard %d: %d points, angle coverage %.1f%% < %.1f%% (%d/%d angles)",
+                shard_num,
+                shard.n_total,
+                coverage * 100.0,
+                min_angle_coverage * 100.0,
+                shard.n_phi,
+                n_phi,
+            )
+
+    if coverage_stats:
+        total_shard_points = sum(s.n_total for s in shards)
+        below = sum(1 for c in coverage_stats if c < min_angle_coverage)
+        logger.info(
+            "Angle-balanced sharding: %d points -> %d shards (~%d points each); "
+            "coverage min=%.1f%% mean=%.1f%% below_threshold=%d/%d",
+            prepared.n_total,
+            len(shards),
+            total_shard_points // max(1, len(shards)),
+            min(coverage_stats) * 100.0,
+            (sum(coverage_stats) / len(coverage_stats)) * 100.0,
+            below,
+            len(shards),
+        )
+    return shards
+
+
+def _build_pooled_shard(
+    prepared: PooledCMCData, shard_indices: np.ndarray
+) -> PooledCMCData:
+    """Slice ``prepared`` at ``shard_indices`` into a fresh ``PooledCMCData``.
+
+    Re-derives ``phi_unique``/``phi_indices`` and the noise scale from the
+    shard subset so the per-shard NumPyro model sees a self-consistent
+    container.
+    """
+    shard_data = prepared.data[shard_indices]
+    shard_t1 = prepared.t1[shard_indices]
+    shard_t2 = prepared.t2[shard_indices]
+    shard_phi = prepared.phi[shard_indices]
+    shard_phi_unique, shard_phi_indices = extract_phi_info(shard_phi)
+    return PooledCMCData(
+        data=shard_data,
+        t1=shard_t1,
+        t2=shard_t2,
+        phi=shard_phi,
+        phi_unique=shard_phi_unique,
+        phi_indices=shard_phi_indices,
+        n_total=int(shard_data.size),
+        n_phi=int(shard_phi_unique.size),
+        noise_scale=float(_estimate_noise_scale(shard_data)),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Legacy helpers (kept for backward compatibility)
 # ---------------------------------------------------------------------------
 
