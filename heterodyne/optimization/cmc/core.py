@@ -2606,6 +2606,220 @@ def _grid_indices(grid: np.ndarray, values: np.ndarray, *, axis: str) -> np.ndar
     return idx
 
 
+# Physics parameters whose NumPyro sample-site names match the NLSQ parameter
+# names 1:1 on the joint pooled path (original space, no z-transform).
+_TRANSPORT_TRIPLES = (
+    ("D0_ref", "alpha_ref", "D_offset_ref"),
+    ("D0_sample", "alpha_sample", "D_offset_sample"),
+)
+
+
+def _mcmc_safe_d0_component(
+    d0: float,
+    alpha: float,
+    d_offset: float,
+    q: float,
+    dt: float,
+    time_grid: np.ndarray,
+    *,
+    target_g1: float = 0.5,
+    g1_threshold: float = 0.1,
+) -> tuple[float, float] | None:
+    """Scale one transport triple if its initial D0 drives g1 → 0.
+
+    Heterodyne adaptation of homodyne ``_compute_mcmc_safe_d0`` (sampler.py).
+    Homodyne's single-component model checks one ``D0``/``alpha``/``D_offset``;
+    the heterodyne c1 product carries one ``exp(-q²∫J(t)dt)`` factor PER
+    transport component (reference and sample), so the same vanishing-gradient
+    guard is applied independently to each triple. Returns ``(new_d0,
+    new_d_offset)`` when a scaling is warranted, else ``None``. Pure NumPy —
+    runs at the I/O boundary before any JAX sampling, so the gradient-safe
+    floor convention (``jnp.where``) does not apply here.
+    """
+    if not (np.isfinite(d0) and np.isfinite(alpha) and np.isfinite(d_offset)):
+        return None
+    if time_grid is None or len(time_grid) < 2:
+        return None
+    try:
+        epsilon = 1e-10
+        time_safe = np.asarray(time_grid, dtype=np.float64) + epsilon
+        d_grid = d0 * (time_safe**alpha) + d_offset
+        d_grid = np.where(d_grid > 1e-10, d_grid, 1e-10)
+        trap_avg = 0.5 * (d_grid[:-1] + d_grid[1:])
+        cumsum = np.concatenate([[0.0], np.cumsum(trap_avg)])
+        n = len(cumsum)
+        idx_low = n // 4
+        idx_high = 3 * n // 4
+        integral_estimate = abs(cumsum[idx_high] - cumsum[idx_low])
+        prefactor = q**2 * dt
+        if prefactor <= 0.0:
+            return None
+        log_g1 = -prefactor * integral_estimate
+        g1_estimate = np.exp(max(log_g1, -700.0))
+        if g1_estimate >= g1_threshold:
+            return None
+        target_integral = -np.log(target_g1) / prefactor
+        scale_factor = (
+            target_integral / integral_estimate if integral_estimate > 0 else 0.01
+        )
+        new_d0 = max(d0 * scale_factor, 1.0)
+        new_d_offset = max(d_offset * scale_factor, -1e6)
+        return float(new_d0), float(new_d_offset)
+    except (FloatingPointError, ValueError, OverflowError):
+        return None
+
+
+def _build_joint_init_values(
+    *,
+    effective_mode: str,
+    space: ParameterSpace,
+    nlsq_results: list[NLSQResult] | None,
+    n_phi: int,
+    per_angle_contrast: np.ndarray | None,
+    per_angle_offset: np.ndarray | None,
+    noise_scale: float,
+    q: float,
+    dt: float,
+    time_grid: np.ndarray,
+) -> dict[str, float]:
+    """Build ``init_to_value`` seeds for the joint pooled model's sample sites.
+
+    Homodyne parity (``priors.build_init_values_dict`` +
+    ``sampler.run_nuts_sampling``): warm-start NUTS from the NLSQ optimum when
+    present, else registry/space defaults. The joint pooled heterodyne model
+    samples in ORIGINAL space (physics names verbatim, ``contrast_{i}`` /
+    ``offset_{i}`` per angle, plus ``sigma``) — no z-space transform, so the
+    init dict keys are the raw site names.
+
+    Sources, in priority order:
+    - Physics params: ``nlsq_results[0]`` if present AND converged, else the
+      registry ``prior_mean`` (falling back to ``space.values``).
+    - ``contrast_{i}`` / ``offset_{i}`` (individual mode only): per-angle
+      quantile estimates already computed by the caller.
+    - ``sigma``: ``noise_scale`` (the data-driven prior centre).
+
+    ``constant`` / ``constant_averaged`` skip contrast/offset (those are fixed,
+    not sampled). ``auto`` / ``averaged`` sample a single ``contrast`` /
+    ``offset``; we leave those to ``init_to_value``'s missing-site tolerance.
+    """
+    # Local import: priors.py defines clamp_params_to_interior late in the
+    # module, so a top-level import would race the partial-init circular import
+    # between core <-> priors. Imported here (mirrors the local numpyro.infer
+    # import pattern elsewhere in this module).
+    from heterodyne.optimization.cmc.priors import clamp_params_to_interior
+
+    init: dict[str, float] = {}
+
+    physics_names = [n for n in space.varying_names if n not in ("contrast", "offset")]
+
+    warmstart = (
+        nlsq_results[0]
+        if nlsq_results and getattr(nlsq_results[0], "success", False)
+        else None
+    )
+    nlsq_dict = warmstart.params_dict if warmstart is not None else {}
+
+    for name in physics_names:
+        if name in nlsq_dict and np.isfinite(nlsq_dict[name]):
+            init[name] = float(nlsq_dict[name])
+        else:
+            info = DEFAULT_REGISTRY[name]
+            seed = info.prior_mean
+            if seed is None or not np.isfinite(seed):
+                seed = space.values.get(name, info.default)
+            init[name] = float(seed)
+
+    # Shift physics seeds off the TruncatedNormal walls (homodyne ±1% margin
+    # parity; heterodyne uses the registry-aware 5% interior clamp so a chain
+    # never initialises at a reflecting bound where the log-prob is -inf and
+    # NUTS step-size adaptation collapses).
+    _phys_arr = np.array([init[n] for n in physics_names], dtype=float)
+    _phys_clamped, _ = clamp_params_to_interior(_phys_arr, physics_names)
+    for n, v in zip(physics_names, _phys_clamped, strict=True):
+        init[n] = float(v)
+
+    # Vanishing-gradient guard, per transport component (homodyne parity).
+    for d0_name, alpha_name, doff_name in _TRANSPORT_TRIPLES:
+        if d0_name in init and alpha_name in init and doff_name in init:
+            adjusted = _mcmc_safe_d0_component(
+                init[d0_name],
+                init[alpha_name],
+                init[doff_name],
+                q,
+                dt,
+                time_grid,
+            )
+            if adjusted is not None:
+                new_d0, new_doff = adjusted
+                logger.warning(
+                    "[CMC joint] MCMC-safe init: %s=%.4g causes g1→0 "
+                    "(vanishing gradients); scaling to %.4g (and %s to %.4g) "
+                    "for NUTS exploration stability.",
+                    d0_name,
+                    init[d0_name],
+                    new_d0,
+                    doff_name,
+                    new_doff,
+                )
+                init[d0_name] = new_d0
+                init[doff_name] = new_doff
+
+    if effective_mode in ("individual", "scaled"):
+        if per_angle_contrast is not None and per_angle_offset is not None:
+            # The sampled sites are contrast_{i}/offset_{i}, which are NOT in
+            # the registry — clamp against the base "contrast"/"offset" interior
+            # bounds (same 5% margin as physics) so the data-driven quantile
+            # estimates never sit on the TruncatedNormal wall (-inf log-prob).
+            for i in range(n_phi):
+                c_clamped, _ = clamp_params_to_interior(
+                    np.array([per_angle_contrast[i]], dtype=float), ["contrast"]
+                )
+                o_clamped, _ = clamp_params_to_interior(
+                    np.array([per_angle_offset[i]], dtype=float), ["offset"]
+                )
+                init[f"contrast_{i}"] = float(c_clamped[0])
+                init[f"offset_{i}"] = float(o_clamped[0])
+
+    if np.isfinite(noise_scale) and noise_scale > 0:
+        init["sigma"] = float(noise_scale)
+
+    return init
+
+
+def _create_joint_init_strategy(
+    initial_values: dict[str, float] | None,
+    config: CMCConfig,
+) -> Any:
+    """Mirror homodyne ``create_init_strategy`` for the joint pooled path.
+
+    When ``initial_values`` is non-empty, return ``init_to_value`` over those
+    sites (original-space names — the joint model samples in original space).
+    Otherwise fall back to the configured strategy (default
+    ``init_to_median``). ``init_to_value`` tolerates extra/missing sites, so
+    callers may over- or under-specify safely.
+    """
+    from numpyro.infer import initialization as numpyro_init
+
+    if initial_values:
+        logger.info(
+            "[CMC joint] init_to_value wired for %d sample sites: %s",
+            len(initial_values),
+            sorted(initial_values)[:6],
+        )
+        return numpyro_init.init_to_value(values=dict(initial_values))
+
+    fallback_map = {
+        "init_to_median": numpyro_init.init_to_median,
+        "init_to_sample": numpyro_init.init_to_sample,
+    }
+    fallback = fallback_map.get(config.init_strategy, numpyro_init.init_to_median)
+    logger.info(
+        "[CMC joint] no initial values; falling back to %s",
+        getattr(fallback, "__name__", str(fallback)),
+    )
+    return fallback()
+
+
 def _joint_pooled_nuts_run(
     *,
     effective_mode: str,
@@ -2629,6 +2843,7 @@ def _joint_pooled_nuts_run(
     keep_samples: bool = True,
     num_warmup: int | None = None,
     num_samples: int | None = None,
+    initial_values: dict[str, float] | None = None,
 ) -> CMCResult:
     """Build the pooled joint model, run one NUTS pass, assemble a CMCResult.
 
@@ -2662,10 +2877,12 @@ def _joint_pooled_nuts_run(
     )
 
     start_time = time.perf_counter()
+    init_strategy = _create_joint_init_strategy(initial_values, config)
     kernel = NUTS(
         model_callable,
         target_accept_prob=config.target_accept_prob,
         dense_mass=config.dense_mass,
+        init_strategy=init_strategy,
     )
     mcmc = MCMC(
         kernel,
@@ -2805,10 +3022,30 @@ def _run_joint_shards(
                 n_shards,
                 n_workers,
             )
+            # Pre-flight ETA so the user sees the expected wall-clock up front
+            # (the run is otherwise silent until the first shard completes).
+            # Best-effort only: a logging estimate must never derail dispatch,
+            # so missing/odd payloads simply skip the estimate.
+            _sizes = [
+                int(np.asarray(d).size)
+                for p in payloads
+                if (d := p.get("data")) is not None
+            ]
+            if _sizes:
+                _log_runtime_estimate(
+                    logger,
+                    n_shards=n_shards,
+                    n_chains=config.num_chains,
+                    n_warmup=config.num_warmup,
+                    n_samples=config.num_samples,
+                    avg_points_per_shard=sum(_sizes) // len(_sizes),
+                    n_workers=n_workers,
+                )
             results = run_joint_pooled_shards_parallel(
                 payloads,
                 n_workers=n_workers,
                 num_chains=config.num_chains,
+                per_shard_timeout=config.per_shard_timeout,
             )
             return results
         except Exception:  # noqa: BLE001 — degrade to sequential, never crash
@@ -2991,13 +3228,6 @@ def _fit_cmc_pooled(
         n_grid,
         prepared.noise_scale,
     )
-    if nlsq_results is not None:
-        logger.info(
-            "[CMC joint] NLSQ warm-start provided for %d angles "
-            "(init_to_value not yet wired; falling back to init_to_median)",
-            len(nlsq_results),
-        )
-
     # ---- Phase 4: build the joint NumPyro model via mode dispatcher ----
     space = model.param_manager.space
 
@@ -3009,30 +3239,58 @@ def _fit_cmc_pooled(
     )
     logger.info("[CMC joint] effective per-angle mode: %r", effective_mode)
 
+    # Per-angle contrast/offset quantile estimates (homodyne
+    # ``estimate_per_angle_scaling`` parity). Used both as fixed model inputs
+    # for the constant modes AND as data-driven init_to_value seeds for the
+    # sampled ``contrast_{i}`` / ``offset_{i}`` sites in individual mode.
+    per_angle_contrast = np.zeros(prepared.n_phi)
+    per_angle_offset = np.zeros(prepared.n_phi)
+    for ai in range(prepared.n_phi):
+        mask = prepared.phi_indices == ai
+        vals = prepared.data[mask]
+        if vals.size == 0:
+            per_angle_contrast[ai] = 1.0
+            per_angle_offset[ai] = 0.0
+        else:
+            per_angle_offset[ai] = float(np.quantile(vals, 0.05))
+            per_angle_contrast[ai] = (
+                float(np.quantile(vals, 0.95)) - per_angle_offset[ai]
+            )
+
     fixed_contrast_arg: np.ndarray | float | None = None
     fixed_offset_arg: np.ndarray | float | None = None
-    if effective_mode in ("constant", "constant_averaged"):
-        # Estimate per-angle contrast/offset from data quantiles. For each
-        # angle: contrast ≈ (max - min) on the meshgrid, offset ≈ min.
-        per_angle_contrast = np.zeros(prepared.n_phi)
-        per_angle_offset = np.zeros(prepared.n_phi)
-        for ai in range(prepared.n_phi):
-            mask = prepared.phi_indices == ai
-            vals = prepared.data[mask]
-            if vals.size == 0:
-                per_angle_contrast[ai] = 1.0
-                per_angle_offset[ai] = 0.0
-            else:
-                per_angle_offset[ai] = float(np.quantile(vals, 0.05))
-                per_angle_contrast[ai] = (
-                    float(np.quantile(vals, 0.95)) - per_angle_offset[ai]
-                )
-        if effective_mode == "constant":
-            fixed_contrast_arg = per_angle_contrast
-            fixed_offset_arg = per_angle_offset
-        else:
-            fixed_contrast_arg = float(per_angle_contrast.mean())
-            fixed_offset_arg = float(per_angle_offset.mean())
+    if effective_mode == "constant":
+        fixed_contrast_arg = per_angle_contrast
+        fixed_offset_arg = per_angle_offset
+    elif effective_mode == "constant_averaged":
+        fixed_contrast_arg = float(per_angle_contrast.mean())
+        fixed_offset_arg = float(per_angle_offset.mean())
+
+    # ---- NUTS warm-start init (homodyne parity: ALWAYS init_to_value) -------
+    # The joint pooled model samples in original space, so initial_values keys
+    # are the raw site names (physics params verbatim, contrast_{i}/offset_{i},
+    # sigma). Sourced from NLSQ-if-converged, else registry/space defaults, plus
+    # data-driven quantile contrast/offset. This closes the cold-start gap that
+    # caused the 82%-divergence storm on CMC-only (no-NLSQ) runs.
+    initial_values = _build_joint_init_values(
+        effective_mode=effective_mode,
+        space=space,
+        nlsq_results=nlsq_results,
+        n_phi=prepared.n_phi,
+        per_angle_contrast=per_angle_contrast,
+        per_angle_offset=per_angle_offset,
+        noise_scale=prepared.noise_scale,
+        q=float(model.q),
+        dt=float(model.dt),
+        time_grid=time_grid,
+    )
+    logger.info(
+        "[CMC joint] init_to_value seeded for %d sites (NLSQ warm-start: %s)",
+        len(initial_values),
+        "yes"
+        if (nlsq_results and getattr(nlsq_results[0], "success", False))
+        else "no",
+    )
 
     # ---- Phase 5: sharding decision (Consensus Monte Carlo, homodyne parity) ----
     # Homodyne's _fit_mcmc_jax_impl pools the data and THEN shards it, running
@@ -3068,6 +3326,7 @@ def _fit_cmc_pooled(
             rng_seed=rng_seed,
             result_num_shards=1,
             keep_samples=True,
+            initial_values=initial_values,
         )
 
     if not should_shard:
@@ -3171,6 +3430,7 @@ def _fit_cmc_pooled(
                 "keep_samples": False,
                 "num_warmup": s_warmup,
                 "num_samples": s_samples,
+                "initial_values": initial_values,
             }
         )
 

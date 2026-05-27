@@ -258,7 +258,7 @@ def test_dispatch_uses_parallel_when_workers_available(monkeypatch):
     monkeypatch.setattr(cmc_core, "_joint_pooled_nuts_run", _trivial_result)
     called = {"parallel": 0}
 
-    def _fake_parallel(payloads, *, n_workers, num_chains):
+    def _fake_parallel(payloads, *, n_workers, num_chains, per_shard_timeout=7200):
         called["parallel"] += 1
         return [_trivial_result(**p) for p in payloads]
 
@@ -286,7 +286,7 @@ def test_dispatch_falls_back_to_sequential_on_parallel_error(monkeypatch):
 
     monkeypatch.setattr(cmc_core, "_run_joint_pooled_shard_local", _counting_local)
 
-    def _boom(payloads, *, n_workers, num_chains):
+    def _boom(payloads, *, n_workers, num_chains, per_shard_timeout=7200):
         raise RuntimeError("worker pool exploded")
 
     monkeypatch.setattr(
@@ -354,9 +354,17 @@ def test_parallel_progress_path_restores_input_order(monkeypatch):
             return False
 
         def imap_unordered(self, fn, iterable):
-            # Yield completions in REVERSED order to stress the reordering.
-            for item in reversed(list(iterable)):
-                yield fn(item)
+            # Mirror multiprocessing.pool.IMapUnorderedIterator: completions are
+            # consumed via ``.next(timeout=...)``. Yield in REVERSED order to
+            # stress the reordering. timeout is ignored (results are ready).
+            completions = [fn(item) for item in reversed(list(iterable))]
+            _it = iter(completions)
+
+            class _FakeMapIter:
+                def next(self, timeout=None):
+                    return next(_it)
+
+            return _FakeMapIter()
 
     class _FakeCtx:
         def Pool(self, *a, **k):

@@ -759,12 +759,29 @@ def _run_joint_pooled_shard_indexed(
     return idx, _run_joint_pooled_shard(payload)
 
 
+def _joint_payload_param_names(payload: dict[str, Any]) -> list[str]:
+    """Reconstruct a shard's parameter-name vector from its payload.
+
+    Mirrors the ``parameter_names`` ordering built inside
+    ``_joint_pooled_nuts_run`` (physics names, then ``contrast_{i}`` /
+    ``offset_{i}`` per angle) so timed-out shards can be backfilled with a
+    correctly-shaped failed placeholder when no shard completed.
+    """
+    space = payload["space"]
+    n_phi = int(payload["n_phi"])
+    physics_names = [n for n in space.varying_names if n not in ("contrast", "offset")]
+    contrast_names = [f"contrast_{i}" for i in range(n_phi)]
+    offset_names = [f"offset_{i}" for i in range(n_phi)]
+    return physics_names + contrast_names + offset_names
+
+
 def run_joint_pooled_shards_parallel(
     payloads: list[dict[str, Any]],
     *,
     n_workers: int,
     num_chains: int,
     progress_bar: bool = True,
+    per_shard_timeout: int = 7200,
 ) -> list[Any]:
     """Run pooled-model shard payloads across a spawn process pool.
 
@@ -773,9 +790,19 @@ def run_joint_pooled_shards_parallel(
     dict for :func:`heterodyne.optimization.cmc.core._joint_pooled_nuts_run`.
     Returns the per-shard ``CMCResult`` objects in input order.
 
-    Progress is reported via a ``tqdm`` bar that advances each time a worker
-    finishes a shard (homodyne parity), so long multi-shard CMC runs surface
-    incremental completion instead of blocking silently.
+    Progress is reported two ways so long runs never block silently: a
+    ``tqdm`` bar (interactive terminals) AND periodic ``logger.info``
+    heartbeats (visible in log files, where tqdm is not). The heartbeat fires
+    every ``heartbeat`` seconds while waiting and reports elapsed time,
+    completed/total shards, and time since the last completion.
+
+    ``per_shard_timeout`` bounds the wait: if **no** shard completes within
+    ``per_shard_timeout`` seconds (every in-flight worker has exceeded the
+    budget), the pool is terminated and the remaining shards are returned as
+    failed placeholders. This prevents the het_491ee368 failure mode where a
+    divergence-storming shard ran 21 000 s (3x the 7200 s budget) unkilled.
+    Terminated shards become failed sub-posteriors that Consensus MC drops via
+    its ``convergence_passed`` gate — the run degrades, it does not hang.
     """
     total_threads = os.cpu_count() or 1
     threads_per_worker = _compute_threads_per_worker(total_threads, n_workers)
@@ -784,6 +811,13 @@ def run_joint_pooled_shards_parallel(
     results: list[Any] = [None] * n_shards
     indexed = list(enumerate(payloads))
     total_divergences = 0
+    completed = 0
+    # Heartbeat cadence: frequent enough to reassure, capped at 5 min so the
+    # log is not flooded. Always < per_shard_timeout so the budget is checked.
+    heartbeat = max(30, min(per_shard_timeout // 4, 300))
+    start = time.monotonic()
+    last_completion = start
+    timed_out = False
     with (
         ctx.Pool(
             processes=n_workers,
@@ -797,10 +831,44 @@ def run_joint_pooled_shards_parallel(
             disable=not progress_bar,
         ) as pbar,
     ):
-        for idx, result in pool.imap_unordered(
-            _run_joint_pooled_shard_indexed, indexed
-        ):
+        result_iter = pool.imap_unordered(_run_joint_pooled_shard_indexed, indexed)
+        while completed < n_shards:
+            try:
+                idx, result = result_iter.next(timeout=heartbeat)
+            except mp.TimeoutError:
+                now = time.monotonic()
+                since_last = now - last_completion
+                logger.info(
+                    "[CMC joint] heartbeat: %d/%d shards complete, %.0fs elapsed, "
+                    "%.0fs since last completion (%d workers, timeout=%ds)",
+                    completed,
+                    n_shards,
+                    now - start,
+                    since_last,
+                    n_workers,
+                    per_shard_timeout,
+                )
+                if per_shard_timeout > 0 and since_last > per_shard_timeout:
+                    logger.error(
+                        "[CMC joint] per_shard_timeout=%ds exceeded: no shard "
+                        "completed in %.0fs; terminating %d in-flight workers. "
+                        "%d/%d shards done; the rest are marked failed and dropped "
+                        "from consensus. Likely cause: divergence storm from a "
+                        "poor warm-start — run NLSQ first (optimizer: both) or "
+                        "lower max_points_per_shard.",
+                        per_shard_timeout,
+                        since_last,
+                        n_workers,
+                        completed,
+                        n_shards,
+                    )
+                    pool.terminate()
+                    timed_out = True
+                    break
+                continue
             results[idx] = result
+            completed += 1
+            last_completion = time.monotonic()
             total_divergences += int(getattr(result, "divergences", 0) or 0)
             pbar.update(1)
             pbar.set_postfix(
@@ -811,11 +879,25 @@ def run_joint_pooled_shards_parallel(
             logger.info(
                 "[CMC joint] shard %d complete (%d/%d; divergences=%d, status=%s)",
                 idx,
-                int(pbar.n),
+                completed,
                 n_shards,
                 int(getattr(result, "divergences", 0) or 0),
                 getattr(result, "convergence_status", "unknown"),
             )
+
+    if timed_out:
+        # Backfill any shard the terminated pool never returned with a failed
+        # placeholder so Consensus MC downstream sees a full, correctly-shaped
+        # list (no ``None``); failed shards are dropped by the convergence gate.
+        from heterodyne.optimization.cmc.core import _create_failed_result
+
+        done_names = next((r.parameter_names for r in results if r is not None), None)
+        for i, r in enumerate(results):
+            if r is None:
+                names = done_names or _joint_payload_param_names(payloads[i])
+                results[i] = _create_failed_result(
+                    list(names), "shard terminated: per_shard_timeout exceeded"
+                )
     return results
 
 
