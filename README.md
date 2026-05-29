@@ -4,6 +4,11 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue)](https://www.python.org/)
 [![DOI](https://zenodo.org/badge/DOI/10.1073/pnas.2401162121.svg)](https://doi.org/10.1073/pnas.2401162121)
 
+> [!IMPORTANT]
+> **Deprecation Notice**: The `homodyne` and `heterodyne` packages have been merged into a single consolidated ecosystem: **[xpcsjax](https://github.com/imewei/xpcsjax)**.
+> This repository is now deprecated and maintained primarily for archival and reproducibility of the original PNAS 2024 and 2025 papers.
+> All active development, performance optimizations, and future updates have moved to **xpcsjax**. We strongly recommend migrating your workflows to the new package.
+
 CPU-optimized JAX package for heterodyne X-ray Photon Correlation Spectroscopy (XPCS) analysis
 under nonequilibrium conditions, implementing the theoretical framework from
 [He et al. PNAS 2024](https://doi.org/10.1073/pnas.2401162121) and
