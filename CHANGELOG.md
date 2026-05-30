@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-05-30
+
 ### Performance
 
 - **Jacobian:** Switch to forward-mode AD (`jacfwd`) — 211x speedup over reverse-mode (`81e0455`).
@@ -62,6 +64,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Improved
 - **Coverage:** Improved test coverage from 84% to 98% (`91d9ab8`).
 - **Architecture docs:** Five architecture docs (overview, NLSQ, CMC, data-handler, physical-model) updated with three-brain consensus review — corrected 24 documented gaps (`db9f2e6`, `3d9a458`).
-
-## [2.0.0] - 2026-01-24
-*Initial release (v2.0).*
