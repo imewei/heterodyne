@@ -23,8 +23,16 @@ class TestDocumentationFilesExist:
 
     @pytest.mark.unit
     def test_claude_md_exists(self) -> None:
-        """CLAUDE.md project instructions exist."""
-        assert (PROJECT_ROOT / "CLAUDE.md").is_file()
+        """CLAUDE.md project instructions are valid when present.
+
+        CLAUDE.md is intentionally gitignored (developer tooling config), so it
+        is absent from clean checkouts such as CI. Validate its content when it
+        exists locally, but skip rather than fail when it is not checked out.
+        """
+        claude_md = PROJECT_ROOT / "CLAUDE.md"
+        if not claude_md.is_file():
+            pytest.skip("CLAUDE.md is gitignored and absent from this checkout")
+        assert claude_md.stat().st_size > 0
 
     @pytest.mark.unit
     def test_readme_exists(self) -> None:

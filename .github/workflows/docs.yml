@@ -28,7 +28,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Build documentation
-        run: uv run sphinx-build docs docs/_build -W --keep-going
+        run: uv run sphinx-build docs/source docs/_build -W --keep-going
 
       - name: Upload docs artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
