@@ -216,23 +216,19 @@ strict_equality = true
 module = [
     "jax.*",
     "nlsq.*",
-    "evosax.*",
     "numpyro.*",
-    "blackjax.*",
     "arviz.*",
     "h5py.*",
     "psutil.*",
     "matplotlib.*",
     "datashader.*",
-    "xarray.*",
     "scipy.*",
-    "zstd.*",
     "sklearn.*",
 ]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["tests.*", "scripts.*", "docs.*"]
+module = ["tests.*"]
 follow_imports = "skip"
 ignore_errors = true
 
