@@ -1,1 +1,1 @@
-/home/wei/Documents/GitHub/heterodyne/docs/architecture/physical-model-architecture.md
+../../architecture/physical-model-architecture.md

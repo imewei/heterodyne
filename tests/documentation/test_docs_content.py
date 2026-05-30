@@ -70,7 +70,10 @@ class TestClaudeMdContent:
 
     @pytest.fixture
     def claude_md(self) -> str:
-        return (PROJECT_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+        path = PROJECT_ROOT / "CLAUDE.md"
+        if not path.is_file():
+            pytest.skip("CLAUDE.md is gitignored and absent from this checkout")
+        return path.read_text(encoding="utf-8")
 
     @pytest.mark.unit
     def test_mentions_14_parameters(self, claude_md: str) -> None:

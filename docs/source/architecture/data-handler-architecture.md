@@ -1,1 +1,1 @@
-/home/wei/Documents/GitHub/heterodyne/docs/architecture/data-handler-architecture.md
+../../architecture/data-handler-architecture.md

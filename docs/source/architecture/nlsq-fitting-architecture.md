@@ -1,1 +1,1 @@
-/home/wei/Documents/GitHub/heterodyne/docs/architecture/nlsq-fitting-architecture.md
+../../architecture/nlsq-fitting-architecture.md
