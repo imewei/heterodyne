@@ -71,3 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Improved
 - **Coverage:** Improved test coverage from 84% to 98% (`91d9ab8`).
 - **Architecture docs:** Five architecture docs (overview, NLSQ, CMC, data-handler, physical-model) updated with three-brain consensus review — corrected 24 documented gaps (`db9f2e6`, `3d9a458`).
+
+[Unreleased]: https://github.com/imewei/heterodyne/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/imewei/heterodyne/compare/v2.0.0...v2.0.1
+[2.0.0]: https://github.com/imewei/heterodyne/releases/tag/v2.0.0
