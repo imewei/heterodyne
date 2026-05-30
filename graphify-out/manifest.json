@@ -36,8 +36,8 @@
     "hash": "a6aef52fca9245f496c8eeb4d7830788"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/documentation/test_docs_content.py": {
-    "mtime": 1780113494.6732814,
-    "hash": "18b3175b148b01ef7712274dd62db8e6"
+    "mtime": 1780115005.8970273,
+    "hash": "14388217f11937ea9391eaa402312fbf"
   },
   "/home/wei/Documents/GitHub/heterodyne/tests/documentation/__init__.py": {
     "mtime": 1774638875.6988277,
@@ -748,8 +748,8 @@
     "hash": "ebfce5d1c5ddeaa1c94b359f1cfd434d"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/_version.py": {
-    "mtime": 1780112833.2625885,
-    "hash": "63c9f22c638351d8fbd6e5c4fc24c116"
+    "mtime": 1780115030.913035,
+    "hash": "8f7e72bafe6ac7caa941cf948f270011"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/uninstall_scripts.py": {
     "mtime": 1779235242.465534,
@@ -964,8 +964,8 @@
     "hash": "1cf22169859ec08070ea50aa2c08dc49"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/result_validator.py": {
-    "mtime": 1779234252.526912,
-    "hash": "75a74670e1c232c839eca9262e07a41b"
+    "mtime": 1780115469.707401,
+    "hash": "301b5c820e03d2e858f737d1365de566"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/validation/convergence.py": {
     "mtime": 1773371305.7299628,
