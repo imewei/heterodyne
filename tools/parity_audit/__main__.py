@@ -138,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     p_run.set_defaults(func=_cmd_run_all)
 
     args = parser.parse_args(argv)
-    return args.func(args)
+    return int(args.func(args))
 
 
 if __name__ == "__main__":

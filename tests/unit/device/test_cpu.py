@@ -646,7 +646,7 @@ class TestDetectLinuxPhysicalCoresFromSysfs:
     ) -> None:
         """Set up mock CPU topology dirs returning (package_id, core_id) pairs."""
         dirs = []
-        for i, (pkg, core) in enumerate(entries):
+        for _i, (pkg, core) in enumerate(entries):
             cpu_dir = MagicMock()
             topo_dir = MagicMock()
             cpu_dir.__truediv__ = MagicMock(return_value=topo_dir)

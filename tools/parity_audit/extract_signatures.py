@@ -43,10 +43,10 @@ def canonical_signature(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     elif args.kwonlyargs:
         parts.append("*")
 
-    for arg, default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
+    for arg, kw_default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
         ann = f": {_unparse(arg.annotation)}" if arg.annotation else ""
-        if default is not None:
-            parts.append(f"{arg.arg}{ann} = {_unparse(default)}")
+        if kw_default is not None:
+            parts.append(f"{arg.arg}{ann} = {_unparse(kw_default)}")
         else:
             parts.append(f"{arg.arg}{ann}")
 
