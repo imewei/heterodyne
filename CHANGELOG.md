@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-05-30
+
+### CI / Packaging
+- **Release pipeline:** Auto-publish to PyPI via Trusted Publishing (OIDC) — no stored API token. Split `release.yml` into least-privilege `build`, `pypi-publish` (`id-token: write`), and `github-release` (`contents: write`) jobs sharing one set of built artifacts.
+- Install Qt system libraries (`libegl1`, `libgl1`, `libxkbcommon0`, `libdbus-1-3`) before release smoke tests so the headless `pytestqt` import no longer crashes at configure time.
+- Attach only the wheel and sdist to GitHub Releases (`dist/*.whl`, `dist/*.tar.gz`) instead of the broad `dist/*` glob.
+
 ## [2.0.0] - 2026-05-30
 
 ### Performance
