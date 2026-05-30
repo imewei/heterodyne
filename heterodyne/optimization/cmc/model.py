@@ -336,6 +336,7 @@ def get_heterodyne_pooled_model_for_mode(
     ``NUTS``.
 
     Modes:
+
     - ``"individual"`` / ``"scaled"`` → :func:`xpcs_model_heterodyne_scaled`
       (per-angle sampled contrast/offset).
     - ``"constant"`` → :func:`xpcs_model_heterodyne_constant`. Requires

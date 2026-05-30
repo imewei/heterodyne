@@ -824,8 +824,8 @@
     "hash": "5a1d7cea95d6663ebfa560f61900cb2c"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/fourier_reparam.py": {
-    "mtime": 1779298903.1069775,
-    "hash": "6189523e854cc38baf6f4c3ed7cbac04"
+    "mtime": 1780101515.784428,
+    "hash": "c8013aa017e2748a9b24240ca55de36f"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/nlsq/adapter.py": {
     "mtime": 1779233643.1612797,
@@ -992,8 +992,8 @@
     "hash": "f57f0d91af83f7d5d66ae8a65e51f09a"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/model.py": {
-    "mtime": 1779384816.672164,
-    "hash": "c219815d6f2191a847af8a88065ad708"
+    "mtime": 1780101505.8455126,
+    "hash": "bbc11efe7b9423fbda90f01b3da849ca"
   },
   "/home/wei/Documents/GitHub/heterodyne/heterodyne/optimization/cmc/sampler.py": {
     "mtime": 1779217110.2104979,
@@ -1572,8 +1572,8 @@
     "hash": "c3dabfd6497178d7e33da7fdda0659a6"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/architecture.rst": {
-    "mtime": 1773303273.5119112,
-    "hash": "2cf5d56df60d5e8834dd22f968766c95"
+    "mtime": 1780101549.065149,
+    "hash": "19a3ef471cf259d4b8811464320c6f60"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/developer/contributing_guide.rst": {
     "mtime": 1773303231.7416804,
@@ -1640,8 +1640,8 @@
     "hash": "bcd877734bce2445d244d7f104ae777a"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/computational_methods.rst": {
-    "mtime": 1773319618.4094498,
-    "hash": "a4e26d502824a7f46f02c0cd908eefb2"
+    "mtime": 1780101554.5381038,
+    "hash": "81f6eaf0a2f70271df7d21a783f265cb"
   },
   "/home/wei/Documents/GitHub/heterodyne/docs/source/theory/heterodyne_scattering.rst": {
     "mtime": 1773427448.4475353,

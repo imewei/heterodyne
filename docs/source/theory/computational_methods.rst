@@ -1,4 +1,5 @@
 .. _computational-methods:
+.. _theory_computational_methods:
 
 =======================
 Computational Methods

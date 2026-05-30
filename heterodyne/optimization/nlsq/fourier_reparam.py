@@ -50,6 +50,7 @@ class FourierReparamConfig:
 
     Attributes:
         mode: Per-angle parameter mode (mirrors NLSQConfig.per_angle_mode):
+
             - "individual": Use n_phi independent contrast/offset values
             - "independent": Legacy alias for "individual" (normalised in
               __post_init__)
