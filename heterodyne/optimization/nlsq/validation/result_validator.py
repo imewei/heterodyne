@@ -148,17 +148,24 @@ def check_covariance_health(result: NLSQResult) -> list[str]:
         sv = np.linalg.svd(cov, compute_uv=False)
         sv_max = float(sv[0])
         sv_min = float(sv[-1])
-        if sv_min > 0.0:
+        # Numerical singularity is judged against a relative rank tolerance
+        # (sv_max * max(shape) * eps, matching np.linalg.matrix_rank) rather than
+        # an exact sv_min > 0 test: a genuinely rank-deficient matrix can return a
+        # tiny positive smallest singular value from roundoff, and that roundoff is
+        # backend-dependent (e.g. macOS Accelerate vs Linux OpenBLAS).
+        eps = float(np.finfo(np.result_type(cov.dtype, np.float64)).eps)
+        tol = sv_max * max(cov.shape) * eps
+        if sv_min <= tol:
+            messages.append(
+                "Covariance matrix is singular (zero or negative singular value)."
+            )
+        else:
             cond = sv_max / sv_min
             if cond > 1e10:
                 messages.append(
                     f"Ill-conditioned covariance matrix (condition number={cond:.2e}); "
                     "parameter correlations may be unreliable."
                 )
-        else:
-            messages.append(
-                "Covariance matrix is singular (zero or negative singular value)."
-            )
     except np.linalg.LinAlgError:
         messages.append("SVD of covariance matrix failed; matrix may be degenerate.")
 
